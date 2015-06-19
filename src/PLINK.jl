@@ -7,6 +7,7 @@ import Base.==
 import Base.isequal
 import Base.mean
 import Base.copy
+import NumericExtensions.sumsq
 
 export BEDFile
 export decompress_genotypes!
@@ -46,12 +47,12 @@ const MNUM2  = convert(Int8,27)
 # that the compressed matrix is in column-major (SNP-major) format.
 # Row-major (case-major) format is not supported.
 immutable BEDFile
-	x::DenseArray{Int8,1}	# compressed genotypes for genotype matrix X
-	xt::DenseArray{Int8,1}	# compressed genotypes for TRANSPOSED genotype matrix X'
-	n::Int					# number of cases (people) in uncompressed genotype matrix 
-	p::Int					# number of predictors (SNPs) in uncompressed genotype matrix
-	blocksize::Int			# number of bytes per compressed column of genotype matrix
-	tblocksize::Int			# number of bytes per compressed column of TRANSPOSED genotype matrix
+	x::DenseArray{Int8,1}   # compressed genotypes for genotype matrix X
+	xt::DenseArray{Int8,1}  # compressed genotypes for TRANSPOSED genotype matrix X'
+	n::Int                  # number of cases (people) in uncompressed genotype matrix 
+	p::Int                  # number of predictors (SNPs) in uncompressed genotype matrix
+	blocksize::Int          # number of bytes per compressed column of genotype matrix
+	tblocksize::Int         # number of bytes per compressed column of TRANSPOSED genotype matrix
 
 	BEDFile(x,xt,n,p,blocksize,tblocksize) = new(x,xt,n,p,blocksize,tblocksize)
 end
@@ -119,8 +120,19 @@ end
 copy(x::BEDFile) = BEDFile(x.x, x.xt, x.n, x.p, x.blocksize, x.tblocksize)
 
 # COMPARE DIFFERENT BEDFILE OBJECTS
-==(x::BEDFile, y::BEDFile) = x.x == y.x && x.xt == y.xt && x.n == y.n && x.p == y.p && x.blocksize == y.blocksize && x.tblocksize == y.tblocksize
-isequal(x::BEDFile, y::BEDFile) = isequal(x.x, y.x) && isequal(x.xt, y.xt) && isequal(x.n, y.n) && x.p == y.p && x.blocksize == y.blocksize && isequal(x.tblocksize, y.tblocksize)
+==(x::BEDFile, y::BEDFile) = x.x  == y.x         && 
+                             x.xt == y.xt        && 
+							 x.n  == y.n         && 
+							 x.p  == y.p         && 
+					  x.blocksize == y.blocksize && 
+					 x.tblocksize == y.tblocksize
+
+isequal(x::BEDFile, y::BEDFile) = isequal(x.x, y.x)   && 
+                                  isequal(x.xt, y.xt) && 
+								  isequal(x.n, y.n)   && 
+								  isequal(x.p, y.p)   && 
+					isequal(x.blocksize, y.blocksize) && 
+				  isequal(x.tblocksize, y.tblocksize)
 
 # COMPUTE MINOR ALLELE FREQUENCIES
 #
@@ -202,6 +214,8 @@ function map_bitshift(case::Int)
 	end
 end
 
+
+### NOT WORKING YET!! ###
 # SUBSET A PLINK BEDFILE
 #
 # This function will subset a compressed matrix and contstruct a new BEDFile object from it.
@@ -215,6 +229,7 @@ end
 # klkeys@g.ucla.edu
 function subset_bedfile(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
 	
+	# set to "false" for debugging
 	quiet = true 
 
 	# get paramters of new BEDFile 
@@ -223,8 +238,12 @@ function subset_bedfile(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
 	yblock  = iceil(yn / 4)
 	ytblock = iceil(yp / 4)
 
+	# preallocate space for new matrices
+	y  = zeros(Int8, yp*yblock)
+	yt = zeros(Int8, yn*ytblock)
+
 	# if the subset is degenerate, then return a degenerate BEDFile
-	(yn == 0 || yp == 0 || yblock == 0) && return BEDFile(zeros(Int8,yp*yblock),zeros(Int8,yn*ytblock),yn,yp,yblock,ytblock)
+	(yn == 0 || yp == 0 || yblock == 0) && return BEDFile(y,yt,yn,yp,yblock,ytblock)
 
 #	println("output compressed matrix will have ", yn, " cases.")
 #	println("output compressed matrix will have ", yp, " predictors.")
@@ -235,9 +254,6 @@ function subset_bedfile(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
 	yn <= x.n || throw(ArgumentError("Argument rowidx indexes more rows than are available in x"))
 	yp <= x.p || throw(ArgumentError("Argument colidx indexes more columns than are available in x"))
 
-	# preallocate space for new matrices
-	y  = zeros(Int8, yp*yblock)
-	yt = zeros(Int8, yn*ytblock)
 
 	# new begin to fill y
 	# initialize an iterator to index y
@@ -266,21 +282,22 @@ function subset_bedfile(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
 
 					quiet || println("moving genotype for case = ", case, " and snp = ", snp)
 
-					# obtain the bitwise representation of the current number
-					genotype_block = x.x[(snp-1)*x.blocksize + iceil(case/4)]
-					
-					quiet || println("genotype block equals ", genotype_block)
-
-					# loop over the bit representation of the Int8 number
-					k = map_bitshift(case)
-
-					quiet || println("bitshift is k = ", k, " bits to the right")
-
-					# use bitshifting to push the two relevant bits to the right
-					# then mask using the Int8 number 3, with bit representation "00000011"
-					# performing the bitwise AND with 3 masks the first six bits and preserves the last two
-					# we can now interpret the "genotype" result as one of four possible Int8 numbers
-					genotype = (genotype_block >>> k) & THREE8
+#					# obtain the bitwise representation of the current number
+#					genotype_block = x.x[(snp-1)*x.blocksize + iceil(case/4)]
+#					
+#					quiet || println("genotype block equals ", genotype_block)
+#
+#					# loop over the bit representation of the Int8 number
+#					k = map_bitshift(case)
+#
+#					quiet || println("bitshift is k = ", k, " bits to the right")
+#
+#					# use bitshifting to push the two relevant bits to the right
+#					# then mask using the Int8 number 3, with bit representation "00000011"
+#					# performing the bitwise AND with 3 masks the first six bits and preserves the last two
+#					# we can now interpret the "genotype" result as one of four possible Int8 numbers
+#					genotype = (genotype_block >>> k) & THREE8
+					genotype = get_index(x,case,snp)
 
 					# new_block stores the Int8 that we will eventually put in y
 					# add new genotypes to it from the right
@@ -442,6 +459,23 @@ end
 
 
 
+# INDEX A COMPRESSED BEDFILE MATRIX
+#
+# This subroutine succinctly extracts the dosage at the given case and SNP.
+#
+# Arguments:
+# -- x is the BEDfile object that contains the compressed n x p design matrix X.
+# -- case is the index of the current case.
+# -- snp is the index of the current SNP.
+#
+# coded by Kevin L. Keys (2015)
+# klkeys@g.ucla.edu
+function get_index(x::BEDFile, case::Int, snp::Int)
+	genotype_block = x.x[(snp-1)*x.blocksize + iceil(case/4)]
+	k = map_bitshift(case)
+	genotype = (genotype_block >>> k) & THREE8
+	return interpret_genotype(genotype)
+end
 
 # INTERPRET BIT-REPRESENTATION OF GENOTYPES
 #
@@ -503,47 +537,25 @@ end
 #
 # Arguments:
 # -- y is the matrix to fill with (centered) dosages.
-# -- x is the BEDfile object that contains the compressed n x p design matrix.
+# -- x is the BEDfile object that contains the compressed n x p design matrix X.
 # -- snp is the current SNP (predictor) to extract.
+# -- means is an array of column means for X.
+# -- invstds is an array of reciprocal column standard deviations for X.
 #
 # coded by Kevin L. Keys and Kenneth Lange (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!(y::DenseArray{Float64,1}, x::BEDFile, idx::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1})
-
-	# set iterators
-	i = 1
-	j = 1
-	m = means[idx]
-	d = invstds[idx]
+function decompress_genotypes!(y::DenseArray{Float64,1}, x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1})
+	m = means[snp]
+	d = invstds[snp]
 	t = 0.0
-	@inbounds while i <= x.n 
-
-		# obtain the bitwise representation of the current number
-		genotype_block = x.x[(idx-1)*x.blocksize + j]
-
-		# loop over the bit representation of the Int8 number
-		# use bitshifting to push the two relevant bits to the right
-		# then mask using the Int8 number 3, with bit representation "00000011"
-		# performing the bitwise AND with 3 masks the first six bits and preserves the last two
-		# we can now interpret the "genotype" result as one of four possible Int8 numbers
-		# use interpret_genotype() to translate those numbers into -1.0, 0.0, 1.0, or NaN
-		@inbounds for k = 0:2:6
-			genotype = (genotype_block >>> k) & THREE8
-			t        = interpret_genotype(genotype)
-			y[i]     = ifelse(isnan(t), 0.0, (t - m)*d)
-			i       += 1
-
-			# quit if at any point we exceed the number of cases
-			i > x.n && return y 
-		end
-
-		# increment the counter that walks down the vector x
-		# will proceed to the next four genotypes
-		j += 1
+	@inbounds for case = 1:x.n
+		t       = get_index(x,case,snp) 
+		y[case] = ifelse(isnan(t), 0.0, (t - m)*d)
 	end
-
 	return y 
 end
+
+
 
 # WRAPPER FOR DECOMPRESS_GENOTYPES!
 #
@@ -555,9 +567,9 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes(x::BEDFile, snp::Int)
-	y = zeros(x.n)
-	decompress_genotypes!(y,x,snp)
+function decompress_genotypes(x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}; shared::Bool = true)
+	y = ifelse(shared, SharedArray(Float64, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(x.n))
+	decompress_genotypes!(y,x,snp,means,invstds)
 	return y
 end
 
@@ -619,7 +631,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::BitArray{1}; y::DenseArray{Float64,1} = SharedArray(Float64, x.n), means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means))
+function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::BitArray{1}; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means))
 
 	# get dimensions of matrix to fill 
 	const (n,p) = size(Y)
@@ -632,30 +644,30 @@ function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::Bi
 	# counter to ensure that we do not attempt to overfill Y
 	current_col = 0
 
-	@inbounds for i = 1:x.p
-		
+	@inbounds for snp = 1:x.p
+
 		# use this column?
-		if indices[i]
+		if indices[snp]
 
 			# add to counter
 			current_col += 1
 
-			# decompress the genotypes into y
-			decompress_genotypes!(y, x, i, means, invstds)
+			# extract column mean, inv std
+			m = means[snp]
+			d = invstds[snp]
 
-			# copy y into Y
-			@inbounds @simd for j = 1:n
-				Y[j,current_col] = y[j]
+			@inbounds for case = 1:n
+				t = get_index(x,case,snp)
+				Y[case,current_col] = ifelse(isnan(t), 0.0, (t - m)*d)
 			end
 
+			# quit when Y is filled
 			current_col == p && return Y
 		end
-
 	end 
 
 	return Y 
 end
-
 
 
 
@@ -687,38 +699,16 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function sumsq(x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
-	i = 1	# count number of people
-	j = 1	# count number of bytes 
 	s = 0.0	# accumulation variable, will eventually equal dot(y,z)
 	t = 0.0 # temp variable, output of interpret_genotype
 	m = means[snp]
 	d = invstds[snp]
 
 	# loop over all n individuals
-	@inbounds while i <= x.n
-
-		# grab next byte (4 genotypes) 
-		genotype_block = x.x[(snp-1)*x.blocksize + j]
-
-		# map each of up to 4 genotypes into -1,0,1,NaN
-		# variable s accumulates squares of genotypes
-		# increment i to keep track of the number of people n
-		# if i ever exceeds n, then we are done
-		@inbounds for k = 0:2:6
-			genotype = (genotype_block >>> k) & THREE8
-			t        = interpret_genotype(genotype)
-			if isnan(t)
-				t = 0.0
-			else
-				t = (t - m)*d
-			end
-			s += t*t 
-			i += 1 
-			i > x.n && return s
-		end
-
-		# proceed to next byte
-		j += 1
+	@inbounds for case = 1:x.n
+		t = get_index(x,case,snp)
+		t = ifelse(isnan(t), 0.0, (t - m)*d)
+		s += t*t 
 	end
 
 	return s
@@ -736,8 +726,8 @@ end
 # klkeys@g.ucla.edu
 function sumsq!(y::DenseArray{Float64,1}, x::BEDFile, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1})
 	x.p == length(y) || throw(DimensionMismatch("y must have one row for every column of x"))
-	@sync @inbounds @parallel for i = 1:x.p
-		y[i] = sumsq(x,i,means,invstds)
+	@sync @inbounds @parallel for snp = 1:x.p
+		y[snp] = sumsq(x,snp,means,invstds)
 	end
 	return y
 end
@@ -801,31 +791,16 @@ function mean_col(x::BEDFile, snp::Int)
 	u = 0.0	# count the number of people
 
 	# loop over all n individuals
-	@inbounds while i <= x.n
+	@inbounds for case = 1:x.n
+		t = get_index(x,case,snp)
 
-		# grab next byte (4 genotypes) 
-		genotype_block = x.x[(snp-1)*x.blocksize + j]
-
-		# map each of up to 4 genotypes into -1,0,1,NaN
-		# variable s accumulates squares of genotypes
-		# increment i to keep track of the number of people n
-		# if i ever exceeds n, then we are done
-		@inbounds for k = 0:2:6
-			genotype  = (genotype_block >>> k) & THREE8
-			t         = interpret_genotype(genotype)
-			# ensure that we do not count NaNs
-			if isfinite(t)
-				s += t 
-				u += 1.0
-			end
-			i += 1 
-			i > x.n && return s /= u 
+		# ensure that we do not count NaNs
+		if isfinite(t)
+			s += t 
+			u += 1.0
 		end
-		
-		# proceed to next byte
-		j += 1
 	end
-
+		
 	# now divide s by u to get column mean and return
 	return s /= u
 end
@@ -865,37 +840,20 @@ end
 
 
 function invstd_col(x::BEDFile, snp::Int, means::DenseArray{Float64,1})
-	i = 1			# count number of people
-	j = 1			# count number of bytes 
 	s = 0.0			# accumulation variable, will eventually equal mean(x,col) for current col 
 	t = 0.0 		# temp variable, output of interpret_genotype
 	u = 0.0			# count the number of people
 	m = means[snp]	# mean of current column
 
 	# loop over all n individuals
-	@inbounds while i <= x.n
+	@inbounds for case = 1:x.n
+		t = get_index(x,case,snp)
 
-		# grab next byte (4 genotypes) 
-		genotype_block = x.x[(snp-1)*x.blocksize + j]
-
-		# map each of up to 4 genotypes into -1,0,1,NaN
-		# variable s accumulates squares of genotypes
-		# increment i to keep track of the number of people n
-		# if i ever exceeds n, then we are done
-		@inbounds for k = 0:2:6
-			genotype  = (genotype_block >>> k) & THREE8
-			t         = interpret_genotype(genotype)
-			# ensure that we do not count NaNs
-			if isfinite(t) 
-				s        += (t - m)^2 
-				u        += 1.0
-			end
-			i += 1 
-			i > x.n && return ifelse(s <= 0.0, 0.0, sqrt((u - 1.0) / s)) 
+		# ensure that we do not count NaNs
+		if isfinite(t) 
+			s        += (t - m)^2 
+			u        += 1.0
 		end
-		
-		# proceed to next byte
-		j += 1
 	end
 
 	# now compute the std = sqrt(s) / (u - 1))   
@@ -1073,28 +1031,21 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function dot(x::BEDFile, y::DenseArray{Float64,1}, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
-	i = 1
-	j = 1
 	s = 0.0		# accumulation variable, will eventually equal dot(y,z)
 	t = 0.0		# store interpreted genotype
 	m = means[snp]
 	d = invstds[snp]
-	@inbounds while i <= x.n
-		genotype_block = x.x[(snp-1)*x.blocksize + j]
-		@inbounds for k = 0:2:6
-			genotype = (genotype_block >>> k) & THREE8
-			t        = interpret_genotype(genotype)
-			# handle exceptions on t
-			if isnan(t)
-				t = 0.0
-			else
-				t  = (t - m)
-				s += y[i] * t 
-			end
-			i       += 1 
-			i > x.n && return s*d 
+
+	# loop over all individuals
+	@inbounds for case = 1:x.n
+		t = get_index(x,case,snp)
+		# handle exceptions on t
+		if isnan(t)
+			t = 0.0
+		else
+			t  = (t - m)
+			s += y[case] * t 
 		end
-		j += 1
 	end
 
 	# return the (normalized) dot product 
@@ -1120,15 +1071,15 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function dott(x::BEDFile, b::DenseArray{Float64,1}, case::Int, indices::BitArray{1}, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
-	i = 1
+	snp = 1
 	j = 1
 	k = 0
 	s = 0.0		# accumulation variable, will eventually equal dot(y,z)
 	t = 0.0		# store interpreted genotype
-	@inbounds while i <= x.p
+	@inbounds while snp <= x.p 
 
 		# if current index of b is FALSE, then skip it since it does not contribute to Xb
-		if indices[i] 
+		if indices[snp] 
 			genotype_block = x.xt[(case-1)*x.tblocksize + j]
 			genotype       = (genotype_block >>> k) & THREE8
 			t              = interpret_genotype(genotype)
@@ -1137,20 +1088,20 @@ function dott(x::BEDFile, b::DenseArray{Float64,1}, case::Int, indices::BitArray
 			if isnan(t)
 				t = 0.0
 			else
-				t  = (t - means[i]) * invstds[i] 
-				s += b[i] * t 
+				t  = (t - means[snp]) * invstds[snp] 
+				s += b[snp] * t 
 			end
 
-			i += 1 
-			i > x.p && return s 
+			snp += 1 
+			snp > x.p && return s 
 			k += 2
 			if k > 6
 				k  = 0
 				j += 1
 			end
 		else
-			i += 1
-			i > x.p && return s 
+			snp += 1
+			snp > x.p && return s 
 			k += 2
 			if k > 6
 				k  = 0
@@ -1187,8 +1138,8 @@ function xb!(Xb::DenseArray{Float64,1}, x::BEDFile, b::DenseArray{Float64,1}, in
 	k == sum(indices) || throw(ArgumentError("k != sum(indices)"))
 
 	# loop over the desired number of predictors 
-	@sync @inbounds @parallel for i = 1:x.n
-		Xb[i] = dott(x, b, i, indices, means, invstds)	
+	@sync @inbounds @parallel for case = 1:x.n
+		Xb[case] = dott(x, b, case, indices, means, invstds)	
 	end
 
 	return Xb
@@ -1219,12 +1170,6 @@ function xb(x::BEDFile, b::DenseArray{Float64,1}, indices::BitArray{1}, k::Int; 
 end
 
 
-function xb(x::BEDFile, b::DenseArray{Float64,1}, indices::BitArray{1}, k::Int; shared::Bool = true, means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
-	Xb = ifelse(shared, SharedArray(Float64, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(x.n))
-	xb!(Xb,x,b,indices,k, means=means, invstds=invstds)
-	return Xb
-end
-
 # PERFORM X'Y, OR A TRANSPOSED MATRIX-VECTOR PRODUCT
 #
 # This function performs a general matrix-vector multiply with a transposed matrix.
@@ -1248,9 +1193,8 @@ function xty!(Xty::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}; 
 	x.n == length(y)   || throw(ArgumentError("Argument y has $(length(y)) elements but should have $(x.n) of them!"))
 
 	# loop over the desired number of predictors 
-	# i = current SNP
-	@sync @inbounds @parallel for i = 1:x.p
-		Xty[i] = dot(x,y,i,means,invstds)
+	@sync @inbounds @parallel for snp = 1:x.p
+		Xty[snp] = dot(x,y,snp,means,invstds)
 	end
 
 	return Xty

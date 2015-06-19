@@ -79,7 +79,6 @@ colidx = trues(num_snps)
 rowidx = trues(num_case)
 # this tests the indexed decompression
 for j = 0:num_snps
-	println("testing indexed decompression for $j columns")
 	colidx = trues(num_snps)
 	colidx[1:j] = false
 	Y2          = SharedArray(Float64, x1.n, sum(colidx))
