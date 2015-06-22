@@ -5,6 +5,9 @@ addprocs(3)
 @everywhere using PLINK
 @everywhere using Base.Test
 
+# use this epsilon for comparisons of approximate equality
+const my_eps = 4.0*eps()
+
 #############################
 ### test the constructors ###
 #############################
@@ -72,34 +75,39 @@ const Yt = Y'
 # this tests the full decompression routine
 Y1 = SharedArray(Float64, num_case, num_snps)
 decompress_genotypes!(Y1,x1, means=means, invstds=invstds)
-@test isequal(Y,Y1) 
+
 
 Y2 = SharedArray(Float64,0,0)
 colidx = trues(num_snps)
 rowidx = trues(num_case)
 # this tests the indexed decompression
 for j = 0:num_snps
-	colidx = trues(num_snps)
+	fill!(colidx, true)
 	colidx[1:j] = false
 	Y2          = SharedArray(Float64, x1.n, sum(colidx))
 	decompress_genotypes!(Y2,x1,colidx,means=means,invstds=invstds)
 	@test isequal(Y2, Y[:, colidx])
+	Y2 = false
+	gc()
 end
 
-#x5 = copy(x1)
-## now test several permutations of subsetting and decompression
-#for i = 0:num_case, j = 0:num_snps
-#	println("testing subsetting for $i rows, $j columns")
-#	rowidx      = trues(num_case)
-#	colidx      = trues(num_snps)
-#	rowidx[1:i] = false
-#	colidx[1:j] = false
-#	x5          = subset_bedfile(x1, rowidx, colidx)
-#	Y2          = SharedArray(Float64, x5.n, x5.p)
-#	
-#	decompress_genotypes!(Y2,x5,colidx, means=means, invstds=invstds)
-#	@test isequal(Y2, Y[rowidx, colidx])
-#end
+x5 = copy(x1)
+# now test several permutations of subsetting and decompression
+for i = 0:num_case, j = 0:num_snps
+	println("\n\t***testing subsetting for $(num_case-i) rows, $(num_snps-j) columns***\n")
+	fill!(rowidx, true)	
+	fill!(colidx, true) 
+	rowidx[1:i] = false
+	colidx[1:j] = false
+	x5          = x1[rowidx, colidx]
+	Y2          = SharedArray(Float64, x5.n, x5.p) 
+	
+#	decompress_genotypes!(Y2,x5,colidx, means=means[colidx], invstds=invstds[colidx])
+	decompress_genotypes!(Y2,x5, means=means[colidx], invstds=invstds[colidx])
+	@test_approx_eq_eps(Y2, Y[rowidx, colidx], my_eps)
+	Y2 = false
+	gc()
+end
 
 ####################################
 ### test linear algebra routines ###
@@ -121,7 +129,6 @@ Xb  = xb(x1, b, indices, x1.p)
 ssq = PLINK.sumsq(x1)
 PLINK.update_partial_residuals!(r, y, x1, indices, b, x1.p, Xb=Xb)
 
-my_eps = 4.0*eps()
 @test_approx_eq_eps(XtY_out, XtY, my_eps)
 @test_approx_eq_eps(Xb_out, Xb, my_eps)
 @test_approx_eq_eps(sumsq_out, ssq, my_eps)

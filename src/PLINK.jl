@@ -7,6 +7,8 @@ import Base.==
 import Base.isequal
 import Base.mean
 import Base.copy
+import Base.getindex
+import Base.length
 import NumericExtensions.sumsq
 
 export BEDFile
@@ -24,12 +26,13 @@ export sumsq
 export mean
 export invstd
 export maf
+export getindex
 
 # constants used for decompression purposes
-const THREE8 = convert(Int8,3)
 const ZERO8  = convert(Int8,0)
 const ONE8   = convert(Int8,1)
 const TWO8   = convert(Int8,2)
+const THREE8 = convert(Int8,3)
 const MNUM1  = convert(Int8,108)
 #const MNUM1  = convert(Int8, -17)
 const MNUM2  = convert(Int8,27)
@@ -97,15 +100,15 @@ end
 ###########################
 
 # COUNT PREDICTORS FROM NUMBER OF LINES IN BIM FILE
-function count_predictors(filename::ASCIIString)
-	isequal(filename[(endof(filename)-3):endof(filename)], ".bim") || throw(ArgumentError("Filename must point to a PLINK BIM file."))
-	return countlines(filename)
+function count_predictors(f::ASCIIString)
+	isequal(f[(endof(f)-3):endof(f)], ".bim") || throw(ArgumentError("Filename must point to a PLINK BIM file."))
+	return countlines(f)
 end
 
 # COUNT CASES FROM NUMBER OF LINES IN FAM FILE
-function count_cases(filename::ASCIIString)
-	isequal(filename[(endof(filename)-3):endof(filename)], ".fam") || throw(ArgumentError("Filename must point to a PLINK FAM file."))
-	return countlines(filename)
+function count_cases(f::ASCIIString)
+	isequal(f[(endof(f)-3):endof(f)], ".fam") || throw(ArgumentError("Filename must point to a PLINK FAM file."))
+	return countlines(f)
 end
 
 # OBTAIN SIZE OF UNCOMPRESSED MATRIX
@@ -116,23 +119,31 @@ function size(x::BEDFile, dim::Int)
 	return ifelse(dim == 1, x.n, x.p)
 end
 
+
+# OBTAIN LENGTH OF UNCOMPRESSED MATRIX
+length(x::BEDFile) = x.n*x.p
+
+# OBTAIN NUMBER OF DIMENSIONS OF UNCOMPRESSED MATRIX
+ndims(x::BEDFile) = 2
+
 # COPY A BEDFILE OBJECT
 copy(x::BEDFile) = BEDFile(x.x, x.xt, x.n, x.p, x.blocksize, x.tblocksize)
 
 # COMPARE DIFFERENT BEDFILE OBJECTS
-==(x::BEDFile, y::BEDFile) = x.x  == y.x         && 
-                             x.xt == y.xt        && 
-							 x.n  == y.n         && 
-							 x.p  == y.p         && 
-					  x.blocksize == y.blocksize && 
-					 x.tblocksize == y.tblocksize
+==(x::BEDFile, y::BEDFile) = x.x  == y.x  &&
+                             x.xt == y.xt &&
+                             x.n  == y.n  &&
+                             x.p  == y.p  &&
+                      x.blocksize == y.blocksize &&
+                     x.tblocksize == y.tblocksize
 
-isequal(x::BEDFile, y::BEDFile) = isequal(x.x, y.x)   && 
-                                  isequal(x.xt, y.xt) && 
-								  isequal(x.n, y.n)   && 
-								  isequal(x.p, y.p)   && 
-					isequal(x.blocksize, y.blocksize) && 
-				  isequal(x.tblocksize, y.tblocksize)
+isequal(x::BEDFile, y::BEDFile) = isequal(x.x, y.x)                  && 
+                                  isequal(x.xt, y.xt)                && 
+                                  isequal(x.n, y.n)                  && 
+                                  isequal(x.p, y.p)                  && 
+                                  isequal(x.blocksize, y.blocksize)  && 
+                                  isequal(x.tblocksize, y.tblocksize)
+
 
 # COMPUTE MINOR ALLELE FREQUENCIES
 #
@@ -214,90 +225,44 @@ function map_bitshift(case::Int)
 	end
 end
 
-
-### NOT WORKING YET!! ###
-# SUBSET A PLINK BEDFILE
+# SUBSET A COMPRESSED GENOTYPE MATRIX
 #
-# This function will subset a compressed matrix and contstruct a new BEDFile object from it.
-#
-# Arguments:
-# -- x is the BEDfile object that contains the compressed n x p design matrix.
-# -- rowidx is a BitArray that indexes the rows of the uncompressed x.
-# -- colidx is a BitArray that indexes the columns of the uncompressed x.
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu
-function subset_bedfile(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
-	
-	# set to "false" for debugging
-	quiet = true 
+# This subroutine will subset a stream of Int8 numbers representing a compressed genotype matrix.
+# Argument X is vacuous; it simply ensures no ambiguity with current Array implementations
+function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitArray{1}, colidx::BitArray{1}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = iceil(yn / 4), ytblock::Int = iceil(yp / 4))
 
-	# get paramters of new BEDFile 
-	yn      = sum(rowidx)
-	yp      = sum(colidx)
-	yblock  = iceil(yn / 4)
-	ytblock = iceil(yp / 4)
+	quiet = false 
 
-	# preallocate space for new matrices
-	y  = zeros(Int8, yp*yblock)
-	yt = zeros(Int8, yn*ytblock)
+	yn <= n || throw(ArgumentError("rowidx indexes more rows than available in uncompressed matrix."))
+	yp <= p || throw(ArgumentError("colidx indexes more columns than available in uncompressed matrix."))
 
-	# if the subset is degenerate, then return a degenerate BEDFile
-	(yn == 0 || yp == 0 || yblock == 0) && return BEDFile(y,yt,yn,yp,yblock,ytblock)
+	y = zeros(Int8, yp*yblock)
+	(yn == 0 || yblock == 0) && return y
 
-#	println("output compressed matrix will have ", yn, " cases.")
-#	println("output compressed matrix will have ", yp, " predictors.")
-#	println("output compressed matrix will have blocksize ", yblock, ".")
-#	println("output compressed matrix will have ", yp*yblock, " compressed components.")
-
-	# ensure that indices are of acceptable dimensions
-	yn <= x.n || throw(ArgumentError("Argument rowidx indexes more rows than are available in x"))
-	yp <= x.p || throw(ArgumentError("Argument colidx indexes more columns than are available in x"))
-
-
-	# new begin to fill y
-	# initialize an iterator to index y
-	l = 0 
-
+	l = 0
 	# now loop over all columns in x 
-	@inbounds for snp = 1:x.p
+	@inbounds for col = 1:p
 
 		# only consider the current column of X if it is indexed
-		if colidx[snp]
+		if colidx[col]
 
-			# initialize counters for walking down the column of X and the bytes
-			case = 1
-			j    = 1
-			l   += 1
+			# count bytes in y
+			l += 1
 
 			# initialize a new block to fill
 			new_block      = zero(Int8)
 			num_genotypes  = 0
+			current_row    = 0
 
 			# start looping over cases
-			@inbounds while case <= x.n 
+			@inbounds for row = 1:n
 
 				# only consider the current row of X if it is indexed
-				if rowidx[case]
+				if rowidx[row]
 
-					quiet || println("moving genotype for case = ", case, " and snp = ", snp)
+					quiet || println("moving genotype for row = ", row, " and col = ", col)
 
-#					# obtain the bitwise representation of the current number
-#					genotype_block = x.x[(snp-1)*x.blocksize + iceil(case/4)]
-#					
-#					quiet || println("genotype block equals ", genotype_block)
-#
-#					# loop over the bit representation of the Int8 number
-#					k = map_bitshift(case)
-#
-#					quiet || println("bitshift is k = ", k, " bits to the right")
-#
-#					# use bitshifting to push the two relevant bits to the right
-#					# then mask using the Int8 number 3, with bit representation "00000011"
-#					# performing the bitwise AND with 3 masks the first six bits and preserves the last two
-#					# we can now interpret the "genotype" result as one of four possible Int8 numbers
-#					genotype = (genotype_block >>> k) & THREE8
-					genotype = get_index(x,case,snp)
+					genotype = getindex(X,x,row,col,blocksize, interpret=false)
 
 					# new_block stores the Int8 that we will eventually put in y
 					# add new genotypes to it from the right
@@ -312,146 +277,51 @@ function subset_bedfile(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
 					quiet || println("num_genotypes is now ", num_genotypes)
 
 					# make sure to track the number of cases that we have covered so far 
-					case += 1
+					current_row += 1
+					quiet || println("current_row = ", current_row)
 
 					# as soon as we pack the byte completely, then move to the next byte
-					if num_genotypes == 4 
+					if num_genotypes == 4 && current_row < yn 
 						y[l]          = new_block	# add new block to matrix y
 						new_block     = zero(Int8)	# reset new_block
 						num_genotypes = 0			# reset num_genotypes
 						quiet || println("filled byte at l = ", l)
 
-						# if not at last case, then increment the index for y
-						# we skip incrementing l at the last case to avoid double-incrementing
-						# this only occurs at last case since l is incremented at start of new predictor 
-						if sum(rowidx[1:min(case-1,x.n)]) !== yn
-							quiet || println("currently at ", sum(rowidx[1:min(case-1,x.n)]), " cases of ", yn, " total.")
+						# if not at last row, then increment the index for y
+						# we skip incrementing l at the last row to avoid double-incrementing l at start of new predictor
+##						if sum(rowidx[1:min(row-1,n)]) !== yn
+						if sum(rowidx[1:min(current_row-1,n)]) !== yn
+##							quiet || println("currently at ", sum(rowidx[1:min(row-1,n)]), " rows of ", yn, " total.")
+							quiet || println("currently at ", sum(rowidx[1:min(current_row-1,n)]), " rows of ", yn, " total.")
 							l += 1		
 							quiet || println("Incrementing l to l = ", l)
 						end
-					elseif case > x.n 
+					elseif current_row >= yn 
 						# at this point, we haven't filled the byte
 						# quit if we exceed the total number of cases
 						# this will cause function to move to new genotype block
-						quiet || println("Reached total number of cases, filling byte at l = ", l)
+						quiet || println("Reached total number of rows, filling byte at l = ", l)
 						y[l]          = new_block	# add new block to matrix y
 						new_block     = zero(Int8)	# reset new_block
 						num_genotypes = 0			# reset num_genotypes
 						break
 					end
 				else
-					# if current case is not indexed, then we merely add it to the counter
-					# this ensures that its correspnding genotype is not compressed,
-					# but it is also important for correctly indexing all of the cases in a column 
-					case += 1
-				end # end if/else over current case	
-			end # end loop over cases
-		end	# end if statement for current SNP 
-	end	# end loop over SNPs
+					# if current row is not indexed, then we merely add it to the counter
+					# this not only ensures that its correspnding genotype is not compressed,
+					# but it also ensures correct indexing for all of the rows in a column 
+#					row += 1
+				end # end if/else over current row 
+			end # end loop over rows 
+		end	# end if statement for current col 
+	end	# end loop over cols 
 
 	# did we fill all of y?
 	l == length(y) || warn("subsetted matrix x has $(length(y)) indices but we filled $l of them")
-	l = 0
+	return y
 
-	quiet || println("filling x'")
-	# now loop over columns of x'
-	@inbounds for case = 1:x.n
-
-#		quiet || println("selecting case $case? ", rowidx[case])
-
-		# only consider the current column of X if it is indexed
-		if rowidx[case]
-
-			# initialize counters for walking down the column of X and the bytes
-			snp  = 1
-			j    = 1
-			l   += 1
-
-			# initialize a new block to fill
-			new_block      = zero(Int8)
-			num_genotypes  = 0
-
-			# start looping over snps 
-			@inbounds while snp <= x.p 
-
-				# only consider the current row of X if it is indexed
-				if colidx[snp]
-
-					quiet || println("moving genotype for snp = ", snp , " and case = ", case)
-					# obtain the bitwise representation of the current number
-					genotype_block = x.xt[(case-1)*x.tblocksize + iceil(snp/4)]
-					
-					quiet || println("genotype block equals ", genotype_block)
-
-					# loop over the bit representation of the Int8 number
-					k = map_bitshift(case)
-
-					quiet || println("bitshift is k = ", k, " bits to the right")
-
-					# use bitshifting to push the two relevant bits to the right
-					# then mask using the Int8 number 3, with bit representation "00000011"
-					# performing the bitwise AND with 3 masks the first six bits and preserves the last two
-					# we can now interpret the "genotype" result as one of four possible Int8 numbers
-					genotype = (genotype_block >>> k) & THREE8
-
-					# new_block stores the Int8 that we will eventually put in y
-					# add new genotypes to it from the right
-					# to do this, apply bitwise OR to new_block with genotype bitshifted left to correct position 
-					new_block = new_block | (genotype << 2*num_genotypes) 
-
-					quiet || println("Added ", genotype, " to new_block, which now equals ", new_block)
-
-					# keep track of how many genotypes have been compressed so far 
-					num_genotypes += 1
-
-					quiet || println("num_genotypes is now ", num_genotypes)
-
-					# make sure to track the number of cases that we have covered so far 
-					snp += 1
-
-					# as soon as we pack the byte completely, then move to the next byte
-					if num_genotypes == 4 
-						yt[l]         = new_block	# add new block to matrix y
-						new_block     = zero(Int8)	# reset new_block
-						num_genotypes = 0			# reset num_genotypes
-						quiet || println("filled byte at l = ", l)
-
-						# if not at last case, then increment the index for y
-						# we skip incrementing l at the last case to avoid double-incrementing
-						# this only occurs at last case since l is incremented at start of new predictor 
-						if sum(colidx[1:min(snp-1,x.p)]) !== yp
-							quiet || println("currently at ", sum(colidx[1:min(snp-1,x.p)]), " SNPs of ", yp, " total.")
-							l += 1		
-							quiet || println("Incrementing l to l = ", l)
-						end
-					elseif snp > x.p 
-						# at this point, we haven't filled the byte
-						# quit if we exceed the total number of cases
-						# this will cause function to move to new genotype block
-						quiet || println("Reached total number of cases, filling byte at l = ", l)
-						yt[l]         = new_block	# add new block to matrix y
-						new_block     = zero(Int8)	# reset new_block
-						num_genotypes = 0			# reset num_genotypes
-						break
-					end
-				else
-					# if current case is not indexed, then we merely add it to the counter
-					# this ensures that its correspnding genotype is not compressed,
-					# but it is also important for correctly indexing all of the cases in a column 
-					snp += 1
-				end # end if/else over current snp 
-			end # end loop over snps 
-		end	# end if statement for current case 
-	end	# end loop over cases 
-
-	# did we fill all of yt?
-	l == length(yt) || warn("subsetted matrix x' has $(length(yt)) indices but we filled $l of them")
-
-	# construct new BEDFile object that contains subset of matrix
-	# then return new object
-	z = BEDFile(y, yt, yn, yp, yblock, ytblock)
-	return z
 end
+
 
 ##############################
 ### DECOMPRESSION ROUTINES ###
@@ -459,23 +329,49 @@ end
 
 
 
-# INDEX A COMPRESSED BEDFILE MATRIX
-#
-# This subroutine succinctly extracts the dosage at the given case and SNP.
-#
-# Arguments:
-# -- x is the BEDfile object that contains the compressed n x p design matrix X.
-# -- case is the index of the current case.
-# -- snp is the index of the current SNP.
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu
-function get_index(x::BEDFile, case::Int, snp::Int)
-	genotype_block = x.x[(snp-1)*x.blocksize + iceil(case/4)]
-	k = map_bitshift(case)
+## INDEX A COMPRESSED BEDFILE MATRIX
+##
+## This subroutine succinctly extracts the dosage at the given case and SNP.
+##
+## Arguments:
+## -- x is the BEDfile object that contains the compressed n x p design matrix X.
+## -- case is the index of the current case.
+## -- snp is the index of the current SNP.
+##
+## coded by Kevin L. Keys (2015)
+## klkeys@g.ucla.edu
+#function getindex(x::BEDFile, case::Int, snp::Int; interpret::Bool = true)
+#	genotype_block = x.x[(snp-1)*x.blocksize + iceil(case/4)]
+#	k = map_bitshift(case)
+#	genotype = (genotype_block >>> k) & THREE8
+#	interpret && return interpret_genotype(genotype)
+#	return genotype
+#end
+
+
+# GET THE VALUE OF A GENOTYPE IN A COMPRESSED MATRIX
+# argument X is vacuous, simply ensures no conflict with current Array implementations
+function getindex(X::BEDFile, x::DenseArray{Int8,1}, row::Int, col::Int, blocksize::Int; interpret::Bool = true)
+	genotype_block = x[(col-1)*blocksize + iceil(row/4)]
+	k = map_bitshift(row)
 	genotype = (genotype_block >>> k) & THREE8
-	return interpret_genotype(genotype)
+	interpret && return interpret_genotype(genotype)
+	return genotype
 end
+
+function getindex(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
+
+	yn = sum(rowidx)
+	yp = sum(colidx)
+	yblock  = iceil(yn/4)
+	ytblock = iceil(yp/4)
+
+	y  = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
+	yt = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
+
+	return BEDFile(y,yt,yn,yp,yblock,ytblock)
+end
+
 
 # INTERPRET BIT-REPRESENTATION OF GENOTYPES
 #
@@ -506,7 +402,7 @@ end
 #
 # Finally, when we reach the end of a SNP (or if in individual-mode, the end of an individual),
 # then we skip to the start of a new byte (i.e. skip any remaining bits in that byte). 
-# For a precise desceiption of PLINK BED files, ee the file type reference at
+# For a precise desceiption of PLINK BED files, see the file type reference at
 # http://pngu.mgh.harvard.edu/~purcell/plink/binary.shtml
 #
 # Arguments:
@@ -549,7 +445,7 @@ function decompress_genotypes!(y::DenseArray{Float64,1}, x::BEDFile, snp::Int, m
 	d = invstds[snp]
 	t = 0.0
 	@inbounds for case = 1:x.n
-		t       = get_index(x,case,snp) 
+		t       = getindex(x,x.x,case,snp,x.blocksize) 
 		y[case] = ifelse(isnan(t), 0.0, (t - m)*d)
 	end
 	return y 
@@ -592,25 +488,38 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile; y::DenseArray{Float64,1} = SharedArray(Float64, x.n), means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
+#function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
 
 	# extract size of Y
 	const (n,p) = size(Y)
+
+	quiet = false
 
 	# ensure dimension compatibility
 	n == x.n || throw(DimensionMismatch("column of Y is not of same length as column of uncompressed x"))
 	p <= x.p || throw(DimensionMismatch("Y has more columns than x"))
 
-	@inbounds for i = 1:p
+#	@inbounds for i = 1:p
+#
+#		quiet || println("decompressing col $i")
+#		# decompress the genotypes into y
+#		decompress_genotypes!(y, x, i, means, invstds) 
+#
+#		# copy y into Y
+#		@sync @inbounds @parallel for j = 1:n
+#			Y[j,i] = y[j]
+#			quiet || println("Y[$j,$i] = ", y[j])
+#		end
+#	end 
 
-		# decompress the genotypes into y
-		decompress_genotypes!(y, x, i, means, invstds) 
-
-		# copy y into Y
-		@sync @inbounds @parallel for j = 1:n
-			Y[j,i] = y[j]
+	@inbounds for j = 1:p
+		decompress_genotypes!(y,x,j,means,invstds)	
+		@inbounds for i = 1:n
+			Y[i,j] = y[i]
 		end
 	end 
-	return nothing
+
+	return Y 
 end
 
 
@@ -639,11 +548,13 @@ function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::Bi
 	# ensure dimension compatibility
 	n == x.n          || throw(DimensionMismatch("column of Y is not of same length as column of uncompressed x"))
 	p <= x.p          || throw(DimensionMismatch("Y has more columns than x"))
-	sum(indices) <= p || throw(DimensionMismatch("Vector 'indices' indexes more columns than available in Y"))
+	sum(indices) <= p || throw(DimensionMismatch("Vector 'indices' indexes more columns than are available in Y"))
 
 	# counter to ensure that we do not attempt to overfill Y
 	current_col = 0
 
+
+	quiet = false
 	@inbounds for snp = 1:x.p
 
 		# use this column?
@@ -652,13 +563,16 @@ function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::Bi
 			# add to counter
 			current_col += 1
 
+			quiet || println("filling current column $current_col with snp $snp")
+
 			# extract column mean, inv std
 			m = means[snp]
 			d = invstds[snp]
 
 			@inbounds for case = 1:n
-				t = get_index(x,case,snp)
+				t = getindex(x,x.x,case,snp,x.blocksize)
 				Y[case,current_col] = ifelse(isnan(t), 0.0, (t - m)*d)
+				quiet || println("Y[$case,$current_col] = ", Y[case, current_col])
 			end
 
 			# quit when Y is filled
@@ -706,7 +620,7 @@ function sumsq(x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::Dens
 
 	# loop over all n individuals
 	@inbounds for case = 1:x.n
-		t = get_index(x,case,snp)
+		t = getindex(x,x.x,case,snp,x.blocksize)
 		t = ifelse(isnan(t), 0.0, (t - m)*d)
 		s += t*t 
 	end
@@ -792,7 +706,7 @@ function mean_col(x::BEDFile, snp::Int)
 
 	# loop over all n individuals
 	@inbounds for case = 1:x.n
-		t = get_index(x,case,snp)
+		t = getindex(x,x.x,case,snp,x.blocksize)
 
 		# ensure that we do not count NaNs
 		if isfinite(t)
@@ -847,7 +761,7 @@ function invstd_col(x::BEDFile, snp::Int, means::DenseArray{Float64,1})
 
 	# loop over all n individuals
 	@inbounds for case = 1:x.n
-		t = get_index(x,case,snp)
+		t = getindex(x,x.x,case,snp,x.blocksize)
 
 		# ensure that we do not count NaNs
 		if isfinite(t) 
@@ -1038,7 +952,7 @@ function dot(x::BEDFile, y::DenseArray{Float64,1}, snp::Int, means::DenseArray{F
 
 	# loop over all individuals
 	@inbounds for case = 1:x.n
-		t = get_index(x,case,snp)
+		t = getindex(x,x.x,case,snp,x.blocksize)
 		# handle exceptions on t
 		if isnan(t)
 			t = 0.0
