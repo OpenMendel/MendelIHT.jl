@@ -11,6 +11,7 @@ import Base.getindex
 import Base.length
 import Base.ndims
 import NumericExtensions.sumsq
+import Base.display
 
 export BEDFile
 export decompress_genotypes!
@@ -28,6 +29,7 @@ export mean
 export invstd
 export maf
 export getindex
+export addx2!
 
 # constants used for decompression purposes
 const ZERO8  = convert(Int8,0)
@@ -50,35 +52,45 @@ const MNUM2  = convert(Int8,27)
 # Note that this BEDFile object, and the rest of this module for that matter, operate with the assumption
 # that the compressed matrix is in column-major (SNP-major) format.
 # Row-major (case-major) format is not supported.
-immutable BEDFile
-	x::DenseArray{Int8,1}   # compressed genotypes for genotype matrix X
-	xt::DenseArray{Int8,1}  # compressed genotypes for TRANSPOSED genotype matrix X'
-	n::Int                  # number of cases (people) in uncompressed genotype matrix 
-	p::Int                  # number of predictors (SNPs) in uncompressed genotype matrix
-	blocksize::Int          # number of bytes per compressed column of genotype matrix
-	tblocksize::Int         # number of bytes per compressed column of TRANSPOSED genotype matrix
+type BEDFile
+	x::DenseArray{Int8,1}   	# compressed genotypes for genotype matrix X
+	xt::DenseArray{Int8,1}  	# compressed genotypes for TRANSPOSED genotype matrix X'
+	n::Int                  	# number of cases (people) in uncompressed genotype matrix 
+	p::Int                  	# number of predictors (SNPs) in uncompressed genotype matrix
+	blocksize::Int          	# number of bytes per compressed column of genotype matrix
+	tblocksize::Int         	# number of bytes per compressed column of TRANSPOSED genotype matrix
+	x2::DenseArray{Float64,2}	# nongenetic covariantes, if any exist
+	p2::Int						# number of nongenetic covariates
+	x2t::DenseArray{Float64,2}	# transpose of nongenetic covariantes, used in matrix algebra 
 
-	BEDFile(x,xt,n,p,blocksize,tblocksize) = new(x,xt,n,p,blocksize,tblocksize)
+	BEDFile(x,xt,n,p,blocksize,tblocksize,x2,p2,x2t) = new(x,xt,n,p,blocksize,tblocksize,x2,p2,x2t)
 end
 
 # simple constructors for when n, p, and maybe blocksize are known and specified
 # x must come from an actual BED file, so specify the path to the correct file
-BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Int, p::Int, blocksize::Int, tblocksize::Int) = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,blocksize,tblocksize)
-BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Int, p::Int) = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,iceil(n/4),iceil(p/4))
+function BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Int, p::Int, blocksize::Int, tblocksize::Int, x2filename::ASCIIString)
+	x  = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,blocksize,tblocksize,SharedArray(Float64,n,0),0)
+	x2 = convert(SharedArray{Float64,2}, readdlm(x2filename))
+	p2 = size(x2,2)
+	x.x2 = x2
+	x.x2t = x2'
+	x.p2 = p2
+	return x
+end
+
+function BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Int, p::Int, x2filename::ASCIIString)
+	x = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,iceil(n/4),iceil(p/4),SharedArray(Float64,n,0),0)
+	x2 = convert(SharedArray{Float64,2}, readdlm(x2filename))
+	p2 = size(x2,2)
+	x.x2 = x2
+	x.x2t = x2'
+	x.p2 = p2
+	return x
+end
 
 # a more complicated constructor that attempts to infer n, p, and blocksize based on the BED filepath
 # it assumes that the BED, FAM, and BIM files are all in the same directory
 function BEDFile(filename::ASCIIString, tfilename::ASCIIString; shared::Bool = true)
-
-	# first load x, xt
-	x  = read_bedfile(filename)
-	xt = read_bedfile(tfilename)
-	
-	# if using SharedArrays, (the default), then convert x to a SharedArray
-	if shared
-		x  = convert(SharedArray, x)
-		xt = convert(SharedArray, xt)
-	end
 
 	# find n from the corresponding FAM file 
 	famfile = filename[1:(endof(filename)-3)] * "fam"
@@ -92,7 +104,40 @@ function BEDFile(filename::ASCIIString, tfilename::ASCIIString; shared::Bool = t
 	blocksize  = iceil(n/4) 
 	tblocksize = iceil(p/4) 
 
-	return BEDFile(x,xt,n,p,blocksize,tblocksize)
+	# now load x, xt
+	x   = read_bedfile(filename)
+	xt  = read_bedfile(tfilename)
+	x2  = zeros(n,0) 
+	x2t = x2' 
+
+	# if using SharedArrays, (the default), then convert x to a SharedArray
+	if shared
+		x   = convert(SharedArray, x)
+		xt  = convert(SharedArray, xt)
+		x2  = convert(SharedArray, x2)
+		x2t = convert(SharedArray, x2t)
+	end
+
+	return BEDFile(x,xt,n,p,blocksize,tblocksize,x2,0,x2t)
+end
+
+
+# an extra constructor based on previous one 
+# this one admits a third file path for the nongenetic covariates 
+# it uncreatively creates a BEDFile using previous constructor with two file paths,
+# and then fills the nongenetic covariates with the third file path 
+function BEDFile(filename::ASCIIString, tfilename::ASCIIString, x2filename::ASCIIString; shared::Bool = true, header::Bool = true)
+
+	x    = BEDFile(filename, tfilename, shared=shared)
+	x2   = readdlm(x2filename, header=header)
+	if shared
+		x2 = convert(SharedArray, x2)
+	end
+	x.n   == size(x2,1) || throw(DimensionMismatch("Nongenetic covariates have more rows than genotype matrix"))
+	x.x2  = x2
+	x.p2  = size(x2,2)
+	x.x2t = x2'
+	return x 
 end
 
 
@@ -113,38 +158,71 @@ function count_cases(f::ASCIIString)
 end
 
 # OBTAIN SIZE OF UNCOMPRESSED MATRIX
-size(x::BEDFile) = (x.n,x.p) 
+size(x::BEDFile) = (x.n, x.p + x.p2) 
 
 function size(x::BEDFile, dim::Int)
 	(dim == 1 || dim == 2) || throw(ArgumentError("Argument `dim` only accepts 1 or 2"))
-	return ifelse(dim == 1, x.n, x.p)
+	return ifelse(dim == 1, x.n, x.p + x.p2)
+end
+
+function size(x::BEDFile; submatrix::ASCIIString = "genotype")
+	(isequal(submatrix, "genotype") || isequal(submatrix, "nongenetic")) || throw(ArgumentError("Argument `submatrix` only accepts `genotype` or `nongenetic`"))
+	return ifelse(isequal(submatrix,"genotype"), (x.n, x.p), (x.n, x.p2))
 end
 
 
 # OBTAIN LENGTH OF UNCOMPRESSED MATRIX
-length(x::BEDFile) = x.n*x.p
+length(x::BEDFile) = x.n*(x.p + x.p2)
 
 # OBTAIN NUMBER OF DIMENSIONS OF UNCOMPRESSED MATRIX
 ndims(x::BEDFile) = 2
 
 # COPY A BEDFILE OBJECT
-copy(x::BEDFile) = BEDFile(x.x, x.xt, x.n, x.p, x.blocksize, x.tblocksize)
+copy(x::BEDFile) = BEDFile(x.x, x.xt, x.n, x.p, x.blocksize, x.tblocksize, x.x2, x.p2, x.x2t)
 
 # COMPARE DIFFERENT BEDFILE OBJECTS
-==(x::BEDFile, y::BEDFile) = x.x  == y.x  &&
-                             x.xt == y.xt &&
-                             x.n  == y.n  &&
-                             x.p  == y.p  &&
-                      x.blocksize == y.blocksize &&
-                     x.tblocksize == y.tblocksize
+==(x::BEDFile, y::BEDFile) = x.x   == y.x  &&
+                             x.xt  == y.xt &&
+                             x.n   == y.n  &&
+                             x.p   == y.p  &&
+                      x.blocksize  == y.blocksize &&
+                     x.tblocksize  == y.tblocksize &&
+					         x.x2  == y.x2 &&
+					         x.p2  == y.p2 &&
+							 x.x2t == y.x2t
 
-isequal(x::BEDFile, y::BEDFile) = isequal(x.x, y.x)                  && 
-                                  isequal(x.xt, y.xt)                && 
-                                  isequal(x.n, y.n)                  && 
-                                  isequal(x.p, y.p)                  && 
-                                  isequal(x.blocksize, y.blocksize)  && 
-                                  isequal(x.tblocksize, y.tblocksize)
+isequal(x::BEDFile, y::BEDFile) = isequal(x.x, y.x)                   && 
+                                  isequal(x.xt, y.xt)                 && 
+                                  isequal(x.n, y.n)                   && 
+                                  isequal(x.p, y.p)                   && 
+                                  isequal(x.blocksize, y.blocksize)   && 
+                                  isequal(x.tblocksize, y.tblocksize) &&
+								  isequal(x.x2, y.x2)                 &&
+								  isequal(x.p2, y.p2)                 &&
+								  isequal(x.x2t, y.y2t)
 
+
+function addx2!(x::BEDFile, x2::DenseArray{Float64,2}; shared::Bool = true)
+	(n,p2) = size(x2)
+	n == x.n || throw(DimensionMismatch("x2 has $n rows but should have $(x.n) of them"))
+	x.p2 = p2
+	x.x2 = ifelse(shared, SharedArray(Float64, n, p2), zeros(n,p2)) 
+	x.x2t = x.x2' 
+	for j = 1:p2
+		for i = 1:x.n
+			@inbounds x.x2[i,j] = x2[i,j]
+		end
+	end
+	x.x2t = x.x2'
+end
+
+function display(x::BEDFile)
+	println("A BEDFile object with the following features:")
+	println("\tnumber of cases        = $(x.n)")
+	println("\tgenetic covariates     = $(x.p)")
+	println("\tnongenetic covariates  = $(x.p2)")
+	println("\tcovariate type         = $(typeof(x.x2))")
+end
 
 # COMPUTE MINOR ALLELE FREQUENCIES
 #
@@ -616,13 +694,18 @@ end
 
 
 # GET THE VALUE OF A GENOTYPE IN A COMPRESSED MATRIX
-# argument X is vacuous, simply ensures no conflict with current Array implementations
+# argument X is almost vacuous because it ensures no conflict with current Array implementations
+# it becomes useful for accessing nongenetic covariates
 function getindex(X::BEDFile, x::DenseArray{Int8,1}, row::Int, col::Int, blocksize::Int; interpret::Bool = true)
-	genotype_block = x[(col-1)*blocksize + iceil(row/4)]
-	k = map_bitshift(row)
-	genotype = (genotype_block >>> k) & THREE8
-	interpret && return interpret_genotype(genotype)
-	return genotype
+	if col <= X.p
+		genotype_block = x[(col-1)*blocksize + iceil(row/4)]
+		k = map_bitshift(row)
+		genotype = (genotype_block >>> k) & THREE8
+		interpret && return interpret_genotype(genotype)
+		return genotype
+	else
+		return X.x2[row,col]
+	end
 end
 
 function getindex(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
@@ -634,8 +717,11 @@ function getindex(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
 
 	y  = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
 	yt = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
+	y2 = x.x2[rowidx,colidx]
+	y2t = y2'
+	p2 = size(y2,2)
 
-	return BEDFile(y,yt,yn,yp,yblock,ytblock)
+	return BEDFile(y,yt,yn,yp,yblock,ytblock,y2,p2,y2')
 end
 
 function getindex(x::BEDFile, rowidx::UnitRange{Int64}, colidx::BitArray{1})
@@ -647,8 +733,10 @@ function getindex(x::BEDFile, rowidx::UnitRange{Int64}, colidx::BitArray{1})
 
 	y  = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
 	yt = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
+	y2 = x.x2[rowidx,colidx]
+	p2 = size(y2,2)
 
-	return BEDFile(y,yt,yn,yp,yblock,ytblock)
+	return BEDFile(y,yt,yn,yp,yblock,ytblock,y2,p2)
 end
 
 function getindex(x::BEDFile, rowidx::BitArray{1}, colidx::UnitRange{Int64})
@@ -658,10 +746,13 @@ function getindex(x::BEDFile, rowidx::BitArray{1}, colidx::UnitRange{Int64})
 	yblock  = iceil(yn/4)
 	ytblock = iceil(yp/4)
 
-	y  = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
-	yt = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
+	y   = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
+	yt  = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
+	y2  = x.x2[rowidx,colidx]
+	p2  = size(y2,2)
+	y2t = y2'
 
-	return BEDFile(y,yt,yn,yp,yblock,ytblock)
+	return BEDFile(y,yt,yn,yp,yblock,ytblock,y2,p2,y2t)
 end
 
 
@@ -672,10 +763,13 @@ function getindex(x::BEDFile, rowidx::UnitRange{Int64}, colidx::UnitRange{Int64}
 	yblock  = iceil(yn/4)
 	ytblock = iceil(yp/4)
 
-	y  = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
-	yt = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
+	y   = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
+	yt  = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
+	y2  = x.x2[rowidx,colidx]
+	p2  = size(y2,2)
+	y2t = y2'
 
-	return BEDFile(y,yt,yn,yp,yblock,ytblock)
+	return BEDFile(y,yt,yn,yp,yblock,ytblock,y2,p2,y2t)
 end
 
 
@@ -750,9 +844,15 @@ function decompress_genotypes!(y::DenseArray{Float64,1}, x::BEDFile, snp::Int, m
 	m = means[snp]
 	d = invstds[snp]
 	t = 0.0
-	@inbounds for case = 1:x.n
-		t       = getindex(x,x.x,case,snp,x.blocksize) 
-		y[case] = ifelse(isnan(t), 0.0, (t - m)*d)
+	if snp <= x.p
+		@inbounds for case = 1:x.n
+			t       = getindex(x,x.x,case,snp,x.blocksize) 
+			y[case] = ifelse(isnan(t), 0.0, (t - m)*d)
+		end
+	else
+		@inbounds for case = 1:x.n
+			y[case] = x.x2[case,(snp-x.p)]
+		end
 	end
 	return y 
 end
@@ -861,31 +961,36 @@ function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::Bi
 
 
 	quiet = true 
-	@inbounds for snp = 1:x.p
+	@inbounds for snp = 1:(x.p + x.p2)
 
 		# use this column?
 		if indices[snp]
 
 			# add to counter
 			current_col += 1
-
 			quiet || println("filling current column $current_col with snp $snp")
 
-			# extract column mean, inv std
-			m = means[snp]
-			d = invstds[snp]
+			if snp <= x.p
 
-			@inbounds for case = 1:n
-				t = getindex(x,x.x,case,snp,x.blocksize)
-				Y[case,current_col] = ifelse(isnan(t), 0.0, (t - m)*d)
-				quiet || println("Y[$case,$current_col] = ", Y[case, current_col])
+				# extract column mean, inv std
+				m = means[snp]
+				d = invstds[snp]
+
+				@inbounds for case = 1:n
+					t = getindex(x,x.x,case,snp,x.blocksize)
+					Y[case,current_col] = ifelse(isnan(t), 0.0, (t - m)*d)
+					quiet || println("Y[$case,$current_col] = ", Y[case, current_col])
+				end
+			else
+				@inbounds for case = 1:n
+					Y[case,current_col] = x.x2[case,(snp-x.p)]
+				end
 			end
 
 			# quit when Y is filled
 			current_col == p && return Y
 		end
 	end 
-
 	return Y 
 end
 
@@ -926,17 +1031,22 @@ function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::De
 
 		# add to counter
 		current_col += 1
-
 		quiet || println("filling current column $current_col with snp $snp")
 
-		# extract column mean, inv std
-		m = means[snp]
-		d = invstds[snp]
+		if snp <= x.p
+			# extract column mean, inv std
+			m = means[snp]
+			d = invstds[snp]
 
-		@inbounds for case = 1:n
-			t = getindex(x,x.x,case,snp,x.blocksize)
-			Y[case,current_col] = ifelse(isnan(t), 0.0, (t - m)*d)
-			quiet || println("Y[$case,$current_col] = ", Y[case, current_col])
+			@inbounds for case = 1:n
+				t = getindex(x,x.x,case,snp,x.blocksize)
+				Y[case,current_col] = ifelse(isnan(t), 0.0, (t - m)*d)
+				quiet || println("Y[$case,$current_col] = ", Y[case, current_col])
+			end
+		else
+			@inbounds for case = 1:n
+				Y[case,current_col] = x.x2[case,(snp-x.p)]
+			end
 		end
 
 		# quit when Y is filled
@@ -1002,10 +1112,17 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function sumsq!(y::DenseArray{Float64,1}, x::BEDFile, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1})
-	x.p == length(y) || throw(DimensionMismatch("y must have one row for every column of x"))
+	(x.p + x.p2) == length(y) || throw(DimensionMismatch("y must have one row for every column of x"))
 	@sync @inbounds @parallel for snp = 1:x.p
 		y[snp] = sumsq(x,snp,means,invstds)
 	end
+	@sync @inbounds @parallel for snp = (x.p+1):x.p2
+		y[snp] = 0.0
+		@inbounds for row = 1:x.n
+			y[snp] += x.x2[row,snp]
+		end
+	end
+
 	return y
 end
 
@@ -1023,8 +1140,11 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function sumsq(x::BEDFile; shared::Bool = true, means::DenseArray{Float64,1} = mean(x, shared=shared), invstds::DenseArray{Float64,1} = invstd(x, y=means, shared=shared)) 
-	y = ifelse(shared, SharedArray(Float64, x.p, init= S -> S[localindexes(S)] = 0.0), zeros(x.p))
+	y = ifelse(shared, SharedArray(Float64, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(x.p + x.p2))
 	sumsq!(y,x,means,invstds)
+	for i = (x.p+1):(x.p+x.p2)
+		@inbounds y[i] *= y[i]
+	end
 	return y
 end
 
@@ -1045,7 +1165,7 @@ end
 function mean(x::BEDFile; shared::Bool = true)
 
 	# initialize return vector
-	y = ifelse(shared, SharedArray(Float64, x.p, init= S -> S[localindexes(S)] = 0.0), zeros(x.p))
+	y = ifelse(shared, SharedArray(Float64, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(x.p + x.p2))
 
 	if shared
 		@sync @inbounds @parallel for snp = 1:x.p
@@ -1055,6 +1175,12 @@ function mean(x::BEDFile; shared::Bool = true)
 		@inbounds @simd for snp = 1:x.p
 			y[snp] = mean_col(x, snp)
 		end
+	end
+	for i = 1:x.p2 
+		for j = 1:x.n
+			@inbounds y[x.p + i] += x.x2[j,i]
+		end
+		y[i] /= x.n
 	end
 
 	return y
@@ -1100,7 +1226,7 @@ end
 function invstd(x::BEDFile; shared::Bool = true, y::DenseArray = mean(x))
 
 	# initialize return vector
-	z = ifelse(shared, SharedArray(Float64, x.p, init= S -> S[localindexes(S)] = 0.0), zeros(x.p))
+	z = ifelse(shared, SharedArray(Float64, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(x.p + x.p2))
 
 	if shared
 		@sync @inbounds @parallel for snp = 1:x.p
@@ -1110,6 +1236,12 @@ function invstd(x::BEDFile; shared::Bool = true, y::DenseArray = mean(x))
 		@inbounds @simd for snp = 1:x.p
 			z[snp] = invstd_col(x, snp, y)
 		end
+	end
+	for i = 1:x.p2 
+		for j = 1:x.n
+			@inbounds z[x.p + i] += (x.x2[j,i] - y[x.p + i])^2
+		end
+		z[i] /= x.n
 	end
 
 	return z
@@ -1154,7 +1286,8 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, perm::DenseArray{Int,1}, b::DenseArray{Float64,1}, k::Int; Xb::DenseArray{Float64,1} = xb!(Xb,X,b,support,k)) 
+#function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, perm::DenseArray{Int,1}, b::DenseArray{Float64,1}, k::Int; Xb::DenseArray{Float64,1} = xb!(Xb,X,b,support,k)) 
+function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, perm::DenseArray{Int,1}, b::DenseArray{Float64,1}, k::Int; means=mean(x), invstds=invstd(x, y=means), Xb::DenseArray{Float64,1} = xb(X,b,support,k, means=means, invstds=invstds)) 
 	k <= length(b)   || throw(ArgumentError("k cannot exceed the length of b!"))
 	length(r) == x.n || throw(DimensionMismatch("r must have length $(x.n)!"))
 	length(y) == x.n || throw(DimensionMismatch("y must have length $(x.n)!"))
@@ -1181,7 +1314,8 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, indices::BitArray{1}, b::DenseArray{Float64,1}, k::Int; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means), Xb::DenseArray{Float64,1} = xb!(Xb,X,b,indices,k, means=means, invstds=invstds) ) 
+#function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, indices::BitArray{1}, b::DenseArray{Float64,1}, k::Int; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means), Xb::DenseArray{Float64,1} = xb!(Xb,X,b,indices,k, means=means, invstds=invstds) ) 
+function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, indices::BitArray{1}, b::DenseArray{Float64,1}, k::Int; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means), Xb::DenseArray{Float64,1} = xb(X,b,indices,k, means=means, invstds=invstds) ) 
 	k <= length(b)   || throw(ArgumentError("k cannot exceed the length of b!"))
 	length(r) == x.n || throw(DimensionMismatch("r must have length $(x.n)!"))
 	length(y) == x.n || throw(DimensionMismatch("y must have length $(x.n)!"))
@@ -1313,20 +1447,27 @@ function dot(x::BEDFile, y::DenseArray{Float64,1}, snp::Int, means::DenseArray{F
 	m = means[snp]
 	d = invstds[snp]
 
-	# loop over all individuals
-	@inbounds for case = 1:x.n
-		t = getindex(x,x.x,case,snp,x.blocksize)
-		# handle exceptions on t
-		if isnan(t)
-			t = 0.0
-		else
-			t  = (t - m)
-			s += y[case] * t 
+	if snp <= x.p
+		# loop over all individuals
+		@inbounds for case = 1:x.n
+			t = getindex(x,x.x,case,snp,x.blocksize)
+			# handle exceptions on t
+			if isnan(t)
+				t = 0.0
+			else
+				t  = (t - m)
+				s += y[case] * t 
+			end
 		end
-	end
 
-	# return the (normalized) dot product 
-	return s*d 
+		# return the (normalized) dot product 
+		return s*d 
+	else
+		for case = 1:x.n
+			s += x.x2[case,snp] * y[case]
+		end
+		return s
+	end
 end
 
 # DOT PRODUCT ALONG ROWS OF X
@@ -1386,6 +1527,9 @@ function dott(x::BEDFile, b::DenseArray{Float64,1}, case::Int, indices::BitArray
 			end
 		end
 	end
+	@inbounds for snp = (x.p+1):(x.p+x.p2)
+		s += b[snp] * x.x2t[snp,case]
+	end
 
 	# return the dot product 
 	return s 
@@ -1411,9 +1555,9 @@ end
 # klkeys@g.ucla.edu
 function xb!(Xb::DenseArray{Float64,1}, x::BEDFile, b::DenseArray{Float64,1}, indices::BitArray{1}, k::Int; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means))
     # error checking
-    0 <= k <= x.p     || throw(ArgumentError("Number of active predictors must be nonnegative and less than p"))
-#	k <= sum(indices) || throw(ArgumentError("k != sum(indices)"))
-	k >= sum(indices) || throw(ArgumentError("Must have k >= sum(indices) or X*b will not compute correctly"))
+    0 <= k <= size(x,2) || throw(ArgumentError("Number of active predictors must be nonnegative and less than p"))
+#	k <= sum(indices)   || throw(ArgumentError("k != sum(indices)"))
+	k >= sum(indices)   || throw(ArgumentError("Must have k >= sum(indices) or X*b will not compute correctly"))
 
 	# loop over the desired number of predictors 
 	@sync @inbounds @parallel for case = 1:x.n
@@ -1467,7 +1611,7 @@ end
 function xty!(Xty::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
 
 	# error checking
-	x.p == length(Xty) || throw(ArgumentError("Attempting to fill argument Xty of length $(length(Xty)) with $(x.p) elements!"))
+	x.p <= length(Xty) || throw(ArgumentError("Attempting to fill argument Xty of length $(length(Xty)) with $(x.p) elements!"))
 	x.n == length(y)   || throw(ArgumentError("Argument y has $(length(y)) elements but should have $(x.n) of them!"))
 
 	# loop over the desired number of predictors 
