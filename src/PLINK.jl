@@ -41,6 +41,40 @@ const MNUM1  = convert(Int8,108)
 const MNUM2  = convert(Int8,27)
 #const MNUM2  = convert(Int8,-85)
 
+# SWITCHES TO INTERPRET BIT-REPRESENTATION OF GENOTYPES
+#
+# These switches encode the following PLINK format for genotypes:
+#
+# -- 00 is homozygous for allele 1
+# -- 01 is heterozygous
+# -- 10 is missing
+# -- 11 is homozygous for allele 2
+# 
+# The idea is to map 00 to -1, 11 to 1, and 01 to 0.
+# Since we cannot use 01, we will map it to NaN.
+# Further note that the bytes are read from right to left.
+# That is, if we label each of the 8 position as A to H, we would label backwards:
+#
+#     01101100
+#     HGFEDCBA
+#
+# and so the first four genotypes are read as follows:
+#
+#     01101100
+#     HGFEDCBA
+#
+#           AB   00  -- homozygote (first)
+#         CD     11  -- other homozygote (second)
+#       EF       01  -- heterozygote (third)
+#     GH         10  -- missing genotype (fourth)
+#
+# Finally, when we reach the end of a SNP (or if in individual-mode, the end of an individual),
+# then we skip to the start of a new byte (i.e. skip any remaining bits in that byte). 
+# For a precise desceiption of PLINK BED files, see the file type reference at
+# http://pngu.mgh.harvard.edu/~purcell/plink/binary.shtml
+const bitshift = [4, 2, 0, 6]
+const geno     = [0.0, NaN, 1.0, 2.0]
+
 ##########################################
 ### CONSTRUCTORS AND UTILITY FUNCTIONS ###
 ##########################################
@@ -207,13 +241,14 @@ function addx2!(x::BEDFile, x2::DenseArray{Float64,2}; shared::Bool = true)
 	n == x.n || throw(DimensionMismatch("x2 has $n rows but should have $(x.n) of them"))
 	x.p2 = p2
 	x.x2 = ifelse(shared, SharedArray(Float64, n, p2), zeros(n,p2)) 
-	x.x2t = x.x2' 
+#	x.x2t = x.x2' 
 	for j = 1:p2
 		for i = 1:x.n
 			@inbounds x.x2[i,j] = x2[i,j]
 		end
 	end
 	x.x2t = x.x2'
+	return nothing
 end
 
 function display(x::BEDFile)
@@ -287,22 +322,6 @@ function read_bedfile(filename::ASCIIString; transpose::Bool = false)
 	return x[4:end]
 end
 
-
-# REMAP THE BITSHIFT IN GENOTYPE INTERPRETATION
-#
-# This function remaps the bitshifts for BEDFile subsetting purposes.
-function map_bitshift(case::Int)
-	k = 6 - 2 * mod(case,4)
-	if k == 4
-		return 0
-	elseif k == 2
-		return 2
-	elseif k == 0
-		return 4
-	else
-		return 6
-	end
-end
 
 # SUBSET A COMPRESSED GENOTYPE MATRIX
 #
@@ -699,9 +718,10 @@ end
 function getindex(X::BEDFile, x::DenseArray{Int8,1}, row::Int, col::Int, blocksize::Int; interpret::Bool = true)
 	if col <= X.p
 		genotype_block = x[(col-1)*blocksize + iceil(row/4)]
-		k = map_bitshift(row)
+		k = bitshift[3 - mod(row,4) + 1]
 		genotype = (genotype_block >>> k) & THREE8
-		interpret && return interpret_genotype(genotype)
+        interpret && return geno[genotype + ONE8] 
+
 		return genotype
 	else
 		return X.x2[row,col]
@@ -773,55 +793,6 @@ function getindex(x::BEDFile, rowidx::UnitRange{Int64}, colidx::UnitRange{Int64}
 end
 
 
-# INTERPRET BIT-REPRESENTATION OF GENOTYPES
-#
-# This subroutine encodes the following PLINK format for genotypes:
-#
-# -- 00 is homozygous for allele 1
-# -- 01 is heterozygous
-# -- 10 is missing
-# -- 11 is homozygous for allele 2
-# 
-# The idea is to map 00 to -1, 11 to 1, and 01 to 0.
-# Since we cannot use 01, we will map it to NaN.
-# Further note that the bytes are read from right to left.
-# That is, if we label each of the 8 position as A to H, we would label backwards:
-#
-#     01101100
-#     HGFEDCBA
-#
-# and so the first four genotypes are read as follows:
-#
-#     01101100
-#     HGFEDCBA
-#
-#           AB   00  -- homozygote (first)
-#         CD     11  -- other homozygote (second)
-#       EF       01  -- heterozygote (third)
-#     GH         10  -- missing genotype (fourth)
-#
-# Finally, when we reach the end of a SNP (or if in individual-mode, the end of an individual),
-# then we skip to the start of a new byte (i.e. skip any remaining bits in that byte). 
-# For a precise desceiption of PLINK BED files, see the file type reference at
-# http://pngu.mgh.harvard.edu/~purcell/plink/binary.shtml
-#
-# Arguments:
-# -- a is the component of the *compressed matrix* to read.
-#    It should be an 8-bit integer result of the aforementioned process. 
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu
-function interpret_genotype(a::Int8)
-	if isequal(a,ZERO8)
-		return 0.0
-	elseif isequal(a,TWO8)
-		return 1.0
-	elseif isequal(a,THREE8)
-		return 2.0
-	else
-		return NaN
-	end
-end
 
 
 # DECOMPRESS GENOTYPES FROM INT8 BINARY FORMAT
@@ -1085,7 +1056,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function sumsq(x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
+function sumsq_snp(x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
 	s = 0.0	# accumulation variable, will eventually equal dot(y,z)
 	t = 0.0 # temp variable, output of interpret_genotype
 	m = means[snp]
@@ -1111,15 +1082,31 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function sumsq!(y::DenseArray{Float64,1}, x::BEDFile, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1})
+function sumsq!(y::SharedArray{Float64,1}, x::BEDFile, means::SharedArray{Float64,1}, invstds::SharedArray{Float64,1})
 	(x.p + x.p2) == length(y) || throw(DimensionMismatch("y must have one row for every column of x"))
 	@sync @inbounds @parallel for snp = 1:x.p
-		y[snp] = sumsq(x,snp,means,invstds)
+		y[snp] = sumsq_snp(x,snp,means,invstds)
 	end
-	@sync @inbounds @parallel for snp = (x.p+1):x.p2
-		y[snp] = 0.0
+	@inbounds for covariate = 1:x.p2
+		y[covariate] = 0.0
 		@inbounds for row = 1:x.n
-			y[snp] += x.x2[row,snp]
+			y[covariate] += x.x2[row,covariate]
+		end
+	end
+
+	return y
+end
+
+
+function sumsq!(y::Array{Float64,1}, x::BEDFile, means::Array{Float64,1}, invstds::Array{Float64,1})
+	(x.p + x.p2) == length(y) || throw(DimensionMismatch("y must have one row for every column of x"))
+	@inbounds for snp = 1:x.p
+		y[snp] = sumsq_snp(x,snp,means,invstds)
+	end
+	@inbounds for covariate = 1:x.p2
+		y[covariate] = 0.0
+		@inbounds for row = 1:x.n
+			y[covariate] += x.x2[row,covariate]
 		end
 	end
 
@@ -1142,9 +1129,9 @@ end
 function sumsq(x::BEDFile; shared::Bool = true, means::DenseArray{Float64,1} = mean(x, shared=shared), invstds::DenseArray{Float64,1} = invstd(x, y=means, shared=shared)) 
 	y = ifelse(shared, SharedArray(Float64, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(x.p + x.p2))
 	sumsq!(y,x,means,invstds)
-	for i = (x.p+1):(x.p+x.p2)
-		@inbounds y[i] *= y[i]
-	end
+#	for i = (x.p+1):(x.p+x.p2)
+#		@inbounds y[i] *= y[i]
+#	end
 	return y
 end
 
@@ -1287,7 +1274,7 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 #function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, perm::DenseArray{Int,1}, b::DenseArray{Float64,1}, k::Int; Xb::DenseArray{Float64,1} = xb!(Xb,X,b,support,k)) 
-function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, perm::DenseArray{Int,1}, b::DenseArray{Float64,1}, k::Int; means=mean(x), invstds=invstd(x, y=means), Xb::DenseArray{Float64,1} = xb(X,b,support,k, means=means, invstds=invstds)) 
+function update_partial_residuals!(r::SharedArray{Float64,1}, y::SharedArray{Float64,1}, x::BEDFile, perm::SharedArray{Int,1}, b::DenseArray{Float64,1}, k::Int; means=mean(x), invstds=invstd(x, y=means), Xb::SharedArray{Float64,1} = xb(X,b,support,k, means=means, invstds=invstds)) 
 	k <= length(b)   || throw(ArgumentError("k cannot exceed the length of b!"))
 	length(r) == x.n || throw(DimensionMismatch("r must have length $(x.n)!"))
 	length(y) == x.n || throw(DimensionMismatch("y must have length $(x.n)!"))
@@ -1299,6 +1286,17 @@ function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float
 	return r
 end
 
+function update_partial_residuals!(r::Array{Float64,1}, y::Array{Float64,1}, x::BEDFile, perm::Array{Int,1}, b::Array{Float64,1}, k::Int; means=mean(x), invstds=invstd(x, y=means), Xb::Array{Float64,1} = xb(X,b,support,k, means=means, invstds=invstds)) 
+	k <= length(b)   || throw(ArgumentError("k cannot exceed the length of b!"))
+	length(r) == x.n || throw(DimensionMismatch("r must have length $(x.n)!"))
+	length(y) == x.n || throw(DimensionMismatch("y must have length $(x.n)!"))
+
+	@sync @inbounds @parallel for i = 1:x.n
+		r[i] = y[i] - Xb[i]
+	end
+
+	return r
+end
 
 # UPDATE PARTIAL RESIDUALS BASED ON PERMUTATION VECTOR FOR COMPRESSED X
 # 
@@ -1315,19 +1313,28 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 #function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, indices::BitArray{1}, b::DenseArray{Float64,1}, k::Int; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means), Xb::DenseArray{Float64,1} = xb!(Xb,X,b,indices,k, means=means, invstds=invstds) ) 
-function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, indices::BitArray{1}, b::DenseArray{Float64,1}, k::Int; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means), Xb::DenseArray{Float64,1} = xb(X,b,indices,k, means=means, invstds=invstds) ) 
-	k <= length(b)   || throw(ArgumentError("k cannot exceed the length of b!"))
-	length(r) == x.n || throw(DimensionMismatch("r must have length $(x.n)!"))
-	length(y) == x.n || throw(DimensionMismatch("y must have length $(x.n)!"))
+function update_partial_residuals!(r::SharedArray{Float64,1}, y::SharedArray{Float64,1}, x::BEDFile, indices::BitArray{1}, b::SharedArray{Float64,1}, k::Int; means::SharedArray{Float64,1} = mean(x), invstds::SharedArray{Float64,1} = invstd(x, y=means), Xb::SharedArray{Float64,1} = xb(X,b,indices,k, means=means, invstds=invstds) ) 
+	k <= length(b)    || throw(ArgumentError("k cannot exceed the length of b!"))
+#	k <= sum(indices) || throw(ArgumentError("k cannot exceed the number of true values in indices!"))
+	length(r) == x.n  || throw(DimensionMismatch("r must have length $(x.n)!"))
+	length(y) == x.n  || throw(DimensionMismatch("y must have length $(x.n)!"))
 
-	if typeof(r) == SharedArray{Float64,1}
-		@sync @inbounds @parallel for i = 1:x.n
-			r[i] = y[i] - Xb[i]
-		end
-	else
-		@inbounds @simd for i = 1:x.n
-			r[i] - y[i] - Xb[i]
-		end
+	@sync @inbounds @parallel for i = 1:x.n
+		r[i] = y[i] - Xb[i]
+	end
+
+	return r
+end
+
+
+function update_partial_residuals!(r::Array{Float64,1}, y::Array{Float64,1}, x::BEDFile, indices::BitArray{1}, b::Array{Float64,1}, k::Int; means::Array{Float64,1} = mean(x), invstds::Array{Float64,1} = invstd(x, y=means), Xb::Array{Float64,1} = xb(X,b,indices,k, means=means, invstds=invstds) ) 
+	k <= length(b)    || throw(ArgumentError("k cannot exceed the length of b!"))
+#	k <= sum(indices) || throw(ArgumentError("k cannot exceed the number of true values in indices!"))
+	length(r) == x.n  || throw(DimensionMismatch("r must have length $(x.n)!"))
+	length(y) == x.n  || throw(DimensionMismatch("y must have length $(x.n)!"))
+
+	@inbounds @simd for i = 1:x.n
+		r[i] = y[i] - Xb[i]
 	end
 
 	return r
@@ -1443,27 +1450,29 @@ end
 # klkeys@g.ucla.edu
 function dot(x::BEDFile, y::DenseArray{Float64,1}, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
 	s = 0.0		# accumulation variable, will eventually equal dot(y,z)
-	t = 0.0		# store interpreted genotype
-	m = means[snp]
-	d = invstds[snp]
 
 	if snp <= x.p
+#		t = 0.0				# store interpreted genotype
+		m = means[snp]		# mean of SNP predictor
+		d = invstds[snp]	# 1/std of SNP predictor
+
 		# loop over all individuals
 		@inbounds for case = 1:x.n
 			t = getindex(x,x.x,case,snp,x.blocksize)
 			# handle exceptions on t
-			if isnan(t)
-				t = 0.0
-			else
-				t  = (t - m)
-				s += y[case] * t 
-			end
+#			if isnan(t)
+#				t = 0.0
+#			else
+#				t  = (t - m)
+#				s += y[case] * t 
+				s += y[case] * (t - m) 
+#			end
 		end
 
 		# return the (normalized) dot product 
 		return s*d 
 	else
-		for case = 1:x.n
+		@inbounds for case = 1:x.n
 			s += x.x2[case,snp] * y[case]
 		end
 		return s
@@ -1500,7 +1509,8 @@ function dott(x::BEDFile, b::DenseArray{Float64,1}, case::Int, indices::BitArray
 		if indices[snp] 
 			genotype_block = x.xt[(case-1)*x.tblocksize + j]
 			genotype       = (genotype_block >>> k) & THREE8
-			t              = interpret_genotype(genotype)
+#			t              = interpret_genotype(genotype)
+			t              = geno[genotype + ONE8]
 
 			# handle exceptions on t
 			if isnan(t)
@@ -1585,12 +1595,24 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function xb(x::BEDFile, b::DenseArray{Float64,1}, indices::BitArray{1}, k::Int; shared::Bool = true, means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
-	Xb = ifelse(shared, SharedArray(Float64, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(x.n))
+#function xb(x::BEDFile, b::DenseArray{Float64,1}, indices::BitArray{1}, k::Int; shared::Bool = true, means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
+#	Xb = ifelse(shared, SharedArray(Float64, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(x.n))
+#	xb!(Xb,x,b,indices,k, means=means, invstds=invstds)
+#	return Xb
+#end
+
+
+function xb(x::BEDFile, b::Array{Float64,1}, indices::BitArray{1}, k::Int; means::Array{Float64,1} = mean(x, shared=false), invstds::Array{Float64,1} = invstd(x, y=means, shared=false)) 
+	Xb = zeros(x.n)
 	xb!(Xb,x,b,indices,k, means=means, invstds=invstds)
 	return Xb
 end
 
+function xb(x::BEDFile, b::SharedArray{Float64,1}, indices::BitArray{1}, k::Int; means::SharedArray{Float64,1} = mean(x, shared=true), invstds::SharedArray{Float64,1} = invstd(x, y=means, shared=true)) 
+	Xb = SharedArray(Float64, x.n, init = S -> S[localindexes(S)] = 0.0)
+	xb!(Xb,x,b,indices,k, means=means, invstds=invstds)
+	return Xb
+end
 
 # PERFORM X'Y, OR A TRANSPOSED MATRIX-VECTOR PRODUCT
 #
@@ -1608,7 +1630,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function xty!(Xty::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
+function xty!(Xty::SharedArray{Float64,1}, x::BEDFile, y::SharedArray{Float64,1}; means::SharedArray{Float64,1} = mean(x, shared=true), invstds::SharedArray{Float64,1} = invstd(x, y=means, shared=true)) 
 
 	# error checking
 	x.p <= length(Xty) || throw(ArgumentError("Attempting to fill argument Xty of length $(length(Xty)) with $(x.p) elements!"))
@@ -1622,6 +1644,20 @@ function xty!(Xty::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}; 
 	return Xty
 end 
 
+function xty!(Xty::Array{Float64,1}, x::BEDFile, y::Array{Float64,1}; means::Array{Float64,1} = mean(x, shared=false), invstds::Array{Float64,1} = invstd(x, y=means, shared=false)) 
+
+	# error checking
+	x.p <= length(Xty) || throw(ArgumentError("Attempting to fill argument Xty of length $(length(Xty)) with $(x.p) elements!"))
+	x.n == length(y)   || throw(ArgumentError("Argument y has $(length(y)) elements but should have $(x.n) of them!"))
+
+	# loop over the desired number of predictors 
+	@inbounds for snp = 1:x.p
+		println("snp = ", snp)
+		@time Xty[snp] = dot(x,y,snp,means,invstds)
+	end
+
+	return Xty
+end 
 
 # WRAPPER FOR XTY!
 #
@@ -1639,8 +1675,14 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function xty(x::BEDFile, y::DenseArray{Float64,1}; shared::Bool = true, means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
-	Xty = ifelse(shared, SharedArray(Float64, x.p, init = S -> S[localindexes(S)] = 0.0), zeros(x.p))
+function xty(x::BEDFile, y::SharedArray{Float64,1}; means::SharedArray{Float64,1} = mean(x, shared=true), invstds::SharedArray{Float64,1} = invstd(x, y=means, shared=true)) 
+	Xty = SharedArray(Float64, x.p + x.p2, init = S -> S[localindexes(S)] = 0.0)
+	xty!(Xty,x,y, means=means, invstds=invstds) 
+	return Xty
+end
+
+function xty(x::BEDFile, y::Array{Float64,1}; means::Array{Float64,1} = mean(x, shared=false), invstds::Array{Float64,1} = invstd(x, y=means, shared=false)) 
+	Xty = zeros(x.p + x.p2)
 	xty!(Xty,x,y, means=means, invstds=invstds) 
 	return Xty
 end
