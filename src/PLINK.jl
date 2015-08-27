@@ -41,9 +41,9 @@ const MNUM1  = convert(Int8,108)
 const MNUM2  = convert(Int8,27)
 #const MNUM2  = convert(Int8,-85)
 
-# SWITCHES TO INTERPRET BIT-REPRESENTATION OF GENOTYPES
+# SWITCH TO INTERPRET BIT-REPRESENTATION OF GENOTYPES
 #
-# These switches encode the following PLINK format for genotypes:
+# This lookup table encodes the following PLINK format for genotypes:
 #
 # -- 00 is homozygous for allele 1
 # -- 01 is heterozygous
@@ -72,7 +72,6 @@ const MNUM2  = convert(Int8,27)
 # then we skip to the start of a new byte (i.e. skip any remaining bits in that byte). 
 # For a precise desceiption of PLINK BED files, see the file type reference at
 # http://pngu.mgh.harvard.edu/~purcell/plink/binary.shtml
-const bitshift = [4, 2, 0, 6]
 const geno     = [0.0, NaN, 1.0, 2.0]
 
 ##########################################
@@ -113,7 +112,7 @@ function BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Int, p::Int, 
 end
 
 function BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Int, p::Int, x2filename::ASCIIString)
-	x = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,iceil(n/4),iceil(p/4),SharedArray(Float64,n,0),0)
+	x = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,((n-1)>>>2)+1,((p-1)>>>2)+1,SharedArray(Float64,n,0),0)
 	x2 = convert(SharedArray{Float64,2}, readdlm(x2filename))
 	p2 = size(x2,2)
 	x.x2 = x2
@@ -135,8 +134,8 @@ function BEDFile(filename::ASCIIString, tfilename::ASCIIString; shared::Bool = t
 	p = count_predictors(bimfile)
 
 	# blocksizes are easy to calculate
-	blocksize  = iceil(n/4) 
-	tblocksize = iceil(p/4) 
+	blocksize  = ((n-1) >>> 2) + 1
+	tblocksize = ((p-1) >>> 2) + 1
 
 	# now load x, xt
 	x   = read_bedfile(filename)
@@ -327,7 +326,7 @@ end
 #
 # This subroutine will subset a stream of Int8 numbers representing a compressed genotype matrix.
 # Argument X is vacuous; it simply ensures no ambiguity with current Array implementations
-function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitArray{1}, colidx::BitArray{1}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = iceil(yn / 4), ytblock::Int = iceil(yp / 4))
+function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitArray{1}, colidx::BitArray{1}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = ((yn-1) >>> 2) + 1, ytblock::Int = ((yp-1) >>> 2) + 1)
 
 	quiet = true 
 
@@ -421,7 +420,7 @@ function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitAr
 end
 
 
-function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::UnitRange{Int64}, colidx::BitArray{1}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = iceil(yn / 4), ytblock::Int = iceil(yp / 4))
+function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::UnitRange{Int64}, colidx::BitArray{1}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = ((yn-1) >>> 2) + 1, ytblock::Int = ((yp-1) >>> 2) + 1)
 
 	quiet = true 
 
@@ -507,7 +506,7 @@ end
 
 
 
-function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitArray{1}, colidx::UnitRange{Int64}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = iceil(yn / 4), ytblock::Int = iceil(yp / 4))
+function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitArray{1}, colidx::UnitRange{Int64}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = ((yn-1) >>> 2) + 1, ytblock::Int = ((yp-1) >>> 2) + 1)
 
 	quiet = true 
 
@@ -597,7 +596,7 @@ function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitAr
 end
 
 
-function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::UnitRange{Int64}, colidx::UnitRange{Int64}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = iceil(yn / 4), ytblock::Int = iceil(yp / 4))
+function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::UnitRange{Int64}, colidx::UnitRange{Int64}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = ((yn-1) >>> 2) + 1, ytblock::Int = ((yp-1) >>> 2) + 1) 
 
 	quiet = true 
 
@@ -717,14 +716,15 @@ end
 # it becomes useful for accessing nongenetic covariates
 function getindex(X::BEDFile, x::DenseArray{Int8,1}, row::Int, col::Int, blocksize::Int; interpret::Bool = true)
 	if col <= X.p
-		genotype_block = x[(col-1)*blocksize + iceil(row/4)]
-		k = bitshift[3 - mod(row,4) + 1]
+#		genotype_block = x[(col-1)*blocksize + iceil(row/4)]
+		genotype_block = x[(col-1)*blocksize + ((row - 1) >>> 2) + 1]
+		k = 2*((row-1) & 3) 
 		genotype = (genotype_block >>> k) & THREE8
         interpret && return geno[genotype + ONE8] 
 
 		return genotype
 	else
-		return X.x2[row,col]
+		return X.x2[row,(col-X.p)]
 	end
 end
 
@@ -732,8 +732,8 @@ function getindex(x::BEDFile, rowidx::BitArray{1}, colidx::BitArray{1})
 
 	yn = sum(rowidx)
 	yp = sum(colidx)
-	yblock  = iceil(yn/4)
-	ytblock = iceil(yp/4)
+	yblock  = ((yn-1) >>> 2) + 1
+	ytblock = ((yp-1) >>> 2) + 1
 
 	y  = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
 	yt = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
@@ -748,8 +748,8 @@ function getindex(x::BEDFile, rowidx::UnitRange{Int64}, colidx::BitArray{1})
 
 	yn = length(rowidx)
 	yp = sum(colidx)
-	yblock  = iceil(yn/4)
-	ytblock = iceil(yp/4)
+	yblock  = ((yn-1) >>> 2) + 1
+	ytblock = ((yp-1) >>> 2) + 1
 
 	y  = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
 	yt = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
@@ -763,8 +763,8 @@ function getindex(x::BEDFile, rowidx::BitArray{1}, colidx::UnitRange{Int64})
 
 	yn = sum(rowidx)
 	yp = length(colidx)
-	yblock  = iceil(yn/4)
-	ytblock = iceil(yp/4)
+	yblock  = ((yn-1) >>> 2) + 1
+	ytblock = ((yp-1) >>> 2) + 1
 
 	y   = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
 	yt  = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
@@ -780,8 +780,8 @@ function getindex(x::BEDFile, rowidx::UnitRange{Int64}, colidx::UnitRange{Int64}
 
 	yn = length(rowidx)
 	yp = length(colidx)
-	yblock  = iceil(yn/4)
-	ytblock = iceil(yp/4)
+	yblock  = ((yn-1) >>> 2) + 1
+	ytblock = ((yp-1) >>> 2) + 1
 
 	y   = subset_genotype_matrix(x, x.x, rowidx, colidx, x.n, x.p, x.blocksize, yn=yn, yp=yp, yblock=yblock, ytblock=ytblock) 
 	yt  = subset_genotype_matrix(x, x.xt, colidx, rowidx, x.p, x.n, x.tblocksize, yn=yp, yp=yn, yblock=ytblock, ytblock=yblock) 
