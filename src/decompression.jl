@@ -27,14 +27,20 @@
 # GET THE VALUE OF A GENOTYPE IN A COMPRESSED MATRIX
 # argument X is almost vacuous because it ensures no conflict with current Array implementations
 # it becomes useful for accessing nongenetic covariates
-function getindex(X::BEDFile, x::DenseArray{Int8,1}, row::Int, col::Int, blocksize::Int; interpret::Bool = true)
+function getindex(
+	X         :: BEDFile, 
+	x         :: DenseArray{Int8,1}, 
+	row       :: Integer, 
+	col       :: Integer, 
+	blocksize :: Integer; 
+	interpret :: Bool = true
+)
 	if col <= X.p
-#		genotype_block = x[(col-1)*blocksize + iceil(row/4)]
 		genotype_block = x[(col-1)*blocksize + ((row - 1) >>> 2) + 1]
 		k = 2*((row-1) & 3) 
 		genotype = (genotype_block >>> k) & THREE8
-        interpret && return geno[genotype + ONE8] 
-
+        interpret && typeof(X.x2) == Float32 && return geno32[genotype + ONE8] 
+        interpret && return geno64[genotype + ONE8] 
 		return genotype
 	else
 		return X.x2[row,(col-X.p)]
@@ -124,10 +130,16 @@ end
 #
 # coded by Kevin L. Keys and Kenneth Lange (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!(y::DenseArray{Float64,1}, x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1})
+function decompress_genotypes!{T <: Union(Float32, Float64)}(
+	y       :: DenseArray{T,1}, 
+	x       :: BEDFile, 
+	snp     :: Integer, 
+	means   :: DenseArray{T,1}, 
+	invstds :: DenseArray{T,1}
+)
 	m = means[snp]
 	d = invstds[snp]
-	t = 0.0
+	t = zero(T)
 	if snp <= x.p
 		@inbounds for case = 1:x.n
 			t       = getindex(x,x.x,case,snp,x.blocksize) 
@@ -153,8 +165,14 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes(x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}; shared::Bool = true)
-	y = ifelse(shared, SharedArray(Float64, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(x.n))
+function decompress_genotypes{T <: Union(Float32, Float64)}(
+	x       :: BEDFile, 
+	snp     :: Integer, 
+	means   :: DenseArray{T,1}, 
+	invstds :: DenseArray{T,1}; 
+	shared  :: Bool = true
+)
+	y = ifelse(shared, SharedArray(T, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(T,x.n))
 	decompress_genotypes!(y,x,snp,means,invstds)
 	return y
 end
@@ -177,8 +195,13 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile; y::DenseArray{Float64,1} = SharedArray(Float64, x.n), means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
-#function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means)) 
+function decompress_genotypes!{T <: Union(Float32, Float64)}(
+	Y       :: DenseArray{T,2}, 
+	x       :: BEDFile; 
+	y       :: DenseArray{T,1} = SharedArray(T, x.n), 
+	means   :: DenseArray{T,1} = mean(T,x), 
+	invstds :: DenseArray{T,1} = invstd(T,x, y=means)
+) 
 
 	# extract size of Y
 	const (n,p) = size(Y)
@@ -230,7 +253,13 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::BitArray{1}; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means))
+function decompress_genotypes!{T <: Union(Float32, Float64)}(
+	Y       :: DenseArray{T,2}, 
+	x       :: BEDFile, 
+	indices :: BitArray{1}; 
+	means   :: DenseArray{T,1} = mean(T,x),
+	invstds :: DenseArray{T,1} = invstd(T,x, y=means)
+)
 
 	# get dimensions of matrix to fill 
 	const (n,p) = size(Y)
@@ -242,7 +271,6 @@ function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::Bi
 
 	# counter to ensure that we do not attempt to overfill Y
 	current_col = 0
-
 
 	quiet = true 
 	@inbounds for snp = 1:(x.p + x.p2)
@@ -296,7 +324,13 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::DenseArray{Int,1}; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means))
+function decompress_genotypes!{T <: Union(Float32, Float64)}(
+	Y       :: DenseArray{T,2}, 
+	x       :: BEDFile, 
+	indices :: DenseArray{Int,1}; 
+	means   :: DenseArray{T,1} = mean(T,x), 
+	invstds :: DenseArray{T,1} = invstd(T,x, y=means)
+)
 
 	# get dimensions of matrix to fill 
 	const (n,p) = size(Y)
@@ -308,7 +342,6 @@ function decompress_genotypes!(Y::DenseArray{Float64,2}, x::BEDFile, indices::De
 
 	# counter to ensure that we do not attempt to overfill Y
 	current_col = 0
-
 
 	quiet = true 
 	@inbounds for snp in indices 

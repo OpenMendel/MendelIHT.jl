@@ -9,45 +9,67 @@
 # Note that this BEDFile object, and the rest of this module for that matter, operate with the assumption
 # that the compressed matrix is in column-major (SNP-major) format.
 # Row-major (case-major) format is not supported.
-type BEDFile
-	x::DenseArray{Int8,1}   	# compressed genotypes for genotype matrix X
-	xt::DenseArray{Int8,1}  	# compressed genotypes for TRANSPOSED genotype matrix X'
-	n::Int                  	# number of cases (people) in uncompressed genotype matrix 
-	p::Int                  	# number of predictors (SNPs) in uncompressed genotype matrix
-	blocksize::Int          	# number of bytes per compressed column of genotype matrix
-	tblocksize::Int         	# number of bytes per compressed column of TRANSPOSED genotype matrix
-	x2::DenseArray{Float64,2}	# nongenetic covariantes, if any exist
-	p2::Int						# number of nongenetic covariates
-	x2t::DenseArray{Float64,2}	# transpose of nongenetic covariantes, used in matrix algebra 
+type BEDFile{T <: Union(Float32, Float64)}
+	x   :: DenseArray{Int8,1}	# compressed genotypes for genotype matrix X
+	xt  :: DenseArray{Int8,1}	# compressed genotypes for TRANSPOSED genotype matrix X'
+	n   :: Integer             	# number of cases (people) in uncompressed genotype matrix 
+	p   :: Integer             	# number of predictors (SNPs) in uncompressed genotype matrix
+	blocksize  :: Integer     	# number of bytes per compressed column of genotype matrix
+	tblocksize :: Integer    	# number of bytes per compressed column of TRANSPOSED genotype matrix
+	x2  :: DenseArray{T,2}		# nongenetic covariantes, if any exist
+	p2  :: Integer				# number of nongenetic covariates
+	x2t :: DenseArray{T,2}		# transpose of nongenetic covariantes, used in matrix algebra 
 
 	BEDFile(x,xt,n,p,blocksize,tblocksize,x2,p2,x2t) = new(x,xt,n,p,blocksize,tblocksize,x2,p2,x2t)
 end
 
 # simple constructors for when n, p, and maybe blocksize are known and specified
 # x must come from an actual BED file, so specify the path to the correct file
-function BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Int, p::Int, blocksize::Int, tblocksize::Int, x2filename::ASCIIString)
-	x  = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,blocksize,tblocksize,SharedArray(Float64,n,0),0)
-	x2 = convert(SharedArray{Float64,2}, readdlm(x2filename))
-	p2 = size(x2,2)
-	x.x2 = x2
+function BEDFile(
+	T          :: Type,
+	filename   :: ASCIIString, 
+	tfilename  :: ASCIIString, 
+	n          :: Integer, 
+	p          :: Integer, 
+	blocksize  :: Integer, 
+	tblocksize :: Integer, 
+	x2filename :: ASCIIString
+)
+	x     = BEDFile{T}(read_bedfile(filename),read_bedfile(tfilename),n,p,blocksize,tblocksize,SharedArray(T,n,0),0)
+	x2    = convert(SharedArray{T,2}, readdlm(x2filename))
+	p2    = size(x2,2)
+	x.x2  = x2
 	x.x2t = x2'
-	x.p2 = p2
+	x.p2  = p2
 	return x
 end
 
-function BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Int, p::Int, x2filename::ASCIIString)
-	x = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,((n-1)>>>2)+1,((p-1)>>>2)+1,SharedArray(Float64,n,0),0)
-	x2 = convert(SharedArray{Float64,2}, readdlm(x2filename))
-	p2 = size(x2,2)
-	x.x2 = x2
+# for previous constructor, if type is not defined then default to Float64
+BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Integer, p::Integer, blocksize::Integer, tblocksize::Integer, x2filename::ASCIIString) = BEDFile(Float64, filename, tfilename, n, p, blocksize, tblocksize, x2filename)
+
+function BEDFile(
+	T          :: Type, 
+	filename   :: ASCIIString, 
+	tfilename  :: ASCIIString, 
+	n          :: Integer, 
+	p          :: Integer, 
+	x2filename :: ASCIIString
+)
+	x     = BEDFile(read_bedfile(filename),read_bedfile(tfilename),n,p,((n-1)>>>2)+1,((p-1)>>>2)+1,SharedArray(T,n,0),0)
+	x2    = convert(SharedArray{T,2}, readdlm(x2filename))
+	p2    = size(x2,2)
+	x.x2  = x2
 	x.x2t = x2'
-	x.p2 = p2
+	x.p2  = p2
 	return x
 end
+
+# set default type for previous constructor to Float64
+BEDFile(filename::ASCIIString, tfilename::ASCIIString, n::Integer, p::Integer, x2filename::ASCIIString) = BEDFile(Float64, filename, tfilename, n, p, xtfilename)
 
 # a more complicated constructor that attempts to infer n, p, and blocksize based on the BED filepath
 # it assumes that the BED, FAM, and BIM files are all in the same directory
-function BEDFile(filename::ASCIIString, tfilename::ASCIIString; shared::Bool = true)
+function BEDFile(T::Type, filename::ASCIIString, tfilename::ASCIIString; shared::Bool = true)
 
 	# find n from the corresponding FAM file 
 	famfile = filename[1:(endof(filename)-3)] * "fam"
@@ -64,31 +86,34 @@ function BEDFile(filename::ASCIIString, tfilename::ASCIIString; shared::Bool = t
 	# now load x, xt
 	x   = read_bedfile(filename)
 	xt  = read_bedfile(tfilename)
-	x2  = zeros(n,0) 
+	x2  = zeros(T, n,0) 
 	x2t = x2' 
 
 	# if using SharedArrays, (the default), then convert x to a SharedArray
 	if shared
 		x   = convert(SharedArray, x)
 		xt  = convert(SharedArray, xt)
-		x2  = convert(SharedArray, x2)
-		x2t = convert(SharedArray, x2t)
+		x2  = convert(SharedArray{T,2}, x2)
+		x2t = convert(SharedArray{T,2}, x2t)
 	end
 
 	return BEDFile(x,xt,n,p,blocksize,tblocksize,x2,0,x2t)
 end
+
+# set default type for previous constructor to Float64
+BEDFile(filename::ASCIIString, tfilename::ASCIIString; shared::Bool = true) = BEDFile(Float64, filename, tfilename, shared=shared)
 
 
 # an extra constructor based on previous one 
 # this one admits a third file path for the nongenetic covariates 
 # it uncreatively creates a BEDFile using previous constructor with two file paths,
 # and then fills the nongenetic covariates with the third file path 
-function BEDFile(filename::ASCIIString, tfilename::ASCIIString, x2filename::ASCIIString; shared::Bool = true, header::Bool = true)
+function BEDFile(T::Type, filename::ASCIIString, tfilename::ASCIIString, x2filename::ASCIIString; shared::Bool = true, header::Bool = true)
 
 	x    = BEDFile(filename, tfilename, shared=shared)
 	x2   = readdlm(x2filename, header=header)
 	if shared
-		x2 = convert(SharedArray, x2)
+		x2 = convert(SharedArray{T,2}, x2)
 	end
 	x.n   == size(x2,1) || throw(DimensionMismatch("Nongenetic covariates have more rows than genotype matrix"))
 	x.x2  = x2
@@ -96,6 +121,9 @@ function BEDFile(filename::ASCIIString, tfilename::ASCIIString, x2filename::ASCI
 	x.x2t = x2'
 	return x 
 end
+
+# set default type for previous constructor to Float64
+BEDFile(filename::ASCIIString, tfilename::ASCIIString, x2filename::ASCIIString; shared::Bool = true, header::Bool = true) = BEDFile(Float64, filename, tfilename, x2filename, shared=shared, header=header)
 
 
 ###########################
@@ -148,22 +176,23 @@ copy(x::BEDFile) = BEDFile(x.x, x.xt, x.n, x.p, x.blocksize, x.tblocksize, x.x2,
 					         x.p2  == y.p2 &&
 							 x.x2t == y.x2t
 
-isequal(x::BEDFile, y::BEDFile) = isequal(x.x, y.x)                   && 
-                                  isequal(x.xt, y.xt)                 && 
-                                  isequal(x.n, y.n)                   && 
-                                  isequal(x.p, y.p)                   && 
-                                  isequal(x.blocksize, y.blocksize)   && 
-                                  isequal(x.tblocksize, y.tblocksize) &&
-								  isequal(x.x2, y.x2)                 &&
-								  isequal(x.p2, y.p2)                 &&
-								  isequal(x.x2t, y.y2t)
+isequal(x::BEDFile, y::BEDFile) = x == y 
+#isequal(x::BEDFile, y::BEDFile) = isequal(x.x, y.x)                   && 
+#                                  isequal(x.xt, y.xt)                 && 
+#                                  isequal(x.n, y.n)                   && 
+#                                  isequal(x.p, y.p)                   && 
+#                                  isequal(x.blocksize, y.blocksize)   && 
+#                                  isequal(x.tblocksize, y.tblocksize) &&
+#								  isequal(x.x2, y.x2)                 &&
+#								  isequal(x.p2, y.p2)                 &&
+#								  isequal(x.x2t, y.y2t)
 
 
-function addx2!(x::BEDFile, x2::DenseArray{Float64,2}; shared::Bool = true)
+function addx2!{T <: Union(Float32, Float64)}(x::BEDFile, x2::DenseArray{T,2}; shared::Bool = true)
 	(n,p2) = size(x2)
 	n == x.n || throw(DimensionMismatch("x2 has $n rows but should have $(x.n) of them"))
 	x.p2 = p2
-	x.x2 = ifelse(shared, SharedArray(Float64, n, p2), zeros(n,p2)) 
+	x.x2 = ifelse(shared, SharedArray(T, n, p2), zeros(T,n,p2)) 
 #	x.x2t = x.x2' 
 	for j = 1:p2
 		for i = 1:x.n
@@ -179,7 +208,7 @@ function display(x::BEDFile)
 	println("\tnumber of cases        = $(x.n)")
 	println("\tgenetic covariates     = $(x.p)")
 	println("\tnongenetic covariates  = $(x.p2)")
-	println("\tcovariate type         = $(typeof(x.x2))")
+	println("\tcovariate bits type    = $(typeof(x.x2))")
 end
 
 # READ PLINK BINARY GENOTYPE FILES
@@ -227,7 +256,19 @@ end
 #
 # This subroutine will subset a stream of Int8 numbers representing a compressed genotype matrix.
 # Argument X is vacuous; it simply ensures no ambiguity with current Array implementations
-function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitArray{1}, colidx::BitArray{1}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = ((yn-1) >>> 2) + 1, ytblock::Int = ((yp-1) >>> 2) + 1)
+function subset_genotype_matrix(
+	X         :: BEDFile, 
+	x         :: DenseArray{Int8,1}, 
+	rowidx    :: BitArray{1}, 
+	colidx    :: BitArray{1}, 
+	n         :: Integer, 
+	p         :: Integer, 
+	blocksize :: Integer; 
+	yn        :: Integer = sum(rowidx), 
+	yp        :: Integer = sum(colidx), 
+	yblock    :: Integer = ((yn-1) >>> 2) + 1, 
+	ytblock   :: Integer = ((yp-1) >>> 2) + 1
+)
 
 	quiet = true 
 
@@ -321,7 +362,19 @@ function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitAr
 end
 
 
-function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::UnitRange{Int64}, colidx::BitArray{1}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = ((yn-1) >>> 2) + 1, ytblock::Int = ((yp-1) >>> 2) + 1)
+function subset_genotype_matrix(
+	X         :: BEDFile, 
+	x         :: DenseArray{Int8,1}, 
+	rowidx    :: UnitRange{Int}, 
+	colidx    :: BitArray{1}, 
+	n         :: Integer, 
+	p         :: Integer, 
+	blocksize :: Integer; 
+	yn        :: Integer = sum(rowidx), 
+	yp        :: Integer = sum(colidx), 
+	yblock    :: Integer = ((yn-1) >>> 2) + 1, 
+	ytblock   :: Integer = ((yp-1) >>> 2) + 1
+)
 
 	quiet = true 
 
@@ -407,7 +460,19 @@ end
 
 
 
-function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitArray{1}, colidx::UnitRange{Int64}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = ((yn-1) >>> 2) + 1, ytblock::Int = ((yp-1) >>> 2) + 1)
+function subset_genotype_matrix(
+	X         :: BEDFile, 
+	x         :: DenseArray{Int8,1}, 
+	rowidx    :: BitArray{1}, 
+	colidx    :: UnitRange{Int}, 
+	n         :: Integer, 
+	p         :: Integer, 
+	blocksize :: Integer; 
+	yn        :: Integer = sum(rowidx), 
+	yp        :: Integer = sum(colidx), 
+	yblock    :: Integer = ((yn-1) >>> 2) + 1, 
+	ytblock   :: Integer = ((yp-1) >>> 2) + 1
+)
 
 	quiet = true 
 
@@ -497,7 +562,19 @@ function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::BitAr
 end
 
 
-function subset_genotype_matrix(X::BEDFile, x::DenseArray{Int8,1}, rowidx::UnitRange{Int64}, colidx::UnitRange{Int64}, n::Int, p::Int, blocksize::Int; yn::Int = sum(rowidx), yp::Int = sum(colidx), yblock::Int = ((yn-1) >>> 2) + 1, ytblock::Int = ((yp-1) >>> 2) + 1) 
+function subset_genotype_matrix(
+	X         :: BEDFile, 
+	x         :: DenseArray{Int8,1}, 
+	rowidx    :: UnitRange{Int}, 
+	colidx    :: UnitRange{Int}, 
+	n         :: Integer, 
+	p         :: Integer, 
+	blocksize :: Integer; 
+	yn        :: Integer = sum(rowidx), 
+	yp        :: Integer = sum(colidx), 
+	yblock    :: Integer = ((yn-1) >>> 2) + 1, 
+	ytblock   :: Integer = ((yp-1) >>> 2) + 1
+)
 
 	quiet = true 
 

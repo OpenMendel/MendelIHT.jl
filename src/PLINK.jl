@@ -10,7 +10,6 @@ import Base.copy
 import Base.getindex
 import Base.length
 import Base.ndims
-import NumericExtensions.sumsq
 import Base.display
 
 export BEDFile
@@ -72,7 +71,8 @@ const MNUM2  = convert(Int8,27)
 # then we skip to the start of a new byte (i.e. skip any remaining bits in that byte). 
 # For a precise desceiption of PLINK BED files, see the file type reference at
 # http://pngu.mgh.harvard.edu/~purcell/plink/binary.shtml
-const geno     = [0.0, NaN, 1.0, 2.0]
+const geno32 = [0f0, NaN32, 1.f0, 2f0]
+const geno64 = [0.0, NaN, 1.0, 2.0]
 
 include("bedfile.jl")
 include("decompression.jl")

@@ -15,8 +15,8 @@
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function maf(x::BEDFile; y::DenseArray{Float64,1} = zeros(x.n))
-	z = zeros(x.p)
+function maf{T <: Union(Float32, Float64)}(x::BEDFile; y::DenseArray{T,1} = zeros(T,x.n))
+	z = zeros(T,x.p)
 	@inbounds for i = 1:x.p
 		decompress_genotypes!(y,x,i)
 		z[i] = (min( sum(y .== 1.0), sum(y .== -1.0)) + 0.5*sum(y .== 0.0)) / (x.n - sum(isnan(y)))
@@ -45,7 +45,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function sumsq_snp(x::BEDFile, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
+function sumsq_snp{T <: Union(Float32, Float64)}(x::BEDFile, snp::Integer, means::DenseArray{T,1}, invstds::DenseArray{T,1}) 
 	s = 0.0	# accumulation variable, will eventually equal dot(y,z)
 	t = 0.0 # temp variable, output of interpret_genotype
 	m = means[snp]
@@ -71,7 +71,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function sumsq!(y::SharedArray{Float64,1}, x::BEDFile, means::SharedArray{Float64,1}, invstds::SharedArray{Float64,1})
+function sumsq!{T <: Union(Float32, Float64)}(y::SharedArray{T,1}, x::BEDFile, means::SharedArray{T,1}, invstds::SharedArray{T,1})
 	(x.p + x.p2) == length(y) || throw(DimensionMismatch("y must have one row for every column of x"))
 	@sync @inbounds @parallel for snp = 1:x.p
 		y[snp] = sumsq_snp(x,snp,means,invstds)
@@ -87,7 +87,7 @@ function sumsq!(y::SharedArray{Float64,1}, x::BEDFile, means::SharedArray{Float6
 end
 
 
-function sumsq!(y::Array{Float64,1}, x::BEDFile, means::Array{Float64,1}, invstds::Array{Float64,1})
+function sumsq!{T <: Union(Float32, Float64)}(y::Array{T,1}, x::BEDFile, means::Array{T,1}, invstds::Array{T,1})
 	(x.p + x.p2) == length(y) || throw(DimensionMismatch("y must have one row for every column of x"))
 	@inbounds for snp = 1:x.p
 		y[snp] = sumsq_snp(x,snp,means,invstds)
@@ -115,8 +115,8 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function sumsq(x::BEDFile; shared::Bool = true, means::DenseArray{Float64,1} = mean(x, shared=shared), invstds::DenseArray{Float64,1} = invstd(x, y=means, shared=shared)) 
-	y = ifelse(shared, SharedArray(Float64, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(x.p + x.p2))
+function sumsq{T <: Union(Float32, Float64)}(x::BEDFile; shared::Bool = true, means::DenseArray{T,1} = mean(x, shared=shared), invstds::DenseArray{T,1} = invstd(x, y=means, shared=shared)) 
+	y = ifelse(shared, SharedArray(T, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(T, x.p + x.p2))
 	sumsq!(y,x,means,invstds)
 #	for i = (x.p+1):(x.p+x.p2)
 #		@inbounds y[i] *= y[i]
@@ -138,10 +138,13 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function mean(x::BEDFile; shared::Bool = true)
+function mean(T::Type, x::BEDFile; shared::Bool = true)
+
+	# enforce floating point type
+	T <: Union(Float32, Float64) || throw(ArgumentError("Type must be Float32 or Float64"))
 
 	# initialize return vector
-	y = ifelse(shared, SharedArray(Float64, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(x.p + x.p2))
+	y = ifelse(shared, SharedArray(T, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(T, x.p + x.p2))
 
 	if shared
 		@sync @inbounds @parallel for snp = 1:x.p
@@ -162,7 +165,10 @@ function mean(x::BEDFile; shared::Bool = true)
 	return y
 end
 
-function mean_col(x::BEDFile, snp::Int)
+# for mean function, set default type to Float64
+mean(x::BEDFile; shared::Bool = true) = mean(Float64, x, shared=shared)
+
+function mean_col(x::BEDFile, snp::Integer)
 	i = 1	# count number of people
 	j = 1	# count number of bytes 
 	s = 0.0	# accumulation variable, will eventually equal mean(x,col) for current col 
@@ -199,10 +205,16 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function invstd(x::BEDFile; shared::Bool = true, y::DenseArray = mean(x))
+#
+### WARNING: need to fix type assertions here!
+#function invstd(T::Type, x::BEDFile; shared::Bool = true, y::DenseArray{T,1} = mean(T,x, shared=shared))
+function invstd(T::Type, x::BEDFile; shared::Bool = true, y::DenseArray{Float64,1} = mean(T,x, shared=shared))
+
+	# enforce floating point type
+	T <: Union(Float32, Float64) || throw(ArgumentError("Type must be Float32 or Float64"))
 
 	# initialize return vector
-	z = ifelse(shared, SharedArray(Float64, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(x.p + x.p2))
+	z = ifelse(shared, SharedArray(T, x.p + x.p2, init= S -> S[localindexes(S)] = 0.0), zeros(T, x.p + x.p2))
 
 	if shared
 		@sync @inbounds @parallel for snp = 1:x.p
@@ -223,8 +235,11 @@ function invstd(x::BEDFile; shared::Bool = true, y::DenseArray = mean(x))
 	return z
 end
 
+# for invstd function, set default type to Float64
+invstd(x::BEDFile; shared::Bool = true, y::DenseArray{Float64,1} = mean(Float64, x, shared=shared)) = invstd(Float64, x, shared=shared, y=y)
 
-function invstd_col(x::BEDFile, snp::Int, means::DenseArray{Float64,1})
+
+function invstd_col{T <: Union(Float32, Float64)}(x::BEDFile, snp::Integer, means::DenseArray{T,1})
 	s = 0.0			# accumulation variable, will eventually equal mean(x,col) for current col 
 	t = 0.0 		# temp variable, output of interpret_genotype
 	u = 0.0			# count the number of people
@@ -262,8 +277,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-#function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, perm::DenseArray{Int,1}, b::DenseArray{Float64,1}, k::Int; Xb::DenseArray{Float64,1} = xb!(Xb,X,b,support,k)) 
-function update_partial_residuals!(r::SharedArray{Float64,1}, y::SharedArray{Float64,1}, x::BEDFile, perm::SharedArray{Int,1}, b::DenseArray{Float64,1}, k::Int; means=mean(x), invstds=invstd(x, y=means), Xb::SharedArray{Float64,1} = xb(X,b,support,k, means=means, invstds=invstds)) 
+function update_partial_residuals!{T <: Union(Float32, Float64)}(r::SharedArray{T,1}, y::SharedArray{T,1}, x::BEDFile, perm::SharedArray{Int,1}, b::DenseArray{T,1}, k::Integer; means=mean(x), invstds=invstd(x, y=means), Xb::SharedArray{T,1} = xb(X,b,support,k, means=means, invstds=invstds)) 
 	k <= length(b)   || throw(ArgumentError("k cannot exceed the length of b!"))
 	length(r) == x.n || throw(DimensionMismatch("r must have length $(x.n)!"))
 	length(y) == x.n || throw(DimensionMismatch("y must have length $(x.n)!"))
@@ -275,7 +289,7 @@ function update_partial_residuals!(r::SharedArray{Float64,1}, y::SharedArray{Flo
 	return r
 end
 
-function update_partial_residuals!(r::Array{Float64,1}, y::Array{Float64,1}, x::BEDFile, perm::Array{Int,1}, b::Array{Float64,1}, k::Int; means=mean(x), invstds=invstd(x, y=means), Xb::Array{Float64,1} = xb(X,b,support,k, means=means, invstds=invstds)) 
+function update_partial_residuals!{T <: Union(Float32, Float64)}(r::Array{T,1}, y::Array{T,1}, x::BEDFile, perm::Array{Int,1}, b::Array{T,1}, k::Integer; means=mean(x), invstds=invstd(x, y=means), Xb::Array{T,1} = xb(X,b,support,k, means=means, invstds=invstds)) 
 	k <= length(b)   || throw(ArgumentError("k cannot exceed the length of b!"))
 	length(r) == x.n || throw(DimensionMismatch("r must have length $(x.n)!"))
 	length(y) == x.n || throw(DimensionMismatch("y must have length $(x.n)!"))
@@ -302,7 +316,7 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 #function update_partial_residuals!(r::DenseArray{Float64,1}, y::DenseArray{Float64,1}, x::BEDFile, indices::BitArray{1}, b::DenseArray{Float64,1}, k::Int; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means), Xb::DenseArray{Float64,1} = xb!(Xb,X,b,indices,k, means=means, invstds=invstds) ) 
-function update_partial_residuals!(r::SharedArray{Float64,1}, y::SharedArray{Float64,1}, x::BEDFile, indices::BitArray{1}, b::SharedArray{Float64,1}, k::Int; means::SharedArray{Float64,1} = mean(x), invstds::SharedArray{Float64,1} = invstd(x, y=means), Xb::SharedArray{Float64,1} = xb(X,b,indices,k, means=means, invstds=invstds) ) 
+function update_partial_residuals!{T <: Union(Float32, Float64)}(r::SharedArray{T,1}, y::SharedArray{T,1}, x::BEDFile, indices::BitArray{1}, b::SharedArray{T,1}, k::Integer; means::SharedArray{T,1} = mean(x), invstds::SharedArray{T,1} = invstd(x, y=means), Xb::SharedArray{T,1} = xb(X,b,indices,k, means=means, invstds=invstds) ) 
 	k <= length(b)    || throw(ArgumentError("k cannot exceed the length of b!"))
 #	k <= sum(indices) || throw(ArgumentError("k cannot exceed the number of true values in indices!"))
 	length(r) == x.n  || throw(DimensionMismatch("r must have length $(x.n)!"))
@@ -316,7 +330,7 @@ function update_partial_residuals!(r::SharedArray{Float64,1}, y::SharedArray{Flo
 end
 
 
-function update_partial_residuals!(r::Array{Float64,1}, y::Array{Float64,1}, x::BEDFile, indices::BitArray{1}, b::Array{Float64,1}, k::Int; means::Array{Float64,1} = mean(x), invstds::Array{Float64,1} = invstd(x, y=means), Xb::Array{Float64,1} = xb(X,b,indices,k, means=means, invstds=invstds) ) 
+function update_partial_residuals!{T <: Union(Float32, Float64)}(r::Array{T,1}, y::Array{T,1}, x::BEDFile, indices::BitArray{1}, b::Array{T,1}, k::Integer; means::Array{T,1} = mean(x), invstds::Array{T,1} = invstd(x, y=means), Xb::Array{T,1} = xb(X,b,indices,k, means=means, invstds=invstds) ) 
 	k <= length(b)    || throw(ArgumentError("k cannot exceed the length of b!"))
 #	k <= sum(indices) || throw(ArgumentError("k cannot exceed the number of true values in indices!"))
 	length(r) == x.n  || throw(DimensionMismatch("r must have length $(x.n)!"))
@@ -345,7 +359,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function dot(x::BEDFile, y::DenseArray{Float64,1}, snp::Int, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
+function dot{T <: Union(Float32, Float64)}(x::BEDFile, y::DenseArray{T,1}, snp::Integer, means::DenseArray{T,1}, invstds::DenseArray{T,1}) 
 	s = 0.0		# accumulation variable, will eventually equal dot(y,z)
 
 	if snp <= x.p
@@ -394,7 +408,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function dott(x::BEDFile, b::DenseArray{Float64,1}, case::Int, indices::BitArray{1}, means::DenseArray{Float64,1}, invstds::DenseArray{Float64,1}) 
+function dott{T <: Union(Float32, Float64)}(x::BEDFile, b::DenseArray{T,1}, case::Integer, indices::BitArray{1}, means::DenseArray{T,1}, invstds::DenseArray{T,1}) 
 	snp = 1
 	j = 1
 	k = 0
@@ -460,7 +474,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function xb!(Xb::DenseArray{Float64,1}, x::BEDFile, b::DenseArray{Float64,1}, indices::BitArray{1}, k::Int; means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means))
+function xb!{T <: Union(Float32, Float64)}(Xb::DenseArray{T,1}, x::BEDFile, b::DenseArray{T,1}, indices::BitArray{1}, k::Integer; means::DenseArray{T,1} = mean(x), invstds::DenseArray{T,1} = invstd(x, y=means))
     # error checking
     0 <= k <= size(x,2) || throw(ArgumentError("Number of active predictors must be nonnegative and less than p"))
 #	k <= sum(indices)   || throw(ArgumentError("k != sum(indices)"))
@@ -499,14 +513,14 @@ end
 #end
 
 
-function xb(x::BEDFile, b::Array{Float64,1}, indices::BitArray{1}, k::Int; means::Array{Float64,1} = mean(x, shared=false), invstds::Array{Float64,1} = invstd(x, y=means, shared=false)) 
-	Xb = zeros(x.n)
+function xb{T <: Union(Float32, Float64)}(x::BEDFile, b::Array{T,1}, indices::BitArray{1}, k::Integer; means::Array{T,1} = mean(x, shared=false), invstds::Array{T,1} = invstd(x, y=means, shared=false)) 
+	Xb = zeros(T,x.n)
 	xb!(Xb,x,b,indices,k, means=means, invstds=invstds)
 	return Xb
 end
 
-function xb(x::BEDFile, b::SharedArray{Float64,1}, indices::BitArray{1}, k::Int; means::SharedArray{Float64,1} = mean(x, shared=true), invstds::SharedArray{Float64,1} = invstd(x, y=means, shared=true)) 
-	Xb = SharedArray(Float64, x.n, init = S -> S[localindexes(S)] = 0.0)
+function xb{T <: Union(Float32, Float64)}(x::BEDFile, b::SharedArray{T,1}, indices::BitArray{1}, k::Integer; means::SharedArray{T,1} = mean(x, shared=true), invstds::SharedArray{T,1} = invstd(x, y=means, shared=true)) 
+	Xb = SharedArray(T, x.n, init = S -> S[localindexes(S)] = 0.0)
 	xb!(Xb,x,b,indices,k, means=means, invstds=invstds)
 	return Xb
 end
@@ -527,7 +541,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function xty!(Xty::SharedArray{Float64,1}, x::BEDFile, y::SharedArray{Float64,1}; means::SharedArray{Float64,1} = mean(x, shared=true), invstds::SharedArray{Float64,1} = invstd(x, y=means, shared=true)) 
+function xty!{T <: Union(Float32, Float64)}(Xty::SharedArray{T,1}, x::BEDFile, y::SharedArray{T,1}; means::SharedArray{T,1} = mean(x, shared=true), invstds::SharedArray{T,1} = invstd(x, y=means, shared=true)) 
 
 	# error checking
 	x.p <= length(Xty) || throw(ArgumentError("Attempting to fill argument Xty of length $(length(Xty)) with $(x.p) elements!"))
@@ -541,7 +555,7 @@ function xty!(Xty::SharedArray{Float64,1}, x::BEDFile, y::SharedArray{Float64,1}
 	return Xty
 end 
 
-function xty!(Xty::Array{Float64,1}, x::BEDFile, y::Array{Float64,1}; means::Array{Float64,1} = mean(x, shared=false), invstds::Array{Float64,1} = invstd(x, y=means, shared=false)) 
+function xty!{T <: Union(Float32, Float64)}(Xty::Array{T,1}, x::BEDFile, y::Array{T,1}; means::Array{T,1} = mean(x, shared=false), invstds::Array{T,1} = invstd(x, y=means, shared=false)) 
 
 	# error checking
 	x.p <= length(Xty) || throw(ArgumentError("Attempting to fill argument Xty of length $(length(Xty)) with $(x.p) elements!"))
@@ -549,8 +563,7 @@ function xty!(Xty::Array{Float64,1}, x::BEDFile, y::Array{Float64,1}; means::Arr
 
 	# loop over the desired number of predictors 
 	@inbounds for snp = 1:x.p
-		println("snp = ", snp)
-		@time Xty[snp] = dot(x,y,snp,means,invstds)
+		Xty[snp] = dot(x,y,snp,means,invstds)
 	end
 
 	return Xty
@@ -572,14 +585,14 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function xty(x::BEDFile, y::SharedArray{Float64,1}; means::SharedArray{Float64,1} = mean(x, shared=true), invstds::SharedArray{Float64,1} = invstd(x, y=means, shared=true)) 
-	Xty = SharedArray(Float64, x.p + x.p2, init = S -> S[localindexes(S)] = 0.0)
+function xty{T <: Union(Float32, Float64)}(x::BEDFile, y::SharedArray{T,1}; means::SharedArray{T,1} = mean(x, shared=true), invstds::SharedArray{T,1} = invstd(x, y=means, shared=true)) 
+	Xty = SharedArray(T, x.p + x.p2, init = S -> S[localindexes(S)] = 0.0)
 	xty!(Xty,x,y, means=means, invstds=invstds) 
 	return Xty
 end
 
-function xty(x::BEDFile, y::Array{Float64,1}; means::Array{Float64,1} = mean(x, shared=false), invstds::Array{Float64,1} = invstd(x, y=means, shared=false)) 
-	Xty = zeros(x.p + x.p2)
+function xty{T <: Union(Float32, Float64)}(x::BEDFile, y::Array{T,1}; means::Array{T,1} = mean(x, shared=false), invstds::Array{T,1} = invstd(x, y=means, shared=false)) 
+	Xty = zeros(T, x.p + x.p2)
 	xty!(Xty,x,y, means=means, invstds=invstds) 
 	return Xty
 end
