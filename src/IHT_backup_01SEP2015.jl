@@ -5,7 +5,7 @@ using PLINK
 using NumericExtensions: sumsq
 using StatsBase: sample, logistic
 using RegressionTools
-using DataFrames
+#using DataFrames
 
 export L0_reg
 export L0_log
@@ -81,7 +81,7 @@ function iht(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{F
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-		sortk = selectperm!(sortidx,g,k, p=p) 
+		sortk = RegressionTools.selectperm!(sortidx,g,k, p=p) 
 		IDX[sortk] = true;
 	end
 
@@ -102,7 +102,7 @@ function iht(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{F
 	BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 	# preserve top k components of b
-	sortk = selectperm!(sortidx,b,k, p=p)
+	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
 	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
 	fill!(b,0.0)
 	b[sortk] = bk
@@ -135,7 +135,7 @@ function iht(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{F
 		BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 		# recompute projection onto top k components of b
-		sortk = selectperm!(sortidx,b,k, p=p)
+		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
 		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
@@ -219,12 +219,15 @@ end
 function iht(b::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}, k::Int, g::DenseArray{Float64,1}; n::Int = length(y), p::Int = length(b), max_step::Int = 50, sortidx::DenseArray{Int,1} = collect(1:p), IDX::BitArray{1} = falses(p), IDX0::BitArray{1} = copy(IDX), b0::DenseArray{Float64,1} = copy(b), Xb::DenseArray{Float64,1} = BLAS.gemv('N', 1.0, x, b), Xb0::DenseArray{Float64,1} = copy(xb), xk::DenseArray{Float64,2} = zeros(n,k), gk::DenseArray{Float64,1} = zeros(k), xgk::DenseArray{Float64,1} = zeros(n), bk::DenseArray{Float64,1} = zeros(k), sortk::DenseArray{Int,1} = zeros(Int,k), step_multiplier::Float64 = 1.0, means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means), stdsk::DenseArray{Float64,1} = zeros(k)) 
 
 	# which components of beta are nonzero? 
-	update_indices!(IDX, b, p=p)
+#	update_indices!(IDX, b, p=p)
+	update_indices!(IDX, b)
 
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-		sortk = selectperm!(sortidx,sdata(g),k, p=p) 
+#		println("sum(IDX) = 0")
+#		sortk = RegressionTools.selectperm!(sortidx,sdata(g),k, p=p) 
+		sortk = RegressionTools.selectperm!(sortidx,sdata(g),k) 
 		IDX[sortk] = true;
 	end
 
@@ -238,9 +241,11 @@ function iht(b::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}, k::
 		decompress_genotypes!(xk, x, IDX, means=means, invstds=invstds) 
 
 #		bk = means[IDX]
-		fill_perm!(bk, means, IDX, k=k, p=p)
+#		fill_perm!(bk, means, IDX, k=k, p=p)
+		fill_perm!(bk, means, IDX, k=k)
 #		stdsk = invstds[IDX]
-		fill_perm!(stdsk, invstds, IDX, k=k, p=p)
+#		fill_perm!(stdsk, invstds, IDX, k=k, p=p)
+		fill_perm!(stdsk, invstds, IDX, k=k)
 #		for j = 1:k
 #			m = bk[j]
 #			s = stdsk[j]
@@ -255,7 +260,8 @@ function iht(b::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}, k::
 #		all(xk .== 0.0) && warn("Entire active set has genotypes equal to 0")
 
 		# store relevant components of gradient
-		fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)	# gk = g[IDX]
+#		fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)	# gk = g[IDX]
+		fill_perm!(sdata(gk), sdata(g), IDX, k=k)	# gk = g[IDX]
 
 		# now compute subset of x*g
 		BLAS.gemv!('N', 1.0, sdata(xk), sdata(gk), 0.0, sdata(xgk))
@@ -265,16 +271,21 @@ function iht(b::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}, k::
 	all(xgk .== 0.0) && warn("Entire active set has values equal to 0")
 
 	# compute step size
+#	println("sumsq(sdata(xk)) = ", sumsq(sdata(xk)))
+#	println("sumsq(sdata(gk)) = ", sumsq(sdata(gk)))
+#	println("sumsq(sdata(xgk)) = ", sumsq(sdata(xgk)))
 	mu = step_multiplier * sumsq(sdata(gk)) / sumsq(sdata(xgk))
 
-	# warn if step size falls below machine epsilon
-	mu <= eps() && warn("Step size is below machine precision, algorithm may not converge correctly")
+	# notify problems with step size 
+	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
+	mu <= eps()  && warn("Step size $(mu) is below machine precision, algorithm may not converge correctly")
 
 	# take gradient step
 	BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 	# preserve top k components of b
-	sortk = selectperm!(sortidx,b,k, p=p)
+#	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+	sortk = RegressionTools.selectperm!(sortidx,b,k)
 	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
 	fill!(b,0.0)
 	b[sortk] = bk
@@ -282,14 +293,15 @@ function iht(b::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}, k::
 
 	# which indices of new beta are nonzero?
 	copy!(IDX0, IDX)
-	update_indices!(IDX, b, p=p) 
+#	update_indices!(IDX, b, p=p) 
+	update_indices!(IDX, b) 
 
 	# update xb
 	xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
 
 	# calculate omega
-#	omega = sqeuclidean(sdata(b),sdata(b0)) / sqeuclidean(sdata(Xb),sdata(Xb0))
-	omega = sqeuclidean(b,b0) / sqeuclidean(Xb,Xb0)
+	omega = sqeuclidean(sdata(b),sdata(b0)) / sqeuclidean(sdata(Xb),sdata(Xb0))
+#	omega = sqeuclidean(b,b0) / sqeuclidean(Xb,Xb0)
 
 	# backtrack until mu sits below omega and support stabilizes
 	mu_step = 0
@@ -306,14 +318,16 @@ function iht(b::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}, k::
 		BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 		# recompute projection onto top k components of b
-		sortk = selectperm!(sortidx,b,k, p=p)
+#		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+		sortk = RegressionTools.selectperm!(sortidx,b,k)
 		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
 #		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
 
 		# which indices of new beta are nonzero?
-		update_indices!(IDX, b, p=p) 
+#		update_indices!(IDX, b, p=p) 
+		update_indices!(IDX, b) 
 
 		# recompute xb
 		xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
@@ -374,7 +388,7 @@ function iht2(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-		sortk = selectperm!(sortidx,lg,k, p=p)
+		sortk = RegressionTools.selectperm!(sortidx,lg,k, p=p)
 		IDX[sortk] = true;
 	end
 
@@ -396,7 +410,7 @@ function iht2(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{
 	BLAS.axpy!(p, mu, lg, 1, b, 1)
 
 	# preserve top k components of b
-	sortk = selectperm!(sortidx,b,k, p=p)
+	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
 	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
 	fill!(b,0.0)
 	b[sortk] = bk
@@ -425,7 +439,7 @@ function iht2(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{
 		BLAS.axpy!(p, mu, lg, 1, b, 1)
 
 		# recompute projection onto top k components of b
-		sortk = selectperm!(sortidx, b,k, p=p)
+		sortk = RegressionTools.selectperm!(sortidx, b,k, p=p)
 		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
@@ -583,7 +597,8 @@ function L0_reg(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::I
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -646,7 +661,8 @@ function L0_reg(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::I
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -664,7 +680,8 @@ function L0_reg(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::I
 				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
 			end
 
-			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+#			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
 		end
@@ -798,6 +815,7 @@ function L0_reg(X::BEDFile, Y::DenseArray{Float64,1}, k::Int; n::Int = length(Y)
 			# these are output variables for function
 			# wrap them into a Dict and return
 			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -845,7 +863,7 @@ function L0_reg(X::BEDFile, Y::DenseArray{Float64,1}, k::Int; n::Int = length(Y)
 			# update r
 #			update_residuals!(r, X, Y, b, xb=Xb, n=n)
 #			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-			PLINK.update_partial_residuals!(r, Y, X, indices, b, k, Xb=Xb)
+			PLINK.update_partial_residuals!(r, Y, X, indices, b, k, Xb=Xb, means=means, invstds=invstds)
 
 			# calculate objective
 			next_loss = 0.5 * sumsq(sdata(r))
@@ -864,6 +882,7 @@ function L0_reg(X::BEDFile, Y::DenseArray{Float64,1}, k::Int; n::Int = length(Y)
 			# these are output variables for function
 			# wrap them into a Dict and return
 			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -882,6 +901,7 @@ function L0_reg(X::BEDFile, Y::DenseArray{Float64,1}, k::Int; n::Int = length(Y)
 			end
 
 			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
 		end
@@ -1016,6 +1036,7 @@ function L0_log(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::I
 			# these are output variables for function
 			# wrap them into a Dict and return
 			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -1112,6 +1133,7 @@ function L0_log(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::I
 			# these are output variables for function
 			# wrap them into a Dict and return
 			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -1130,6 +1152,7 @@ function L0_log(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::I
 			end
 
 			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
 		end
@@ -1269,6 +1292,7 @@ function L0_log(X::BEDFile, Y::DenseArray{Float64,1}, k::Int; n::Int = length(Y)
 			# these are output variables for function
 			# wrap them into a Dict and return
 			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -1337,6 +1361,7 @@ function L0_log(X::BEDFile, Y::DenseArray{Float64,1}, k::Int; n::Int = length(Y)
 			# these are output variables for function
 			# wrap them into a Dict and return
 			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -1355,6 +1380,7 @@ function L0_log(X::BEDFile, Y::DenseArray{Float64,1}, k::Int; n::Int = length(Y)
 			end
 
 			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
 		end
@@ -1477,6 +1503,7 @@ function L0_log2(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::
 			# these are output variables for function
 			# wrap them into a Dict and return
 			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -1534,6 +1561,7 @@ function L0_log2(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::
 			# these are output variables for function
 			# wrap them into a Dict and return
 			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -1552,6 +1580,7 @@ function L0_log2(X::DenseArray{Float64,2}, Y::DenseArray{Float64,1}, k::Int; n::
 			end
 
 			output = {"time" => -1.0, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
 		end
@@ -1610,7 +1639,7 @@ function iht_path(x::DenseArray{Float64,2}, y::DenseArray{Float64,1}, path::Dens
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk      = zeros(q)
 #		sortk   = zeros(Int,q)
-		sortk   = selectperm!(indices, b,q, p=p)
+		sortk   = RegressionTools.selectperm!(indices, b,q, p=p)
 		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
@@ -1663,7 +1692,8 @@ end
 function iht_path(x::BEDFile, y::DenseArray{Float64,1}, path::DenseArray{Int,1}; b::DenseArray{Float64,1} = ifelse(typeof(y) == SharedArray{Float64,1}, SharedArray(Float64, size(x,2)), zeros(size(x,2))), quiet::Bool = true, max_iter::Int = 1000, max_step::Int = 50, tolerance::Float64 = 1e-4, means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x,y=means))
 
 	# size of problem?
-	const (n,p) = size(x)
+	const n = length(y)
+	const p = size(x,2)
 
 	# how many models will we compute?
 	const num_models = length(path)			
@@ -1694,7 +1724,7 @@ function iht_path(x::BEDFile, y::DenseArray{Float64,1}, path::DenseArray{Int,1};
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk      = zeros(q)
 #		sortk   = zeros(Int,q)
-		sortk   = selectperm!(indices, b,q, p=p)
+		sortk   = RegressionTools.selectperm!(indices, b,q, p=p)
 		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
@@ -1702,17 +1732,14 @@ function iht_path(x::BEDFile, y::DenseArray{Float64,1}, path::DenseArray{Int,1};
 
 		# these arrays change in size from iteration to iteration
 		# we must allocate them for every new model size
-		Xk     = SharedArray(Float64, n, q, init = S -> S[localindexes(S)] = 0.0)	# store q columns of X
-		tempkf = SharedArray(Float64, q,    init = S -> S[localindexes(S)] = 0.0)   # temporary array of q floats 
-		idx    = SharedArray(Float64, q,    init = S -> S[localindexes(S)] = 0.0)	# another temporary array of q floats 
-		tempki = SharedArray(Int,     q,    init = S -> S[localindexes(S)] = 0.0)	# temporary array of q integers 
+		Xk     = zeros(n,q)		# store q columns of X
+		tempkf = zeros(q)   	# temporary array of q floats 
+		idx    = zeros(q)		# another temporary array of q floats 
+		tempki = zeros(Int,q)	# temporary array of q integers 
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
 #		project_k!(b,tempkf,tempki,indices,q, p=p)
 
-		# ensure that we correctly index the nonzeroes in b
-		support = b .!= 0.0
-		copy!(support0, support)
 
 		# now compute current model
 		output = L0_reg(x,y,q, n=n, p=p, b=b, tolerance=tolerance, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0, means=means, invstds=invstds) 
@@ -1720,6 +1747,11 @@ function iht_path(x::BEDFile, y::DenseArray{Float64,1}, path::DenseArray{Int,1};
 		# extract and save model
 		copy!(sdata(b), output["beta"])
 		update_col!(betas, sdata(b), i, n=p, p=num_models, a=1.0) 
+		
+		# ensure that we correctly index the nonzeroes in b
+		update_indices!(support, b)	
+#		copy!(support0, support)
+		fill!(support0, false)
 	end
 
 	# return a sparsified copy of the models
@@ -1775,7 +1807,7 @@ function iht_path_log(x::DenseArray{Float64,2}, y::DenseArray{Float64,1}, path::
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk       = zeros(q)
 #		sortk    = zeros(Int,q)
-		sortk    = selectperm!(indices, b,q, p=p) 
+		sortk    = RegressionTools.selectperm!(indices, b,q, p=p) 
 		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
@@ -1854,7 +1886,7 @@ function iht_path_log2(x::DenseArray{Float64,2}, y::DenseArray{Float64,1}, path:
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk       = zeros(q)
 #		sortk    = zeros(Int,q)
-		sortk    = selectperm!(indices, b,q, p=p)
+		sortk    = RegressionTools.selectperm!(indices, b,q, p=p)
 		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
@@ -2005,7 +2037,7 @@ function one_fold(x::BEDFile, y::DenseArray{Float64,1}, path::DenseArray{Int,1},
 		b2 = vec(full(betas[:,i]))
 		copy!(b,b2)
 		xb!(Xb,x_test,b, means=means, invstds=invstds)
-		PLINK.update_partial_residuals!(r,y_train,x_train,perm,b,test_size, Xb=Xb)
+		PLINK.update_partial_residuals!(r,y_train,x_train,perm,b,test_size, Xb=Xb, means=means, invstds=invstds)
 		myerrors[i] = sumsq(r) / test_size
 	end
 

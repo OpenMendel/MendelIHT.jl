@@ -1,27 +1,66 @@
-module IHT
+# DOUBLE OVERRELAXATION SCHEME TO ACCELERATE IHT
+#
+# This subroutine computes the (D)ouble (O)ver(R)elaxation for accelerating IHT steps.
+function dor{T <: Union(Float32, Float64)}(
+	x       :: DenseArray{T,2}, 
+	y       :: DenseArray{T,1}, 
+	b       :: DenseArray{T,1}, 
+	b0      :: DenseArray{T,1}, 
+	b00     :: DenseArray{T,1}, 
+	xb      :: DenseArray{T,1}, 
+	xb0     :: DenseArray{T,1}, 
+	xb00    :: DenseArray{T,1}, 
+	sortidx :: DenseArray{Int,1}, 
+	sortk   :: DenseArray{Int,1}, 
+	bk      :: DenseArray{T,1}, 
+	z1      :: DenseArray{T,1}, 
+	z2      :: DenseArray{T,1}, 
+	xz1     :: DenseArray{T,1}, 
+	xz2     :: DenseArray{T,1}, 
+	dif     :: DenseArray{T,1}, 
+	r       :: DenseArray{T,1},
+	r2      :: DenseArray{T,1},
+	obj     :: T; 
+	k       :: Integer = length(sortk), 
+	n       :: Integer = length(y), 
+	p       :: Integer = length(b)
+) 
 
-using Distances: euclidean, chebyshev, sqeuclidean
-using PLINK
-using StatsBase: sample, logistic
-using RegressionTools
+	# calculate first overrelaxation
+	difference!(dif, xb, xb0, n=n)					# dif = xb - xb0
+	a1  = dot(dif,r) / sumabs2(dif)					# a1  = dif'*r / || dif ||
+	ypatzmw!(z1, b, a1, b, b0, n=p)					# z1  = b + a1 * (b - b0)
+	difference!(xz1, xb, xb0, n=n, a=1.0+a1, b=a1)	# xz1 = (1+a1)*xb - a1*xb0
+	difference!(r2,y,xz1, n=n)						# r2  = y - xz1
 
-export L0_reg
-export L0_reg_aiht
-export L0_log
-export L0_log2
-export iht_path
-export iht_path_log
-export iht_path_log2
-export cv_iht
-export cv_get_folds
+	# calculate second overrelaxation
+	difference!(dif, xz1, xb00, n=n)				# dif = xz1 - xb00
+	a2 = dot(dif,r2) / sumabs2(dif)					# a2  = dif'*r2 / || dif ||
+	ypatzmw!(z2, z1, a2, z1, b00)					# z2 = z1 + a2 * (z1 - b00)
+
+	# project z2 onto sparsity set
+	sortk = RegressionTools.selectperm!(sortidx,z2,k,p=p)
+	fill_perm!(bk, z2, sortk, k=k)	# bk = z2[sortk]
+	fill!(z2,0.0)
+	z2[sortk] = bk
+
+	# update residual information about z2
+	update_xb!(xz2, x, z2, sortk, k, n=n, p=p)
+	difference!(r2,y,xz2)
+
+	# if z2 is better than b0, then overwrite b with z2
+	if sumabs(r2) < obj * 2.0
+		println("Successful acceleration")
+		copy!(b,z2)
+		copy!(r,r2)
+		copy!(xb,xz2)
+	end 
+
+	return nothing
+end
 
 
-include("aiht.jl")
-include("crossvalidation.jl")
-include("gwas.jl")
-include("logistic.jl")
-
-# ITERATIVE HARD THRESHOLDING
+# ACCELERATED ITERATIVE HARD THRESHOLDING
 #
 # This function computes a hard threshold update
 #
@@ -40,6 +79,8 @@ include("logistic.jl")
 #
 # By backtracking on mu, this function guarantees a stable estimation of a sparse b. 
 #
+# This variant of IHT uses the double overrelaxation scheme described by Blumensath (2012) to accelerate convergence.
+#
 # Arguments:
 #
 # -- b is the iterate of p model components;
@@ -53,8 +94,10 @@ include("logistic.jl")
 # -- p is the number of predictors. Defaults to length(b).
 # -- n is the number of samples. Defaults to length(y).
 # -- b0 is the previous iterate beta. Defaults to b.
+# -- b00 is the previous b0. Defaults to b. 
 # -- xb = x*b.
 # -- xb0 = x*b0.
+# -- xb00 = x*b00.
 # -- bk is a temporary array to store the k floats corresponding to the support of b.
 # -- xk is a temporary array to store the k columns of x corresponding to the support of b.
 # -- gk is a temporary array of k floats used to subset the k components of the gradient g with the support of b.
@@ -64,34 +107,48 @@ include("logistic.jl")
 # -- sortk is a vector to store the largest k indices of beta. Defaults to k zeros of type Int.
 # -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type Float64. 
 # -- IDX and IDX0 are BitArrays indicating the nonzero status of components of beta. They default to falses.
+# -- r and r2 store the overall residual and partial accelerated residual, respectively. They default to zeroes.
+# -- z1 and z2 store intermediate steps of the acceleration calculations. They default to zeroes.
+# -- xz1 and xz2 store x*z1 and x*z2. They default to zeroes.
+# -- dif is a temporary array to store the difference of two vectors
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
 # http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
-function iht{T <: Union(Float32, Float64)}(
-	b         :: DenseArray{T,1}, 
+function aiht{T <: Union(Float32, Float64)}(
 	x         :: DenseArray{T,2}, 
 	y         :: DenseArray{T,1}, 
+	b         :: DenseArray{T,1}, 
+	g         :: DenseArray{T,1},
+	obj       :: T, 
 	k         :: Integer, 
-	g         :: DenseArray{T,1}; 
+	iter      :: Integer;
 	xk        :: DenseArray{T,2}   = zeros(T,n,k), 
 	b0        :: DenseArray{T,1}   = copy(b), 
-	xb0       :: DenseArray{T,1}   = copy(xb), 
+	b00       :: DenseArray{T,1}   = copy(b), 
 	xb        :: DenseArray{T,1}   = BLAS.gemv('N', 1.0, x, b), 
-	xgk       :: DenseArray{T,1}   = zeros(T,n), 
+	xb0       :: DenseArray{T,1}   = copy(xb), 
+	xb00      :: DenseArray{T,1}   = copy(xb), 
 	gk        :: DenseArray{T,1}   = zeros(T,k), 
+	xgk       :: DenseArray{T,1}   = zeros(T,n), 
 	bk        :: DenseArray{T,1}   = zeros(T,k), 
+	r         :: DenseArray{T,1}   = zeros(T,n), 
+	r2        :: DenseArray{T,1}   = zeros(T,n), 
+	z1        :: DenseArray{T,1}   = zeros(T,p), 
+	z2        :: DenseArray{T,1}   = zeros(T,p), 
+	dif       :: DenseArray{T,1}   = zeros(T,n), 
+	xz1       :: DenseArray{T,1}   = zeros(T,n), 
+	xz2       :: DenseArray{T,1}   = zeros(T,n),
 	sortidx   :: DenseArray{Int,1} = collect(1:p), 
 	sortk     :: DenseArray{Int,1} = zeros(Int,k), 
 	IDX       :: BitArray{1}       = falses(p), 
 	IDX0      :: BitArray{1}       = copy(IDX), 
-	step_mult :: T       = 1.0,
-	iter      :: Integer = 0,
+	step_mult :: T       = 1.0, 
 	n         :: Integer = length(y), 
 	p         :: Integer = length(b), 
 	max_step  :: Integer = 50
-) 
+)
 
 	# which components of beta are nonzero? 
 	update_indices!(IDX, b, p=p)
@@ -104,11 +161,10 @@ function iht{T <: Union(Float32, Float64)}(
 	end
 
 	# store relevant columns of x
-	# need to do this on 1st iteration
-	# afterwards, only do if support changes
-	if !isequal(IDX,IDX0) || iter < 2
+	# do so only if support has changed after first iteration
+#	if !isequal(IDX, IDX0) || iter < 2
 		update_xk!(xk, x, IDX, k=k, p=p, n=n)	# xk = x[:,IDX]
-	end
+#	end
 
 	# store relevant components of gradient
 	fill_perm!(gk, g, IDX, k=k, p=p)	# gk = g[IDX]
@@ -117,7 +173,7 @@ function iht{T <: Union(Float32, Float64)}(
 	BLAS.gemv!('N', 1.0, xk, gk, 0.0, xgk)
 
 	# compute step size
-	mu = step_mult * sumabs2(sdata(gk)) / sumsq(sdata(xgk))
+	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
 	# take gradient step
@@ -136,6 +192,13 @@ function iht{T <: Union(Float32, Float64)}(
 
 	# update xb
 	update_xb!(xb, x, b, sortk, k)
+
+	# update residuals
+	difference!(r,y,xb, n=n)
+
+	if iter > 2
+		dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, sortk, bk, z1, z2, xz1, xz2, dif, r, r2, obj, k=k, n=n, p=p) 
+	end
 
 	# calculate omega
 	omega_top = sqeuclidean(sdata(b),(b0))
@@ -165,8 +228,15 @@ function iht{T <: Union(Float32, Float64)}(
 		# recompute xb
 		update_xb!(xb, x, b, sortk, k)
 
+		# update residuals
+		difference!(r,y,xb, n=n)
+
+		if iter > 2
+			dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, sortk, bk, z1, z2, xz1, xz2, dif, r, r2, obj, k=k, n=n, p=p) 
+		end
+
 		# calculate omega
-		omega_top = sqeuclidean(sdata(b),(b0))
+		omega_top = sqeuclidean(sdata(b),sdata(b0))
 		omega_bot = sqeuclidean(sdata(xb),sdata(xb0))
 
 		# increment the counter
@@ -176,11 +246,6 @@ function iht{T <: Union(Float32, Float64)}(
 	return mu, mu_step
 end
 
-
-
-######################
-### MAIN FUNCTIONS ###
-######################
 
 
 # L0 PENALIZED LEAST SQUARES REGRESSION
@@ -208,19 +273,25 @@ end
 # -- tol is the global tol. Defaults to 1e-4.
 # -- quiet is a Boolean that controls algorithm output. Defaults to true (no output).
 # -- several temporary arrays for intermediate steps of algorithm calculations:
-#		Xk        = zeros(Float64,n,k)  # store k columns of X
-#		r         = zeros(Float64,n)	# for || Y - XB ||_2^2
-#		Xb        = zeros(Float64,n)	# X*beta 
-#		Xb0       = zeros(Float64,n)	# X*beta0 
-#		b0        = zeros(Float64,p)	# previous iterate beta0 
-#		df        = zeros(Float64,p)	# (negative) gradient 
-#		tempkf    = zeros(Float64,k)    # temporary array of k floats 
-#		idx       = zeros(Float64,k)    # another temporary array of k floats 
-#		tempn     = zeros(Float64,n)    # temporary array of n floats 
-#		indices   = collect(1:p)	    # indices that sort beta 
-#		tempki    = zeros(Int,k)        # temporary array of k integers 
-#		support   = falses(p)			# indicates nonzero components of beta
-#		support0  = copy(support)		# store previous nonzero indicators
+#		Xk        = zeros(n,k)  	# store k columns of X
+#		r         = zeros(n)		# for || Y - XB ||_2^2
+#		Xb        = zeros(n)		# X*beta 
+#		Xb0       = zeros(n)		# X*beta0 
+#       Xb00      = zeros(n)		# X*beta00
+#		b0        = zeros(p)		# previous iterate beta0 
+#		b00       = zeros(p)		# previous beta0 
+#		df        = zeros(p)		# (negative) gradient 
+#		tempkf    = zeros(k)    	# temporary array of k floats 
+#		idx       = zeros(k)    	# another temporary array of k floats 
+#		tempn     = zeros(n)    	# temporary array of n floats 
+#		indices   = collect(1:p)	# indices that sort beta 
+#		tempki    = zeros(Int,k)    # temporary array of k integers 
+#		support   = falses(p)		# indicates nonzero components of beta
+#		support0  = copy(support)	# store previous nonzero indicators
+#		r2 stores the overall residual and partial accelerated residual, respectively. They default to zeroes.
+# 		z1 and z2 store intermediate steps of the acceleration calculations. They default to zeroes.
+# 		xz1 and xz2 store x*z1 and x*z2. They default to zeroes.
+# 		dif is a temporary array to store the difference of two vectors
 #
 # Outputs are wrapped into a Dict with the following fields:
 # -- time is the compute time for the algorithm. Note that this does not account for time spent initializing optional argument defaults
@@ -230,67 +301,74 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function L0_reg{T <: Union(Float32, Float64)}(
-	X :: DenseArray{T,2}, 
-	Y :: DenseArray{T,1}, 
-	k :: Integer; 
-	Xk        ::DenseArray{T,2}   = zeros(T,n,k), 
-	b         ::DenseArray{T,1}   = zeros(T,p), 
-	b0        ::DenseArray{T,1}   = zeros(T,p), 
-	df        ::DenseArray{T,1}   = zeros(T,p), 
-	r         ::DenseArray{T,1}   = zeros(T,n), 
-	Xb        ::DenseArray{T,1}   = zeros(T,n), 
-	Xb0       ::DenseArray{T,1}   = zeros(T,n), 
-	tempn     ::DenseArray{T,1}   = zeros(T,n), 
-	tempkf    ::DenseArray{T,1}   = zeros(T,k), 
-	idx       ::DenseArray{T,1}   = zeros(T,k), 
-	indices   ::DenseArray{Int,1} = collect(1:p), 
-	tempki    ::DenseArray{Int,1} = zeros(Int,k), 
-	support   ::BitArray{1}       = falses(p), 
-	support0  ::BitArray{1}       = falses(p), 
-	tol       :: T       = 1e-4, 
-	n         :: Integer = length(Y), 
-	p         :: Integer = size(X,2), 
-	max_iter  :: Integer = 1000, 
-	max_step  :: Integer = 50,  
-	quiet     :: Bool    = true
+function L0_reg_aiht{T <: Union(Float32, Float64)}(
+	X        :: DenseArray{T,2}, 
+	Y        :: DenseArray{T,1}, 
+	k        :: Integer; 
+	Xk       :: DenseArray{T,2}       = zeros(T,n,k), 
+	b        :: DenseArray{T,1}       = zeros(T,p), 
+	b0       :: DenseArray{T,1}       = zeros(T,p), 
+	b00      :: DenseArray{T,1}       = zeros(T,p), 
+	df       :: DenseArray{T,1}       = zeros(T,p), 
+	z1       :: DenseArray{T,1}       = zeros(T,p), 
+	z2       :: DenseArray{T,1}       = zeros(T,p), 
+	Xb       :: DenseArray{T,1}       = zeros(T,n), 
+	Xb0      :: DenseArray{T,1}       = zeros(T,n), 
+	Xb00     :: DenseArray{T,1}       = zeros(T,n), 
+	tempn    :: DenseArray{T,1}       = zeros(T,n), 
+	r        :: DenseArray{T,1}       = zeros(T,n), 
+	r2       :: DenseArray{T,1}       = zeros(T,n), 
+	dif      :: DenseArray{T,1}       = zeros(T,n), 
+	xz1      :: DenseArray{T,1}       = zeros(T,n), 
+	xz2      :: DenseArray{T,1}       = zeros(T,n),
+	tempkf   :: DenseArray{T,1}       = zeros(T,k), 
+	idx      :: DenseArray{T,1}       = zeros(T,k), 
+	indices  :: DenseArray{Int,1}     = collect(1:p), 
+	tempki   :: DenseArray{Int,1}     = zeros(Integer,k), 
+	support  :: BitArray{1}           = falses(p), 
+	support0 :: BitArray{1}           = falses(p),
+	tol      :: T       = 1e-4, 
+	n        :: Integer = length(Y), 
+	p        :: Integer = size(X,2), 
+	max_iter :: Integer = 1000, 
+	max_step :: Integer = 50,  
+	quiet    :: Bool    = true
 )
 
 	# start timer
 	tic()
 
 	# first handle errors
-	k        >= 0     || throw(ArgumentError("Value of k must be nonnegative!\n"))
-	max_iter >= 0     || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-	max_step >= 0     || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-	tol      >  eps() || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+	k            >= 0     || throw(ArgumentError("Value of k must be nonnegative!\n"))
+	max_iter     >= 0     || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
+	max_step     >= 0     || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
+	tol          >  eps() || throw(ArgumentError("Value of global tolerance must exceed machine precision!\n"))
 
 	# initialize return values
-	mm_iter   = 0		# number of iterations of L0_reg
-	mm_time   = 0.0		# compute time *within* L0_reg
-	next_obj  = 0.0		# objective value
-	next_loss = 0.0		# loss function value 
+	mm_iter::Int       = 0		# number of iterations of L0_reg
+	mm_time::Float64   = 0.0	# compute time *within* L0_reg
+	next_obj::Float64  = 0.0	# objective value
+	next_loss::Float64 = 0.0	# loss function value 
 
 	# initialize floats 
-	current_obj = Inf      # tracks previous objective function value
-	the_norm    = 0.0      # norm(b - b0)
-	scaled_norm = 0.0      # the_norm / (norm(b0) + 1)
-	mu          = 0.0	    # Landweber step size, 0 < tau < 2/rho_max^2
+	current_obj::Float64 = Inf      # tracks previous objective function value
+	the_norm::Float64    = 0.0      # norm(b - b0)
+	scaled_norm::Float64 = 0.0      # the_norm / (norm(b0) + 1)
+	mu::Float64          = 0.0	    # Landweber step size, 0 < tau < 2/rho_max^2
 
 	# initialize integers
-	i       = 0        # used for iterations in loops
-	mu_step = 0        # counts number of backtracking steps for mu
+	i::Int               = 0        # used for iterations in loops
+	mu_step::Int         = 0        # counts number of backtracking steps for mu
 
 	# initialize booleans
-	converged = false    # scaled_norm < tol?
+	converged::Bool      = false    # scaled_norm < tol?
    
 	# update X*beta
 	update_xb!(Xb, X, b, indices, k, p=p, n=n)
 
 	# update r and gradient 
-#	update_residuals!(r, X, Y, b, xb=Xb, n=n)
-    update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#	difference!(r,Y,Xb, n=n)
+#    update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+	difference!(r, Y, Xb, n=n)
 	BLAS.gemv!('T', 1.0, X, r, 0.0, df)
 
 	# update loss and objective
@@ -325,7 +403,6 @@ function L0_reg{T <: Union(Float32, Float64)}(
 			# calculate r piecemeal
 #			update_residuals!(r, X, Y, b, xb=Xb, n=n)
 			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			difference!(r,Y,Xb, n=n)
 
 			# calculate loss and objective
 			next_loss = 0.5 * sumabs2(r)
@@ -342,18 +419,20 @@ function L0_reg{T <: Union(Float32, Float64)}(
 		end
 		
 		# save values from previous iterate 
-		copy!(b0,b)				# b0 = b	
-		copy!(Xb0,Xb)			# Xb0 = Xb
+		copy!(b00,b0)			# b00  = b
+		copy!(b0,b)				# b0   = b	
+		copy!(Xb00,Xb0)			# Xb00 = Xb0
+		copy!(Xb0,Xb)			# Xb0  = Xb
 		current_obj = next_obj
 
-		# now perform IHT step
-		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, iter=mm_iter)
+		# now perform AIHT step
+		(mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, step_mult=1.0, b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
 
 		# the IHT kernel gives us an updated x*b
-		# use it to recompute residuals and gradient 
-#		update_residuals!(r, X, Y, b, xb=Xb, n=n)
-		update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#		difference!(r,Y,Xb, n=n)
+		# use it to recompute residuals 
+#		update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+
+		# finally, recompute the gradient
 		BLAS.gemv!('T', 1.0, X, r, 0.0, df)
 
 		# update loss, objective, and gradient 
@@ -383,7 +462,6 @@ function L0_reg{T <: Union(Float32, Float64)}(
 			# update r
 #			update_residuals!(r, X, Y, b, xb=Xb, n=n)
 			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			difference!(r,Y,Xb)
 
 			# calculate objective
 			next_loss = 0.5 * sumabs2(r)
@@ -427,96 +505,3 @@ function L0_reg{T <: Union(Float32, Float64)}(
 		end
 	end # end main loop
 end # end function
-
-
-
-
-
-# COMPUTE AN IHT REGULARIZATION PATH FOR LEAST SQUARES REGRESSION
-# This subroutine computes a regularization path for design matrix X and response Y from initial model size k0 to final model size k.
-# The default increment on model size is 1. The path can also be warm-started with a vector b.
-# This variant requires a calculated path in order to work.
-#
-# Arguments:
-# -- x is the nxp design matrix.
-# -- y is the n-vector of responses
-# -- path is an Int array that contains the model sizes to test
-#
-# Optional Arguments:
-# -- b is the p-vector of effect sizes. This argument permits warmstarts to the path computation. Defaults to zeros.
-# -- max_iter caps the number of iterations for the algorithm. Defaults to 1000.
-# -- max_step caps the number of backtracking steps in the IHT kernel. Defaults to 50.
-# -- quiet is a Boolean that controls the output. Defaults to true (no output).
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu
-function iht_path{T <: Union(Float32, Float64)}(
-	x        :: DenseArray{T,2}, 
-	y        :: DenseArray{T,1}, 
-	path     :: DenseArray{Int,1}; 
-	b        :: DenseArray{T,1} = zeros(T,size(x,2)), 
-	tol      :: T       = 1e-4,
-	max_iter :: Integer = 1000, 
-	max_step :: Integer = 50, 
-	quiet    :: Bool    = true 
-)
-
-	# size of problem?
-	const (n,p) = size(x)
-
-	# how many models will we compute?
-	const num_models = length(path)			
-
-	# preallocate space for intermediate steps of algorithm calculations 
-	r          = zeros(T,n)		# for || Y - XB ||_2^2
-	Xb         = zeros(T,n)		# X*beta 
-	Xb0        = zeros(T,n)		# X*beta0 
-	b          = zeros(T,p)		# model 
-	b0         = zeros(T,p)		# previous iterate beta0 
-	df         = zeros(T,p)		# (negative) gradient 
-	tempn      = zeros(T,n)   	# temporary array of n floats 
-	indices    = collect(1:p)	    	# indices that sort beta 
-	support    = falses(p)				# indicates nonzero components of beta
-	support0   = copy(support)			# store previous nonzero indicators
-	betas      = zeros(T,p,num_models)	# a matrix to store calculated models
-
-	# compute the path
-	for i = 1:num_models
-	
-		# model size?
-		q = path[i]
-
-		# store projection of beta onto largest k nonzeroes in magnitude 
-		bk      = zeros(T,q)
-#		sortk   = zeros(Int,q)
-		sortk   = RegressionTools.selectperm!(indices, b,q, p=p)
-		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
-		fill!(b,0.0)
-		b[sortk] = bk
-#		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
-
-		# these arrays change in size from iteration to iteration
-		# we must allocate them for every new model size
-		Xk     = zeros(T,n,q)  # store q columns of X
-		tempkf = zeros(T,q)    # temporary array of q floats 
-		idx    = zeros(T,q)    # another temporary array of q floats 
-		tempki = zeros(Int,q)  # temporary array of q integers 
-
-		# store projection of beta onto largest k nonzeroes in magnitude 
-#		project_k!(b,tempkf,tempki,indices,q, p=p)
-
-#		println("Any NaN in b? ", any(isnan(b)))
-
-		# now compute current model
-		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0) 
-
-		# extract and save model
-		copy!(b, output["beta"])
-		update_col!(betas, b, i, n=p, p=num_models, a=1.0) 
-	end
-
-	# return a sparsified copy of the models
-	return sparse(betas)
-end	
-
-end	# end module IHT
