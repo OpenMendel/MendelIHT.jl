@@ -289,8 +289,8 @@ function L0_reg{T <: Union(Float32, Float64)}(
 
 	# update r and gradient 
 #	update_residuals!(r, X, Y, b, xb=Xb, n=n)
-    update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#	difference!(r,Y,Xb, n=n)
+#    update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+	difference!(r,Y,Xb, n=n)
 	BLAS.gemv!('T', 1.0, X, r, 0.0, df)
 
 	# update loss and objective
@@ -324,8 +324,8 @@ function L0_reg{T <: Union(Float32, Float64)}(
 
 			# calculate r piecemeal
 #			update_residuals!(r, X, Y, b, xb=Xb, n=n)
-			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			difference!(r,Y,Xb, n=n)
+#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+			difference!(r,Y,Xb, n=n)
 
 			# calculate loss and objective
 			next_loss = 0.5 * sumabs2(r)
@@ -352,8 +352,8 @@ function L0_reg{T <: Union(Float32, Float64)}(
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
 #		update_residuals!(r, X, Y, b, xb=Xb, n=n)
-		update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#		difference!(r,Y,Xb, n=n)
+#		update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+		difference!(r,Y,Xb, n=n)
 		BLAS.gemv!('T', 1.0, X, r, 0.0, df)
 
 		# update loss, objective, and gradient 
@@ -382,8 +382,8 @@ function L0_reg{T <: Union(Float32, Float64)}(
 
 			# update r
 #			update_residuals!(r, X, Y, b, xb=Xb, n=n)
-			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			difference!(r,Y,Xb)
+#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+			difference!(r,Y,Xb)
 
 			# calculate objective
 			next_loss = 0.5 * sumabs2(r)

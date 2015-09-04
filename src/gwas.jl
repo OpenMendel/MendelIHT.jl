@@ -49,32 +49,30 @@
 # klkeys@g.ucla.edu
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
 # http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
-#function iht(b::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}, k::Int, g::DenseArray{Float64,1}; n::Int = length(y), p::Int = length(b), max_step::Int = 50, sortidx::DenseArray{Int,1} = collect(1:p), IDX::BitArray{1} = falses(p), IDX0::BitArray{1} = copy(IDX), b0::DenseArray{Float64,1} = copy(b), Xb::DenseArray{Float64,1} = BLAS.gemv('N', 1.0, x, b), Xb0::DenseArray{Float64,1} = copy(xb), xk::DenseArray{Float64,2} = zeros(n,k), gk::DenseArray{Float64,1} = zeros(k), xgk::DenseArray{Float64,1} = zeros(n), bk::DenseArray{Float64,1} = zeros(k), sortk::DenseArray{Int,1} = zeros(Int,k), step_multiplier::Float64 = 1.0)
-#function iht(b::DenseArray{Float64,1}, x::BEDFile, y::DenseArray{Float64,1}, k::Int, g::DenseArray{Float64,1}; n::Int = length(y), p::Int = length(b), max_step::Int = 50, sortidx::DenseArray{Int,1} = collect(1:p), IDX::BitArray{1} = falses(p), IDX0::BitArray{1} = copy(IDX), b0::DenseArray{Float64,1} = copy(b), Xb::DenseArray{Float64,1} = BLAS.gemv('N', 1.0, x, b), Xb0::DenseArray{Float64,1} = copy(xb), xk::DenseArray{Float64,2} = zeros(n,k), gk::DenseArray{Float64,1} = zeros(k), xgk::DenseArray{Float64,1} = zeros(n), bk::DenseArray{Float64,1} = zeros(k), sortk::DenseArray{Int,1} = zeros(Int,k), step_multiplier::Float64 = 1.0, means::DenseArray{Float64,1} = mean(x), invstds::DenseArray{Float64,1} = invstd(x, y=means), obj::Float64 = Inf, r::DenseArray{Float64,1} = zeros(n), stdsk::DenseArray{Float64,1} = zeros(k)) 
 function iht{T <: Union(Float32, Float64)}(
-	b::DenseArray{T,1}, 
-	x::BEDFile, 
-	y::DenseArray{T,1}, 
-	k::Integer, 
-	g::DenseArray{T,1}; 
-	n::Integer = length(y), 
-	p::Integer = length(b), 
-	max_step::Integer = 50, 
-	sortidx::DenseArray{Int,1} = collect(1:p), 
-	IDX::BitArray{1} = falses(p), 
-	IDX0::BitArray{1} = copy(IDX), 
-	b0::DenseArray{T,1} = zeros(T,p) 
-	Xb::DenseArray{T,1} = BLAS.gemv('N', 1.0, x, b), 
-	Xb0::DenseArray{T,1} = copy(xb), 
-	xk::DenseArray{T,2} = zeros(T,n,k), 
-	gk::DenseArray{T,1} = zeros(T,k), 
-	xgk::DenseArray{T,1} = zeros(T,n), 
-	bk::DenseArray{T,1} = zeros(T,k), 
-	sortk::DenseArray{Int,1} = zeros(Int,k), 
-	step_multiplier::T= 1.0, 
-	means::DenseArray{T,1} = mean(T,x), 
-	invstds::DenseArray{T,1} = invstd(T,x, y=means), 
-	stdsk::DenseArray{T,1} = zeros(T,k)
+	b         :: DenseArray{T,1}, 
+	x         :: BEDFile, 
+	y         :: DenseArray{T,1}, 
+	k         :: Integer, 
+	g         :: DenseArray{T,1}; 
+	step_mult :: T = 1.0, 
+	n         :: Integer = length(y), 
+	p         :: Integer = length(b), 
+	max_step  :: Integer = 50, 
+	sortidx   :: DenseArray{Int,1} = collect(1:p), 
+	IDX       :: BitArray{1} = falses(p), 
+	IDX0      :: BitArray{1} = copy(IDX), 
+	b0        :: DenseArray{T,1} = zeros(T,p), 
+	Xb        :: DenseArray{T,1} = BLAS.gemv('N', 1.0, x, b), 
+	Xb0       :: DenseArray{T,1} = copy(xb), 
+	xk        :: DenseArray{T,2} = zeros(T,n,k), 
+	gk        :: DenseArray{T,1} = zeros(T,k), 
+	xgk       :: DenseArray{T,1} = zeros(T,n), 
+	bk        :: DenseArray{T,1} = zeros(T,k), 
+	sortk     :: DenseArray{Int,1} = zeros(Int,k), 
+	means     :: DenseArray{T,1} = mean(T,x), 
+	invstds   :: DenseArray{T,1} = invstd(T,x, y=means), 
+	stdsk     :: DenseArray{T,1} = zeros(T,k)
 ) 
 
 	# which components of beta are nonzero? 
@@ -86,8 +84,10 @@ function iht{T <: Union(Float32, Float64)}(
 	if sum(IDX) == 0
 #		println("sum(IDX) = 0")
 #		sortk = RegressionTools.selectperm!(sortidx,sdata(g),k, p=p) 
-		sortk = RegressionTools.selectperm!(sortidx,sdata(g),k) 
-		IDX[sortk] = true;
+#		sortk = RegressionTools.selectperm!(sortidx,sdata(g),k) 
+#		IDX[sortk] = true;
+		RegressionTools.selectperm!(sortidx,sdata(g),k) 
+		IDX[sortidx[1:k]] = true;
 	end
 
 	# if support has not changed between iterations,
@@ -118,10 +118,10 @@ function iht{T <: Union(Float32, Float64)}(
 	all(xgk .== 0.0) && warn("Entire active set has values equal to 0")
 
 	# compute step size
-#	println("sumsq(sdata(xk)) = ", sumsq(sdata(xk)))
-#	println("sumsq(sdata(gk)) = ", sumsq(sdata(gk)))
-#	println("sumsq(sdata(xgk)) = ", sumsq(sdata(xgk)))
-	mu = step_multiplier * sumsq(sdata(gk)) / sumsq(sdata(xgk))
+#	println("sumabs2(sdata(xk)) = ", sumabs2(sdata(xk)))
+#	println("sumabs2(sdata(gk)) = ", sumabs2(sdata(gk)))
+#	println("sumabs2(sdata(xgk)) = ", sumabs2(sdata(xgk)))
+	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 
 	# notify problems with step size 
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
@@ -131,12 +131,13 @@ function iht{T <: Union(Float32, Float64)}(
 	BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 	# preserve top k components of b
-	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+#	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
 #	sortk = RegressionTools.selectperm!(sortidx,b,k)
-	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
-	fill!(b,0.0)
-	b[sortk] = bk
+#	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
+#	fill!(b,0.0)
+#	b[sortk] = bk
 #	RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+	RegressionTools.project_k!(b, bk, sortidx, k)
 
 	# which indices of new beta are nonzero?
 	copy!(IDX0, IDX)
@@ -152,7 +153,7 @@ function iht{T <: Union(Float32, Float64)}(
 
 	# backtrack until mu sits below omega and support stabilizes
 	mu_step = 0
-	while mu_omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+	while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
 		# stephalving
 		mu *= 0.5
@@ -165,12 +166,13 @@ function iht{T <: Union(Float32, Float64)}(
 		BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 		# recompute projection onto top k components of b
-		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+#		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
 #		sortk = RegressionTools.selectperm!(sortidx,b,k)
-		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
-		fill!(b,0.0)
-		b[sortk] = bk
+#		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
+#		fill!(b,0.0)
+#		b[sortk] = bk
 #		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+		RegressionTools.project_k!(b, bk, sortidx, k)
 
 		# which indices of new beta are nonzero?
 		update_indices!(IDX, b, p=p) 
@@ -335,7 +337,7 @@ function L0_reg{T <: Union(Float32, Float64)}(
 			difference!(r,Y,Xb)
 
 			# calculate loss and objective
-			next_loss = 0.5 * sumsq(sdata(r))
+			next_loss = 0.5 * sumabs2(sdata(r))
 
 			# stop timer
 			mm_time = toq()
@@ -363,7 +365,7 @@ function L0_reg{T <: Union(Float32, Float64)}(
 		xty!(df, X, r, means=means, invstds=invstds) 
 
 		# update loss, objective, and gradient 
-		next_loss = 0.5 * sumsq(sdata(r))
+		next_loss = 0.5 * sumabs2(sdata(r))
 		next_obj  = next_loss
 
 		# guard against numerical instabilities
@@ -395,7 +397,7 @@ function L0_reg{T <: Union(Float32, Float64)}(
 			difference!(r,Y,Xb)
 
 			# calculate objective
-			next_loss = 0.5 * sumsq(sdata(r))
+			next_loss = 0.5 * sumabs2(sdata(r))
 			
 			# stop time
 			mm_time = toq()
@@ -566,7 +568,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu 
-function one_fold(
+function one_fold{T <: Union(Float32, Float64)}(
 	x::BEDFile, 
 	y::DenseArray{T,1}, 
 	path::DenseArray{Int,1}, 
@@ -608,7 +610,7 @@ function one_fold(
 		xb!(Xb,x_test,b, means=means, invstds=invstds)
 #		PLINK.update_partial_residuals!(r,y_train,x_train,perm,b,test_size, Xb=Xb, means=means, invstds=invstds)
 		difference!(r,y_train,Xb)
-		myerrors[i] = sumsq(r) / test_size
+		myerrors[i] = sumabs2(r) / test_size
 	end
 
 	return myerrors
