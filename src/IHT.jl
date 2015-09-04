@@ -89,7 +89,7 @@ function iht(
 	gk        :: DenseArray{Float64,1} = zeros(Float64,k), 
 	bk        :: DenseArray{Float64,1} = zeros(Float64,k), 
 	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
-	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
+#	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
 	step_mult :: Float64               = 1.0,
@@ -204,7 +204,7 @@ function iht(
 	gk        :: DenseArray{Float32,1} = zeros(Float32,k), 
 	bk        :: DenseArray{Float32,1} = zeros(Float32,k), 
 	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
-	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
+#	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
 	step_mult :: Float32               = 1.0,
@@ -370,7 +370,7 @@ function L0_reg(
 	tempkf    :: DenseArray{Float64,1} = zeros(Float64,k), 
 	idx       :: DenseArray{Float64,1} = zeros(Float64,k), 
 	indices   :: DenseArray{Int,1}     = collect(1:p), 
-	tempki    :: DenseArray{Int,1}     = zeros(Int,k), 
+#	tempki    :: DenseArray{Int,1}     = zeros(Int,k), 
 	support   :: BitArray{1}           = falses(p), 
 	support0  :: BitArray{1}           = falses(p), 
 	tol       :: FloatingPoint         = 1e-4, 
@@ -470,7 +470,8 @@ function L0_reg(
 		current_obj = next_obj
 
 		# now perform IHT step
-		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, iter=mm_iter)
+#		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, iter=mm_iter)
+		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, iter=mm_iter)
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
@@ -570,7 +571,7 @@ function L0_reg(
 	tempkf    :: DenseArray{Float32,1} = zeros(Float32,k), 
 	idx       :: DenseArray{Float32,1} = zeros(Float32,k), 
 	indices   :: DenseArray{Int,1}     = collect(1:p), 
-	tempki    :: DenseArray{Int,1}     = zeros(Int,k), 
+#	tempki    :: DenseArray{Int,1}     = zeros(Int,k), 
 	support   :: BitArray{1}           = falses(p), 
 	support0  :: BitArray{1}           = falses(p), 
 	tol       :: FloatingPoint         = 1e-4, 
@@ -670,7 +671,8 @@ function L0_reg(
 		current_obj = next_obj
 
 		# now perform IHT step
-		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, iter=mm_iter)
+#		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, iter=mm_iter)
+		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, iter=mm_iter)
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
@@ -823,14 +825,15 @@ function iht_path(
 		Xk     = zeros(Float64,n,q)  # store q columns of X
 		tempkf = zeros(Float64,q)    # temporary array of q floats 
 		idx    = zeros(Float64,q)    # another temporary array of q floats 
-		tempki = zeros(Int,q)  # temporary array of q integers 
+#		tempki = zeros(Int,q)  # temporary array of q integers 
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
 
 #		println("Any NaN in b? ", any(isnan(b)))
 
 		# now compute current model
-		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0) 
+#		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0) 
+		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0) 
 
 		# extract and save model
 		copy!(b, output["beta"])
@@ -893,14 +896,15 @@ function iht_path(
 		Xk     = zeros(Float32,n,q)  # store q columns of X
 		tempkf = zeros(Float32,q)    # temporary array of q floats 
 		idx    = zeros(Float32,q)    # another temporary array of q floats 
-		tempki = zeros(Int,q)  # temporary array of q integers 
+#		tempki = zeros(Int,q)  # temporary array of q integers 
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
 
 #		println("Any NaN in b? ", any(isnan(b)))
 
 		# now compute current model
-		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0) 
+#		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0) 
+		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0) 
 
 		# extract and save model
 		copy!(b, output["beta"])
