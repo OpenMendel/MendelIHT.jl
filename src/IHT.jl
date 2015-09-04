@@ -17,9 +17,13 @@ export cv_get_folds
 
 
 include("aiht.jl")
+include("aiht32.jl")
 include("crossvalidation.jl")
+include("crossvalidation32.jl")
 include("gwas.jl")
-include("logistic.jl")
+include("gwas32.jl")
+#include("logistic.jl")
+#include("logistic32.jl")
 
 # ITERATIVE HARD THRESHOLDING
 #
@@ -69,28 +73,28 @@ include("logistic.jl")
 # klkeys@g.ucla.edu
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
 # http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
-function iht{T <: Union(Float32, Float64)}(
-	b         :: DenseArray{T,1}, 
-	x         :: DenseArray{T,2}, 
-	y         :: DenseArray{T,1}, 
+function iht(
+	b         :: DenseArray{Float64,1}, 
+	x         :: DenseArray{Float64,2}, 
+	y         :: DenseArray{Float64,1}, 
 	k         :: Integer, 
-	g         :: DenseArray{T,1}; 
-	xk        :: DenseArray{T,2}   = zeros(T,n,k), 
-	b0        :: DenseArray{T,1}   = copy(b), 
-	xb0       :: DenseArray{T,1}   = copy(xb), 
-	xb        :: DenseArray{T,1}   = BLAS.gemv('N', 1.0, x, b), 
-	xgk       :: DenseArray{T,1}   = zeros(T,n), 
-	gk        :: DenseArray{T,1}   = zeros(T,k), 
-	bk        :: DenseArray{T,1}   = zeros(T,k), 
-	sortidx   :: DenseArray{Int,1} = collect(1:p), 
-	sortk     :: DenseArray{Int,1} = zeros(Int,k), 
-	IDX       :: BitArray{1}       = falses(p), 
-	IDX0      :: BitArray{1}       = copy(IDX), 
-	step_mult :: T       = 1.0,
-	iter      :: Integer = 0,
-	n         :: Integer = length(y), 
-	p         :: Integer = length(b), 
-	max_step  :: Integer = 50
+	g         :: DenseArray{Float64,1}; 
+	n         :: Integer               = length(y), 
+	p         :: Integer               = length(b), 
+	xk        :: DenseArray{Float64,2} = zeros(Float64,n,k), 
+	b0        :: DenseArray{Float64,1} = copy(b), 
+	xb0       :: DenseArray{Float64,1} = copy(xb), 
+	xb        :: DenseArray{Float64,1} = BLAS.gemv('N', 1.0, x, b), 
+	xgk       :: DenseArray{Float64,1} = zeros(Float64,n), 
+	gk        :: DenseArray{Float64,1} = zeros(Float64,k), 
+	bk        :: DenseArray{Float64,1} = zeros(Float64,k), 
+	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
+	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
+	IDX       :: BitArray{1}           = falses(p), 
+	IDX0      :: BitArray{1}           = copy(IDX), 
+	step_mult :: Float64               = 1.0,
+	iter      :: Integer               = 0,
+	max_step  :: Integer               = 50
 ) 
 
 	# which components of beta are nonzero? 
@@ -99,8 +103,10 @@ function iht{T <: Union(Float32, Float64)}(
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-		sortk = RegressionTools.selectperm!(sortidx,g,k, p=p) 
-		IDX[sortk] = true;
+#		sortk = RegressionTools.selectperm!(sortidx,g,k, p=p) 
+#		IDX[sortk] = true;
+		selectperm!(sortidx,g,k, p=p) 
+		IDX[sortidx[1:k]] = true;
 	end
 
 	# store relevant columns of x
@@ -124,18 +130,20 @@ function iht{T <: Union(Float32, Float64)}(
 	BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 	# preserve top k components of b
-	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
-	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
-	fill!(b,0.0)
-	b[sortk] = bk
+#	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+#	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
+#	fill!(b,0.0)
+#	b[sortk] = bk
 #	RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+	project_k!(b, bk, sortidx, k)
 
 	# which indices of new beta are nonzero?
 	copy!(IDX0, IDX)
 	update_indices!(IDX, b, p=p) 
 
 	# update xb
-	update_xb!(xb, x, b, sortk, k)
+#	update_xb!(xb, x, b, sortk, k)
+	update_xb!(xb, x, b, sortidx, k)
 
 	# calculate omega
 	omega_top = sqeuclidean(sdata(b),(b0))
@@ -153,17 +161,19 @@ function iht{T <: Union(Float32, Float64)}(
 		BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 		# recompute projection onto top k components of b
-		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
-		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
-		fill!(b,0.0)
-		b[sortk] = bk
+#		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+#		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
+#		fill!(b,0.0)
+#		b[sortk] = bk
 #		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+		project_k!(b, bk, sortidx, k)
 
 		# which indices of new beta are nonzero?
 		update_indices!(IDX, b, p=p) 
 
 		# recompute xb
-		update_xb!(xb, x, b, sortk, k)
+#		update_xb!(xb, x, b, sortk, k)
+		update_xb!(xb, x, b, sortidx, k)
 
 		# calculate omega
 		omega_top = sqeuclidean(sdata(b),(b0))
@@ -177,6 +187,119 @@ function iht{T <: Union(Float32, Float64)}(
 end
 
 
+
+function iht(
+	b         :: DenseArray{Float32,1}, 
+	x         :: DenseArray{Float32,2}, 
+	y         :: DenseArray{Float32,1}, 
+	k         :: Integer, 
+	g         :: DenseArray{Float32,1}; 
+	n         :: Integer               = length(y), 
+	p         :: Integer               = length(b), 
+	xk        :: DenseArray{Float32,2} = zeros(Float32,n,k), 
+	b0        :: DenseArray{Float32,1} = copy(b), 
+	xb0       :: DenseArray{Float32,1} = copy(xb), 
+	xb        :: DenseArray{Float32,1} = BLAS.gemv('N', 1.0, x, b), 
+	xgk       :: DenseArray{Float32,1} = zeros(Float32,n), 
+	gk        :: DenseArray{Float32,1} = zeros(Float32,k), 
+	bk        :: DenseArray{Float32,1} = zeros(Float32,k), 
+	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
+	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
+	IDX       :: BitArray{1}           = falses(p), 
+	IDX0      :: BitArray{1}           = copy(IDX), 
+	step_mult :: Float32               = 1.0,
+	iter      :: Integer               = 0,
+	max_step  :: Integer               = 50
+) 
+
+	# which components of beta are nonzero? 
+	update_indices!(IDX, b, p=p)
+
+	# if current vector is 0,
+	# then take largest elements of d as nonzero components for b
+	if sum(IDX) == 0
+#		sortk = RegressionTools.selectperm!(sortidx,g,k, p=p) 
+#		IDX[sortk] = true;
+		selectperm!(sortidx,g,k, p=p) 
+		IDX[sortidx[1:k]] = true;
+	end
+
+	# store relevant columns of x
+	# need to do this on 1st iteration
+	# afterwards, only do if support changes
+	if !isequal(IDX,IDX0) || iter < 2
+		update_xk!(xk, x, IDX, k=k, p=p, n=n)	# xk = x[:,IDX]
+	end
+
+	# store relevant components of gradient
+	fill_perm!(gk, g, IDX, k=k, p=p)	# gk = g[IDX]
+
+	# now compute subset of x*g
+	BLAS.gemv!('N', 1.0, xk, gk, 0.0, xgk)
+
+	# compute step size
+	mu = step_mult * sumabs2(sdata(gk)) / sumsq(sdata(xgk))
+	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
+
+	# take gradient step
+	BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
+
+	# preserve top k components of b
+#	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+#	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
+#	fill!(b,0.0)
+#	b[sortk] = bk
+#	RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+	project_k!(b, bk, sortidx, k)
+
+	# which indices of new beta are nonzero?
+	copy!(IDX0, IDX)
+	update_indices!(IDX, b, p=p) 
+
+	# update xb
+#	update_xb!(xb, x, b, sortk, k)
+	update_xb!(xb, x, b, sortidx, k)
+
+	# calculate omega
+	omega_top = sqeuclidean(sdata(b),(b0))
+	omega_bot = sqeuclidean(sdata(xb),sdata(xb0))
+
+	# backtrack until mu sits below omega and support stabilizes
+	mu_step = 0
+	while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+
+		# stephalving
+		mu *= 0.5
+
+		# recompute gradient step
+		copy!(b,b0)
+		BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
+
+		# recompute projection onto top k components of b
+#		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+#		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
+#		fill!(b,0.0)
+#		b[sortk] = bk
+#		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+		project_k!(b, bk, sortidx, k)
+
+		# which indices of new beta are nonzero?
+		update_indices!(IDX, b, p=p) 
+
+		# recompute xb
+#		update_xb!(xb, x, b, sortk, k)
+		update_xb!(xb, x, b, sortidx, k)
+
+		# calculate omega
+		omega_top = sqeuclidean(sdata(b),(b0))
+		omega_bot = sqeuclidean(sdata(xb),sdata(xb0))
+
+		# increment the counter
+		mu_step += 1
+	end
+
+	return mu, mu_step
+end
 
 ######################
 ### MAIN FUNCTIONS ###
@@ -230,30 +353,230 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function L0_reg{T <: Union(Float32, Float64)}(
-	X :: DenseArray{T,2}, 
-	Y :: DenseArray{T,1}, 
-	k :: Integer; 
-	Xk        ::DenseArray{T,2}   = zeros(T,n,k), 
-	b         ::DenseArray{T,1}   = zeros(T,p), 
-	b0        ::DenseArray{T,1}   = zeros(T,p), 
-	df        ::DenseArray{T,1}   = zeros(T,p), 
-	r         ::DenseArray{T,1}   = zeros(T,n), 
-	Xb        ::DenseArray{T,1}   = zeros(T,n), 
-	Xb0       ::DenseArray{T,1}   = zeros(T,n), 
-	tempn     ::DenseArray{T,1}   = zeros(T,n), 
-	tempkf    ::DenseArray{T,1}   = zeros(T,k), 
-	idx       ::DenseArray{T,1}   = zeros(T,k), 
-	indices   ::DenseArray{Int,1} = collect(1:p), 
-	tempki    ::DenseArray{Int,1} = zeros(Int,k), 
-	support   ::BitArray{1}       = falses(p), 
-	support0  ::BitArray{1}       = falses(p), 
-	tol       :: T       = 1e-4, 
-	n         :: Integer = length(Y), 
-	p         :: Integer = size(X,2), 
-	max_iter  :: Integer = 1000, 
-	max_step  :: Integer = 50,  
-	quiet     :: Bool    = true
+function L0_reg(
+	X         :: DenseArray{Float64,2}, 
+	Y         :: DenseArray{Float64,1}, 
+	k         :: Integer; 
+	n         :: Integer               = length(Y), 
+	p         :: Integer               = size(X,2), 
+	Xk        :: DenseArray{Float64,2} = zeros(Float64,n,k), 
+	b         :: DenseArray{Float64,1} = zeros(Float64,p), 
+	b0        :: DenseArray{Float64,1} = zeros(Float64,p), 
+	df        :: DenseArray{Float64,1} = zeros(Float64,p), 
+	r         :: DenseArray{Float64,1} = zeros(Float64,n), 
+	Xb        :: DenseArray{Float64,1} = zeros(Float64,n), 
+	Xb0       :: DenseArray{Float64,1} = zeros(Float64,n), 
+	tempn     :: DenseArray{Float64,1} = zeros(Float64,n), 
+	tempkf    :: DenseArray{Float64,1} = zeros(Float64,k), 
+	idx       :: DenseArray{Float64,1} = zeros(Float64,k), 
+	indices   :: DenseArray{Int,1}     = collect(1:p), 
+	tempki    :: DenseArray{Int,1}     = zeros(Int,k), 
+	support   :: BitArray{1}           = falses(p), 
+	support0  :: BitArray{1}           = falses(p), 
+	tol       :: FloatingPoint         = 1e-4, 
+	max_iter  :: Integer               = 1000, 
+	max_step  :: Integer               = 50,  
+	quiet     :: Bool                  = true
+)
+
+	# start timer
+	tic()
+
+	# first handle errors
+	k        >= 0     || throw(ArgumentError("Value of k must be nonnegative!\n"))
+	max_iter >= 0     || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
+	max_step >= 0     || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
+	tol      >  eps() || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+
+	# initialize return values
+	mm_iter   = 0		# number of iterations of L0_reg
+	mm_time   = 0.0		# compute time *within* L0_reg
+	next_obj  = 0.0		# objective value
+	next_loss = 0.0		# loss function value 
+
+	# initialize floats 
+	current_obj = Inf      # tracks previous objective function value
+	the_norm    = 0.0      # norm(b - b0)
+	scaled_norm = 0.0      # the_norm / (norm(b0) + 1)
+	mu          = 0.0	    # Landweber step size, 0 < tau < 2/rho_max^2
+
+	# initialize integers
+	i       = 0        # used for iterations in loops
+	mu_step = 0        # counts number of backtracking steps for mu
+
+	# initialize booleans
+	converged = false    # scaled_norm < tol?
+   
+	# update X*beta
+	update_xb!(Xb, X, b, indices, k, p=p, n=n)
+
+	# update r and gradient 
+#	update_residuals!(r, X, Y, b, xb=Xb, n=n)
+#    update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+	difference!(r,Y,Xb, n=n)
+	BLAS.gemv!('T', 1.0, X, r, 0.0, df)
+
+	# update loss and objective
+#	next_loss = 0.5 * sumabs2(r)
+	next_loss = Inf
+	next_obj  = next_loss
+
+	# guard against numerical instabilities
+	isnan(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
+
+	# formatted output to monitor algorithm progress
+	if !quiet
+		 println("\nBegin MM algorithm\n") 
+		 println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
+		 println("0\t0\tInf\t\tInf\t\tInf")
+	end
+
+	# main loop
+	for mm_iter = 1:max_iter
+ 
+		# notify and break if maximum iterations are reached.
+		if mm_iter >= max_iter
+
+			if !quiet
+				print_with_color(:red, "MM algorithm has hit maximum iterations $(max_iter)!\n") 
+				print_with_color(:red, "Current Objective: $(current_obj)\n") 
+			end
+
+			# send elements below tol to zero
+			threshold!(b, tol, n=p)
+
+			# calculate r piecemeal
+#			update_residuals!(r, X, Y, b, xb=Xb, n=n)
+#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+			difference!(r,Y,Xb, n=n)
+
+			# calculate loss and objective
+			next_loss = 0.5 * sumabs2(r)
+
+			# stop timer
+			mm_time = toq()
+
+			# these are output variables for function
+			# wrap them into a Dict and return
+			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+
+			return output
+		end
+		
+		# save values from previous iterate 
+		copy!(b0,b)				# b0 = b	
+		copy!(Xb0,Xb)			# Xb0 = Xb
+		current_obj = next_obj
+
+		# now perform IHT step
+		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, iter=mm_iter)
+
+		# the IHT kernel gives us an updated x*b
+		# use it to recompute residuals and gradient 
+#		update_residuals!(r, X, Y, b, xb=Xb, n=n)
+#		update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+		difference!(r,Y,Xb, n=n)
+		BLAS.gemv!('T', 1.0, X, r, 0.0, df)
+
+		# update loss, objective, and gradient 
+		next_loss = 0.5 * sumabs2(r)
+		next_obj  = next_loss
+
+		# guard against numerical instabilities
+		isnan(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
+		isinf(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
+
+		# track convergence
+		the_norm    = chebyshev(b,b0)
+		scaled_norm = the_norm / ( norm(b0,Inf) + 1)
+		converged   = scaled_norm < tol
+		
+		# output algorithm progress 
+		quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_obj)
+
+		# check for convergence
+		# if converged and in feasible set, then algorithm converged before maximum iteration
+		# perform final computations and output return variables 
+		if converged
+			
+			# send elements below tol to zero
+			threshold!(b, tol, n=p)
+
+			# update r
+#			update_residuals!(r, X, Y, b, xb=Xb, n=n)
+#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
+			difference!(r,Y,Xb)
+
+			# calculate objective
+			next_loss = 0.5 * sumabs2(r)
+			
+			# stop time
+			mm_time = toq()
+
+			if !quiet
+				println("\nMM algorithm has converged successfully.")
+				println("MM Results:\nIterations: $(mm_iter)") 
+				println("Final Loss: $(next_loss)") 
+				println("Total Compute Time: $(mm_time)") 
+			end
+
+
+			# these are output variables for function
+			# wrap them into a Dict and return
+			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+
+			return output
+		end
+
+		# algorithm is unconverged at this point.
+		# if algorithm is in feasible set, then rho should not be changing
+		# check descent property in that case
+		# if rho is not changing but objective increases, then abort
+		if next_obj > current_obj + tol
+			if !quiet
+				print_with_color(:red, "\nMM algorithm fails to descend!\n")
+				print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
+				print_with_color(:red, "Current Objective: $(current_obj)\n") 
+				print_with_color(:red, "Next Objective: $(next_obj)\n") 
+				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
+			end
+
+			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
+
+			return output
+		end
+	end # end main loop
+end # end function
+
+
+
+function L0_reg(
+	X         :: DenseArray{Float32,2}, 
+	Y         :: DenseArray{Float32,1}, 
+	k         :: Integer; 
+	n         :: Integer               = length(Y), 
+	p         :: Integer               = size(X,2), 
+	Xk        :: DenseArray{Float32,2} = zeros(Float32,n,k), 
+	b         :: DenseArray{Float32,1} = zeros(Float32,p), 
+	b0        :: DenseArray{Float32,1} = zeros(Float32,p), 
+	df        :: DenseArray{Float32,1} = zeros(Float32,p), 
+	r         :: DenseArray{Float32,1} = zeros(Float32,n), 
+	Xb        :: DenseArray{Float32,1} = zeros(Float32,n), 
+	Xb0       :: DenseArray{Float32,1} = zeros(Float32,n), 
+	tempn     :: DenseArray{Float32,1} = zeros(Float32,n), 
+	tempkf    :: DenseArray{Float32,1} = zeros(Float32,k), 
+	idx       :: DenseArray{Float32,1} = zeros(Float32,k), 
+	indices   :: DenseArray{Int,1}     = collect(1:p), 
+	tempki    :: DenseArray{Int,1}     = zeros(Int,k), 
+	support   :: BitArray{1}           = falses(p), 
+	support0  :: BitArray{1}           = falses(p), 
+	tol       :: FloatingPoint         = 1e-4, 
+	max_iter  :: Integer               = 1000, 
+	max_step  :: Integer               = 50,  
+	quiet     :: Bool                  = true
 )
 
 	# start timer
@@ -431,7 +754,6 @@ end # end function
 
 
 
-
 # COMPUTE AN IHT REGULARIZATION PATH FOR LEAST SQUARES REGRESSION
 # This subroutine computes a regularization path for design matrix X and response Y from initial model size k0 to final model size k.
 # The default increment on model size is 1. The path can also be warm-started with a vector b.
@@ -450,15 +772,15 @@ end # end function
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function iht_path{T <: Union(Float32, Float64)}(
-	x        :: DenseArray{T,2}, 
-	y        :: DenseArray{T,1}, 
+function iht_path(
+	x        :: DenseArray{Float64,2}, 
+	y        :: DenseArray{Float64,1}, 
 	path     :: DenseArray{Int,1}; 
-	b        :: DenseArray{T,1} = zeros(T,size(x,2)), 
-	tol      :: T       = 1e-4,
-	max_iter :: Integer = 1000, 
-	max_step :: Integer = 50, 
-	quiet    :: Bool    = true 
+	b        :: DenseArray{Float64,1} = zeros(Float64,size(x,2)), 
+	tol      :: FloatingPoint         = 1e-4,
+	max_iter :: Integer               = 1000, 
+	max_step :: Integer               = 50, 
+	quiet    :: Bool                  = true 
 )
 
 	# size of problem?
@@ -468,17 +790,17 @@ function iht_path{T <: Union(Float32, Float64)}(
 	const num_models = length(path)			
 
 	# preallocate space for intermediate steps of algorithm calculations 
-	r          = zeros(T,n)		# for || Y - XB ||_2^2
-	Xb         = zeros(T,n)		# X*beta 
-	Xb0        = zeros(T,n)		# X*beta0 
-	b          = zeros(T,p)		# model 
-	b0         = zeros(T,p)		# previous iterate beta0 
-	df         = zeros(T,p)		# (negative) gradient 
-	tempn      = zeros(T,n)   	# temporary array of n floats 
-	indices    = collect(1:p)	    	# indices that sort beta 
-	support    = falses(p)				# indicates nonzero components of beta
-	support0   = copy(support)			# store previous nonzero indicators
-	betas      = zeros(T,p,num_models)	# a matrix to store calculated models
+	r          = zeros(Float64,n)				# for || Y - XB ||_2^2
+	Xb         = zeros(Float64,n)				# X*beta 
+	Xb0        = zeros(Float64,n)				# X*beta0 
+	b          = zeros(Float64,p)				# model 
+	b0         = zeros(Float64,p)				# previous iterate beta0 
+	df         = zeros(Float64,p)				# (negative) gradient 
+	tempn      = zeros(Float64,n)   			# temporary array of n floats 
+	indices    = collect(1:p)	    			# indices that sort beta 
+	support    = falses(p)						# indicates nonzero components of beta
+	support0   = copy(support)					# store previous nonzero indicators
+	betas      = zeros(Float64,p,num_models)	# a matrix to store calculated models
 
 	# compute the path
 	for i = 1:num_models
@@ -487,23 +809,93 @@ function iht_path{T <: Union(Float32, Float64)}(
 		q = path[i]
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
-		bk      = zeros(T,q)
+		bk      = zeros(Float64,q)
 #		sortk   = zeros(Int,q)
-		sortk   = RegressionTools.selectperm!(indices, b,q, p=p)
-		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
-		fill!(b,0.0)
-		b[sortk] = bk
+#		sortk   = RegressionFloat64ools.selectperm!(indices, b,q, p=p)
+#		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
+#		fill!(b,0.0)
+#		b[sortk] = bk
 #		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+		project_k!(b, bk, sortidx, k)
 
 		# these arrays change in size from iteration to iteration
 		# we must allocate them for every new model size
-		Xk     = zeros(T,n,q)  # store q columns of X
-		tempkf = zeros(T,q)    # temporary array of q floats 
-		idx    = zeros(T,q)    # another temporary array of q floats 
+		Xk     = zeros(Float64,n,q)  # store q columns of X
+		tempkf = zeros(Float64,q)    # temporary array of q floats 
+		idx    = zeros(Float64,q)    # another temporary array of q floats 
 		tempki = zeros(Int,q)  # temporary array of q integers 
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
-#		project_k!(b,tempkf,tempki,indices,q, p=p)
+
+#		println("Any NaN in b? ", any(isnan(b)))
+
+		# now compute current model
+		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0) 
+
+		# extract and save model
+		copy!(b, output["beta"])
+		update_col!(betas, b, i, n=p, p=num_models, a=1.0) 
+	end
+
+	# return a sparsified copy of the models
+	return sparse(betas)
+end	
+
+
+function iht_path(
+	x        :: DenseArray{Float32,2}, 
+	y        :: DenseArray{Float32,1}, 
+	path     :: DenseArray{Int,1}; 
+	b        :: DenseArray{Float32,1} = zeros(Float32,size(x,2)), 
+	tol      :: FloatingPoint         = 1e-4,
+	max_iter :: Integer               = 1000, 
+	max_step :: Integer               = 50, 
+	quiet    :: Bool                  = true 
+)
+
+	# size of problem?
+	const (n,p) = size(x)
+
+	# how many models will we compute?
+	const num_models = length(path)			
+
+	# preallocate space for intermediate steps of algorithm calculations 
+	r          = zeros(Float32,n)				# for || Y - XB ||_2^2
+	Xb         = zeros(Float32,n)				# X*beta 
+	Xb0        = zeros(Float32,n)				# X*beta0 
+	b          = zeros(Float32,p)				# model 
+	b0         = zeros(Float32,p)				# previous iterate beta0 
+	df         = zeros(Float32,p)				# (negative) gradient 
+	tempn      = zeros(Float32,n)   			# temporary array of n floats 
+	indices    = collect(1:p)	    			# indices that sort beta 
+	support    = falses(p)						# indicates nonzero components of beta
+	support0   = copy(support)					# store previous nonzero indicators
+	betas      = zeros(Float32,p,num_models)	# a matrix to store calculated models
+
+	# compute the path
+	for i = 1:num_models
+	
+		# model size?
+		q = path[i]
+
+		# store projection of beta onto largest k nonzeroes in magnitude 
+		bk      = zeros(Float32,q)
+#		sortk   = zeros(Int,q)
+#		sortk   = RegressionFloat32ools.selectperm!(indices, b,q, p=p)
+#		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
+#		fill!(b,0.0)
+#		b[sortk] = bk
+#		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+		project_k!(b, bk, sortidx, k)
+
+		# these arrays change in size from iteration to iteration
+		# we must allocate them for every new model size
+		Xk     = zeros(Float32,n,q)  # store q columns of X
+		tempkf = zeros(Float32,q)    # temporary array of q floats 
+		idx    = zeros(Float32,q)    # another temporary array of q floats 
+		tempki = zeros(Int,q)  # temporary array of q integers 
+
+		# store projection of beta onto largest k nonzeroes in magnitude 
 
 #		println("Any NaN in b? ", any(isnan(b)))
 
