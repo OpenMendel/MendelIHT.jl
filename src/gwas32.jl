@@ -41,7 +41,7 @@
 # -- max_step is the maximum number of backtracking steps to take. Defaults to 50.
 # -- sortidx is a vector to store the indices that would sort beta. Defaults to p zeros of type Int. 
 # -- sortk is a vector to store the largest k indices of beta. Defaults to k zeros of type Int.
-# -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type Float64. 
+# -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type Float32. 
 # -- IDX and IDX0 are BitArrays indicating the nonzero status of components of beta. They default to falses.
 #
 # coded by Kevin L. Keys (2015)
@@ -49,11 +49,11 @@
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
 # http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
 function iht(
-	b         :: DenseArray{Float64,1}, 
+	b         :: DenseArray{Float32,1}, 
 	x         :: BEDFile, 
-	y         :: DenseArray{Float64,1}, 
+	y         :: DenseArray{Float32,1}, 
 	k         :: Integer, 
-	g         :: DenseArray{Float64,1}; 
+	g         :: DenseArray{Float32,1}; 
 	step_mult :: FloatingPoint         = 1.0, 
 	n         :: Integer               = length(y), 
 	p         :: Integer               = length(b), 
@@ -61,17 +61,17 @@ function iht(
 	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
-	b0        :: DenseArray{Float64,1} = zeros(Float64,p), 
-	Xb        :: DenseArray{Float64,1} = BLAS.gemv('N', 1.0, x, b), 
-	Xb0       :: DenseArray{Float64,1} = copy(xb), 
-	xk        :: DenseArray{Float64,2} = zeros(Float64,n,k), 
-	gk        :: DenseArray{Float64,1} = zeros(Float64,k), 
-	xgk       :: DenseArray{Float64,1} = zeros(Float64,n), 
-	bk        :: DenseArray{Float64,1} = zeros(Float64,k), 
+	b0        :: DenseArray{Float32,1} = zeros(Float32,p), 
+	Xb        :: DenseArray{Float32,1} = BLAS.gemv('N', 1.0, x, b), 
+	Xb0       :: DenseArray{Float32,1} = copy(xb), 
+	xk        :: DenseArray{Float32,2} = zeros(Float32,n,k), 
+	gk        :: DenseArray{Float32,1} = zeros(Float32,k), 
+	xgk       :: DenseArray{Float32,1} = zeros(Float32,n), 
+	bk        :: DenseArray{Float32,1} = zeros(Float32,k), 
 #	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
-	means     :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds   :: DenseArray{Float64,1} = invstd(Float64,x, y=means), 
-	stdsk     :: DenseArray{Float64,1} = zeros(Float64,k)
+	means     :: DenseArray{Float32,1} = mean(Float32,x), 
+	invstds   :: DenseArray{Float32,1} = invstd(Float32,x, y=means), 
+	stdsk     :: DenseArray{Float32,1} = zeros(Float32,k)
 ) 
 
 	# which components of beta are nonzero? 
@@ -216,15 +216,15 @@ end
 # -- tol is the global tol. Defaults to 1e-4.
 # -- quiet is a Boolean that controls algorithm output. Defaults to true (no output).
 # -- several temporary arrays for intermediate steps of algorithm calculations:
-#		Xk        = zeros(Float64,n,k)  # store k columns of X
-#		r         = zeros(Float64,n)	# for || Y - XB ||_2^2
-#		Xb        = zeros(Float64,n)	# X*beta 
-#		Xb0       = zeros(Float64,n)	# X*beta0 
-#		b0        = zeros(Float64,p)	# previous iterate beta0 
-#		df        = zeros(Float64,p)	# (negative) gradient 
-#		tempkf    = zeros(Float64,k)    # temporary array of k floats 
-#		idx       = zeros(Float64,k)    # another temporary array of k floats 
-#		tempn     = zeros(Float64,n)    # temporary array of n floats 
+#		Xk        = zeros(Float32,n,k)  # store k columns of X
+#		r         = zeros(Float32,n)	# for || Y - XB ||_2^2
+#		Xb        = zeros(Float32,n)	# X*beta 
+#		Xb0       = zeros(Float32,n)	# X*beta0 
+#		b0        = zeros(Float32,p)	# previous iterate beta0 
+#		df        = zeros(Float32,p)	# (negative) gradient 
+#		tempkf    = zeros(Float32,k)    # temporary array of k floats 
+#		idx       = zeros(Float32,k)    # another temporary array of k floats 
+#		tempn     = zeros(Float32,n)    # temporary array of n floats 
 #		indices   = collect(1:p)	    # indices that sort beta 
 #		tempki    = zeros(Int,k)        # temporary array of k integers 
 #		support   = falses(p)			# indicates nonzero components of beta
@@ -240,27 +240,27 @@ end
 # klkeys@g.ucla.edu
 function L0_reg(
 	X        :: BEDFile, 
-	Y        :: DenseArray{Float64,1}, 
+	Y        :: DenseArray{Float32,1}, 
 	k        :: Integer; 
 	n        :: Integer               = length(Y), 
 	p        :: Integer               = size(X,2), 
-	Xk       :: DenseArray{Float64,2} = zeros(Float64,n,k), 
-	b        :: DenseArray{Float64,1} = zeros(Float64,p), 
-	b0       :: DenseArray{Float64,1} = zeros(Float64,p), 
-	df       :: DenseArray{Float64,1} = zeros(Float64,p), 
-	r        :: DenseArray{Float64,1} = zeros(Float64,n), 
-	Xb       :: DenseArray{Float64,1} = zeros(Float64,n), 
-	Xb0      :: DenseArray{Float64,1} = zeros(Float64,n), 
-	tempn    :: DenseArray{Float64,1} = zeros(Float64,n), 
-	tempkf   :: DenseArray{Float64,1} = zeros(Float64,k), 
-	idx      :: DenseArray{Float64,1} = zeros(Float64,k), 
-	tempkf2  :: DenseArray{Float64,1} = zeros(Float64,k),
+	Xk       :: DenseArray{Float32,2} = zeros(Float32,n,k), 
+	b        :: DenseArray{Float32,1} = zeros(Float32,p), 
+	b0       :: DenseArray{Float32,1} = zeros(Float32,p), 
+	df       :: DenseArray{Float32,1} = zeros(Float32,p), 
+	r        :: DenseArray{Float32,1} = zeros(Float32,n), 
+	Xb       :: DenseArray{Float32,1} = zeros(Float32,n), 
+	Xb0      :: DenseArray{Float32,1} = zeros(Float32,n), 
+	tempn    :: DenseArray{Float32,1} = zeros(Float32,n), 
+	tempkf   :: DenseArray{Float32,1} = zeros(Float32,k), 
+	idx      :: DenseArray{Float32,1} = zeros(Float32,k), 
+	tempkf2  :: DenseArray{Float32,1} = zeros(Float32,k),
 	indices  :: DenseArray{Int,1}     = collect(1:p), 
 #	tempki   :: DenseArray{Int,1}     = collect(1:k), 
 	support  :: BitArray{1}           = falses(p), 
 	support0 :: BitArray{1}           = falses(p), 
-	means    :: DenseArray{Float64,1} = mean(Float64,X), 
-	invstds  :: DenseArray{Float64,1} = invstd(Float64, X, y = means), 
+	means    :: DenseArray{Float32,1} = mean(Float32,X), 
+	invstds  :: DenseArray{Float32,1} = invstd(Float32, X, y = means), 
 	tol      :: FloatingPoint         = 1e-4, 
 	max_iter :: Integer               = 1000, 
 	max_step :: Integer               = 50, 
@@ -279,14 +279,14 @@ function L0_reg(
 	# initialize return values
 	mm_iter   = 0		        # number of iterations of L0_reg
 	mm_time   = 0.0				# compute time *within* L0_reg
-	next_obj  = zero(Float64)	# objective value
-	next_loss = zero(Float64)	# loss function value 
+	next_obj  = zero(Float32)	# objective value
+	next_loss = zero(Float32)	# loss function value 
 
 	# initialize floats 
 	current_obj = Inf      		# tracks previous objective function value
-	the_norm    = zero(Float64) # norm(b - b0)
-	scaled_norm = zero(Float64) # the_norm / (norm(b0) + 1)
-	mu          = zero(Float64) # Landweber step size, 0 < tau < 2/rho_max^2
+	the_norm    = zero(Float32) # norm(b - b0)
+	scaled_norm = zero(Float32) # the_norm / (norm(b0) + 1)
+	mu          = zero(Float32) # Landweber step size, 0 < tau < 2/rho_max^2
 
 	# initialize integers
 	i       = 0        			# used for iterations in loops
@@ -460,11 +460,11 @@ end # end function
 # klkeys@g.ucla.edu
 function iht_path(
 	x        :: BEDFile, 
-	y        :: DenseArray{Float64,1}, 
+	y        :: DenseArray{Float32,1}, 
 	path     :: DenseArray{Int,1}; 
-	b        :: DenseArray{Float64,1} = ifelse(typeof(y) == SharedArray{Float64,1}, SharedArray(Float64, size(x,2)), zeros(Float64, size(x,2))), 
-	means    :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds  :: DenseArray{Float64,1} = invstd(Float64,x,y=means),
+	b        :: DenseArray{Float32,1} = ifelse(typeof(y) == SharedArray{Float32,1}, SharedArray(Float32, size(x,2)), zeros(Float32, size(x,2))), 
+	means    :: DenseArray{Float32,1} = mean(Float32,x), 
+	invstds  :: DenseArray{Float32,1} = invstd(Float32,x,y=means),
 	tol      :: FloatingPoint         = 1e-4, 
 	max_iter :: Integer               = 1000, 
 	max_step :: Integer               = 50, 
@@ -479,12 +479,12 @@ function iht_path(
 	const num_models = length(path)			
 
 	# preallocate SharedArrays for intermediate steps of algorithm calculations 
-	r          = SharedArray(Float64, n, init = S -> S[localindexes(S)] = 0.0)		# for || Y - XB ||_2^2
-	Xb         = SharedArray(Float64, n, init = S -> S[localindexes(S)] = 0.0)		# X*beta 
-	Xb0        = SharedArray(Float64, n, init = S -> S[localindexes(S)] = 0.0)		# X*beta0 
-	b0         = SharedArray(Float64, p, init = S -> S[localindexes(S)] = 0.0)		# previous iterate beta0 
-	df         = SharedArray(Float64, p, init = S -> S[localindexes(S)] = 0.0)		# (negative) gradient 
-	tempn      = SharedArray(Float64, n, init = S -> S[localindexes(S)] = 0.0)	   	# temporary array of n floats 
+	r          = SharedArray(Float32, n, init = S -> S[localindexes(S)] = 0.0)		# for || Y - XB ||_2^2
+	Xb         = SharedArray(Float32, n, init = S -> S[localindexes(S)] = 0.0)		# X*beta 
+	Xb0        = SharedArray(Float32, n, init = S -> S[localindexes(S)] = 0.0)		# X*beta0 
+	b0         = SharedArray(Float32, p, init = S -> S[localindexes(S)] = 0.0)		# previous iterate beta0 
+	df         = SharedArray(Float32, p, init = S -> S[localindexes(S)] = 0.0)		# (negative) gradient 
+	tempn      = SharedArray(Float32, n, init = S -> S[localindexes(S)] = 0.0)	   	# temporary array of n floats 
 
 	# index vector for b has more complicated initialization
 	indices    = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S))
@@ -512,9 +512,9 @@ function iht_path(
 
 		# these arrays change in size from iteration to iteration
 		# we must allocate them for every new model size
-		Xk     = zeros(Float64,n,q)		# store q columns of X
-		tempkf = zeros(Float64,q)   	# temporary array of q floats 
-		idx    = zeros(Float64,q)		# another temporary array of q floats 
+		Xk     = zeros(Float32,n,q)		# store q columns of X
+		tempkf = zeros(Float32,q)   	# temporary array of q floats 
+		idx    = zeros(Float32,q)		# another temporary array of q floats 
 		tempki = zeros(Int,q)			# temporary array of q integers 
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
@@ -570,12 +570,12 @@ end
 # klkeys@g.ucla.edu 
 function one_fold(
 	x        :: BEDFile, 
-	y        :: DenseArray{Float64,1}, 
+	y        :: DenseArray{Float32,1}, 
 	path     :: DenseArray{Int,1}, 
 	folds    :: DenseArray{Int,1}, 
 	fold     :: Integer; 
-	means    :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds  :: DenseArray{Float64,1} = invstd(Float64,x,y=means), 
+	means    :: DenseArray{Float32,1} = mean(Float32,x), 
+	invstds  :: DenseArray{Float32,1} = invstd(Float32,x,y=means), 
 	max_iter :: Integer               = 1000, 
 	max_step :: Integer               = 50, 
 	quiet    :: Bool                  = true
@@ -589,15 +589,15 @@ function one_fold(
 	# preallocate vector for output
 	myerrors = zeros(test_size)
 
-	# train_idx is the vector that indexes the Float64RAINING set
+	# train_idx is the vector that indexes the Float32RAINING set
 	train_idx = !test_idx
 
 	# allocate the arrays for the training set
 	x_train = x[train_idx,:]
 	y_train = y[train_idx] 
-	Xb      = SharedArray(Float64, test_size) 
-	b       = SharedArray(Float64, x.p) 
-	r       = SharedArray(Float64, test_size) 
+	Xb      = SharedArray(Float32, test_size) 
+	b       = SharedArray(Float32, x.p) 
+	r       = SharedArray(Float32, test_size) 
 	perm    = collect(1:test_size) 
 
 	# compute the regularization path on the training set
@@ -653,12 +653,12 @@ end
 # klkeys@g.ucla.edu 
 function cv_iht(
 	x             :: BEDFile, 
-	y             :: DenseArray{Float64,1}, 
+	y             :: DenseArray{Float32,1}, 
 	path          :: DenseArray{Int,1}, 
 	numfolds      :: Integer; 
 	folds         :: DenseArray{Int,1}     = cv_get_folds(sdata(y),numfolds), 
-	means         :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds       :: DenseArray{Float64,1} = invstd(Float64,x,y=means),
+	means         :: DenseArray{Float32,1} = mean(Float32,x), 
+	invstds       :: DenseArray{Float32,1} = invstd(Float32,x,y=means),
 	tol           :: FloatingPoint         = 1e-4, 
 	n             :: Integer               = length(y), 
 	p             :: Integer               = size(x,2), 
@@ -672,7 +672,7 @@ function cv_iht(
 	const num_models = length(path)
 
 	# preallocate vectors used in xval	
-	errors  = zeros(Float64, num_models)	# vector to save mean squared errors
+	errors  = zeros(Float32, num_models)	# vector to save mean squared errors
 	my_refs = cell(numfolds)				# cell array to store RemoteRefs
 
 	# want to compute a path for each fold
@@ -708,7 +708,7 @@ function cv_iht(
 
 	# recompute ideal model
 	if compute_model
-		b = SharedArray(Float64, p)
+		b = SharedArray(Float32, p)
 		# first use L0_reg to extract model
 		output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
 
@@ -717,7 +717,7 @@ function cv_iht(
 		bidx = find( x -> x .!= 0.0, b) 
 
 		# allocate the submatrix of x corresponding to the inferred model
-		x_inferred = zeros(Float64,n,sum(inferred_model))
+		x_inferred = zeros(Float32,n,sum(inferred_model))
 		decompress_genotypes!(x_inferred,x)
 
 		# now estimate b with the ordinary least squares estimator b = inv(x'x)x'y 
