@@ -29,10 +29,10 @@
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu 
-#function one_fold(x::DenseArray{Float64,2}, y::DenseArray{Float64,1}, path::DenseArray{Int,1}, test_idx::DenseArray{Int,1}; max_iter::Int = 1000, max_step::Int = 50, quiet::Bool = true, logreg::Bool = false) 
+#function one_fold(x::DenseArray{Float32,2}, y::DenseArray{Float32,1}, path::DenseArray{Int,1}, test_idx::DenseArray{Int,1}; max_iter::Int = 1000, max_step::Int = 50, quiet::Bool = true, logreg::Bool = false) 
 function one_fold(
-	x        :: DenseArray{Float64,2}, 
-	y        :: DenseArray{Float64,1}, 
+	x        :: DenseArray{Float32,2}, 
+	y        :: DenseArray{Float32,1}, 
 	path     :: DenseArray{Int,1}, 
 	folds    :: DenseArray{Int,1}, 
 	fold     :: Integer; 
@@ -122,8 +122,8 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu 
 function cv_iht(
-	x             :: DenseArray{Float64,2}, 
-	y             :: DenseArray{Float64,1}, 
+	x             :: DenseArray{Float32,2}, 
+	y             :: DenseArray{Float32,1}, 
 	path          :: DenseArray{Int,1}, 
 	numfolds      :: Integer; 
 	folds         :: DenseArray{Int,1} = cv_get_folds(sdata(y),numfolds), 
@@ -141,7 +141,7 @@ function cv_iht(
 	const num_models = length(path)
 
 	# preallocate vectors used in xval	
-	errors  = zeros(Float64, num_models)	# vector to save mean squared errors
+	errors  = zeros(Float32, num_models)	# vector to save mean squared errors
 	my_refs = cell(numfolds)				# cell array to store RemoteRefs
 
 	# want to compute a path for each fold
@@ -177,15 +177,15 @@ function cv_iht(
 
 	# recompute ideal model
 	if compute_model
-		b = zeros(Float64, p)
+		b = zeros(Float32, p)
 		if logreg
 			
 			# can preallocate some of the temporary arrays for use in both model selection and fitting
 			# notice that they all depend on n, which is fixed,
 			# as opposed to p, which changes depending on the number of nonzeroes in b
-			xb   = zeros(Float64, n)      # xb = x*b 
-			lxb  = zeros(Float64, n)      # logistic(xb), which we call pi 
-			l2xb = zeros(Float64, n)      # logistic(xb) [ 1 - logistic(xb) ], or pi(1 - pi)
+			xb   = zeros(Float32, n)      # xb = x*b 
+			lxb  = zeros(Float32, n)      # logistic(xb), which we call pi 
+			l2xb = zeros(Float32, n)      # logistic(xb) [ 1 - logistic(xb) ], or pi(1 - pi)
 
 			# first use L0_reg to extract model
 			output = L0_log(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, Xb=xb, Xb0=lxb, r=l2xb)
