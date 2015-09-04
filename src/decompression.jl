@@ -130,16 +130,16 @@ end
 #
 # coded by Kevin L. Keys and Kenneth Lange (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!{T <: Union(Float32, Float64)}(
-	y       :: DenseArray{T,1}, 
+function decompress_genotypes!(
+	y       :: DenseArray{Float64,1}, 
 	x       :: BEDFile, 
 	snp     :: Integer, 
-	means   :: DenseArray{T,1}, 
-	invstds :: DenseArray{T,1}
+	means   :: DenseArray{Float64,1}, 
+	invstds :: DenseArray{Float64,1}
 )
 	m = means[snp]
 	d = invstds[snp]
-	t = zero(T)
+	t = zero(Float64)
 	if snp <= x.p
 		@inbounds for case = 1:x.n
 			t       = getindex(x,x.x,case,snp,x.blocksize) 
@@ -150,9 +150,32 @@ function decompress_genotypes!{T <: Union(Float32, Float64)}(
 			y[case] = x.x2[case,(snp-x.p)]
 		end
 	end
-	return y 
+	return nothing 
 end
 
+
+function decompress_genotypes!(
+	y       :: DenseArray{Float32,1}, 
+	x       :: BEDFile, 
+	snp     :: Integer, 
+	means   :: DenseArray{Float32,1}, 
+	invstds :: DenseArray{Float32,1}
+)
+	m = means[snp]
+	d = invstds[snp]
+	t = zero(Float32)
+	if snp <= x.p
+		@inbounds for case = 1:x.n
+			t       = getindex(x,x.x,case,snp,x.blocksize) 
+			y[case] = ifelse(isnan(t), 0.0, (t - m)*d)
+		end
+	else
+		@inbounds for case = 1:x.n
+			y[case] = x.x2[case,(snp-x.p)]
+		end
+	end
+	return nothing 
+end
 
 
 # WRAPPER FOR DECOMPRESS_GENOTYPES!
@@ -165,16 +188,29 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes{T <: Union(Float32, Float64)}(
+function decompress_genotypes(
 	x       :: BEDFile, 
 	snp     :: Integer, 
-	means   :: DenseArray{T,1}, 
-	invstds :: DenseArray{T,1}; 
+	means   :: DenseArray{Float64,1}, 
+	invstds :: DenseArray{Float64,1}; 
 	shared  :: Bool = true
 )
-	y = ifelse(shared, SharedArray(T, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(T,x.n))
+	y = ifelse(shared, SharedArray(Float64, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(Float64,x.n))
 	decompress_genotypes!(y,x,snp,means,invstds)
-	return y
+	return y 
+end
+
+
+function decompress_genotypes(
+	x       :: BEDFile, 
+	snp     :: Integer, 
+	means   :: DenseArray{Float32,1}, 
+	invstds :: DenseArray{Float32,1}; 
+	shared  :: Bool = true
+)
+	y = ifelse(shared, SharedArray(Float32, x.n, init = S -> S[localindexes(S)] = 0.0), zeros(Float32,x.n))
+	decompress_genotypes!(y,x,snp,means,invstds)
+	return y 
 end
 
 
@@ -195,35 +231,20 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!{T <: Union(Float32, Float64)}(
-	Y       :: DenseArray{T,2}, 
+function decompress_genotypes!(
+	Y       :: DenseArray{Float64,2}, 
 	x       :: BEDFile; 
-	y       :: DenseArray{T,1} = SharedArray(T, x.n), 
-	means   :: DenseArray{T,1} = mean(T,x), 
-	invstds :: DenseArray{T,1} = invstd(T,x, y=means)
+	y       :: DenseArray{Float64,1} = SharedArray(Float64, x.n), 
+	means   :: DenseArray{Float64,1} = mean(Float64,x), 
+	invstds :: DenseArray{Float64,1} = invstd(Float64,x, y=means)
 ) 
 
 	# extract size of Y
 	const (n,p) = size(Y)
 
-	quiet = true 
-
 	# ensure dimension compatibility
 	n == x.n || throw(DimensionMismatch("column of Y is not of same length as column of uncompressed x"))
 	p <= x.p || throw(DimensionMismatch("Y has more columns than x"))
-
-#	@inbounds for i = 1:p
-#
-#		quiet || println("decompressing col $i")
-#		# decompress the genotypes into y
-#		decompress_genotypes!(y, x, i, means, invstds) 
-#
-#		# copy y into Y
-#		@sync @inbounds @parallel for j = 1:n
-#			Y[j,i] = y[j]
-#			quiet || println("Y[$j,$i] = ", y[j])
-#		end
-#	end 
 
 	@inbounds for j = 1:p
 		decompress_genotypes!(y,x,j,means,invstds)	
@@ -232,7 +253,33 @@ function decompress_genotypes!{T <: Union(Float32, Float64)}(
 		end
 	end 
 
-	return Y 
+	return nothing 
+end
+
+
+function decompress_genotypes!(
+	Y       :: DenseArray{Float32,2}, 
+	x       :: BEDFile; 
+	y       :: DenseArray{Float32,1} = SharedArray(Float32, x.n), 
+	means   :: DenseArray{Float32,1} = mean(Float32,x), 
+	invstds :: DenseArray{Float32,1} = invstd(Float32,x, y=means)
+) 
+
+	# extract size of Y
+	const (n,p) = size(Y)
+
+	# ensure dimension compatibility
+	n == x.n || throw(DimensionMismatch("column of Y is not of same length as column of uncompressed x"))
+	p <= x.p || throw(DimensionMismatch("Y has more columns than x"))
+
+	@inbounds for j = 1:p
+		decompress_genotypes!(y,x,j,means,invstds)	
+		@inbounds for i = 1:n
+			Y[i,j] = y[i]
+		end
+	end 
+
+	return nothing 
 end
 
 
@@ -253,12 +300,12 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!{T <: Union(Float32, Float64)}(
-	Y       :: DenseArray{T,2}, 
+function decompress_genotypes!(
+	Y       :: DenseArray{Float64,2}, 
 	x       :: BEDFile, 
 	indices :: BitArray{1}; 
-	means   :: DenseArray{T,1} = mean(T,x),
-	invstds :: DenseArray{T,1} = invstd(T,x, y=means)
+	means   :: DenseArray{Float64,1} = mean(Float64,x),
+	invstds :: DenseArray{Float64,1} = invstd(Float64,x, y=means)
 )
 
 	# get dimensions of matrix to fill 
@@ -303,7 +350,61 @@ function decompress_genotypes!{T <: Union(Float32, Float64)}(
 			current_col == p && return Y
 		end
 	end 
-	return Y 
+	return nothing 
+end
+
+
+function decompress_genotypes!(
+	Y       :: DenseArray{Float32,2}, 
+	x       :: BEDFile, 
+	indices :: BitArray{1}; 
+	means   :: DenseArray{Float32,1} = mean(Float32,x),
+	invstds :: DenseArray{Float32,1} = invstd(Float32,x, y=means)
+)
+
+	# get dimensions of matrix to fill 
+	const (n,p) = size(Y)
+
+	# ensure dimension compatibility
+	n == x.n          || throw(DimensionMismatch("column of Y is not of same length as column of uncompressed x"))
+	p <= x.p          || throw(DimensionMismatch("Y has more columns than x"))
+	sum(indices) <= p || throw(DimensionMismatch("Vector 'indices' indexes more columns than are available in Y"))
+
+	# counter to ensure that we do not attempt to overfill Y
+	current_col = 0
+
+	quiet = true 
+	@inbounds for snp = 1:(x.p + x.p2)
+
+		# use this column?
+		if indices[snp]
+
+			# add to counter
+			current_col += 1
+			quiet || println("filling current column $current_col with snp $snp")
+
+			if snp <= x.p
+
+				# extract column mean, inv std
+				m = means[snp]
+				d = invstds[snp]
+
+				@inbounds for case = 1:n
+					t = getindex(x,x.x,case,snp,x.blocksize)
+					Y[case,current_col] = ifelse(isnan(t), 0.0, (t - m)*d)
+					quiet || println("Y[$case,$current_col] = ", Y[case, current_col])
+				end
+			else
+				@inbounds for case = 1:n
+					Y[case,current_col] = x.x2[case,(snp-x.p)]
+				end
+			end
+
+			# quit when Y is filled
+			current_col == p && return Y
+		end
+	end 
+	return nothing 
 end
 
 
@@ -324,12 +425,12 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function decompress_genotypes!{T <: Union(Float32, Float64)}(
-	Y       :: DenseArray{T,2}, 
+function decompress_genotypes!(
+	Y       :: DenseArray{Float64,2}, 
 	x       :: BEDFile, 
 	indices :: DenseArray{Int,1}; 
-	means   :: DenseArray{T,1} = mean(T,x), 
-	invstds :: DenseArray{T,1} = invstd(T,x, y=means)
+	means   :: DenseArray{Float64,1} = mean(Float64,x), 
+	invstds :: DenseArray{Float64,1} = invstd(Float64,x, y=means)
 )
 
 	# get dimensions of matrix to fill 
@@ -370,5 +471,55 @@ function decompress_genotypes!{T <: Union(Float32, Float64)}(
 		current_col == p && return Y
 	end 
 
-	return Y 
+	return nothing 
+end
+
+
+function decompress_genotypes!(
+	Y       :: DenseArray{Float32,2}, 
+	x       :: BEDFile, 
+	indices :: DenseArray{Int,1}; 
+	means   :: DenseArray{Float32,1} = mean(Float32,x), 
+	invstds :: DenseArray{Float32,1} = invstd(Float32,x, y=means)
+)
+
+	# get dimensions of matrix to fill 
+	const (n,p) = size(Y)
+
+	# ensure dimension compatibility
+	n == x.n          || throw(DimensionMismatch("column of Y is not of same length as column of uncompressed x"))
+	p <= x.p          || throw(DimensionMismatch("Y has more columns than x"))
+	length(indices) <= p || throw(DimensionMismatch("Vector 'indices' indexes more columns than are available in Y"))
+
+	# counter to ensure that we do not attempt to overfill Y
+	current_col = 0
+
+	quiet = true 
+	@inbounds for snp in indices 
+
+		# add to counter
+		current_col += 1
+		quiet || println("filling current column $current_col with snp $snp")
+
+		if snp <= x.p
+			# extract column mean, inv std
+			m = means[snp]
+			d = invstds[snp]
+
+			@inbounds for case = 1:n
+				t = getindex(x,x.x,case,snp,x.blocksize)
+				Y[case,current_col] = ifelse(isnan(t), 0.0, (t - m)*d)
+				quiet || println("Y[$case,$current_col] = ", Y[case, current_col])
+			end
+		else
+			@inbounds for case = 1:n
+				Y[case,current_col] = x.x2[case,(snp-x.p)]
+			end
+		end
+
+		# quit when Y is filled
+		current_col == p && return Y
+	end 
+
+	return nothing 
 end
