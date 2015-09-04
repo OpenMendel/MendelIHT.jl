@@ -355,7 +355,8 @@ function L0_reg(
 		current_obj = next_obj
 
 		# now perform IHT step
-		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, stdsk=tempkf2) 
+#		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, stdsk=tempkf2) 
+		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
@@ -479,12 +480,12 @@ function iht_path(
 	const num_models = length(path)			
 
 	# preallocate SharedArrays for intermediate steps of algorithm calculations 
-	r          = SharedArray(Float64, n, init = S -> S[localindexes(S)] = 0.0)		# for || Y - XB ||_2^2
-	Xb         = SharedArray(Float64, n, init = S -> S[localindexes(S)] = 0.0)		# X*beta 
-	Xb0        = SharedArray(Float64, n, init = S -> S[localindexes(S)] = 0.0)		# X*beta0 
-	b0         = SharedArray(Float64, p, init = S -> S[localindexes(S)] = 0.0)		# previous iterate beta0 
-	df         = SharedArray(Float64, p, init = S -> S[localindexes(S)] = 0.0)		# (negative) gradient 
-	tempn      = SharedArray(Float64, n, init = S -> S[localindexes(S)] = 0.0)	   	# temporary array of n floats 
+	r          = SharedArray(Float64, n, init = S -> S[localindexes(S)] = zero(Float64))		# for || Y - XB ||_2^2
+	Xb         = SharedArray(Float64, n, init = S -> S[localindexes(S)] = zero(Float64))		# X*beta 
+	Xb0        = SharedArray(Float64, n, init = S -> S[localindexes(S)] = zero(Float64))		# X*beta0 
+	b0         = SharedArray(Float64, p, init = S -> S[localindexes(S)] = zero(Float64))		# previous iterate beta0 
+	df         = SharedArray(Float64, p, init = S -> S[localindexes(S)] = zero(Float64))		# (negative) gradient 
+	tempn      = SharedArray(Float64, n, init = S -> S[localindexes(S)] = zero(Float64))	   	# temporary array of n floats 
 
 	# index vector for b has more complicated initialization
 	indices    = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S))
@@ -508,21 +509,95 @@ function iht_path(
 #		fill!(b,0.0)
 #		b[sortk] = bk
 #		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
-		project_k!(b, bk, sortidx, k)
+		project_k!(b, bk, indices, q)
 
 		# these arrays change in size from iteration to iteration
 		# we must allocate them for every new model size
 		Xk     = zeros(Float64,n,q)		# store q columns of X
 		tempkf = zeros(Float64,q)   	# temporary array of q floats 
 		idx    = zeros(Float64,q)		# another temporary array of q floats 
-		tempki = zeros(Int,q)			# temporary array of q integers 
-
-		# store projection of beta onto largest k nonzeroes in magnitude 
-#		project_k!(b,tempkf,tempki,indices,q, p=p)
-
+#		tempki = zeros(Int,q)			# temporary array of q integers 
 
 		# now compute current model
-		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0, means=means, invstds=invstds) 
+#		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0, means=means, invstds=invstds) 
+		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds) 
+
+		# extract and save model
+		copy!(sdata(b), output["beta"])
+		update_col!(betas, sdata(b), i, n=p, p=num_models, a=1.0) 
+		
+		# ensure that we correctly index the nonzeroes in b
+		update_indices!(support, b, p=p)	
+#		copy!(support0, support)
+		fill!(support0, false)
+	end
+
+	# return a sparsified copy of the models
+	return sparse(betas)
+end	
+
+
+function iht_path(
+	x        :: BEDFile, 
+	y        :: DenseArray{Float32,1}, 
+	path     :: DenseArray{Int,1}; 
+	b        :: DenseArray{Float32,1} = ifelse(typeof(y) == SharedArray{Float32,1}, SharedArray(Float32, size(x,2)), zeros(Float32, size(x,2))), 
+	means    :: DenseArray{Float32,1} = mean(Float32,x), 
+	invstds  :: DenseArray{Float32,1} = invstd(Float32,x,y=means),
+	tol      :: FloatingPoint         = 1e-4, 
+	max_iter :: Integer               = 1000, 
+	max_step :: Integer               = 50, 
+	quiet    :: Bool                  = true
+)
+
+	# size of problem?
+	const n = length(y)
+	const p = size(x,2)
+
+	# how many models will we compute?
+	const num_models = length(path)			
+
+	# preallocate SharedArrays for intermediate steps of algorithm calculations 
+	r          = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# for || Y - XB ||_2^2
+	Xb         = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# X*beta 
+	Xb0        = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# X*beta0 
+	b0         = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32))		# previous iterate beta0 
+	df         = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32))		# (negative) gradient 
+	tempn      = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))	   	# temporary array of n floats 
+
+	# index vector for b has more complicated initialization
+	indices    = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S))
+
+	# allocate the BitArrays for indexing in IHT
+	# also preallocate matrix to store betas 
+	support    = falses(p)				# indicates nonzero components of beta
+	support0   = copy(support)			# store previous nonzero indicators
+	betas      = zeros(p,num_models)	# a matrix to store calculated models
+
+	# compute the path
+	@inbounds for i = 1:num_models
+	
+		# model size?
+		q = path[i]
+
+		# store projection of beta onto largest k nonzeroes in magnitude 
+		bk      = zeros(q)
+#		sortk   = RegressionTools.selectperm!(indices, b,q, p=p)
+#		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
+#		fill!(b,0.0)
+#		b[sortk] = bk
+#		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
+		project_k!(b, bk, indices, q)
+
+		# these arrays change in size from iteration to iteration
+		# we must allocate them for every new model size
+		Xk     = zeros(Float32,n,q)		# store q columns of X
+		tempkf = zeros(Float32,q)   	# temporary array of q floats 
+		idx    = zeros(Float32,q)		# another temporary array of q floats 
+#		tempki = zeros(Int,q)			# temporary array of q integers 
+
+		# now compute current model
+		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices,support=support, support0=support0, means=means, invstds=invstds) 
 
 		# extract and save model
 		copy!(sdata(b), output["beta"])
