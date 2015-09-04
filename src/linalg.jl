@@ -151,7 +151,7 @@ function mean(T::Type, x::BEDFile; shared::Bool = true)
 			y[snp] = mean_col(x, snp)
 		end
 	else
-		@inbounds @simd for snp = 1:x.p
+		@inbounds  for snp = 1:x.p
 			y[snp] = mean_col(x, snp)
 		end
 	end
@@ -221,7 +221,7 @@ function invstd(T::Type, x::BEDFile; shared::Bool = true, y::DenseArray{Float64,
 			z[snp] = invstd_col(x, snp, y)
 		end
 	else
-		@inbounds @simd for snp = 1:x.p
+		@inbounds  for snp = 1:x.p
 			z[snp] = invstd_col(x, snp, y)
 		end
 	end
@@ -336,7 +336,7 @@ function update_partial_residuals!{T <: Union(Float32, Float64)}(r::Array{T,1}, 
 	length(r) == x.n  || throw(DimensionMismatch("r must have length $(x.n)!"))
 	length(y) == x.n  || throw(DimensionMismatch("y must have length $(x.n)!"))
 
-	@inbounds @simd for i = 1:x.n
+	@inbounds for i = 1:x.n
 		r[i] = y[i] - Xb[i]
 	end
 
@@ -421,7 +421,7 @@ function dott{T <: Union(Float32, Float64)}(x::BEDFile, b::DenseArray{T,1}, case
 			genotype_block = x.xt[(case-1)*x.tblocksize + j]
 			genotype       = (genotype_block >>> k) & THREE8
 #			t              = interpret_genotype(genotype)
-			t              = geno[genotype + ONE8]
+			t              = typeof(t) == Float64 ? geno64[genotype + ONE8] : geno32[genotype + ONE8]
 
 			# handle exceptions on t
 			if isnan(t)

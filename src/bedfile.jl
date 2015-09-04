@@ -9,16 +9,16 @@
 # Note that this BEDFile object, and the rest of this module for that matter, operate with the assumption
 # that the compressed matrix is in column-major (SNP-major) format.
 # Row-major (case-major) format is not supported.
-type BEDFile{T <: Union(Float32, Float64)}
+type BEDFile
 	x   :: DenseArray{Int8,1}	# compressed genotypes for genotype matrix X
 	xt  :: DenseArray{Int8,1}	# compressed genotypes for TRANSPOSED genotype matrix X'
 	n   :: Integer             	# number of cases (people) in uncompressed genotype matrix 
 	p   :: Integer             	# number of predictors (SNPs) in uncompressed genotype matrix
 	blocksize  :: Integer     	# number of bytes per compressed column of genotype matrix
 	tblocksize :: Integer    	# number of bytes per compressed column of TRANSPOSED genotype matrix
-	x2  :: DenseArray{T,2}		# nongenetic covariantes, if any exist
+	x2  :: DenseArray			# nongenetic covariantes, if any exist
 	p2  :: Integer				# number of nongenetic covariates
-	x2t :: DenseArray{T,2}		# transpose of nongenetic covariantes, used in matrix algebra 
+	x2t :: DenseArray			# transpose of nongenetic covariantes, used in matrix algebra 
 
 	BEDFile(x,xt,n,p,blocksize,tblocksize,x2,p2,x2t) = new(x,xt,n,p,blocksize,tblocksize,x2,p2,x2t)
 end
