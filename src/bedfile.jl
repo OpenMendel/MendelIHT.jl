@@ -188,12 +188,26 @@ isequal(x::BEDFile, y::BEDFile) = x == y
 #								  isequal(x.x2t, y.y2t)
 
 
-function addx2!{T <: Union(Float32, Float64)}(x::BEDFile, x2::DenseArray{T,2}; shared::Bool = true)
+function addx2!(x::BEDFile, x2::DenseArray{Float64,2}; shared::Bool = true)
 	(n,p2) = size(x2)
 	n == x.n || throw(DimensionMismatch("x2 has $n rows but should have $(x.n) of them"))
 	x.p2 = p2
-	x.x2 = ifelse(shared, SharedArray(T, n, p2), zeros(T,n,p2)) 
-#	x.x2t = x.x2' 
+	x.x2 = ifelse(shared, SharedArray(Float64, n, p2), zeros(Float64,n,p2)) 
+	for j = 1:p2
+		for i = 1:x.n
+			@inbounds x.x2[i,j] = x2[i,j]
+		end
+	end
+	x.x2t = x.x2'
+	return nothing
+end
+
+
+function addx2!(x::BEDFile, x2::DenseArray{Float32,2}; shared::Bool = true)
+	(n,p2) = size(x2)
+	n == x.n || throw(DimensionMismatch("x2 has $n rows but should have $(x.n) of them"))
+	x.p2 = p2
+	x.x2 = ifelse(shared, SharedArray(Float32, n, p2), zeros(Float32,n,p2)) 
 	for j = 1:p2
 		for i = 1:x.n
 			@inbounds x.x2[i,j] = x2[i,j]
