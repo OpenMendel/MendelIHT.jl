@@ -10,8 +10,4 @@ notifications:
 # uncomment the following lines to override the default test script
 #script:
 #  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-<<<<<<< HEAD
 #  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("IHT"); Pkg.test("IHT"; coverage=true)'
-=======
-#  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("PLINK"); Pkg.test("PLINK"; coverage=true)'
->>>>>>> 12b8f08627eaefd4e155754e3300fceedd4901b0
