@@ -483,7 +483,7 @@ function iht_path(
 
 		# extract and save model
 		copy!(sdata(b), output["beta"])
-		update_col!(betas, sdata(b), i, n=p, p=num_models, a=1.0) 
+		update_col!(betas, sdata(b), i, n=p, p=num_models, a=1.0f0) 
 		
 		# ensure that we correctly index the nonzeroes in b
 		update_indices!(support, b, p=p)	

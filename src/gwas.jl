@@ -68,9 +68,8 @@ function iht(
 	gk        :: DenseArray{Float64,1} = zeros(Float64,k), 
 	xgk       :: DenseArray{Float64,1} = zeros(Float64,n), 
 	bk        :: DenseArray{Float64,1} = zeros(Float64,k), 
-#	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
 	means     :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds   :: DenseArray{Float64,1} = invstd(Float64,x, y=means), 
+	invstds   :: DenseArray{Float64,1} = invstd(x,means), 
 	stdsk     :: DenseArray{Float64,1} = zeros(Float64,k)
 ) 
 
@@ -81,10 +80,6 @@ function iht(
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-#		println("sum(IDX) = 0")
-#		sortk = RegressionTools.selectperm!(sortidx,sdata(g),k, p=p) 
-#		sortk = RegressionTools.selectperm!(sortidx,sdata(g),k) 
-#		IDX[sortk] = true;
 		selectperm!(sortidx,sdata(g),k) 
 		IDX[sortidx[1:k]] = true;
 	end
@@ -95,19 +90,12 @@ function iht(
 	if !isequal(IDX, IDX0) || sum(IDX) == 0
 
 		# store relevant columns of x
-#		decompress_genotypes!(xk, x, IDX, y=xgk)
 		decompress_genotypes!(xk, x, IDX, means=means, invstds=invstds) 
-
-#		bk = means[IDX]
-		fill_perm!(bk, means, IDX, k=k, p=p)
-#		fill_perm!(bk, means, IDX, k=k)
-#		stdsk = invstds[IDX]
-		fill_perm!(stdsk, invstds, IDX, k=k, p=p)
-#		fill_perm!(stdsk, invstds, IDX, k=k)
+		fill_perm!(bk, means, IDX, k=k, p=p) # bk = means[IDX]
+		fill_perm!(stdsk, invstds, IDX, k=k, p=p)	# stdsk = invstds[IDX]
 
 		# store relevant components of gradient
 		fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)	# gk = g[IDX]
-#		fill_perm!(sdata(gk), sdata(g), IDX, k=k)	# gk = g[IDX]
 
 		# now compute subset of x*g
 		BLAS.gemv!('N', 1.0, sdata(xk), sdata(gk), 0.0, sdata(xgk))
@@ -117,9 +105,6 @@ function iht(
 	all(xgk .== 0.0) && warn("Entire active set has values equal to 0")
 
 	# compute step size
-#	println("sumabs2(sdata(xk)) = ", sumabs2(sdata(xk)))
-#	println("sumabs2(sdata(gk)) = ", sumabs2(sdata(gk)))
-#	println("sumabs2(sdata(xgk)) = ", sumabs2(sdata(xgk)))
 	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 
 	# notify problems with step size 
@@ -130,18 +115,11 @@ function iht(
 	BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 	# preserve top k components of b
-#	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
-#	sortk = RegressionTools.selectperm!(sortidx,b,k)
-#	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
-#	fill!(b,0.0)
-#	b[sortk] = bk
-#	RegressionTools.project_k!(b, bk, sortk, sortidx, k)
 	RegressionTools.project_k!(b, bk, sortidx, k)
 
 	# which indices of new beta are nonzero?
 	copy!(IDX0, IDX)
 	update_indices!(IDX, b, p=p) 
-#	update_indices!(IDX, b) 
 
 	# update xb
 	xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
@@ -165,17 +143,10 @@ function iht(
 		BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 		# recompute projection onto top k components of b
-#		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
-#		sortk = RegressionTools.selectperm!(sortidx,b,k)
-#		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
-#		fill!(b,0.0)
-#		b[sortk] = bk
-#		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
-		RegressionTools.project_k!(b, bk, sortidx, k)
+		project_k!(b, bk, sortidx, k)
 
 		# which indices of new beta are nonzero?
 		update_indices!(IDX, b, p=p) 
-#		update_indices!(IDX, b) 
 
 		# recompute xb
 		xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
@@ -260,7 +231,7 @@ function L0_reg(
 	support  :: BitArray{1}           = falses(p), 
 	support0 :: BitArray{1}           = falses(p), 
 	means    :: DenseArray{Float64,1} = mean(Float64,X), 
-	invstds  :: DenseArray{Float64,1} = invstd(Float64, X, y = means), 
+	invstds  :: DenseArray{Float64,1} = invstd(X,means), 
 	tol      :: FloatingPoint         = 1e-4, 
 	max_iter :: Integer               = 1000, 
 	max_step :: Integer               = 50, 
@@ -278,7 +249,7 @@ function L0_reg(
 
 	# initialize return values
 	mm_iter   = 0		        # number of iterations of L0_reg
-	mm_time   = 0.0				# compute time *within* L0_reg
+	mm_time   = zero(Float64)	# compute time *within* L0_reg
 	next_obj  = zero(Float64)	# objective value
 	next_loss = zero(Float64)	# loss function value 
 
@@ -465,7 +436,7 @@ function iht_path(
 	path     :: DenseArray{Int,1}; 
 	b        :: DenseArray{Float64,1} = ifelse(typeof(y) == SharedArray{Float64,1}, SharedArray(Float64, size(x,2)), zeros(Float64, size(x,2))), 
 	means    :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds  :: DenseArray{Float64,1} = invstd(Float64,x,y=means),
+	invstds  :: DenseArray{Float64,1} = invstd(x,means),
 	tol      :: FloatingPoint         = 1e-4, 
 	max_iter :: Integer               = 1000, 
 	max_step :: Integer               = 50, 
@@ -504,11 +475,6 @@ function iht_path(
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk      = zeros(q)
-#		sortk   = RegressionTools.selectperm!(indices, b,q, p=p)
-#		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
-#		fill!(b,0.0)
-#		b[sortk] = bk
-#		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
 		project_k!(b, bk, indices, q)
 
 		# these arrays change in size from iteration to iteration
@@ -516,10 +482,8 @@ function iht_path(
 		Xk     = zeros(Float64,n,q)		# store q columns of X
 		tempkf = zeros(Float64,q)   	# temporary array of q floats 
 		idx    = zeros(Float64,q)		# another temporary array of q floats 
-#		tempki = zeros(Int,q)			# temporary array of q integers 
 
 		# now compute current model
-#		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, tempki=tempki, support=support, support0=support0, means=means, invstds=invstds) 
 		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds) 
 
 		# extract and save model
@@ -528,84 +492,6 @@ function iht_path(
 		
 		# ensure that we correctly index the nonzeroes in b
 		update_indices!(support, b, p=p)	
-#		copy!(support0, support)
-		fill!(support0, false)
-	end
-
-	# return a sparsified copy of the models
-	return sparse(betas)
-end	
-
-
-function iht_path(
-	x        :: BEDFile, 
-	y        :: DenseArray{Float32,1}, 
-	path     :: DenseArray{Int,1}; 
-	b        :: DenseArray{Float32,1} = ifelse(typeof(y) == SharedArray{Float32,1}, SharedArray(Float32, size(x,2)), zeros(Float32, size(x,2))), 
-	means    :: DenseArray{Float32,1} = mean(Float32,x), 
-	invstds  :: DenseArray{Float32,1} = invstd(Float32,x,y=means),
-	tol      :: FloatingPoint         = 1e-4, 
-	max_iter :: Integer               = 1000, 
-	max_step :: Integer               = 50, 
-	quiet    :: Bool                  = true
-)
-
-	# size of problem?
-	const n = length(y)
-	const p = size(x,2)
-
-	# how many models will we compute?
-	const num_models = length(path)			
-
-	# preallocate SharedArrays for intermediate steps of algorithm calculations 
-	r          = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# for || Y - XB ||_2^2
-	Xb         = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# X*beta 
-	Xb0        = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# X*beta0 
-	b0         = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32))		# previous iterate beta0 
-	df         = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32))		# (negative) gradient 
-	tempn      = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))	   	# temporary array of n floats 
-
-	# index vector for b has more complicated initialization
-	indices    = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S))
-
-	# allocate the BitArrays for indexing in IHT
-	# also preallocate matrix to store betas 
-	support    = falses(p)				# indicates nonzero components of beta
-	support0   = copy(support)			# store previous nonzero indicators
-	betas      = zeros(p,num_models)	# a matrix to store calculated models
-
-	# compute the path
-	@inbounds for i = 1:num_models
-	
-		# model size?
-		q = path[i]
-
-		# store projection of beta onto largest k nonzeroes in magnitude 
-		bk      = zeros(q)
-#		sortk   = RegressionTools.selectperm!(indices, b,q, p=p)
-#		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
-#		fill!(b,0.0)
-#		b[sortk] = bk
-#		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
-		project_k!(b, bk, indices, q)
-
-		# these arrays change in size from iteration to iteration
-		# we must allocate them for every new model size
-		Xk     = zeros(Float32,n,q)		# store q columns of X
-		tempkf = zeros(Float32,q)   	# temporary array of q floats 
-		idx    = zeros(Float32,q)		# another temporary array of q floats 
-#		tempki = zeros(Int,q)			# temporary array of q integers 
-
-		# now compute current model
-		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices,support=support, support0=support0, means=means, invstds=invstds) 
-
-		# extract and save model
-		copy!(sdata(b), output["beta"])
-		update_col!(betas, sdata(b), i, n=p, p=num_models, a=1.0) 
-		
-		# ensure that we correctly index the nonzeroes in b
-		update_indices!(support, b, p=p)	
-#		copy!(support0, support)
 		fill!(support0, false)
 	end
 
@@ -650,7 +536,7 @@ function one_fold(
 	folds    :: DenseArray{Int,1}, 
 	fold     :: Integer; 
 	means    :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds  :: DenseArray{Float64,1} = invstd(Float64,x,y=means), 
+	invstds  :: DenseArray{Float64,1} = invstd(x,means), 
 	max_iter :: Integer               = 1000, 
 	max_step :: Integer               = 50, 
 	quiet    :: Bool                  = true
@@ -733,7 +619,7 @@ function cv_iht(
 	numfolds      :: Integer; 
 	folds         :: DenseArray{Int,1}     = cv_get_folds(sdata(y),numfolds), 
 	means         :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds       :: DenseArray{Float64,1} = invstd(Float64,x,y=means),
+	invstds       :: DenseArray{Float64,1} = invstd(x,means),
 	tol           :: FloatingPoint         = 1e-4, 
 	n             :: Integer               = length(y), 
 	p             :: Integer               = size(x,2), 
