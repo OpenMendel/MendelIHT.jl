@@ -11,7 +11,6 @@ function dor(
 	xb0     :: DenseArray{Float32,1}, 
 	xb00    :: DenseArray{Float32,1}, 
 	sortidx :: DenseArray{Int,1}, 
-#	sortk   :: DenseArray{Int,1}, 
 	bk      :: DenseArray{Float32,1}, 
 	z1      :: DenseArray{Float32,1}, 
 	z2      :: DenseArray{Float32,1}, 
@@ -21,9 +20,9 @@ function dor(
 	r       :: DenseArray{Float32,1},
 	r2      :: DenseArray{Float32,1},
 	obj     :: Float32; 
-	k       :: Integer = length(sortk), 
-	n       :: Integer = length(y), 
-	p       :: Integer = length(b)
+	k       :: Int = length(bk), 
+	n       :: Int = length(y), 
+	p       :: Int = length(b)
 ) 
 
 	# calculate first overrelaxation
@@ -39,14 +38,10 @@ function dor(
 	ypatzmw!(z2, z1, a2, z1, b00)					# z2 = z1 + a2 * (z1 - b00)
 
 	# project z2 onto sparsity set
-#	sortk = RegressionTools.selectperm!(sortidx,z2,k,p=p)
-#	fill_perm!(bk, z2, sortk, k=k)	# bk = z2[sortk]
-#	fill!(z2,0.0)
-#	z2[sortk] = bk
 	project_k!(z2, bk, sortidx, k)
 
 	# update residual information about z2
-	update_xb!(xz2, x, z2, sortk, k, n=n, p=p)
+	update_xb!(xz2, x, z2, sortidx, k, n=n, p=p)
 	difference!(r2,y,xz2)
 
 	# if z2 is better than b0, then overwrite b with z2
@@ -105,7 +100,6 @@ end
 # -- xgk = x*gk. 
 # -- max_step is the maximum number of backtracking steps to take. Defaults to 50.
 # -- sortidx is a vector to store the indices that would sort beta. Defaults to p zeros of type Int. 
-# -- sortk is a vector to store the largest k indices of beta. Defaults to k zeros of type Int.
 # -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type Float32. 
 # -- IDX and IDX0 are BitArrays indicating the nonzero status of components of beta. They default to falses.
 # -- r and r2 store the overall residual and partial accelerated residual, respectively. They default to zeroes.
@@ -123,10 +117,10 @@ function aiht(
 	b         :: DenseArray{Float32,1}, 
 	g         :: DenseArray{Float32,1},
 	obj       :: Float32, 
-	k         :: Integer, 
-	iter      :: Integer;
-	n         :: Integer               = length(y), 
-	p         :: Integer               = length(b), 
+	k         :: Int, 
+	iter      :: Int;
+	n         :: Int                   = length(y), 
+	p         :: Int                   = length(b), 
 	xk        :: DenseArray{Float32,2} = zeros(Float32,n,k), 
 	b0        :: DenseArray{Float32,1} = copy(b), 
 	b00       :: DenseArray{Float32,1} = copy(b), 
@@ -144,11 +138,10 @@ function aiht(
 	xz1       :: DenseArray{Float32,1} = zeros(Float32,n), 
 	xz2       :: DenseArray{Float32,1} = zeros(Float32,n),
 	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
-#	sortk     :: DenseArray{Int,1}     = zeros(Int,k), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
-	step_mult :: FloatingPoint         = 1.0, 
-	max_step  :: Integer               = 50
+	step_mult :: Float32               = 1.0f0, 
+	max_step  :: Int                   = 50
 )
 
 	# which components of beta are nonzero? 
@@ -157,17 +150,15 @@ function aiht(
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-#		sortk = RegressionTools.selectperm!(sortidx,g,k, p=p) 
-#		IDX[sortk] = true;
 		selectperm!(sortidx,g,k, p=p) 
 		IDX[sortidx[1:k]] = true;
 	end
 
 	# store relevant columns of x
 	# do so only if support has changed after first iteration
-#	if !isequal(IDX, IDX0) || iter < 2
+	if !isequal(IDX, IDX0) || iter < 2
 		update_xk!(xk, x, IDX, k=k, p=p, n=n)	# xk = x[:,IDX]
-#	end
+	end
 
 	# store relevant components of gradient
 	fill_perm!(gk, g, IDX, k=k, p=p)	# gk = g[IDX]
@@ -176,18 +167,14 @@ function aiht(
 	BLAS.gemv!('N', 1.0, xk, gk, 0.0, xgk)
 
 	# compute step size
-	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+#	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+	mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
 	# take gradient step
 	BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 	# preserve top k components of b
-#	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
-#	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
-#	fill!(b,0.0)
-#	b[sortk] = bk
-#	RegressionTools.project_k!(b, bk, sortk, sortidx, k)
 	project_k!(b, bk, sortidx, k)
 
 	# which indices of new beta are nonzero?
@@ -195,13 +182,13 @@ function aiht(
 	update_indices!(IDX, b, p=p) 
 
 	# update xb
-	update_xb!(xb, x, b, sortk, k)
+	update_xb!(xb, x, b, sortidx, k)
 
 	# update residuals
 	difference!(r,y,xb, n=n)
 
 	if iter > 2
-		dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, sortk, bk, z1, z2, xz1, xz2, dif, r, r2, obj, k=k, n=n, p=p) 
+		dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, bk, z1, z2, xz1, xz2, dif, r, r2, obj, k=k, n=n, p=p) 
 	end
 
 	# calculate omega
@@ -213,31 +200,26 @@ function aiht(
 	while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
 		# stephalving
-		mu *= 0.5
+		mu *= 0.5f0
 
 		# recompute gradient step
 		copy!(b,b0)
 		BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 		# recompute projection onto top k components of b
-#		sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
-#		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
-#		fill!(b,0.0)
-#		b[sortk] = bk
-#		RegressionTools.project_k!(b, bk, sortk, sortidx, k)
 		project_k!(b, bk, sortidx, k)
 
 		# which indices of new beta are nonzero?
 		update_indices!(IDX, b, p=p) 
 
 		# recompute xb
-		update_xb!(xb, x, b, sortk, k)
+		update_xb!(xb, x, b, sortidx, k)
 
 		# update residuals
 		difference!(r,y,xb, n=n)
 
 		if iter > 2
-			dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, sortk, bk, z1, z2, xz1, xz2, dif, r, r2, obj, k=k, n=n, p=p) 
+			dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, bk, z1, z2, xz1, xz2, dif, r, r2, obj, k=k, n=n, p=p) 
 		end
 
 		# calculate omega
@@ -291,7 +273,6 @@ end
 #		idx       = zeros(k)    	# another temporary array of k floats 
 #		tempn     = zeros(n)    	# temporary array of n floats 
 #		indices   = collect(1:p)	# indices that sort beta 
-#		tempki    = zeros(Int,k)    # temporary array of k integers 
 #		support   = falses(p)		# indicates nonzero components of beta
 #		support0  = copy(support)	# store previous nonzero indicators
 #		r2 stores the overall residual and partial accelerated residual, respectively. They default to zeroes.
@@ -310,9 +291,9 @@ end
 function L0_reg_aiht(
 	X        :: DenseArray{Float32,2}, 
 	Y        :: DenseArray{Float32,1}, 
-	k        :: Integer; 
-	n        :: Integer               = length(Y), 
-	p        :: Integer               = size(X,2), 
+	k        :: Int; 
+	n        :: Int                   = length(Y), 
+	p        :: Int                   = size(X,2), 
 	Xk       :: DenseArray{Float32,2} = zeros(Float32,n,k), 
 	b        :: DenseArray{Float32,1} = zeros(Float32,p), 
 	b0       :: DenseArray{Float32,1} = zeros(Float32,p), 
@@ -332,12 +313,11 @@ function L0_reg_aiht(
 	tempkf   :: DenseArray{Float32,1} = zeros(Float32,k), 
 	idx      :: DenseArray{Float32,1} = zeros(Float32,k), 
 	indices  :: DenseArray{Int,1}     = collect(1:p), 
-#	tempki   :: DenseArray{Int,1}     = zeros(Integer,k), 
 	support  :: BitArray{1}           = falses(p), 
 	support0 :: BitArray{1}           = falses(p),
-	tol      :: FloatingPoint         = 1e-4, 
-	max_iter :: Integer               = 1000, 
-	max_step :: Integer               = 50,  
+	tol      :: Float32               = 1e-4, 
+	max_iter :: Int                   = 1000, 
+	max_step :: Int                   = 50,  
 	quiet    :: Bool                  = true
 )
 
@@ -348,19 +328,19 @@ function L0_reg_aiht(
 	k            >= 0                || throw(ArgumentError("Value of k must be nonnegative!\n"))
 	max_iter     >= 0                || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
 	max_step     >= 0                || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-	tol          >  eps(typeof(tol)) || throw(ArgumentError("Value of global tolerance must exceed machine precision!\n"))
+	tol          >  eps(Float32)     || throw(ArgumentError("Value of global tolerance must exceed machine precision!\n"))
 
 	# initialize return values
-	mm_iter   = 0		# number of iterations of L0_reg
-	mm_time   = 0.0		# compute time *within* L0_reg
-	next_obj  = 0.0		# objective value
-	next_loss = 0.0		# loss function value 
+	mm_iter   = 0		  # number of iterations of L0_reg
+	mm_time   = 0.0f0     # compute time *within* L0_reg
+	next_obj  = 0.0f0     # objective value
+	next_loss = 0.0f0	  # loss function value 
 
 	# initialize floats 
-	current_obj = Inf	# tracks previous objective function value
-	the_norm    = 0.0   # norm(b - b0)
-	scaled_norm = 0.0   # the_norm / (norm(b0) + 1)
-	mu          = 0.0   # IHT step size
+	current_obj = Inf32   # tracks previous objective function value
+	the_norm    = 0.0f0   # norm(b - b0)
+	scaled_norm = 0.0f0   # the_norm / (norm(b0) + 1)
+	mu          = 0.0f0   # IHT step size
 
 	# initialize integers
 	i       = 0        # used for iterations in loops
@@ -433,8 +413,8 @@ function L0_reg_aiht(
 		current_obj = next_obj
 
 		# now perform AIHT step
-#		(mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, step_mult=1.0, b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
-		(mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, step_mult=1.0, b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
+#		(mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, step_mult=1.0, b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
+		(mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, step_mult=1.0f0, b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals 
