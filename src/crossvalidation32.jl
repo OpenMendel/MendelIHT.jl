@@ -29,28 +29,25 @@
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu 
-#function one_fold(x::DenseArray{Float32,2}, y::DenseArray{Float32,1}, path::DenseArray{Int,1}, test_idx::DenseArray{Int,1}; max_iter::Int = 1000, max_step::Int = 50, quiet::Bool = true, logreg::Bool = false) 
 function one_fold(
 	x        :: DenseArray{Float32,2}, 
 	y        :: DenseArray{Float32,1}, 
 	path     :: DenseArray{Int,1}, 
 	folds    :: DenseArray{Int,1}, 
-	fold     :: Integer; 
-	max_iter :: Integer = 1000, 
-	max_step :: Integer = 50, 
-	quiet    :: Bool    = true, 
-	logreg   :: Bool    = false
+	fold     :: Int; 
+	max_iter :: Int  = 1000, 
+	max_step :: Int  = 50, 
+	quiet    :: Bool = true, 
+	logreg   :: Bool = false
 ) 
 
 	# make vector of indices for folds
-#	test_idx  = find( function f(x) x .== fold; end, folds)
 	test_idx = folds .== fold
 
 	# preallocate vector for output
 	myerrors = zeros(sum(test_idx))
 
 	# train_idx is the vector that indexes the TRAINING set
-#	train_idx = setdiff(collect(1:n), test_idx)
 	train_idx = !test_idx
 
 	# allocate the arrays for the training set
@@ -89,6 +86,7 @@ function cv_get_folds(y::Vector, nfolds::Int)
 	shuffle!([repmat(1:nfolds, n), 1:r])
 end
 
+
 # PARALLEL CROSSVALIDATION ROUTINE FOR IHT
 #
 # This function will perform n-fold cross validation for the ideal model size in IHT least squares regression.
@@ -125,13 +123,13 @@ function cv_iht(
 	x             :: DenseArray{Float32,2}, 
 	y             :: DenseArray{Float32,1}, 
 	path          :: DenseArray{Int,1}, 
-	numfolds      :: Integer; 
+	numfolds      :: Int; 
 	folds         :: DenseArray{Int,1} = cv_get_folds(sdata(y),numfolds), 
-	tol           :: FloatingPoint     = 1e-4, 
-	n             :: Integer           = length(y), 
-	p             :: Integer           = size(x,2), 
-	max_iter      :: Integer           = 1000, 
-	max_step      :: Integer           = 50, 
+	tol           :: Float32           = 1f-4, 
+	n             :: Int               = length(y), 
+	p             :: Int               = size(x,2), 
+	max_iter      :: Int               = 1000, 
+	max_step      :: Int               = 50, 
 	quiet         :: Bool              = true, 
 	logreg        :: Bool              = false, 
 	compute_model :: Bool              = true
@@ -148,6 +146,7 @@ function cv_iht(
 	# the folds are computed asynchronously
 	# the @sync macro ensures that we wait for all of them to finish before proceeding 
 	@sync for i = 1:numfolds
+
 		# one_fold returns a vector of out-of-sample errors (MSE for linear regression, MCE for logistic regression) 
 		# @spawn(one_fold(...)) returns a RemoteRef to the result
 		# store that RemoteRef so that we can query the result later 
@@ -177,7 +176,10 @@ function cv_iht(
 
 	# recompute ideal model
 	if compute_model
+
+		# initialize parameter vector
 		b = zeros(Float32, p)
+
 		if logreg
 			
 			# can preallocate some of the temporary arrays for use in both model selection and fitting
@@ -192,7 +194,7 @@ function cv_iht(
 			copy!(b, output["beta"])
 
 			# which components of beta are nonzero?
-			bidx = find( x -> x .!= 0.0, b) 
+			bidx = find( x -> x .!= 0.0f0, b) 
 
 			# allocate the submatrix of x corresponding to the inferred model
 			x_inferred = x[:,bidx]
@@ -206,14 +208,14 @@ function cv_iht(
 			copy!(b, output["beta"])
 
 			# which components of beta are nonzero?
-			bidx = find( x -> x .!= 0.0, b) 
+			bidx = find( x -> x .!= 0.0f0, b) 
 
 			# allocate the submatrix of x corresponding to the inferred model
 			x_inferred = x[:,bidx]
 
 			# now estimate b with the ordinary least squares estimator b = inv(x'x)x'y 
-			xty = BLAS.gemv('T', 1.0, x_inferred, y)	
-			xtx = BLAS.gemm('T', 'N', 1.0, x_inferred, x_inferred)
+			xty = BLAS.gemv('T', 1.0f0, x_inferred, y)	
+			xtx = BLAS.gemm('T', 'N', 1.0f0, x_inferred, x_inferred)
 			b2 = xtx \ xty
 		end
 		return errors, b2, bidx 
