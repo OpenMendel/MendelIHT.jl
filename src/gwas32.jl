@@ -226,8 +226,8 @@ function L0_reg(
 	X        :: BEDFile, 
 	Y        :: DenseArray{Float32,1}, 
 	k        :: Int; 
-	n        :: Int               = length(Y), 
-	p        :: Int               = size(X,2), 
+	n        :: Int                   = length(Y), 
+	p        :: Int                   = size(X,2), 
 	Xk       :: DenseArray{Float32,2} = zeros(Float32,n,k), 
 	b        :: DenseArray{Float32,1} = zeros(Float32,p), 
 	b0       :: DenseArray{Float32,1} = zeros(Float32,p), 
@@ -337,12 +337,10 @@ function L0_reg(
 		current_obj = next_obj
 
 		# now perform IHT step
-#		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
 		(mu, mu_step, next_loss) = iht(b,X,Y,k,df,r,current_obj, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
-#		PLINK.update_partial_residuals!(r, Y, X, support, b, k, Xb=Xb)
 #		difference!(r,Y,Xb)
 		xty!(df, X, r, means=means, invstds=invstds) 
 
@@ -474,8 +472,8 @@ function iht_path(
 
 	# allocate the BitArrays for indexing in IHT
 	# also preallocate matrix to store betas 
-	support    = falses(p)				# indicates nonzero components of beta
-	support0   = copy(support)			# store previous nonzero indicators
+	support    = falses(p)						# indicates nonzero components of beta
+	support0   = copy(support)					# store previous nonzero indicators
 	betas      = zeros(Float32,p,num_models)	# a matrix to store calculated models
 
 	# compute the path
@@ -503,7 +501,6 @@ function iht_path(
 		
 		# ensure that we correctly index the nonzeroes in b
 		update_indices!(support, b, p=p)	
-#		copy!(support0, support)
 		fill!(support0, false)
 	end
 
@@ -549,13 +546,12 @@ function one_fold(
 	fold     :: Int; 
 	means    :: DenseArray{Float32,1} = mean(Float32,x), 
 	invstds  :: DenseArray{Float32,1} = invstd(x,means), 
-	max_iter :: Int               = 1000, 
-	max_step :: Int               = 50, 
+	max_iter :: Int                   = 1000, 
+	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
 
 	# make vector of indices for folds
-#	test_idx  = find( function f(x) x .== fold; end, folds)
 	test_idx = folds .== fold
 	test_size = sum(test_idx)
 
@@ -681,7 +677,10 @@ function cv_iht(
 
 	# recompute ideal model
 	if compute_model
+
+		# initialize parameter vector as SharedArray
 		b = SharedArray(Float32, p)
+
 		# first use L0_reg to extract model
 		output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
 
