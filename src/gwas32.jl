@@ -411,7 +411,7 @@ function L0_reg(
 				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
 			end
 
-			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+			output = {"time" => -1, "loss" => -Inf32, "iter" => -1, "beta" => fill!(b, Inf32)}
 #			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
