@@ -51,12 +51,14 @@ function iht(
 	b         :: DenseArray{Float32,1}, 
 	x         :: BEDFile, 
 	y         :: DenseArray{Float32,1}, 
-	k         :: Integer, 
-	g         :: DenseArray{Float32,1}; 
-	step_mult :: FloatingPoint         = 1.0f0, 
-	n         :: Integer               = length(y), 
-	p         :: Integer               = length(b), 
-	max_step  :: Integer               = 50, 
+	k         :: Int, 
+	g         :: DenseArray{Float32,1},
+	r         :: DenseArray{Float32,1},
+	obj       :: Float32;
+	step_mult :: Float32               = 1.0f0, 
+	n         :: Int                   = length(y), 
+	p         :: Int                   = length(b), 
+	max_step  :: Int                   = 50, 
 	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
@@ -103,7 +105,8 @@ function iht(
 	all(xgk .== 0.0) && warn("Entire active set has values equal to 0")
 
 	# compute step size
-	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+#	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+	mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 
 	# notify problems with step size 
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
@@ -122,13 +125,20 @@ function iht(
 	# update xb
 	xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
 
-	# calculate omega
-	omega_top = sqeuclidean(sdata(b),sdata(b0))
-	omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
+#	# calculate omega
+#	omega_top = sqeuclidean(sdata(b),sdata(b0))
+#	omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
+	
+	# update residuals
+	difference!(r,y,Xb)
+
+	# update objective
+	new_obj = 0.5f0*sumabs2(r)
 
 	# backtrack until mu sits below omega and support stabilizes
 	mu_step = 0
-	while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+#	while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+	while new_obj > obj && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
 		# stephalving
 		mu *= 0.5f0
@@ -141,7 +151,7 @@ function iht(
 		BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 		# recompute projection onto top k components of b
-		RegressionTools.project_k!(b, bk, sortidx, k)
+		project_k!(b, bk, sortidx, k)
 
 		# which indices of new beta are nonzero?
 		update_indices!(IDX, b, p=p) 
@@ -149,15 +159,21 @@ function iht(
 		# recompute xb
 		xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
 
-		# calculate omega
-		omega_top = sqeuclidean(sdata(b),sdata(b0))
-		omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
+#		# calculate omega
+#		omega_top = sqeuclidean(sdata(b),sdata(b0))
+#		omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
+
+		# update residuals
+		difference!(r,y,Xb)
+
+		# update objective
+		new_obj = 0.5f0*sumabs2(sdata(r))
 
 		# increment the counter
 		mu_step += 1
 	end
 
-	return mu, mu_step
+	return mu, mu_step, new_obj
 end
 
 
@@ -209,9 +225,9 @@ end
 function L0_reg(
 	X        :: BEDFile, 
 	Y        :: DenseArray{Float32,1}, 
-	k        :: Integer; 
-	n        :: Integer               = length(Y), 
-	p        :: Integer               = size(X,2), 
+	k        :: Int; 
+	n        :: Int               = length(Y), 
+	p        :: Int               = size(X,2), 
 	Xk       :: DenseArray{Float32,2} = zeros(Float32,n,k), 
 	b        :: DenseArray{Float32,1} = zeros(Float32,p), 
 	b0       :: DenseArray{Float32,1} = zeros(Float32,p), 
@@ -228,9 +244,9 @@ function L0_reg(
 	support0 :: BitArray{1}           = falses(p), 
 	means    :: DenseArray{Float32,1} = mean(Float32,X), 
 	invstds  :: DenseArray{Float32,1} = invstd(X,means), 
-	tol      :: FloatingPoint         = 1f-4, 
-	max_iter :: Integer               = 1000, 
-	max_step :: Integer               = 50, 
+	tol      :: Float32               = 1f-4, 
+	max_iter :: Int                   = 1000, 
+	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
 
@@ -250,7 +266,7 @@ function L0_reg(
 	next_loss = zero(Float32)	# loss function value 
 
 	# initialize floats 
-	current_obj = Inf      		# tracks previous objective function value
+	current_obj = Inf32    		# tracks previous objective function value
 	the_norm    = zero(Float32) # norm(b - b0)
 	scaled_norm = zero(Float32) # the_norm / (norm(b0) + 1)
 	mu          = zero(Float32) # Landweber step size, 0 < tau < 2/rho_max^2
@@ -268,13 +284,12 @@ function L0_reg(
 		copy!(r,sdata(Y))
 	else
 		xb!(Xb,X,b,support,k, means=means, invstds=invstds)
-#		PLINK.update_partial_residuals!(r, Y, X, support, b, k, Xb=Xb)
 		difference!(r, Y, Xb)
 	end
 	xty!(df, X, r, means=means, invstds=invstds) 
 
 	# update loss and objective
-	next_loss = Inf 
+	next_loss = Inf32 
 	next_obj  = next_loss
 
 	# formatted output to monitor algorithm progress
@@ -322,16 +337,17 @@ function L0_reg(
 		current_obj = next_obj
 
 		# now perform IHT step
-		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
+#		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
+		(mu, mu_step, next_loss) = iht(b,X,Y,k,df,r,current_obj, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
 #		PLINK.update_partial_residuals!(r, Y, X, support, b, k, Xb=Xb)
-		difference!(r,Y,Xb)
+#		difference!(r,Y,Xb)
 		xty!(df, X, r, means=means, invstds=invstds) 
 
 		# update loss, objective, and gradient 
-		next_loss = 0.5 * sumabs2(sdata(r))
+#		next_loss = 0.5f0 * sumabs2(sdata(r))
 		next_obj  = next_loss
 
 		# guard against numerical instabilities
@@ -432,9 +448,9 @@ function iht_path(
 	b        :: DenseArray{Float32,1} = ifelse(typeof(y) == SharedArray{Float32,1}, SharedArray(Float32, size(x,2)), zeros(Float32, size(x,2))), 
 	means    :: DenseArray{Float32,1} = mean(Float32,x), 
 	invstds  :: DenseArray{Float32,1} = invstd(x,means),
-	tol      :: FloatingPoint         = 1f-4, 
-	max_iter :: Integer               = 1000, 
-	max_step :: Integer               = 50, 
+	tol      :: Float32               = 1f-4, 
+	max_iter :: Int                   = 1000, 
+	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
 
@@ -530,11 +546,11 @@ function one_fold(
 	y        :: DenseArray{Float32,1}, 
 	path     :: DenseArray{Int,1}, 
 	folds    :: DenseArray{Int,1}, 
-	fold     :: Integer; 
+	fold     :: Int; 
 	means    :: DenseArray{Float32,1} = mean(Float32,x), 
 	invstds  :: DenseArray{Float32,1} = invstd(x,means), 
-	max_iter :: Integer               = 1000, 
-	max_step :: Integer               = 50, 
+	max_iter :: Int               = 1000, 
+	max_step :: Int               = 50, 
 	quiet    :: Bool                  = true
 )
 
@@ -612,15 +628,15 @@ function cv_iht(
 	x             :: BEDFile, 
 	y             :: DenseArray{Float32,1}, 
 	path          :: DenseArray{Int,1}, 
-	numfolds      :: Integer; 
+	numfolds      :: Int; 
 	folds         :: DenseArray{Int,1}     = cv_get_folds(sdata(y),numfolds), 
 	means         :: DenseArray{Float32,1} = mean(Float32,x), 
 	invstds       :: DenseArray{Float32,1} = invstd(x,means),
-	tol           :: FloatingPoint         = 1e-4, 
-	n             :: Integer               = length(y), 
-	p             :: Integer               = size(x,2), 
-	max_iter      :: Integer               = 1000, 
-	max_step      :: Integer               = 50, 
+	tol           :: Float32               = 1f-4, 
+	n             :: Int                   = length(y), 
+	p             :: Int                   = size(x,2), 
+	max_iter      :: Int                   = 1000, 
+	max_step      :: Int                   = 50, 
 	quiet         :: Bool                  = true, 
 	compute_model :: Bool                  = false
 ) 
