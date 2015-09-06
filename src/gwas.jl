@@ -52,12 +52,12 @@ function iht(
 	b         :: DenseArray{Float64,1}, 
 	x         :: BEDFile, 
 	y         :: DenseArray{Float64,1}, 
-	k         :: Integer, 
+	k         :: Int, 
 	g         :: DenseArray{Float64,1}; 
-	step_mult :: FloatingPoint         = 1.0, 
-	n         :: Integer               = length(y), 
-	p         :: Integer               = length(b), 
-	max_step  :: Integer               = 50, 
+	step_mult :: Float64         = 1.0, 
+	n         :: Int                   = length(y), 
+	p         :: Int                   = length(b), 
+	max_step  :: Int                   = 50, 
 	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
@@ -212,9 +212,9 @@ end
 function L0_reg(
 	X        :: BEDFile, 
 	Y        :: DenseArray{Float64,1}, 
-	k        :: Integer; 
-	n        :: Integer               = length(Y), 
-	p        :: Integer               = size(X,2), 
+	k        :: Int; 
+	n        :: Int                   = length(Y), 
+	p        :: Int                   = size(X,2), 
 	Xk       :: DenseArray{Float64,2} = zeros(Float64,n,k), 
 	b        :: DenseArray{Float64,1} = zeros(Float64,p), 
 	b0       :: DenseArray{Float64,1} = zeros(Float64,p), 
@@ -232,9 +232,9 @@ function L0_reg(
 	support0 :: BitArray{1}           = falses(p), 
 	means    :: DenseArray{Float64,1} = mean(Float64,X), 
 	invstds  :: DenseArray{Float64,1} = invstd(X,means), 
-	tol      :: FloatingPoint         = 1e-4, 
-	max_iter :: Integer               = 1000, 
-	max_step :: Integer               = 50, 
+	tol      :: Float64               = 1e-4, 
+	max_iter :: Int                   = 1000, 
+	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
 
@@ -242,10 +242,10 @@ function L0_reg(
 	tic()
 
 	# first handle errors
-	k        >= 0                || throw(ArgumentError("Value of k must be nonnegative!\n"))
-	max_iter >= 0                || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-	max_step >= 0                || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-	tol      >  eps(typeof(tol)) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+	k        >= 0            || throw(ArgumentError("Value of k must be nonnegative!\n"))
+	max_iter >= 0            || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
+	max_step >= 0            || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
+	tol      >  eps(Float64) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
 	# initialize return values
 	mm_iter   = 0		        # number of iterations of L0_reg
@@ -264,7 +264,7 @@ function L0_reg(
 	mu_step = 0        			# counts number of backtracking steps for mu
 
 	# initialize booleans
-	converged = false    # scaled_norm < tol?
+	converged = false           # scaled_norm < tol?
    
 	# update Xb, r, and gradient 
 	if sum(support) == 0
@@ -326,12 +326,10 @@ function L0_reg(
 		current_obj = next_obj
 
 		# now perform IHT step
-#		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortk=tempki, sortidx=indices, gk=idx, stdsk=tempkf2) 
 		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
-#		PLINK.update_partial_residuals!(r, Y, X, support, b, k, Xb=Xb)
 		difference!(r,Y,Xb)
 		xty!(df, X, r, means=means, invstds=invstds) 
 
@@ -362,9 +360,6 @@ function L0_reg(
 			threshold!(b, tol, n=p)
 
 			# update r
-#			update_residuals!(r, X, Y, b, xb=Xb, n=n)
-#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			PLINK.update_partial_residuals!(r, Y, X, indices, b, k, Xb=Xb, means=means, invstds=invstds)
 #			difference!(r,Y,Xb)
 
 			# calculate objective
@@ -437,9 +432,9 @@ function iht_path(
 	b        :: DenseArray{Float64,1} = ifelse(typeof(y) == SharedArray{Float64,1}, SharedArray(Float64, size(x,2)), zeros(Float64, size(x,2))), 
 	means    :: DenseArray{Float64,1} = mean(Float64,x), 
 	invstds  :: DenseArray{Float64,1} = invstd(x,means),
-	tol      :: FloatingPoint         = 1e-4, 
-	max_iter :: Integer               = 1000, 
-	max_step :: Integer               = 50, 
+	tol      :: Float64               = 1e-4, 
+	max_iter :: Int                   = 1000, 
+	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
 
@@ -534,11 +529,11 @@ function one_fold(
 	y        :: DenseArray{Float64,1}, 
 	path     :: DenseArray{Int,1}, 
 	folds    :: DenseArray{Int,1}, 
-	fold     :: Integer; 
+	fold     :: Int; 
 	means    :: DenseArray{Float64,1} = mean(Float64,x), 
 	invstds  :: DenseArray{Float64,1} = invstd(x,means), 
-	max_iter :: Integer               = 1000, 
-	max_step :: Integer               = 50, 
+	max_iter :: Int                   = 1000, 
+	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
 
@@ -616,15 +611,15 @@ function cv_iht(
 	x             :: BEDFile, 
 	y             :: DenseArray{Float64,1}, 
 	path          :: DenseArray{Int,1}, 
-	numfolds      :: Integer; 
+	numfolds      :: Int; 
 	folds         :: DenseArray{Int,1}     = cv_get_folds(sdata(y),numfolds), 
 	means         :: DenseArray{Float64,1} = mean(Float64,x), 
 	invstds       :: DenseArray{Float64,1} = invstd(x,means),
-	tol           :: FloatingPoint         = 1e-4, 
-	n             :: Integer               = length(y), 
-	p             :: Integer               = size(x,2), 
-	max_iter      :: Integer               = 1000, 
-	max_step      :: Integer               = 50, 
+	tol           :: Float64               = 1e-4, 
+	n             :: Int                   = length(y), 
+	p             :: Int                   = size(x,2), 
+	max_iter      :: Int                   = 1000, 
+	max_step      :: Int                   = 50, 
 	quiet         :: Bool                  = true, 
 	compute_model :: Bool                  = false
 ) 
