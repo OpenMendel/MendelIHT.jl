@@ -4,6 +4,7 @@ using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK
 #using StatsBase: sample, logistic
 using RegressionTools
+using OpenCL
 
 export L0_reg
 export L0_reg_aiht
@@ -14,6 +15,7 @@ export iht_path_log
 export iht_path_log2
 export cv_iht
 export cv_get_folds
+export L0_reg_gpu
 
 
 include("aiht.jl")
@@ -24,6 +26,7 @@ include("gwas.jl")
 include("gwas32.jl")
 #include("logistic.jl")
 #include("logistic32.jl")
+include("gpu32.jl")
 
 # ITERATIVE HARD THRESHOLDING
 #
@@ -120,7 +123,7 @@ function iht(
 
 	# compute step size
 #	mu = step_mult * sumabs2(sdata(gk)) / sumsq(sdata(xgk))
-	mu = sumabs2(sdata(gk)) / sumsq(sdata(xgk))
+	mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
 	# take gradient step
@@ -221,7 +224,7 @@ function iht(
 
 	# compute step size
 #	mu = step_mult * sumabs2(sdata(gk)) / sumsq(sdata(xgk))
-	mu = sumabs2(sdata(gk)) / sumsq(sdata(xgk))
+	mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
 	# take gradient step
