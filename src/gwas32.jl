@@ -398,24 +398,22 @@ function L0_reg(
 			return output
 		end
 
-		# algorithm is unconverged at this point.
-		# if algorithm is in feasible set, then rho should not be changing
-		# check descent property in that case
-		# if rho is not changing but objective increases, then abort
-		if next_obj > current_obj + tol
-			if !quiet
-				print_with_color(:red, "\nMM algorithm fails to descend!\n")
-				print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
-				print_with_color(:red, "Current Objective: $(current_obj)\n") 
-				print_with_color(:red, "Next Objective: $(next_obj)\n") 
-				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
-			end
-
-			output = {"time" => -1, "loss" => -Inf32, "iter" => -1, "beta" => fill!(b, Inf32)}
-#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
-
-			return output
-		end
+#		# algorithm is unconverged at this point, so check descent property 
+#		# if objective increases, then abort
+#		if next_obj > current_obj + tol
+#			if !quiet
+#				print_with_color(:red, "\nMM algorithm fails to descend!\n")
+#				print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
+#				print_with_color(:red, "Current Objective: $(current_obj)\n") 
+#				print_with_color(:red, "Next Objective: $(next_obj)\n") 
+#				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
+#			end
+#
+#			output = {"time" => -1, "loss" => -Inf32, "iter" => -1, "beta" => fill!(b, Inf32)}
+##			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
+#
+#			return output
+#		end
 	end # end main loop
 end # end function
 
