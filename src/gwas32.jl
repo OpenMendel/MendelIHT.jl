@@ -40,22 +40,21 @@
 # -- xgk = x*gk. 
 # -- max_step is the maximum number of backtracking steps to take. Defaults to 50.
 # -- sortidx is a vector to store the indices that would sort beta. Defaults to p zeros of type Int. 
+# -- sortk is a vector to store the largest k indices of beta. Defaults to k zeros of type Int.
 # -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type Float32. 
 # -- IDX and IDX0 are BitArrays indicating the nonzero status of components of beta. They default to falses.
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
-# http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
+# http://www.personal.soton.ac.uk/tb1.0f08/sparsify/sparsify.html 
 function iht(
 	b         :: DenseArray{Float32,1}, 
 	x         :: BEDFile, 
 	y         :: DenseArray{Float32,1}, 
 	k         :: Int, 
-	g         :: DenseArray{Float32,1},
-	r         :: DenseArray{Float32,1},
-	obj       :: Float32;
-	step_mult :: Float32               = 1.0f0, 
+	g         :: DenseArray{Float32,1}; 
+#	step_mult :: Float32               = 1.0f0, 
 	n         :: Int                   = length(y), 
 	p         :: Int                   = length(b), 
 	max_step  :: Int                   = 50, 
@@ -63,15 +62,14 @@ function iht(
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
 	b0        :: DenseArray{Float32,1} = zeros(Float32,p), 
-	means     :: DenseArray{Float32,1} = mean(Float32,x), 
-	invstds   :: DenseArray{Float32,1} = invstd(x,means), 
-	Xb        :: DenseArray{Float32,1} = xb(x,b,IDX,k, means=means, invstds=invstds), 
+	Xb        :: DenseArray{Float32,1} = xb(x,b,IDX,k,means=means,invstds=invstds), 
 	Xb0       :: DenseArray{Float32,1} = copy(xb), 
 	xk        :: DenseArray{Float32,2} = zeros(Float32,n,k), 
-	xgk       :: DenseArray{Float32,1} = zeros(Float32,n), 
 	gk        :: DenseArray{Float32,1} = zeros(Float32,k), 
+	xgk       :: DenseArray{Float32,1} = zeros(Float32,n), 
 	bk        :: DenseArray{Float32,1} = zeros(Float32,k), 
-	stdsk     :: DenseArray{Float32,1} = zeros(Float32,k)
+	means     :: DenseArray{Float32,1} = mean(Float32,x), 
+	invstds   :: DenseArray{Float32,1} = invstd(x,means)
 ) 
 
 	# which components of beta are nonzero? 
@@ -88,21 +86,19 @@ function iht(
 	# then xk and gk are the same as well
 	# avoid extracting and computing them if they have not changed
 	if !isequal(IDX, IDX0) || sum(IDX) == 0
-
-		# store relevant columns of x
+		
+		# now store relevant columns of x
 		decompress_genotypes!(xk, x, IDX, means=means, invstds=invstds) 
-		fill_perm!(bk, means, IDX, k=k, p=p)			# bk = means[IDX]
-		fill_perm!(stdsk, invstds, IDX, k=k, p=p)		# stdsk = invstds[IDX]
-
-		# store relevant components of gradient
-		fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)	# gk = g[IDX]
-
-		# now compute subset of x*g
-		BLAS.gemv!('N', 1.0f0, sdata(xk), sdata(gk), 0.0f0, sdata(xgk))
 	end
+
+	# store relevant components of gradient
+	fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)	# gk = g[IDX]
+
+	# now compute subset of x*g
+	BLAS.gemv!('N', 1.0f0, sdata(xk), sdata(gk), 0.0f0, sdata(xgk))
 	
 	# warn if xgk only contains zeros
-	all(xgk .== 0.0) && warn("Entire active set has values equal to 0")
+	all(xgk .== 0.0f0) && warn("Entire active set has values equal to 0")
 
 	# compute step size
 #	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
@@ -125,26 +121,19 @@ function iht(
 	# update xb
 	xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
 
-#	# calculate omega
-#	omega_top = sqeuclidean(sdata(b),sdata(b0))
-#	omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
-	
-	# update residuals
-	difference!(r,y,Xb)
-
-	# update objective
-	new_obj = 0.5f0*sumabs2(r)
+	# calculate omega
+	omega_top = sqeuclidean(sdata(b),sdata(b0))
+	omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
 
 	# backtrack until mu sits below omega and support stabilizes
 	mu_step = 0
-#	while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
-	while new_obj > obj && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+	while mu*omega_bot > 0.99f0*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
 		# stephalving
 		mu *= 0.5f0
 
 		# warn if mu falls below machine epsilon 
-		mu <= eps(Float32) && warn("Step size equals zero, algorithm may not converge correctly")
+		mu <= eps(typeof(mu)) && warn("Step size equals zero, algorithm may not converge correctly")
 
 		# recompute gradient step
 		copy!(b,b0)
@@ -159,21 +148,15 @@ function iht(
 		# recompute xb
 		xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
 
-#		# calculate omega
-#		omega_top = sqeuclidean(sdata(b),sdata(b0))
-#		omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
-
-		# update residuals
-		difference!(r,y,Xb)
-
-		# update objective
-		new_obj = 0.5f0*sumabs2(sdata(r))
+		# calculate omega
+		omega_top = sqeuclidean(sdata(b),sdata(b0))
+		omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
 
 		# increment the counter
 		mu_step += 1
 	end
 
-	return mu, mu_step, new_obj
+	return mu, mu_step
 end
 
 
@@ -196,9 +179,9 @@ end
 #
 # Optional Arguments:
 # -- b is the p x 1 iterate. Warm starts should use this argument. Defaults to zeros(p).
-# -- max_iter is the maximum number of iterations for the algorithm. Defaults to 1000.
+# -- max_iter is the maximum number of iterations for the algorithm. Defaults to 10.0f0.
 # -- max_step is the maximum number of backtracking steps for the step size calculation. Defaults to 50.
-# -- tol is the global tol. Defaults to 1e-4.
+# -- tol is the global tol. Defaults to 1f-4.
 # -- quiet is a Boolean that controls algorithm output. Defaults to true (no output).
 # -- several temporary arrays for intermediate steps of algorithm calculations:
 #		Xk        = zeros(Float32,n,k)  # store k columns of X
@@ -238,14 +221,13 @@ function L0_reg(
 	tempn    :: DenseArray{Float32,1} = zeros(Float32,n), 
 	tempkf   :: DenseArray{Float32,1} = zeros(Float32,k), 
 	idx      :: DenseArray{Float32,1} = zeros(Float32,k), 
-	tempkf2  :: DenseArray{Float32,1} = zeros(Float32,k),
 	indices  :: DenseArray{Int,1}     = collect(1:p), 
 	support  :: BitArray{1}           = falses(p), 
 	support0 :: BitArray{1}           = falses(p), 
 	means    :: DenseArray{Float32,1} = mean(Float32,X), 
 	invstds  :: DenseArray{Float32,1} = invstd(X,means), 
 	tol      :: Float32               = 1f-4, 
-	max_iter :: Int                   = 1000, 
+	max_iter :: Int                   = 100, 
 	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
@@ -254,10 +236,10 @@ function L0_reg(
 	tic()
 
 	# first handle errors
-	k        >= 0                || throw(ArgumentError("Value of k must be nonnegative!\n"))
-	max_iter >= 0                || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-	max_step >= 0                || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-	tol      >  eps(typeof(tol)) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+	k        >= 0            || throw(ArgumentError("Value of k must be nonnegative!\n"))
+	max_iter >= 0            || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
+	max_step >= 0            || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
+	tol      >  eps(Float32) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
 	# initialize return values
 	mm_iter   = 0		        # number of iterations of L0_reg
@@ -266,7 +248,7 @@ function L0_reg(
 	next_loss = zero(Float32)	# loss function value 
 
 	# initialize floats 
-	current_obj = Inf32    		# tracks previous objective function value
+	current_obj = Inf32      		# tracks previous objective function value
 	the_norm    = zero(Float32) # norm(b - b0)
 	scaled_norm = zero(Float32) # the_norm / (norm(b0) + 1)
 	mu          = zero(Float32) # Landweber step size, 0 < tau < 2/rho_max^2
@@ -276,14 +258,15 @@ function L0_reg(
 	mu_step = 0        			# counts number of backtracking steps for mu
 
 	# initialize booleans
-	converged = false    # scaled_norm < tol?
+	converged = false           # scaled_norm < tol?
    
 	# update Xb, r, and gradient 
 	if sum(support) == 0
-		fill!(Xb,0f0)
+		fill!(Xb,0.0f0)
 		copy!(r,sdata(Y))
 	else
 		xb!(Xb,X,b,support,k, means=means, invstds=invstds)
+#		PLINK.update_partial_residuals!(r, Y, X, support, b, k, Xb=Xb)
 		difference!(r, Y, Xb)
 	end
 	xty!(df, X, r, means=means, invstds=invstds) 
@@ -296,7 +279,7 @@ function L0_reg(
 	if !quiet
 		 println("\nBegin MM algorithm\n") 
 		 println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
-		 println("0\t0\tInf\t\tInf\t\tInf")
+		 println("0\t0\tInf32\t\tInf32\t\tInf32")
 	end
 
 	# main loop
@@ -337,26 +320,26 @@ function L0_reg(
 		current_obj = next_obj
 
 		# now perform IHT step
-		(mu, mu_step, next_loss) = iht(b,X,Y,k,df,r,current_obj, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
+		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds) 
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
-#		difference!(r,Y,Xb)
+		difference!(r,Y,Xb)
 		xty!(df, X, r, means=means, invstds=invstds) 
 
 		# update loss, objective, and gradient 
-#		next_loss = 0.5f0 * sumabs2(sdata(r))
+		next_loss = 0.5f0 * sumabs2(sdata(r))
 		next_obj  = next_loss
 
 		# guard against numerical instabilities
 		# ensure that objective is finite
 		# if not, throw error
 		isnan(next_obj) && throw(error("Objective function is NaN, aborting..."))
-		isinf(next_obj) && throw(error("Objective function is Inf, aborting..."))
+		isinf(next_obj) && throw(error("Objective function is Inf32, aborting..."))
 
 		# track convergence
 		the_norm    = chebyshev(b,b0)
-		scaled_norm = the_norm / ( norm(b0,Inf) + 1)
+		scaled_norm = the_norm / ( norm(b0,Inf32) + 1)
 		converged   = scaled_norm < tol
 		
 		# output algorithm progress 
@@ -371,9 +354,6 @@ function L0_reg(
 			threshold!(b, tol, n=p)
 
 			# update r
-#			update_residuals!(r, X, Y, b, xb=Xb, n=n)
-#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			PLINK.update_partial_residuals!(r, Y, X, indices, b, k, Xb=Xb, means=means, invstds=invstds)
 #			difference!(r,Y,Xb)
 
 			# calculate objective
@@ -398,22 +378,24 @@ function L0_reg(
 			return output
 		end
 
-#		# algorithm is unconverged at this point, so check descent property 
-#		# if objective increases, then abort
-#		if next_obj > current_obj + tol
-#			if !quiet
-#				print_with_color(:red, "\nMM algorithm fails to descend!\n")
-#				print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
-#				print_with_color(:red, "Current Objective: $(current_obj)\n") 
-#				print_with_color(:red, "Next Objective: $(next_obj)\n") 
-#				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
-#			end
-#
-#			output = {"time" => -1, "loss" => -Inf32, "iter" => -1, "beta" => fill!(b, Inf32)}
-##			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
-#
-#			return output
-#		end
+		# algorithm is unconverged at this point.
+		# if algorithm is in feasible set, then rho should not be changing
+		# check descent property in that case
+		# if rho is not changing but objective increases, then abort
+		if next_obj > current_obj + tol
+			if !quiet
+				print_with_color(:red, "\nMM algorithm fails to descend!\n")
+				print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
+				print_with_color(:red, "Current Objective: $(current_obj)\n") 
+				print_with_color(:red, "Next Objective: $(next_obj)\n") 
+				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
+			end
+
+			output = {"time" => -1.0f0, "loss" => -Inf32, "iter" => -1, "beta" => fill!(b, Inf32)}
+#			output = Dict{ASCIIString, Any}("time" => -1.0f0, "loss" => -1.0f0, "iter" => -1, "beta" => fill!(b,Inf32))
+
+			return output
+		end
 	end # end main loop
 end # end function
 
@@ -431,7 +413,7 @@ end # end function
 #
 # Optional Arguments:
 # -- b is the p-vector of effect sizes. This argument permits warmstarts to the path computation. Defaults to zeros.
-# -- max_iter caps the number of iterations for the algorithm. Defaults to 1000.
+# -- max_iter caps the number of iterations for the algorithm. Defaults to 10.0f0.
 # -- max_step caps the number of backtracking steps in the IHT kernel. Defaults to 50.
 # -- quiet is a Boolean that controls the output. Defaults to true (no output).
 #
@@ -445,7 +427,7 @@ function iht_path(
 	means    :: DenseArray{Float32,1} = mean(Float32,x), 
 	invstds  :: DenseArray{Float32,1} = invstd(x,means),
 	tol      :: Float32               = 1f-4, 
-	max_iter :: Int                   = 1000, 
+	max_iter :: Int                   = 100, 
 	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
@@ -470,9 +452,9 @@ function iht_path(
 
 	# allocate the BitArrays for indexing in IHT
 	# also preallocate matrix to store betas 
-	support    = falses(p)						# indicates nonzero components of beta
-	support0   = copy(support)					# store previous nonzero indicators
-	betas      = zeros(Float32,p,num_models)	# a matrix to store calculated models
+	support    = falses(p)				# indicates nonzero components of beta
+	support0   = copy(support)			# store previous nonzero indicators
+	betas      = zeros(p,num_models)	# a matrix to store calculated models
 
 	# compute the path
 	@inbounds for i = 1:num_models
@@ -481,7 +463,7 @@ function iht_path(
 		q = path[i]
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
-		bk      = zeros(Float32,q)
+		bk      = zeros(q)
 		project_k!(b, bk, indices, q)
 
 		# these arrays change in size from iteration to iteration
@@ -528,8 +510,8 @@ end
 #
 # Optional Arguments:
 # -- n is the number of samples. Defaults to length(y).
-# -- tol is the convergence tol to pass to the path computations. Defaults to 1e-4.
-# -- max_iter caps the number of permissible iterations in the IHT algorithm. Defaults to 1000.
+# -- tol is the convergence tol to pass to the path computations. Defaults to 1f-4.
+# -- max_iter caps the number of permissible iterations in the IHT algorithm. Defaults to 10.0f0.
 # -- max_step caps the number of permissible backtracking steps. Defaults to 50.
 # -- quiet is a Boolean to activate output. Defaults to true (no output).
 # -- logreg is a switch to activate logistic regression. Defaults to false (perform linear regression).
@@ -544,12 +526,13 @@ function one_fold(
 	fold     :: Int; 
 	means    :: DenseArray{Float32,1} = mean(Float32,x), 
 	invstds  :: DenseArray{Float32,1} = invstd(x,means), 
-	max_iter :: Int                   = 1000, 
+	max_iter :: Int                   = 100, 
 	max_step :: Int                   = 50, 
 	quiet    :: Bool                  = true
 )
 
 	# make vector of indices for folds
+#	test_idx  = find( function f(x) x .== fold; end, folds)
 	test_idx = folds .== fold
 	test_size = sum(test_idx)
 
@@ -607,8 +590,8 @@ end
 # -- n is the number of samples. Defaults to length(y).
 # -- p is the number of predictors. Defaults to size(x,2).
 # -- folds is the partition of the data. Defaults to a random partition into "nfolds" disjoint sets.
-# -- tol is the convergence tol to pass to the path computations. Defaults to 1e-4.
-# -- max_iter caps the number of permissible iterations in the IHT algorithm. Defaults to 1000.
+# -- tol is the convergence tol to pass to the path computations. Defaults to 1f-4.
+# -- max_iter caps the number of permissible iterations in the IHT algorithm. Defaults to 10.0f0.
 # -- max_step caps the number of permissible backtracking steps. Defaults to 50.
 # -- quiet is a Boolean to activate output. Defaults to true (no output).
 #    NOTA BENE: each processor outputs feed to the console without regard to the others,
@@ -629,7 +612,7 @@ function cv_iht(
 	tol           :: Float32               = 1f-4, 
 	n             :: Int                   = length(y), 
 	p             :: Int                   = size(x,2), 
-	max_iter      :: Int                   = 1000, 
+	max_iter      :: Int                   = 100, 
 	max_step      :: Int                   = 50, 
 	quiet         :: Bool                  = true, 
 	compute_model :: Bool                  = false
@@ -675,24 +658,21 @@ function cv_iht(
 
 	# recompute ideal model
 	if compute_model
-
-		# initialize parameter vector as SharedArray
 		b = SharedArray(Float32, p)
-
 		# first use L0_reg to extract model
 		output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
 
 		# which components of beta are nonzero?
-		inferred_model = output["beta"] .!= 0.0
-		bidx = find( x -> x .!= 0.0, b) 
+		inferred_model = output["beta"] .!= 0.0f0
+		bidx = find( x -> x .!= 0.0f0, b) 
 
 		# allocate the submatrix of x corresponding to the inferred model
 		x_inferred = zeros(Float32,n,sum(inferred_model))
 		decompress_genotypes!(x_inferred,x)
 
 		# now estimate b with the ordinary least squares estimator b = inv(x'x)x'y 
-		xty = BLAS.gemv('T', 1.0, x_inferred, y)	
-		xtx = BLAS.gemm('T', 'N', 1.0, x_inferred, x_inferred)
+		xty = BLAS.gemv('T', 1.0f0, x_inferred, y)	
+		xtx = BLAS.gemm('T', 'N', 1.0f0, x_inferred, x_inferred)
 		b = xtx \ xty
 		return errors, b, bidx 
 	end

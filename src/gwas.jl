@@ -54,7 +54,7 @@ function iht(
 	y         :: DenseArray{Float64,1}, 
 	k         :: Int, 
 	g         :: DenseArray{Float64,1}; 
-	step_mult :: Float64         = 1.0, 
+#	step_mult :: Float64               = 1.0, 
 	n         :: Int                   = length(y), 
 	p         :: Int                   = length(b), 
 	max_step  :: Int                   = 50, 
@@ -62,20 +62,18 @@ function iht(
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
 	b0        :: DenseArray{Float64,1} = zeros(Float64,p), 
-	Xb        :: DenseArray{Float64,1} = BLAS.gemv('N', 1.0, x, b), 
+	Xb        :: DenseArray{Float64,1} = xb(x,b,IDX,k,means=means,invstds=invstds), 
 	Xb0       :: DenseArray{Float64,1} = copy(xb), 
 	xk        :: DenseArray{Float64,2} = zeros(Float64,n,k), 
 	gk        :: DenseArray{Float64,1} = zeros(Float64,k), 
 	xgk       :: DenseArray{Float64,1} = zeros(Float64,n), 
 	bk        :: DenseArray{Float64,1} = zeros(Float64,k), 
 	means     :: DenseArray{Float64,1} = mean(Float64,x), 
-	invstds   :: DenseArray{Float64,1} = invstd(x,means), 
-	stdsk     :: DenseArray{Float64,1} = zeros(Float64,k)
+	invstds   :: DenseArray{Float64,1} = invstd(x,means)
 ) 
 
 	# which components of beta are nonzero? 
 	update_indices!(IDX, b, p=p)
-#	update_indices!(IDX, b)
 
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
@@ -88,24 +86,23 @@ function iht(
 	# then xk and gk are the same as well
 	# avoid extracting and computing them if they have not changed
 	if !isequal(IDX, IDX0) || sum(IDX) == 0
-
-		# store relevant columns of x
+		
+		# now store relevant columns of x
 		decompress_genotypes!(xk, x, IDX, means=means, invstds=invstds) 
-		fill_perm!(bk, means, IDX, k=k, p=p) # bk = means[IDX]
-		fill_perm!(stdsk, invstds, IDX, k=k, p=p)	# stdsk = invstds[IDX]
-
-		# store relevant components of gradient
-		fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)	# gk = g[IDX]
-
-		# now compute subset of x*g
-		BLAS.gemv!('N', 1.0, sdata(xk), sdata(gk), 0.0, sdata(xgk))
 	end
+
+	# store relevant components of gradient
+	fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)	# gk = g[IDX]
+
+	# now compute subset of x*g
+	BLAS.gemv!('N', 1.0, sdata(xk), sdata(gk), 0.0, sdata(xgk))
 	
 	# warn if xgk only contains zeros
 	all(xgk .== 0.0) && warn("Entire active set has values equal to 0")
 
 	# compute step size
-	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+#	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+	mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 
 	# notify problems with step size 
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
@@ -115,7 +112,7 @@ function iht(
 	BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
 	# preserve top k components of b
-	RegressionTools.project_k!(b, bk, sortidx, k)
+	project_k!(b, bk, sortidx, k)
 
 	# which indices of new beta are nonzero?
 	copy!(IDX0, IDX)
@@ -197,7 +194,6 @@ end
 #		idx       = zeros(Float64,k)    # another temporary array of k floats 
 #		tempn     = zeros(Float64,n)    # temporary array of n floats 
 #		indices   = collect(1:p)	    # indices that sort beta 
-#		tempki    = zeros(Int,k)        # temporary array of k integers 
 #		support   = falses(p)			# indicates nonzero components of beta
 #		support0  = copy(support)		# store previous nonzero indicators
 #
@@ -225,9 +221,7 @@ function L0_reg(
 	tempn    :: DenseArray{Float64,1} = zeros(Float64,n), 
 	tempkf   :: DenseArray{Float64,1} = zeros(Float64,k), 
 	idx      :: DenseArray{Float64,1} = zeros(Float64,k), 
-	tempkf2  :: DenseArray{Float64,1} = zeros(Float64,k),
 	indices  :: DenseArray{Int,1}     = collect(1:p), 
-#	tempki   :: DenseArray{Int,1}     = collect(1:k), 
 	support  :: BitArray{1}           = falses(p), 
 	support0 :: BitArray{1}           = falses(p), 
 	means    :: DenseArray{Float64,1} = mean(Float64,X), 
@@ -326,7 +320,7 @@ function L0_reg(
 		current_obj = next_obj
 
 		# now perform IHT step
-		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, stdsk=tempkf2) 
+		(mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds) 
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
