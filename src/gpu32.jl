@@ -577,7 +577,7 @@ function iht_path_gpu(
 		idx    = zeros(Float32,q)		# another temporary array of q floats 
 
 		# now compute current model
-		output = L0_reg_gpu(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds,
+		output = L0_reg_gpu(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds,
 	wg_size=wg_size, 
 	y_chunks=y_chunks,
     y_blocks=y_blocks,
