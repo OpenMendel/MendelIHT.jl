@@ -5,6 +5,7 @@ using PLINK
 #using StatsBase: sample, logistic
 using RegressionTools
 using OpenCL
+using Compat
 
 export L0_reg
 export L0_reg_aiht
@@ -428,8 +429,8 @@ function L0_reg(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -492,8 +493,8 @@ function L0_reg(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -511,8 +512,8 @@ function L0_reg(
 				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
 			end
 
-			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
-#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
+#			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+			@compat output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
 		end
@@ -621,8 +622,8 @@ function L0_reg(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -687,8 +688,8 @@ function L0_reg(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -706,8 +707,8 @@ function L0_reg(
 				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
 			end
 
-			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
-#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
+#			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+			@compat output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
 		end
@@ -773,7 +774,7 @@ function iht_path(
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk      = zeros(Float64,q)
-		project_k!(b, bk, sortidx, k)
+		project_k!(b, bk, indices, q)
 
 		# these arrays change in size from iteration to iteration
 		# we must allocate them for every new model size
@@ -832,7 +833,7 @@ function iht_path(
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk      = zeros(Float32,q)
-		project_k!(b, bk, sortidx, k)
+		project_k!(b, bk, indices, k)
 
 		# these arrays change in size from iteration to iteration
 		# we must allocate them for every new model size

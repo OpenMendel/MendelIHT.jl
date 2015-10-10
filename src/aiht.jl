@@ -398,8 +398,8 @@ function L0_reg_aiht(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -466,8 +466,8 @@ function L0_reg_aiht(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -485,8 +485,8 @@ function L0_reg_aiht(
 				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
 			end
 
-			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
-#			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
+#			output = {"time" => -1, "loss" => -Inf, "iter" => -1, "beta" => fill!(b, Inf)}
+			@compat output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
 
 			return output
 		end

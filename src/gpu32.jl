@@ -1,5 +1,27 @@
 # shortcut for OpenCL module name
 cl = OpenCL
+function df_x2!(snp::Int, df::DenseArray{Float32,1}, x::DenseArray{Float32,2}, r::DenseArray{Float32,1}, means::DenseArray{Float32,1}, invstds::DenseArray{Float32,1}, n::Int, p::Int)
+	m = means[p-snp]
+	s = invstds[p-snp]
+	df[p-snp] = 0.0f0
+	for case = 1:n
+		df[p-snp] += r[case] * (x[case,snp] - m) * s
+	end
+	return nothing
+end
+
+function xty_gpu!(df, df_buff, x, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, wg_size, y_chunks, n, p, p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, genofloat)	
+	cl.copy!(queue, y_buff, sdata(r))
+	cl.call(queue, xtyk, (wg_size*y_chunks,p,1), (wg_size,1,1), n32, p32, y_chunks32, blocksize32, wg_size32, x_buff, red_buff, y_buff, m_buff, p_buff, genofloat)
+	cl.call(queue, rxtyk, (wg_size,p,1), (wg_size,1,1), n32, y_chunks32, y_blocks32, wg_size32, red_buff, df_buff, genofloat) 
+	cl.copy!(queue, sdata(df), df_buff)
+	for snp = 1:p2 
+		df_x2!(snp, df, x.x2, r, means, invstds, n, p)
+	end
+	cl.fill!(queue, red_buff, 0.0f0)
+	return nothing
+end
+
 
 # ITERATIVE HARD THRESHOLDING USING A PLINK BED FILE
 #
@@ -261,7 +283,7 @@ function L0_reg_gpu(
 	p32         :: Int32                 = convert(Int32, p),
 	y_chunks32  :: Int32                 = convert(Int32, y_chunks),
 	y_blocks32  :: Int32                 = convert(Int32, y_blocks),
-	blocksize32 :: Int32                 = convert(Int32, X.blocksize)
+	blocksize32 :: Int32                 = convert(Int32, X.blocksize),
 )
 
 	# start timer
@@ -300,29 +322,20 @@ function L0_reg_gpu(
 		xb!(Xb,X,b,support,k, means=means, invstds=invstds)
 		difference!(r, Y, Xb)
 	end
-	xty!(df, X, r, means=means, invstds=invstds) 
 	cl.copy!(queue, y_buff, sdata(r))
-#	cl.write!(queue, y_buff, sdata(r))
-	println("norm(r) = ", norm(r))
-	println("norm(df) = ", norm(df))
 	cl.call(queue, xtyk, (wg_size*y_chunks,p,1), (wg_size,1,1), n32, p32, y_chunks32, blocksize32, wg_size32, x_buff, red_buff, y_buff, m_buff, p_buff, genofloat)
 	cl.call(queue, rxtyk, (wg_size,p,1), (wg_size,1,1), n32, y_chunks32, y_blocks32, wg_size32, red_buff, df_buff, genofloat) 
-#	df2 = cl.read(queue, df_buff)
-	cl.copy!(queue, sdata(df2), df_buff)
-	println("intermed norm(df) = ", norm(df))
+	cl.copy!(queue, sdata(df), df_buff)
 	for snp = 1:X.p2 
-		m = means[snp+x.p]
-		s = invstds[snp+x.p]
+		m = means[snp+X.p]
+		s = invstds[snp+X.p]
+		df[X.p+snp] = 0.0f0
 		for case = 1:n
-			df2[X.p+snp] += r[case] * (X.x2[case,snp] - m) * s
+			df[X.p+snp] += r[case] * (X.x2[case,snp] - m) * s
 		end
 	end
-	println("new norm(df) = ", norm(df))
 	cl.fill!(queue, red_buff, 0.0f0)
-#	cl.fill!(queue, df_buff, 0.0f0)
-#	cl.fill!(queue, y_buff, 0.0f0)
-	println("norm(df - df2) = ", euclidean(df, df2))
-
+#	xty_gpu!(df, df_buff, X, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, wg_size, y_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, genofloat)
 
 	# update loss and objective
 	next_loss = Inf32 
@@ -361,8 +374,8 @@ function L0_reg_gpu(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -373,31 +386,24 @@ function L0_reg_gpu(
 		current_obj = next_obj
 
 		# now perform IHT step
-		(mu, mu_step, next_loss) = iht(b,X,Y,k,df,r,current_obj, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds) 
+		(mu, mu_step, next_loss) = iht_gpu(b,X,Y,k,df,r,current_obj, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds) 
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
-#		difference!(r,Y,Xb)
-		xty!(df, X, r, means=means, invstds=invstds) 
 		cl.copy!(queue, y_buff, sdata(r))
-		println("new norm(r) = ", norm(r))
-#		cl.write!(queue, y_buff, sdata(r))
-		println("norm(df) = ", norm(df))
 		cl.call(queue, xtyk, (wg_size*y_chunks,p,1), (wg_size,1,1), n32, p32, y_chunks32, blocksize32, wg_size32, x_buff, red_buff, y_buff, m_buff, p_buff, genofloat)
 		cl.call(queue, rxtyk, (wg_size,p,1), (wg_size,1,1), n32, y_chunks32, y_blocks32, wg_size32, red_buff, df_buff, genofloat) 
-		df2 = cl.read(queue, df_buff)
-#		cl.copy!(queue, sdata(df), df_buff)
-		println("intermed norm(df) = ", norm(df))
+		cl.copy!(queue, sdata(df), df_buff)
 		for snp = 1:X.p2 
+			m = means[snp+X.p]
+			s = invstds[snp+X.p]
+			df[X.p+snp] = 0.0f0
 			for case = 1:n
-				df2[X.p+snp] += r[case] * (X.x2[case,snp] - m) * s
+				df[X.p+snp] += r[case] * (X.x2[case,snp] - m) * s
 			end
 		end
-		println("new norm(df) = ", norm(df))
 		cl.fill!(queue, red_buff, 0.0f0)
-#		cl.fill!(queue, df_buff, 0.0f0)
-#		cl.fill!(queue, y_buff, 0.0f0)
-		println("norm(df - df2) = ", euclidean(df, df2))
+#		xty_gpu!(df, df_buff, X, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, wg_size, y_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, genofloat)
 
 		# update loss, objective, and gradient 
 #		next_loss = 0.5f0 * sumabs2(sdata(r))
@@ -447,8 +453,8 @@ function L0_reg_gpu(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-#			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
+			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
