@@ -1,2 +1,4 @@
-PLINK
 julia 0.3
+PLINK
+StatsBase
+RegressionTools
