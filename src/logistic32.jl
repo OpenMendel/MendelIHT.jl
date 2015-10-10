@@ -46,7 +46,7 @@ function iht2(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-		sortk = RegressionTools.selectperm!(sortidx,lg,k, p=p)
+		sortk = RegressionTools.selectpermk!(sortidx,lg,k, p=p)
 		IDX[sortk] = true;
 	end
 
@@ -68,7 +68,7 @@ function iht2(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{
 	BLAS.axpy!(p, mu, lg, 1, b, 1)
 
 	# preserve top k components of b
-	sortk = RegressionTools.selectperm!(sortidx,b,k, p=p)
+	sortk = RegressionTools.selectpermk!(sortidx,b,k, p=p)
 	fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
 	fill!(b,0.0)
 	b[sortk] = bk
@@ -97,7 +97,7 @@ function iht2(b::DenseArray{Float64,1}, x::DenseArray{Float64,2}, y::DenseArray{
 		BLAS.axpy!(p, mu, lg, 1, b, 1)
 
 		# recompute projection onto top k components of b
-		sortk = RegressionTools.selectperm!(sortidx, b,k, p=p)
+		sortk = RegressionTools.selectpermk!(sortidx, b,k, p=p)
 		fill_perm!(bk, b, sortk, k=k)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
@@ -845,7 +845,7 @@ function iht_path_log(x::DenseArray{Float64,2}, y::DenseArray{Float64,1}, path::
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk       = zeros(q)
 #		sortk    = zeros(Int,q)
-		sortk    = RegressionTools.selectperm!(indices, b,q, p=p) 
+		sortk    = RegressionTools.selectpermk!(indices, b,q, p=p) 
 		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk
@@ -924,7 +924,7 @@ function iht_path_log2(x::DenseArray{Float64,2}, y::DenseArray{Float64,1}, path:
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk       = zeros(q)
 #		sortk    = zeros(Int,q)
-		sortk    = RegressionTools.selectperm!(indices, b,q, p=p)
+		sortk    = RegressionTools.selectpermk!(indices, b,q, p=p)
 		fill_perm!(bk, b, sortk, k=q)	# bk = b[sortk]
 		fill!(b,0.0)
 		b[sortk] = bk

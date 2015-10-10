@@ -105,7 +105,7 @@ function iht(
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-		selectperm!(sortidx,g,k, p=p) 
+		selectpermk!(sortidx,g,k, p=p) 
 		IDX[sortidx[1:k]] = true;
 	end
 
@@ -206,7 +206,7 @@ function iht(
 	# if current vector is 0,
 	# then take largest elements of d as nonzero components for b
 	if sum(IDX) == 0
-		selectperm!(sortidx,g,k, p=p) 
+		selectpermk!(sortidx,g,k, p=p) 
 		IDX[sortidx[1:k]] = true;
 	end
 
