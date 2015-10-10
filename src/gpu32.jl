@@ -498,10 +498,11 @@ end # end function
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function iht_path(
+function iht_path_gpu(
 	x        :: BEDFile, 
 	y        :: DenseArray{Float32,1}, 
-	path     :: DenseArray{Int,1}; 
+	path     :: DenseArray{Int,1}, 
+	kernfile :: ASCIIString; 
 	b        :: DenseArray{Float32,1} = ifelse(typeof(y) == SharedArray{Float32,1}, SharedArray(Float32, size(x,2)), zeros(Float32, size(x,2))), 
 	means    :: DenseArray{Float32,1} = mean(Float32,x), 
 	invstds  :: DenseArray{Float32,1} = invstd(x,means),
@@ -519,21 +520,45 @@ function iht_path(
 	const num_models = length(path)			
 
 	# preallocate SharedArrays for intermediate steps of algorithm calculations 
-	r          = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# for || Y - XB ||_2^2
-	Xb         = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# X*beta 
-	Xb0        = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# X*beta0 
-	b0         = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32))		# previous iterate beta0 
-	df         = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32))		# (negative) gradient 
-	tempn      = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))	   	# temporary array of n floats 
+	r           = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# for || Y - XB ||_2^2
+	Xb          = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# X*beta 
+	Xb0         = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))		# X*beta0 
+	b0          = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32))		# previous iterate beta0 
+	df          = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32))		# (negative) gradient 
+	tempn       = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32))	   	# temporary array of n floats 
 
 	# index vector for b has more complicated initialization
-	indices    = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S))
+	indices     = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S))
 
 	# allocate the BitArrays for indexing in IHT
 	# also preallocate matrix to store betas 
-	support    = falses(p)						# indicates nonzero components of beta
-	support0   = copy(support)					# store previous nonzero indicators
-	betas      = zeros(Float32,p,num_models)	# a matrix to store calculated models
+	support     = falses(p)						# indicates nonzero components of beta
+	support0    = copy(support)					# store previous nonzero indicators
+	betas       = zeros(Float32,p,num_models)	# a matrix to store calculated models
+
+	# allocate GPU variables
+	wg_size     = 512,
+	y_chunks    = div(n, wg_size) + (n % wg_size != 0 ? 1 : 0),
+    y_blocks    = div(y_chunks, wg_size) + (y_chunks % wg_size != 0 ? 1 : 0), 
+	device      = last(cl.devices(:gpu)),
+	ctx         = cl.Context(device), 
+	queue       = cl.CmdQueue(ctx),
+	x_buff      = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(X.x)),
+	y_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(r)),
+	m_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(means)),
+	p_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(invstds)),
+	df_buff     = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf = sdata(df)),
+	red_buff    = cl.Buffer(Float32, ctx, (:rw), p * y_chunks),
+	genofloat   = cl.LocalMem(Float32, wg_size),
+	program     = cl.Program(ctx, source=kernfile) |> cl.build!,
+	xtyk        = cl.Kernel(program, "compute_xt_times_vector"),
+	rxtyk       = cl.Kernel(program, "reduce_xt_vec_chunks"),
+	wg_size32   = convert(Int32, wg_size),
+	n32         = convert(Int32, n),
+	p32         = convert(Int32, p),
+	y_chunks32  = convert(Int32, y_chunks),
+	y_blocks32  = convert(Int32, y_blocks),
+	blocksize32 = convert(Int32, X.blocksize),
 
 	# compute the path
 	@inbounds for i = 1:num_models
@@ -552,7 +577,30 @@ function iht_path(
 		idx    = zeros(Float32,q)		# another temporary array of q floats 
 
 		# now compute current model
-		output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds) 
+		output = L0_reg_gpu(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds,
+	wg_size=wg_size, 
+	y_chunks=y_chunks,
+    y_blocks=y_blocks,
+	device=device,
+	ctx=ctx,
+	queue=queue,
+	x_buff=x_buff,
+	y_buff=y_buff,
+	m_buff=m_buff,
+	p_buff=p_buff,
+	df_buff=df_buff,
+	red_buff=red_buff,
+	genofloat=genofloat,
+	program=program,
+	xtyk=xtyk,
+	rxtyk=rxtyk,
+	wg_size32=wg_size32,
+	n32=n32,
+	p32=p32,
+	y_chunks32=y_chunks32,
+	y_blocks32=y_blocks32,
+	blocksize32=blocksize32
+	)
 
 		# extract and save model
 		copy!(sdata(b), output["beta"])
