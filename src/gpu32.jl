@@ -537,28 +537,28 @@ function iht_path_gpu(
 	betas       = zeros(Float32,p,num_models)	# a matrix to store calculated models
 
 	# allocate GPU variables
-	wg_size     = 512,
-	y_chunks    = div(n, wg_size) + (n % wg_size != 0 ? 1 : 0),
-    y_blocks    = div(y_chunks, wg_size) + (y_chunks % wg_size != 0 ? 1 : 0), 
-	device      = last(cl.devices(:gpu)),
-	ctx         = cl.Context(device), 
-	queue       = cl.CmdQueue(ctx),
-	x_buff      = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(X.x)),
-	y_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(r)),
-	m_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(means)),
-	p_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(invstds)),
-	df_buff     = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf = sdata(df)),
-	red_buff    = cl.Buffer(Float32, ctx, (:rw), p * y_chunks),
-	genofloat   = cl.LocalMem(Float32, wg_size),
-	program     = cl.Program(ctx, source=kernfile) |> cl.build!,
-	xtyk        = cl.Kernel(program, "compute_xt_times_vector"),
-	rxtyk       = cl.Kernel(program, "reduce_xt_vec_chunks"),
-	wg_size32   = convert(Int32, wg_size),
-	n32         = convert(Int32, n),
-	p32         = convert(Int32, p),
-	y_chunks32  = convert(Int32, y_chunks),
-	y_blocks32  = convert(Int32, y_blocks),
-	blocksize32 = convert(Int32, X.blocksize),
+	wg_size     = 512
+	y_chunks    = div(n, wg_size) + (n % wg_size != 0 ? 1 : 0)
+    y_blocks    = div(y_chunks, wg_size) + (y_chunks % wg_size != 0 ? 1 : 0)
+	device      = last(cl.devices(:gpu))
+	ctx         = cl.Context(device)
+	queue       = cl.CmdQueue(ctx)
+	x_buff      = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(X.x))
+	y_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(r))
+	m_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(means))
+	p_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(invstds))
+	df_buff     = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf = sdata(df))
+	red_buff    = cl.Buffer(Float32, ctx, (:rw), p * y_chunks)
+	genofloat   = cl.LocalMem(Float32, wg_size)
+	program     = cl.Program(ctx, source=kernfile) |> cl.build!
+	xtyk        = cl.Kernel(program, "compute_xt_times_vector")
+	rxtyk       = cl.Kernel(program, "reduce_xt_vec_chunks")
+	wg_size32   = convert(Int32, wg_size)
+	n32         = convert(Int32, n)
+	p32         = convert(Int32, p)
+	y_chunks32  = convert(Int32, y_chunks)
+	y_blocks32  = convert(Int32, y_blocks)
+	blocksize32 = convert(Int32, X.blocksize)
 
 	# compute the path
 	@inbounds for i = 1:num_models

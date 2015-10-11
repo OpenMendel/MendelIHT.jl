@@ -452,9 +452,9 @@ function iht_path(
 
 	# allocate the BitArrays for indexing in IHT
 	# also preallocate matrix to store betas 
-	support    = falses(p)				# indicates nonzero components of beta
-	support0   = copy(support)			# store previous nonzero indicators
-	betas      = zeros(p,num_models)	# a matrix to store calculated models
+	support    = falses(p)						# indicates nonzero components of beta
+	support0   = copy(support)					# store previous nonzero indicators
+	betas      = zeros(Float32, p,num_models)	# a matrix to store calculated models
 
 	# compute the path
 	@inbounds for i = 1:num_models
@@ -463,7 +463,7 @@ function iht_path(
 		q = path[i]
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
-		bk      = zeros(q)
+		bk      = zeros(Float32, q)
 		project_k!(b, bk, indices, q)
 
 		# these arrays change in size from iteration to iteration

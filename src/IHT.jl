@@ -833,7 +833,7 @@ function iht_path(
 
 		# store projection of beta onto largest k nonzeroes in magnitude 
 		bk      = zeros(Float32,q)
-		project_k!(b, bk, indices, k)
+		project_k!(b, bk, indices, q)
 
 		# these arrays change in size from iteration to iteration
 		# we must allocate them for every new model size
