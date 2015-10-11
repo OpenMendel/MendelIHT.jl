@@ -1,3 +1,6 @@
+export L0_reg_gpu
+export iht_path_gpu
+
 # shortcut for OpenCL module name
 cl = OpenCL
 function df_x2!(snp::Int, df::DenseArray{Float32,1}, x::DenseArray{Float32,2}, r::DenseArray{Float32,1}, means::DenseArray{Float32,1}, invstds::DenseArray{Float32,1}, n::Int, p::Int)

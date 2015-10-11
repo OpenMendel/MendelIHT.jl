@@ -8,7 +8,6 @@ using OpenCL
 using Compat
 
 export L0_reg
-export L0_reg_aiht
 export L0_log
 export L0_log2
 export iht_path
@@ -16,7 +15,6 @@ export iht_path_log
 export iht_path_log2
 export cv_iht
 export cv_get_folds
-export L0_reg_gpu
 
 
 include("aiht.jl")

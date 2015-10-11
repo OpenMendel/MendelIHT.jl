@@ -1,3 +1,5 @@
+export L0_reg_aiht
+
 # DOUBLE OVERRELAXATION SCHEME TO ACCELERATE IHT
 #
 # This subroutine computes the (D)ouble (O)ver(R)elaxation for accelerating IHT steps.
