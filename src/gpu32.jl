@@ -546,7 +546,7 @@ function iht_path_gpu(
 	device      = last(cl.devices(:gpu))
 	ctx         = cl.Context(device)
 	queue       = cl.CmdQueue(ctx)
-	x_buff      = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(X.x))
+	x_buff      = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(x.x))
 	y_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(r))
 	m_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(means))
 	p_buff      = cl.Buffer(Float32, ctx, (:r,  :copy), hostbuf = sdata(invstds))
@@ -561,7 +561,7 @@ function iht_path_gpu(
 	p32         = convert(Int32, p)
 	y_chunks32  = convert(Int32, y_chunks)
 	y_blocks32  = convert(Int32, y_blocks)
-	blocksize32 = convert(Int32, X.blocksize)
+	blocksize32 = convert(Int32, x.blocksize)
 
 	# compute the path
 	@inbounds for i = 1:num_models
