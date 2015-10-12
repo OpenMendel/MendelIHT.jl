@@ -3,28 +3,6 @@ export iht_path_gpu
 
 # shortcut for OpenCL module name
 cl = OpenCL
-function df_x2!(snp::Int, df::DenseArray{Float32,1}, x::DenseArray{Float32,2}, r::DenseArray{Float32,1}, means::DenseArray{Float32,1}, invstds::DenseArray{Float32,1}, n::Int, p::Int)
-	m = means[p-snp]
-	s = invstds[p-snp]
-	df[p-snp] = 0.0f0
-	for case = 1:n
-		df[p-snp] += r[case] * (x[case,snp] - m) * s
-	end
-	return nothing
-end
-
-function xty_gpu!(df, df_buff, x, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, wg_size, y_chunks, n, p, p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, genofloat)	
-	cl.copy!(queue, y_buff, sdata(r))
-	cl.call(queue, xtyk, (wg_size*y_chunks,p,1), (wg_size,1,1), n32, p32, y_chunks32, blocksize32, wg_size32, x_buff, red_buff, y_buff, m_buff, p_buff, genofloat)
-	cl.call(queue, rxtyk, (wg_size,p,1), (wg_size,1,1), n32, y_chunks32, y_blocks32, wg_size32, red_buff, df_buff, genofloat) 
-	cl.copy!(queue, sdata(df), df_buff)
-	for snp = 1:p2 
-		df_x2!(snp, df, x.x2, r, means, invstds, n, p)
-	end
-	cl.fill!(queue, red_buff, 0.0f0)
-	return nothing
-end
-
 
 # ITERATIVE HARD THRESHOLDING USING A PLINK BED FILE
 #
@@ -319,26 +297,15 @@ function L0_reg_gpu(
    
 	# update Xb, r, and gradient 
 	if sum(support) == 0
-		fill!(Xb,0f0)
+		fill!(Xb,0.0f0)
 		copy!(r,sdata(Y))
 	else
 		xb!(Xb,X,b,support,k, means=means, invstds=invstds)
 		difference!(r, Y, Xb)
 	end
-	cl.copy!(queue, y_buff, sdata(r))
-	cl.call(queue, xtyk, (wg_size*y_chunks,p,1), (wg_size,1,1), n32, p32, y_chunks32, blocksize32, wg_size32, x_buff, red_buff, y_buff, m_buff, p_buff, genofloat)
-	cl.call(queue, rxtyk, (wg_size,p,1), (wg_size,1,1), n32, y_chunks32, y_blocks32, wg_size32, red_buff, df_buff, genofloat) 
-	cl.copy!(queue, sdata(df), df_buff)
-	for snp = 1:X.p2 
-		m = means[snp+X.p]
-		s = invstds[snp+X.p]
-		df[X.p+snp] = 0.0f0
-		for case = 1:n
-			df[X.p+snp] += r[case] * (X.x2[case,snp] - m) * s
-		end
-	end
-	cl.fill!(queue, red_buff, 0.0f0)
-#	xty_gpu!(df, df_buff, X, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, wg_size, y_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, genofloat)
+
+	# calculate the gradient using the GPU
+	xty!(df, df_buff, X, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, wg_size, y_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, genofloat)
 
 	# update loss and objective
 	next_loss = Inf32 
@@ -377,7 +344,6 @@ function L0_reg_gpu(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
 			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
@@ -391,22 +357,9 @@ function L0_reg_gpu(
 		# now perform IHT step
 		(mu, mu_step, next_loss) = iht_gpu(b,X,Y,k,df,r,current_obj, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds) 
 
-		# the IHT kernel gives us an updated x*b
-		# use it to recompute residuals and gradient 
-		cl.copy!(queue, y_buff, sdata(r))
-		cl.call(queue, xtyk, (wg_size*y_chunks,p,1), (wg_size,1,1), n32, p32, y_chunks32, blocksize32, wg_size32, x_buff, red_buff, y_buff, m_buff, p_buff, genofloat)
-		cl.call(queue, rxtyk, (wg_size,p,1), (wg_size,1,1), n32, y_chunks32, y_blocks32, wg_size32, red_buff, df_buff, genofloat) 
-		cl.copy!(queue, sdata(df), df_buff)
-		for snp = 1:X.p2 
-			m = means[snp+X.p]
-			s = invstds[snp+X.p]
-			df[X.p+snp] = 0.0f0
-			for case = 1:n
-				df[X.p+snp] += r[case] * (X.x2[case,snp] - m) * s
-			end
-		end
-		cl.fill!(queue, red_buff, 0.0f0)
-#		xty_gpu!(df, df_buff, X, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, wg_size, y_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, genofloat)
+		# the IHT kernel gives us an updated x*b and r
+		# use it to recompute the gradient on the GPU 
+		xty!(df, df_buff, X, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, wg_size, y_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, genofloat)
 
 		# update loss, objective, and gradient 
 #		next_loss = 0.5f0 * sumabs2(sdata(r))
@@ -464,20 +417,18 @@ function L0_reg_gpu(
 
 		# algorithm is unconverged at this point, so check descent property 
 		# if objective increases, then abort
-#		if next_obj > current_obj + tol
-#			if !quiet
-#				print_with_color(:red, "\nMM algorithm fails to descend!\n")
-#				print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
-#				print_with_color(:red, "Current Objective: $(current_obj)\n") 
-#				print_with_color(:red, "Next Objective: $(next_obj)\n") 
-#				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
-#			end
-#
-#			output = {"time" => -1, "loss" => -Inf32, "iter" => -1, "beta" => fill!(b, Inf32)}
-##			output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
-#
-#			return output
-#		end
+		if next_obj > current_obj + tol
+			if !quiet
+				print_with_color(:red, "\nMM algorithm fails to descend!\n")
+				print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
+				print_with_color(:red, "Current Objective: $(current_obj)\n") 
+				print_with_color(:red, "Next Objective: $(next_obj)\n") 
+				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
+			end
+
+			@compat output = Dict{ASCIIString, Any}("time" => -1.0f0, "loss" => -1.0f0, "iter" => -1, "beta" => fill!(b,Inf32))
+			return output
+		end
 	end # end main loop
 end # end function
 
@@ -795,16 +746,16 @@ function cv_iht(
 		output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
 
 		# which components of beta are nonzero?
-		inferred_model = output["beta"] .!= 0.0
-		bidx = find( x -> x .!= 0.0, b) 
+		inferred_model = output["beta"] .!= 0.0f0
+		bidx = find( x -> x .!= 0.0f0, b) 
 
 		# allocate the submatrix of x corresponding to the inferred model
 		x_inferred = zeros(Float32,n,sum(inferred_model))
 		decompress_genotypes!(x_inferred,x)
 
 		# now estimate b with the ordinary least squares estimator b = inv(x'x)x'y 
-		xty = BLAS.gemv('T', 1.0, x_inferred, y)	
-		xtx = BLAS.gemm('T', 'N', 1.0, x_inferred, x_inferred)
+		xty = BLAS.gemv('T', 1.0f0, x_inferred, y)	
+		xtx = BLAS.gemm('T', 'N', 1.0f0, x_inferred, x_inferred)
 		b = xtx \ xty
 		return errors, b, bidx 
 	end
