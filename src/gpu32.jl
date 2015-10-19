@@ -344,7 +344,7 @@ function L0_reg_gpu(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -409,8 +409,7 @@ function L0_reg_gpu(
 
 			# these are output variables for function
 			# wrap them into a Dict and return
-#			output = {"time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b}
-			@compat output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+			output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
 			return output
 		end
@@ -426,7 +425,7 @@ function L0_reg_gpu(
 				print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
 			end
 
-			@compat output = Dict{ASCIIString, Any}("time" => -1.0f0, "loss" => -1.0f0, "iter" => -1, "beta" => fill!(b,Inf32))
+			output = Dict{ASCIIString, Any}("time" => -1.0f0, "loss" => -1.0f0, "iter" => -1, "beta" => fill!(b,Inf32))
 			return output
 		end
 	end # end main loop

@@ -1,4 +1,5 @@
-julia 0.3
-PLINK
-StatsBase
-RegressionTools
+julia 0.4
+PLINK 0.2
+StatsBase 0.7.4
+OpenCL 0.3.5
+RegressionTools 0.2
