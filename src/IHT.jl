@@ -21,11 +21,12 @@ include("aiht.jl")
 include("aiht32.jl")
 include("crossvalidation.jl")
 include("crossvalidation32.jl")
-include("gwas.jl")
+include("gwas64.jl")
 include("gwas32.jl")
 #include("logistic.jl")
 #include("logistic32.jl")
 include("gpu32.jl")
+include("gpu64.jl")
 
 # ITERATIVE HARD THRESHOLDING
 #
@@ -92,8 +93,7 @@ function iht(
 	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
-#	step_mult :: Float64               = 1.0,
-	iter      :: Int                   = 0,
+	iter      :: Int                   = 1,
 	max_step  :: Int                   = 50
 ) 
 
@@ -121,7 +121,6 @@ function iht(
 	BLAS.gemv!('N', 1.0, xk, gk, 0.0, xgk)
 
 	# compute step size
-#	mu = step_mult * sumabs2(sdata(gk)) / sumsq(sdata(xgk))
 	mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
@@ -193,7 +192,6 @@ function iht(
 	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
-#	step_mult :: Float32               = 1.0f0,
 	iter      :: Int                   = 0,
 	max_step  :: Int                   = 50
 ) 
@@ -222,7 +220,6 @@ function iht(
 	BLAS.gemv!('N', one(Float32), xk, gk, zero(Float32), xgk)
 
 	# compute step size
-#	mu = step_mult * sumabs2(sdata(gk)) / sumsq(sdata(xgk))
 	mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
@@ -386,12 +383,7 @@ function L0_reg(
 	BLAS.gemv!('T', 1.0, X, r, 0.0, df)
 
 	# update loss and objective
-#	next_loss = 0.5 * sumabs2(r)
 	next_loss = Inf
-	next_obj  = next_loss
-
-	# guard against numerical instabilities
-	isnan(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
 
 	# formatted output to monitor algorithm progress
 	if !quiet
@@ -413,14 +405,6 @@ function L0_reg(
 
 			# send elements below tol to zero
 			threshold!(b, tol, n=p)
-
-			# calculate r piecemeal
-#			update_residuals!(r, X, Y, b, xb=Xb, n=n)
-#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			difference!(r,Y,Xb, n=n)
-
-			# calculate loss and objective
-#			next_loss = 0.5 * sumabs2(r)
 
 			# stop timer
 			mm_time = toq()
@@ -447,7 +431,6 @@ function L0_reg(
 
 		# update loss, objective, and gradient 
 		next_loss = 0.5 * sumabs2(r)
-		next_obj  = next_loss
 
 		# guard against numerical instabilities
 		isnan(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
@@ -459,7 +442,7 @@ function L0_reg(
 		converged   = scaled_norm < tol
 		
 		# output algorithm progress 
-		quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_obj)
+		quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_loss)
 
 		# check for convergence
 		# if converged and in feasible set, then algorithm converged before maximum iteration
@@ -469,14 +452,6 @@ function L0_reg(
 			# send elements below tol to zero
 			threshold!(b, tol, n=p)
 
-			# update r
-#			update_residuals!(r, X, Y, b, xb=Xb, n=n)
-#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			difference!(r,Y,Xb)
-
-			# calculate objective
-#			next_loss = 0.5 * sumabs2(r)
-			
 			# stop time
 			mm_time = toq()
 
@@ -486,7 +461,6 @@ function L0_reg(
 				println("Final Loss: $(next_loss)") 
 				println("Total Compute Time: $(mm_time)") 
 			end
-
 
 			# these are output variables for function
 			# wrap them into a Dict and return
@@ -578,9 +552,7 @@ function L0_reg(
 	BLAS.gemv!('T', 1.0f0, X, r, 0.0f0, df)
 
 	# update loss and objective
-#	next_loss = 0.5 * sumabs2(r)
 	next_loss = Inf32
-	next_obj  = next_loss
 
 	# guard against numerical instabilities
 	isnan(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
@@ -606,12 +578,6 @@ function L0_reg(
 			# send elements below tol to zero
 			threshold!(b, tol, n=p)
 
-			# calculate r piecemeal
-#			difference!(r,Y,Xb, n=n)
-
-			# calculate loss and objective
-#			next_loss = 0.5 * sumabs2(r)
-
 			# stop timer
 			mm_time = toq()
 
@@ -632,14 +598,11 @@ function L0_reg(
 
 		# the IHT kernel gives us an updated x*b
 		# use it to recompute residuals and gradient 
-#		update_residuals!(r, X, Y, b, xb=Xb, n=n)
-#		update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
 		difference!(r,Y,Xb, n=n)
 		BLAS.gemv!('T', 1.0f0, X, r, 0.0f0, df)
 
 		# update loss, objective, and gradient 
 		next_loss = 0.5f0 * sumabs2(r)
-		next_obj  = next_loss
 
 		# guard against numerical instabilities
 		isnan(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
@@ -651,7 +614,7 @@ function L0_reg(
 		converged   = scaled_norm < tol
 		
 		# output algorithm progress 
-		quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_obj)
+		quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_loss)
 
 		# check for convergence
 		# if converged and in feasible set, then algorithm converged before maximum iteration
@@ -661,14 +624,6 @@ function L0_reg(
 			# send elements below tol to zero
 			threshold!(b, tol, n=p)
 
-			# update r
-#			update_residuals!(r, X, Y, b, xb=Xb, n=n)
-#			update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-#			difference!(r,Y,Xb)
-
-			# calculate objective
-#			next_loss = 0.5 * sumabs2(r)
-			
 			# stop time
 			mm_time = toq()
 
@@ -746,12 +701,11 @@ function iht_path(
 	const num_models = length(path)			
 
 	# preallocate space for intermediate steps of algorithm calculations 
+	b0         = zeros(Float64,p)				# previous iterate beta0 
+	df         = zeros(Float64,p)				# (negative) gradient 
 	r          = zeros(Float64,n)				# for || Y - XB ||_2^2
 	Xb         = zeros(Float64,n)				# X*beta 
 	Xb0        = zeros(Float64,n)				# X*beta0 
-	b          = zeros(Float64,p)				# model 
-	b0         = zeros(Float64,p)				# previous iterate beta0 
-	df         = zeros(Float64,p)				# (negative) gradient 
 	tempn      = zeros(Float64,n)   			# temporary array of n floats 
 	indices    = collect(1:p)	    			# indices that sort beta 
 	support    = falses(p)						# indicates nonzero components of beta
@@ -779,6 +733,8 @@ function iht_path(
 
 		# extract and save model
 		copy!(b, output["beta"])
+		update_indices!(support, b, p=p)	
+		fill!(support0, false)
 		update_col!(betas, b, i, n=p, p=num_models, a=1.0) 
 	end
 

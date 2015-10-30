@@ -43,9 +43,7 @@ function one_fold(
 
 	# make vector of indices for folds
 	test_idx = folds .== fold
-
-	# preallocate vector for output
-	myerrors = zeros(sum(test_idx))
+	test_size = sum(test_idx)
 
 	# train_idx is the vector that indexes the TRAINING set
 	train_idx = !test_idx
@@ -63,9 +61,8 @@ function one_fold(
 	else
 		# compute the regularization path on the training set
 		betas    = iht_path(x_train,y_train,path, max_iter=max_iter, quiet=quiet, max_step=max_step) 
-
 		# compute the mean out-of-sample error for the TEST set 
-		myerrors = vec(sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ length(test_idx)
+		myerrors = vec(sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ test_size 
 	end
 
 	return myerrors
@@ -81,9 +78,9 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function cv_get_folds(y::Vector, nfolds::Int)
+function cv_get_folds(y::DenseVector, nfolds::Int)
 	n, r = divrem(length(y), nfolds)
-	shuffle!([repmat(1:nfolds, n), 1:r])
+	shuffle!([repmat(1:nfolds, n); 1:r])
 end
 
 
@@ -147,6 +144,7 @@ function cv_iht(
 	# the @sync macro ensures that we wait for all of them to finish before proceeding 
 	@sync for i = 1:numfolds
 
+		print_with_color(:blue, "spawning fold $i")
 		# one_fold returns a vector of out-of-sample errors (MSE for linear regression, MCE for logistic regression) 
 		# @spawn(one_fold(...)) returns a RemoteRef to the result
 		# store that RemoteRef so that we can query the result later 

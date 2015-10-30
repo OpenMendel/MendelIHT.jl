@@ -60,7 +60,7 @@ function iht_gpu(
 	k         :: Int, 
 	g         :: DenseArray{Float64,1},
 	r         :: DenseArray{Float64,1},
-	obj       :: Float64;
+	mask_n    :: DenseArray{Int,1};
 	step_mult :: Float64               = 1.0, 
 	n         :: Int                   = length(y), 
 	p         :: Int                   = length(b), 
@@ -76,9 +76,9 @@ function iht_gpu(
 	xk        :: DenseArray{Float64,2} = zeros(Float64,n,k), 
 	xgk       :: DenseArray{Float64,1} = zeros(Float64,n), 
 	gk        :: DenseArray{Float64,1} = zeros(Float64,k), 
-	bk        :: DenseArray{Float64,1} = zeros(Float64,k)
+	bk        :: DenseArray{Float64,1} = zeros(Float64,k),
+	iter      :: Int                   = 1
 ) 
-
 	# which components of beta are nonzero? 
 	update_indices!(IDX, b, p=p)
 
@@ -92,10 +92,10 @@ function iht_gpu(
 	# if support has not changed between iterations,
 	# then xk and gk are the same as well
 	# avoid extracting and computing them if they have not changed
-	if !isequal(IDX, IDX0) || sum(IDX) == 0
+	if !isequal(IDX, IDX0) || iter < 2 
 
 		# store relevant columns of x
-		decompress_genotypes!(xk, x, IDX, means=means, invstds=invstds) 
+		decompress_genotypes!(xk, x, IDX, mask_n, means=means, invstds=invstds) 
 	end
 
 	# store relevant components of gradient
@@ -103,12 +103,11 @@ function iht_gpu(
 
 	# now compute subset of x*g
 	BLAS.gemv!('N', 1.0, sdata(xk), sdata(gk), 0.0, sdata(xgk))
-	
+
 	# warn if xgk only contains zeros
 	all(xgk .== 0.0) && warn("Entire active set has values equal to 0")
 
 	# compute step size
-#	mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 	mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 
 	# notify problems with step size 
@@ -126,17 +125,15 @@ function iht_gpu(
 	update_indices!(IDX, b, p=p) 
 
 	# update xb
-	xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
+	xb!(Xb,x,b,IDX,k,mask_n, means=means, invstds=invstds)
 
-	# update residuals
-	difference!(r,y,Xb)
-
-	# update objective
-	new_obj = 0.5*sumabs2(r)
+	# calculate omega
+	omega_top = sqeuclidean(sdata(b),(b0))
+	omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
 
 	# backtrack until mu sits below omega and support stabilizes
 	mu_step = 0
-	while new_obj > obj && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+	while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
 		# stephalving
 		mu *= 0.5
@@ -155,19 +152,23 @@ function iht_gpu(
 		update_indices!(IDX, b, p=p) 
 
 		# recompute xb
-		xb!(Xb,x,b,IDX,k, means=means, invstds=invstds)
+		xb!(Xb,x,b,IDX,k,mask_n, means=means, invstds=invstds)
 
 		# update residuals
-		difference!(r,y,Xb)
+#println("subsequent sumabs2(Xb) = ", sumabs2(Xb)) 
+#		difference!(r,y,Xb)
+#		r[mask_n .== 0] = 0.0
 
-		# update objective
-		new_obj = 0.5*sumabs2(sdata(r))
+		# calculate omega
+		omega_top = sqeuclidean(sdata(b),(b0))
+		omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
 
 		# increment the counter
 		mu_step += 1
 	end
 
-	return mu, mu_step, new_obj
+#	return mu, mu_step, new_obj
+	return mu, mu_step
 end
 
 
@@ -236,6 +237,7 @@ function L0_reg_gpu(
 	indices     :: DenseArray{Int,1}     = SharedArray(Int, p, init = S->S[localindexes(S)] = localindexes(S)), 
 	support     :: BitArray{1}           = falses(p), 
 	support0    :: BitArray{1}           = falses(p), 
+	mask_n      :: DenseArray{Int,1}     = ones(Int,n), 
 	means       :: DenseArray{Float64,1} = mean(Float64,X), 
 	invstds     :: DenseArray{Float64,1} = invstd(X,means), 
 	tol         :: Float64               = 5e-5, 
@@ -255,8 +257,8 @@ function L0_reg_gpu(
 	p_buff      :: cl.Buffer             = cl.Buffer(Float64, ctx, (:r,  :copy), hostbuf = sdata(invstds)),
 	df_buff     :: cl.Buffer             = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf = sdata(df)),
 	red_buff    :: cl.Buffer             = cl.Buffer(Float64, ctx, (:rw), p * y_chunks),
+	mask_buff   :: cl.Buffer             = cl.Buffer(Int,    ctx, (:r,  :copy), hostbuf = sdata(mask_n)),
 	genofloat   :: cl.LocalMem           = cl.LocalMem(Float64, wg_size),
-#	plink_kernels :: ASCIIString         = open(readall(kernfile)),
 	program     :: cl.Program            = cl.Program(ctx, source=kernfile) |> cl.build!,
 	xtyk        :: cl.Kernel             = cl.Kernel(program, "compute_xt_times_vector"),
 	rxtyk       :: cl.Kernel             = cl.Kernel(program, "reduce_xt_vec_chunks"),
@@ -279,10 +281,12 @@ function L0_reg_gpu(
 	max_step >= 0            || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
 	tol      >  eps(Float64) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
+	sum((mask_n .== 1) $ (mask_n .== 0)) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
+
 	# initialize return values
 	mm_iter   = 0	    # number of iterations of L0_reg
-	mm_time   = 0.0	# compute time *within* L0_reg
-	next_loss = 0.0	# loss function value 
+	mm_time   = 0.0		# compute time *within* L0_reg
+	next_loss = 0.0		# loss function value 
 
 	# initialize floats 
 	current_loss = Inf	# tracks previous objective function value
@@ -301,15 +305,22 @@ function L0_reg_gpu(
 	if sum(support) == 0
 		fill!(Xb,0.0)
 		copy!(r,sdata(Y))
+		r[mask_n .== 0] = 0.0
 	else
-		xb!(Xb,X,b,support,k, means=means, invstds=invstds)
+		xb!(Xb,X,b,support,k,mask_n, means=means, invstds=invstds)
 		difference!(r, Y, Xb)
+		r[mask_n .== 0] = 0.0
 	end
 
-	# calculate the gradient using the GPU
-	xty!(df, df_buff, X, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
+#println("initial sumsq(residuals) = ", sumabs2(r))
 
-	# update loss and objective
+	# calculate the gradient using the GPU
+	xty!(df, df_buff, X, x_buff, r, y_buff, mask_n, mask_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
+
+#println("sumsq(residuals) after 1st xty = ", sumabs2(r))
+#println("sumsq(df) after 1st xty = ", sumabs2(df))
+
+	# update loss 
 	next_loss = Inf 
 
 	# formatted output to monitor algorithm progress
@@ -349,11 +360,21 @@ function L0_reg_gpu(
 		current_loss = next_loss
 
 		# now perform IHT step
-		(mu, mu_step, next_loss) = iht_gpu(b,X,Y,k,df,r,current_loss, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds) 
+		(mu, mu_step) = iht_gpu(b,X,Y,k,df,r,mask_n, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds,iter=mm_iter) 
 
-		# the IHT kernel gives us an updated x*b and r
-		# use it to recompute the gradient on the GPU 
-		xty!(df, df_buff, X, x_buff, r, y_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
+#println("sumsq(residuals) after iht = ", sumabs2(r))
+
+		# update residuals
+		difference!(r,Y,Xb)
+		r[mask_n .== 0] = 0.0
+
+		# use updated residuals to recompute the gradient on the GPU 
+		xty!(df, df_buff, X, x_buff, r, y_buff, mask_n, mask_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
+
+#println("sumsq(residuals) after 2nd xty = ", sumabs2(r))
+
+		# update objective
+		next_loss = 0.5*sumabs2(sdata(r))
 
 		# guard against numerical instabilities
 		# ensure that objective is finite
@@ -439,10 +460,11 @@ function iht_path_gpu(
 	b        :: DenseArray{Float64,1} = ifelse(typeof(y) == SharedArray{Float64,1}, SharedArray(Float64, size(x,2)), zeros(Float64, size(x,2))), 
 	means    :: DenseArray{Float64,1} = mean(Float64,x), 
 	invstds  :: DenseArray{Float64,1} = invstd(x,means),
-	tol      :: Float64               = 5e-5, 
+	tol      :: Float64               = 1e-4, 
 	max_iter :: Int                   = 1000, 
 	max_step :: Int                   = 50, 
-	quiet    :: Bool                  = true
+	quiet    :: Bool                  = true,
+	mask_n   :: DenseArray{Int,1}     = ones(Int,length(y))
 )
 
 	# size of problem?
@@ -467,7 +489,7 @@ function iht_path_gpu(
 	# also preallocate matrix to store betas 
 	support     = falses(p)						# indicates nonzero components of beta
 	support0    = copy(support)					# store previous nonzero indicators
-	betas       = zeros(Float64,p,num_models)	# a matrix to store calculated models
+	betas       = spzeros(Float64,p,num_models)	# a matrix to store calculated models
 
 	# allocate GPU variables
 	wg_size     = 512
@@ -484,6 +506,7 @@ function iht_path_gpu(
 	p_buff      = cl.Buffer(Float64, ctx, (:r,  :copy), hostbuf = sdata(invstds))
 	df_buff     = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf = sdata(df))
 	red_buff    = cl.Buffer(Float64, ctx, (:rw), p * y_chunks)
+	mask_buff   = cl.Buffer(Int,     ctx, (:rw, :copy), hostbuf = mask_n)
 	genofloat   = cl.LocalMem(Float64, wg_size)
 	program     = cl.Program(ctx, source=kernfile) |> cl.build!
 	xtyk        = cl.Kernel(program, "compute_xt_times_vector")
@@ -538,23 +561,27 @@ function iht_path_gpu(
 	y_chunks32=y_chunks32,
 	y_blocks32=y_blocks32,
 	blocksize32=blocksize32,
-	r_length32=r_length32
+	r_length32=r_length32,
+	mask_n=mask_n,
+	mask_buff=mask_buff
 	)
 
 		# extract and save model
 		copy!(sdata(b), output["beta"])
-		update_col!(betas, sdata(b), i, n=p, p=num_models, a=1.0) 
-		
+
 		# ensure that we correctly index the nonzeroes in b
 		update_indices!(support, b, p=p)	
 		fill!(support0, false)
+#		update_col!(betas, sdata(b), i, n=p, p=num_models, a=1.0) 
+
+		# put model into sparse matrix of betas
+		betas[:,i] = sparsevec(sdata(b))
+		
 	end
 
-	# return a sparsified copy of the models
-	return sparse(betas)
+	# return models
+	return betas
 end	
-
-
 
 
 # COMPUTE ONE FOLD IN A CROSSVALIDATION SCHEME FOR A REGULARIZATION PATH FOR ENTIRE GWAS
@@ -588,44 +615,54 @@ function one_fold(
 	x        :: BEDFile, 
 	y        :: DenseArray{Float64,1}, 
 	path     :: DenseArray{Int,1}, 
+	kernfile :: ASCIIString,
 	folds    :: DenseArray{Int,1}, 
 	fold     :: Int; 
 	means    :: DenseArray{Float64,1} = mean(Float64,x), 
 	invstds  :: DenseArray{Float64,1} = invstd(x,means), 
 	max_iter :: Int                   = 1000, 
 	max_step :: Int                   = 50, 
-	quiet    :: Bool                  = true
+	quiet    :: Bool                  = true,
+	n        :: Int                   = length(y),
+	p        :: Int                   = size(x,2)
 )
 
 	# make vector of indices for folds
 	test_idx = folds .== fold
-	test_size = sum(test_idx)
-
-	# preallocate vector for output
-	myerrors = zeros(test_size)
 
 	# train_idx is the vector that indexes the TRAINING set
 	train_idx = !test_idx
 
-	# allocate the arrays for the training set
-	x_train = x[train_idx,:]
+	# allocate training subset of y
 	y_train = y[train_idx] 
-	Xb      = SharedArray(Float64, test_size) 
-	b       = SharedArray(Float64, x.p) 
-	r       = SharedArray(Float64, test_size) 
-	perm    = collect(1:test_size) 
+	y_test  = y[test_idx]
+
+	# how many indices are in test set? 
+	test_size = length(y_test) 
+
+	# GPU code requires Int variant of training indices, so do explicit conversion
+	train_idx = convert(Array{Int,1}, train_idx)
+	test_idx  = convert(Array{Int,1}, test_idx)
+
+	# preallocate vector for output
+	myerrors = zeros(Float64, length(path))
+
+	# allocate the arrays for the test set
+	Xb      = SharedArray(Float64, n) 
+	b       = SharedArray(Float64, size(x,2)) 
+	r       = SharedArray(Float64, n) 
+	
 
 	# compute the regularization path on the training set
-	betas = iht_path(x_train,y_train,path, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds) 
+	betas = iht_path_gpu(x,y,path,kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds, mask_n=train_idx) 
 
 	# compute the mean out-of-sample error for the TEST set 
-	@inbounds for i = 1:test_size
-#		RegressionTools.update_col!(b,betas,i,n=x.p,p=test_size)
-		b2 = vec(full(betas[:,i]))
+	@inbounds for i = 1:size(betas,2)
+		b2 = full(vec(betas[:,i]))
 		copy!(b,b2)
-		xb!(Xb,x_test,b, means=means, invstds=invstds)
-#		PLINK.update_partial_residuals!(r,y_train,x_train,perm,b,test_size, Xb=Xb, means=means, invstds=invstds)
-		difference!(r,y_train,Xb)
+		xb!(Xb,x,b,b.!=0.0,path[i],test_idx, means=means, invstds=invstds)
+		difference!(r,y,Xb)
+		r[folds .!= fold] = 0.0
 		myerrors[i] = sumabs2(r) / test_size
 	end
 
@@ -670,11 +707,12 @@ function cv_iht(
 	x             :: BEDFile, 
 	y             :: DenseArray{Float64,1}, 
 	path          :: DenseArray{Int,1}, 
+	kernfile      :: ASCIIString,
 	numfolds      :: Int; 
 	folds         :: DenseArray{Int,1}     = cv_get_folds(sdata(y),numfolds), 
 	means         :: DenseArray{Float64,1} = mean(Float64,x), 
 	invstds       :: DenseArray{Float64,1} = invstd(x,means),
-	tol           :: Float64               = 5e-5, 
+	tol           :: Float64               = 1e-4, 
 	n             :: Int                   = length(y), 
 	p             :: Int                   = size(x,2), 
 	max_iter      :: Int                   = 1000, 
@@ -697,7 +735,7 @@ function cv_iht(
 		# one_fold returns a vector of out-of-sample errors (MSE for linear regression, MCE for logistic regression) 
 		# @spawn(one_fold(...)) returns a RemoteRef to the result
 		# store that RemoteRef so that we can query the result later 
-		my_refs[i] = @spawn(one_fold(x, y, path, folds, i, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds)) 
+		my_refs[i] = @spawn(one_fold(x, y, path, kernfile, folds, i, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds))
 	end
 	
 	# recover MSEs on each worker
