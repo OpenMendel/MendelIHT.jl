@@ -1,5 +1,5 @@
 export L0_reg_gpu
-export iht_path_gpu
+export iht_path
 
 # shortcut for OpenCL module name
 cl = OpenCL
@@ -70,7 +70,7 @@ end
 # klkeys@g.ucla.edu
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
 # http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
-function iht_gpu(
+function iht(
 	b         :: DenseVector{Float64}, 
 	x         :: BEDFile, 
 	y         :: DenseVector{Float64}, 
@@ -226,7 +226,7 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function L0_reg_gpu(
+function L0_reg(
 	X           :: BEDFile, 
 	Y           :: DenseVector{Float64}, 
 	k           :: Int,
@@ -365,7 +365,7 @@ function L0_reg_gpu(
 		current_loss = next_loss
 
 		# now perform IHT step
-		(mu, mu_step) = iht_gpu(b,X,Y,k,df,mask_n, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds,iter=mm_iter, pids=pids) 
+		(mu, mu_step) = iht(b,X,Y,k,df,mask_n, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds,iter=mm_iter, pids=pids) 
 
 		# update residuals
 		difference!(r,Y,Xb)
@@ -453,7 +453,7 @@ end # end function
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function iht_path_gpu(
+function iht_path(
 	x        :: BEDFile, 
 	y        :: DenseVector{Float64}, 
 	path     :: DenseVector{Int}, 
@@ -537,7 +537,7 @@ function iht_path_gpu(
 		project_k!(b, tempkf, indices, q)
 
 		# now compute current model
-		output = L0_reg_gpu(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds, wg_size=wg_size, y_chunks=y_chunks, y_blocks=y_blocks, r_chunks=r_chunks, device=device, ctx=ctx, queue=queue, x_buff=x_buff, y_buff=y_buff, m_buff=m_buff, p_buff=p_buff, df_buff=df_buff, red_buff=red_buff, genofloat=genofloat, program=program, xtyk=xtyk, rxtyk=rxtyk, reset_x=reset_x, wg_size32=wg_size32, n32=n32, p32=p32, y_chunks32=y_chunks32, y_blocks32=y_blocks32, blocksize32=blocksize32, r_length32=r_length32, mask_n=mask_n, mask_buff=mask_buff, pids=pids)
+		output = L0_reg(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds, wg_size=wg_size, y_chunks=y_chunks, y_blocks=y_blocks, r_chunks=r_chunks, device=device, ctx=ctx, queue=queue, x_buff=x_buff, y_buff=y_buff, m_buff=m_buff, p_buff=p_buff, df_buff=df_buff, red_buff=red_buff, genofloat=genofloat, program=program, xtyk=xtyk, rxtyk=rxtyk, reset_x=reset_x, wg_size32=wg_size32, n32=n32, p32=p32, y_chunks32=y_chunks32, y_blocks32=y_blocks32, blocksize32=blocksize32, r_length32=r_length32, mask_n=mask_n, mask_buff=mask_buff, pids=pids)
 
 		# extract and save model
 		copy!(sdata(b), output["beta"])
@@ -621,7 +621,7 @@ function one_fold(
 	test_idx  = convert(Vector{Int}, test_idx)
 
 	# compute the regularization path on the training set
-	betas = iht_path_gpu(x,y,path,kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds, mask_n=train_idx, wg_size=wg_size, device=device, pids=pids, tol=tol, max_iter=max_iter, n=n, p=p)
+	betas = iht_path(x,y,path,kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds, mask_n=train_idx, wg_size=wg_size, device=device, pids=pids, tol=tol, max_iter=max_iter, n=n, p=p)
 
 	# tidy up
 	gc()
@@ -924,7 +924,7 @@ function cv_iht(
 		b = SharedArray(Float64, p)
 
 		# first use L0_reg to extract model
-		output = L0_reg_gpu(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, wg_size=wg_size, device=device) 
+		output = L0_reg(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, wg_size=wg_size, device=device) 
 
 		# which components of beta are nonzero?
 		inferred_model = output["beta"] .!= zero(Float64) 

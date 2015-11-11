@@ -76,25 +76,25 @@ include("gpu64.jl")
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
 # http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
 function iht(
-	b         :: DenseArray{Float64,1}, 
-	x         :: DenseArray{Float64,2}, 
-	y         :: DenseArray{Float64,1}, 
+	b         :: DenseVector{Float64}, 
+	x         :: DenseMatrix{Float64}, 
+	y         :: DenseVector{Float64}, 
 	k         :: Int, 
-	g         :: DenseArray{Float64,1}; 
-	n         :: Int                   = length(y), 
-	p         :: Int                   = length(b), 
-	xk        :: DenseArray{Float64,2} = zeros(Float64,n,k), 
-	b0        :: DenseArray{Float64,1} = copy(b), 
-	xb0       :: DenseArray{Float64,1} = copy(xb), 
-	xb        :: DenseArray{Float64,1} = BLAS.gemv('N', 1.0, x, b), 
-	xgk       :: DenseArray{Float64,1} = zeros(Float64,n), 
-	gk        :: DenseArray{Float64,1} = zeros(Float64,k), 
-	bk        :: DenseArray{Float64,1} = zeros(Float64,k), 
-	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
-	IDX       :: BitArray{1}           = falses(p), 
-	IDX0      :: BitArray{1}           = copy(IDX), 
-	iter      :: Int                   = 1,
-	max_step  :: Int                   = 50
+	g         :: DenseVector{Float64}; 
+	n         :: Int                  = length(y), 
+	p         :: Int                  = length(b), 
+	xk        :: DenseMatrix{Float64} = zeros(Float64,n,k), 
+	b0        :: DenseVector{Float64} = copy(b), 
+	xb0       :: DenseVector{Float64} = copy(xb), 
+	xb        :: DenseVector{Float64} = BLAS.gemv('N', 1.0, x, b), 
+	xgk       :: DenseVector{Float64} = zeros(Float64,n), 
+	gk        :: DenseVector{Float64} = zeros(Float64,k), 
+	bk        :: DenseVector{Float64} = zeros(Float64,k), 
+	sortidx   :: DenseVector{Int}     = collect(1:p), 
+	IDX       :: BitArray{1}          = falses(p), 
+	IDX0      :: BitArray{1}          = copy(IDX), 
+	iter      :: Int                  = 1,
+	max_step  :: Int                  = 50
 ) 
 
 	# which components of beta are nonzero? 
@@ -175,21 +175,21 @@ end
 
 
 function iht(
-	b         :: DenseArray{Float32,1}, 
-	x         :: DenseArray{Float32,2}, 
-	y         :: DenseArray{Float32,1}, 
+	b         :: DenseVector{Float32}, 
+	x         :: DenseMatrix{Float32}, 
+	y         :: DenseVector{Float32}, 
 	k         :: Int, 
-	g         :: DenseArray{Float32,1}; 
+	g         :: DenseVector{Float32}; 
 	n         :: Int                   = length(y), 
 	p         :: Int                   = length(b), 
-	xk        :: DenseArray{Float32,2} = zeros(Float32,n,k), 
-	b0        :: DenseArray{Float32,1} = copy(b), 
-	xb0       :: DenseArray{Float32,1} = copy(xb), 
-	xb        :: DenseArray{Float32,1} = BLAS.gemv('N', 1.0f0, x, b), 
-	xgk       :: DenseArray{Float32,1} = zeros(Float32,n), 
-	gk        :: DenseArray{Float32,1} = zeros(Float32,k), 
-	bk        :: DenseArray{Float32,1} = zeros(Float32,k), 
-	sortidx   :: DenseArray{Int,1}     = collect(1:p), 
+	xk        :: DenseMatrix{Float32} = zeros(Float32,n,k), 
+	b0        :: DenseVector{Float32} = copy(b), 
+	xb0       :: DenseVector{Float32} = copy(xb), 
+	xb        :: DenseVector{Float32} = BLAS.gemv('N', 1.0f0, x, b), 
+	xgk       :: DenseVector{Float32} = zeros(Float32,n), 
+	gk        :: DenseVector{Float32} = zeros(Float32,k), 
+	bk        :: DenseVector{Float32} = zeros(Float32,k), 
+	sortidx   :: DenseVector{Int}     = collect(1:p), 
 	IDX       :: BitArray{1}           = falses(p), 
 	IDX0      :: BitArray{1}           = copy(IDX), 
 	iter      :: Int                   = 0,
@@ -323,22 +323,22 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function L0_reg(
-	X         :: DenseArray{Float64,2}, 
-	Y         :: DenseArray{Float64,1}, 
+	X         :: DenseMatrix{Float64}, 
+	Y         :: DenseVector{Float64}, 
 	k         :: Int; 
 	n         :: Int                   = length(Y), 
 	p         :: Int                   = size(X,2), 
-	Xk        :: DenseArray{Float64,2} = zeros(Float64,n,k), 
-	b         :: DenseArray{Float64,1} = zeros(Float64,p), 
-	b0        :: DenseArray{Float64,1} = zeros(Float64,p), 
-	df        :: DenseArray{Float64,1} = zeros(Float64,p), 
-	r         :: DenseArray{Float64,1} = zeros(Float64,n), 
-	Xb        :: DenseArray{Float64,1} = zeros(Float64,n), 
-	Xb0       :: DenseArray{Float64,1} = zeros(Float64,n), 
-	tempn     :: DenseArray{Float64,1} = zeros(Float64,n), 
-	tempkf    :: DenseArray{Float64,1} = zeros(Float64,k), 
-	idx       :: DenseArray{Float64,1} = zeros(Float64,k), 
-	indices   :: DenseArray{Int,1}     = collect(1:p), 
+	Xk        :: DenseMatrix{Float64} = zeros(Float64,n,k), 
+	b         :: DenseVector{Float64} = zeros(Float64,p), 
+	b0        :: DenseVector{Float64} = zeros(Float64,p), 
+	df        :: DenseVector{Float64} = zeros(Float64,p), 
+	r         :: DenseVector{Float64} = zeros(Float64,n), 
+	Xb        :: DenseVector{Float64} = zeros(Float64,n), 
+	Xb0       :: DenseVector{Float64} = zeros(Float64,n), 
+	tempn     :: DenseVector{Float64} = zeros(Float64,n), 
+	tempkf    :: DenseVector{Float64} = zeros(Float64,k), 
+	idx       :: DenseVector{Float64} = zeros(Float64,k), 
+	indices   :: DenseVector{Int}     = collect(1:p), 
 	support   :: BitArray{1}           = falses(p), 
 	support0  :: BitArray{1}           = falses(p), 
 	tol       :: Float64               = 1e-4, 
@@ -492,22 +492,22 @@ end # end function
 
 
 function L0_reg(
-	X         :: DenseArray{Float32,2}, 
-	Y         :: DenseArray{Float32,1}, 
+	X         :: DenseMatrix{Float32}, 
+	Y         :: DenseVector{Float32}, 
 	k         :: Int; 
 	n         :: Int                   = length(Y), 
 	p         :: Int                   = size(X,2), 
-	Xk        :: DenseArray{Float32,2} = zeros(Float32,n,k), 
-	b         :: DenseArray{Float32,1} = zeros(Float32,p), 
-	b0        :: DenseArray{Float32,1} = zeros(Float32,p), 
-	df        :: DenseArray{Float32,1} = zeros(Float32,p), 
-	r         :: DenseArray{Float32,1} = zeros(Float32,n), 
-	Xb        :: DenseArray{Float32,1} = zeros(Float32,n), 
-	Xb0       :: DenseArray{Float32,1} = zeros(Float32,n), 
-	tempn     :: DenseArray{Float32,1} = zeros(Float32,n), 
-	tempkf    :: DenseArray{Float32,1} = zeros(Float32,k), 
-	idx       :: DenseArray{Float32,1} = zeros(Float32,k), 
-	indices   :: DenseArray{Int,1}     = collect(1:p), 
+	Xk        :: DenseMatrix{Float32} = zeros(Float32,n,k), 
+	b         :: DenseVector{Float32} = zeros(Float32,p), 
+	b0        :: DenseVector{Float32} = zeros(Float32,p), 
+	df        :: DenseVector{Float32} = zeros(Float32,p), 
+	r         :: DenseVector{Float32} = zeros(Float32,n), 
+	Xb        :: DenseVector{Float32} = zeros(Float32,n), 
+	Xb0       :: DenseVector{Float32} = zeros(Float32,n), 
+	tempn     :: DenseVector{Float32} = zeros(Float32,n), 
+	tempkf    :: DenseVector{Float32} = zeros(Float32,k), 
+	idx       :: DenseVector{Float32} = zeros(Float32,k), 
+	indices   :: DenseVector{Int}     = collect(1:p), 
 	support   :: BitArray{1}           = falses(p), 
 	support0  :: BitArray{1}           = falses(p), 
 	tol       :: Float32               = 1f-4, 
@@ -684,10 +684,10 @@ end # end function
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function iht_path(
-	x        :: DenseArray{Float64,2}, 
-	y        :: DenseArray{Float64,1}, 
-	path     :: DenseArray{Int,1}; 
-	b        :: DenseArray{Float64,1} = zeros(Float64,size(x,2)), 
+	x        :: DenseMatrix{Float64}, 
+	y        :: DenseVector{Float64}, 
+	path     :: DenseVector{Int}; 
+	b        :: DenseVector{Float64} = zeros(Float64,size(x,2)), 
 	tol      :: Float64               = 1e-4,
 	max_iter :: Int                   = 1000, 
 	max_step :: Int                   = 50, 
@@ -744,10 +744,10 @@ end
 
 
 function iht_path(
-	x        :: DenseArray{Float32,2}, 
-	y        :: DenseArray{Float32,1}, 
-	path     :: DenseArray{Int,1}; 
-	b        :: DenseArray{Float32,1} = zeros(Float32,size(x,2)), 
+	x        :: DenseMatrix{Float32}, 
+	y        :: DenseVector{Float32}, 
+	path     :: DenseVector{Int}; 
+	b        :: DenseVector{Float32} = zeros(Float32,size(x,2)), 
 	tol      :: Float32               = 1f-4,
 	max_iter :: Int                   = 1000, 
 	max_step :: Int                   = 50, 
