@@ -84,6 +84,12 @@ function cv_get_folds(y::DenseVector, nfolds::Int)
 end
 
 
+function cv_get_folds(n::Int, nfolds::Int)
+	m, r = divrem(n, nfolds)
+	shuffle!([repmat(1:nfolds, m); 1:r])
+end
+
+
 # PARALLEL CROSSVALIDATION ROUTINE FOR IHT
 #
 # This function will perform n-fold cross validation for the ideal model size in IHT least squares regression.
