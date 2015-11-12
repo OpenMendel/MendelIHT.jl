@@ -1,4 +1,4 @@
-export L0_reg
+export L0_reg_gpu
 export iht_path
 
 # shortcut for OpenCL module name
@@ -66,7 +66,7 @@ end
 # -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type Float32. 
 # -- IDX and IDX0 are BitArrays indicating the nonzero status of components of beta. They default to falses.
 #
-# coded by Kevin L. Keys (20.5f0)
+# coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
 # http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
@@ -148,10 +148,10 @@ function iht(
 
 	# backtrack until mu sits below omega and support stabilizes
 	mu_step = 0
-	while mu*omega_bot > 0.99f0*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+	while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
 		# stephalving
-		mu *= 0.5f0
+		mu *= 0.5
 
 		# warn if mu falls below machine epsilon 
 		mu <= eps(Float32) && warn("Step size equals zero, algorithm may not converge correctly")
@@ -185,7 +185,7 @@ end
 #
 # This routine solves the optimization problem
 #
-#     min 0.5f0*|| Y - XB ||_2^2 
+#     min 0.5*|| Y - XB ||_2^2 
 #
 # subject to
 #
@@ -224,7 +224,7 @@ end
 # -- loss is the optimal loss (residual sum of squares divided by sqrt of RSS with previous iterate)
 # -- beta is the final iterate
 #
-# coded by Kevin L. Keys (20.5f0)
+# coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function L0_reg(
 	X           :: BEDFile, 
@@ -299,7 +299,7 @@ function L0_reg(
 	next_loss = zero(Float32)		# loss function value 
 
 	# initialize floats 
-	current_loss = Inf32	# tracks previous objective function value
+	current_loss = oftype(zero(Float32,Inf)	# tracks previous objective function value
 	the_norm     = zero(Float32) 	# norm(b - b0)
 	scaled_norm  = zero(Float32) 	# the_norm / (norm(b0) + 1)
 	mu           = zero(Float32) 	# Landweber step size, 0 < tau < 2/rho_max^2
@@ -326,13 +326,13 @@ function L0_reg(
 	xty!(df, df_buff, X, x_buff, r, y_buff, mask_n, mask_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
 
 	# update loss 
-	next_loss = Inf32 
+	next_loss = oftype(zero(Float32),Inf) 
 
 	# formatted output to monitor algorithm progress
 	if !quiet
 		 println("\nBegin MM algorithm\n") 
 		 println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
-		 println("0\t0\tInf32\t\tInf32\t\tInf32")
+		 println("0\t0\tInf\t\tInf\t\tInf")
 	end
 
 	# main loop
@@ -375,17 +375,17 @@ function L0_reg(
 		xty!(df, df_buff, X, x_buff, r, y_buff, mask_n, mask_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
 
 		# update objective
-		next_loss = 0.5f0*sumabs2(sdata(r))
+		next_loss = 0.5*sumabs2(sdata(r))
 
 		# guard against numerical instabilities
 		# ensure that objective is finite
 		# if not, throw error
 		isnan(next_loss) && throw(error("Objective function is NaN, aborting..."))
-		isinf(next_loss) && throw(error("Objective function is Inf32, aborting..."))
+		isinf(next_loss) && throw(error("Objective function is Inf, aborting..."))
 
 		# track convergence
 		the_norm    = chebyshev(b,b0)
-		scaled_norm = the_norm / ( norm(b0,Inf32) + 1)
+		scaled_norm = the_norm / ( norm(b0,Inf) + 1)
 		converged   = scaled_norm < tol
 		
 		# output algorithm progress 
@@ -427,7 +427,7 @@ function L0_reg(
 				print_with_color(:red, "Difference in objectives: $(abs(next_loss - current_loss))\n")
 			end
 			throw(ErrorException("Descent failure!"))
-#			output = Dict{ASCIIString, Any}("time" => -one(Float32), "loss" => -one(Float32), "iter" => -1, "beta" => fill!(b,Inf32))
+#			output = Dict{ASCIIString, Any}("time" => -one(Float32), "loss" => -one(Float32), "iter" => -1, "beta" => fill!(b,Inf))
 			return output
 		end
 	end # end main loop
@@ -451,7 +451,7 @@ end # end function
 # -- max_step caps the number of backtracking steps in the IHT kernel. Defaults to 50.
 # -- quiet is a Boolean that controls the output. Defaults to true (no output).
 #
-# coded by Kevin L. Keys (20.5f0)
+# coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function iht_path(
 	x        :: BEDFile, 
@@ -580,7 +580,7 @@ end
 # -- quiet is a Boolean to activate output. Defaults to true (no output).
 # -- logreg is a switch to activate logistic regression. Defaults to false (perform linear regression).
 #
-# coded by Kevin L. Keys (20.5f0)
+# coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu 
 function one_fold(
 	x        :: BEDFile, 
@@ -658,7 +658,8 @@ function one_fold(
 
 		# mask data from training set 
 		# training set consists of data NOT in fold
-		r[folds .!= fold] = zero(Float32) 
+#		r[folds .!= fold] = zero(Float32) 
+		mask!(r, test_idx, 0, zero(Float32), n=n) 
 
 		# compute out-of-sample error as squared residual averaged over size of test set
 		myerrors[i] = sumabs2(r) / test_size
@@ -839,7 +840,7 @@ end
 # -- logreg is a Boolean to indicate whether or not to perform logistic regression. Defaults to false (do linear regression).
 # -- compute_model is a Boolean to indicate whether or not to recompute the best model. Defaults to false (do not recompute). 
 #
-# coded by Kevin L. Keys (20.5f0)
+# coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu 
 function cv_iht(
 	xfile         :: ASCIIString,
@@ -861,6 +862,8 @@ function cv_iht(
 	compute_model :: Bool             = false,
 	header        :: Bool             = false
 ) 
+	0 <= path_length <= p || throw(ArgumentError("Path length must be positive and cannot exceed number of predictors"))
+
 	# how many elements are in the path?
 	num_models = length(path)
 
