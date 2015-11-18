@@ -1,9 +1,9 @@
 function xpypbz!(
-	w :: Vector{Float32},
-	x :: Vector{Float32},
-	y :: Vector{Float32},
-	b :: Float32,
-	z :: Vector{Float32};
+	w :: Vector{Float64},
+	x :: Vector{Float64},
+	y :: Vector{Float64},
+	b :: Float64,
+	z :: Vector{Float64};
 	n :: Int = length(w)
 )
 	@inbounds for i = 1:n
@@ -14,17 +14,17 @@ end
 
 
 function compute_loglik(
-	Xb      :: Vector{Float32},
-	mxty    :: Vector{Float32},
-	b       :: Vector{Float32},
+	Xb      :: Vector{Float64},
+	mxty    :: Vector{Float64},
+	b       :: Vector{Float64},
 	sortidx :: Vector{Int},
-	lambda  :: Float32,
+	lambda  :: Float64,
 	k       :: Int;
 	n       :: length(xlxb)
 )
-	s = zero(Float32)
+	s = zero(Float64)
 	@inbounds for i = 1:n
-		s += log(one(Float32) + exp(Xb[i]))
+		s += log(one(Float64) + exp(Xb[i]))
 	end
 	@inbounds for i = 1:k
 		idx = sortidx[i]
@@ -35,15 +35,15 @@ end
 
 
 function loggrad!(
-	g       :: DenseVector{Float32},
-	Xb      :: DenseVector{Float32},
-	lxb     :: DenseVector{Float32},
-	xlxb    :: DenseVector{Float32},
-	x       :: DenseMatrix{Float32},
-	b       :: DenseVector{Float32},
+	g       :: DenseVector{Float64},
+	Xb      :: DenseVector{Float64},
+	lxb     :: DenseVector{Float64},
+	xlxb    :: DenseVector{Float64},
+	x       :: DenseMatrix{Float64},
+	b       :: DenseVector{Float64},
 	sortidx :: DenseVector{Int},
-	mxty    :: DenseVector{Float32},
-	lambda  :: Float32,
+	mxty    :: DenseVector{Float64},
+	lambda  :: Float64,
 	n       :: Int,
 	k       :: Int
 )
@@ -54,7 +54,7 @@ function loggrad!(
 	logistic!(lxb, Xb, n=n)
 
 	# xlxb = x' * logistic(x*b) 
-	BLAS.gemv!('T', one(Float32), x, lxb, zero(Float32), xlxb)
+	BLAS.gemv!('T', one(Float64), x, lxb, zero(Float64), xlxb)
 
 	# gradient is now xlxb + (- x' * y) + lambda*b
 	xpypbz!(g, xlxb, mxty, lambda, b) 
@@ -66,20 +66,20 @@ end
 ##################################
 
 function iht(
-	b        :: DenseVector{Float32}, 
-	x        :: DenseMatrix{Float32}, 
-	y        :: DenseVector{Float32}, 
-	g        :: DenseVector{Float32},
+	b        :: DenseVector{Float64}, 
+	x        :: DenseMatrix{Float64}, 
+	y        :: DenseVector{Float64}, 
+	g        :: DenseVector{Float64},
 	k        :: Int, 
-	old_obj  :: Float32,
-	lambda   :: Float32; 
+	old_obj  :: Float64,
+	lambda   :: Float64; 
 	n        :: Int = length(y), 
 	p        :: Int = length(b), 
-	Xb       :: DenseVector{Float32} = BLAS.gemv('N', one(Float32), x, b), 
-	mxty     :: DenseVector{Float32} = BLAS.gemv('T', -one(Float32), x, y), 
-	xlxb     :: DenseVector{Float32} = zeros(Float32, p), 
-	lxb      :: DenseVector{Float32} = zeros(Float32, n), 
-	bk       :: DenseVector{Float32} = zeros(Float32, k), 
+	Xb       :: DenseVector{Float64} = BLAS.gemv('N', one(Float64), x, b), 
+	mxty     :: DenseVector{Float64} = BLAS.gemv('T', -one(Float64), x, y), 
+	xlxb     :: DenseVector{Float64} = zeros(Float64, p), 
+	lxb      :: DenseVector{Float64} = zeros(Float64, n), 
+	bk       :: DenseVector{Float64} = zeros(Float64, k), 
 	sortidx  :: DenseVector{Int}     = collect(1:p), 
 	IDX      :: BitArray{1}          = falses(p), 
 	IDX0     :: BitArray{1}          = copy(IDX), 
@@ -88,7 +88,7 @@ function iht(
 
 	### TEMPORARY
 	### Rs = max_{i = 1,2,...,p} || x_i ||_2
-	Rs = one(Float32)
+	Rs = one(Float64)
 
 	# which indices of beta are nonzero?
 	# which components of beta are nonzero? 
@@ -105,7 +105,7 @@ function iht(
 	loggrad!(g, Xb, lxb, xlxb, x, b, sortidx, mxty, lambda, n, k)
 
 	# compute step size
-	mu = lambda / (4.0f0*sqrt(k)*Rs*Rs + lambda)^2
+	mu = lambda / (4.0*sqrt(k)*Rs*Rs + lambda)^2
 
 	# notify problems with step size 
 	isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
@@ -133,7 +133,7 @@ function iht(
 	while new_obj > old_obj && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
 		# stephalving
-		mu *= 0.5f0
+		mu *= 0.5
 
 		# recompute gradient step
 		copy!(b,b0)
@@ -183,14 +183,14 @@ end
 #        b = cov(X,Y) / var(X)
 # -- max_iter is the maximum number of iterations for the algorithm. Defaults to 100.
 # -- max_step is the maximum number of backtracking steps for the step size calculation. Defaults to 50.
-# -- tol is the global tol. Defaults to 1f-4.
+# -- tol is the global tol. Defaults to 1e-4.
 # -- quiet is a Boolean that controls algorithm output. Defaults to true (no output).
 # -- several temporary arrays for intermediate steps of algorithm calculations:
-#		Xb        = zeros(Float32,n)	# X*beta 
-#		Xb0       = zeros(Float32,n)	# X*beta0 
-#		b0        = zeros(Float32,p)	# previous iterate beta0 
-#		df        = zeros(Float32,p)	# (negative) gradient 
-#		bk        = zeros(Float32,k)    # temporary array of k floats 
+#		Xb        = zeros(Float64,n)	# X*beta 
+#		Xb0       = zeros(Float64,n)	# X*beta0 
+#		b0        = zeros(Float64,p)	# previous iterate beta0 
+#		df        = zeros(Float64,p)	# (negative) gradient 
+#		bk        = zeros(Float64,k)    # temporary array of k floats 
 #		indices   = collect(1:p)	    # indices that sort beta 
 #		tempki    = zeros(Int,k)        # temporary array of k integers 
 #		support   = falses(p)			# indicates nonzero components of beta
@@ -205,25 +205,25 @@ end
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function L0_log(
-	x        :: DenseMatrix{Float32}, 
-	y        :: DenseVector{Float32}, 
+	x        :: DenseMatrix{Float64}, 
+	y        :: DenseVector{Float64}, 
 	k        :: Int; 
 	n        :: Int                  = length(y), 
 	p        :: Int                  = size(x,2), 
-	mxty     :: DenseVector{Float32} = BLAS.gemv('T', -one(Float32), x, y),
-	b        :: DenseVector{Float32} = zeros(Float32, p), 
-	b0       :: DenseVector{Float32} = zeros(Float32, p), 
-	df       :: DenseVector{Float32} = zeros(Float32, p), 
-	xlxb     :: DenseVector{Float32} = zeros(Float32, p), 
-	Xb       :: DenseVector{Float32} = zeros(Float32, n), 
-	Xb0      :: DenseVector{Float32} = zeros(Float32, n), 
-	lxb      :: DenseVector{Float32} = zeros(Float32, n), 
-	bk       :: DenseVector{Float32} = zeros(Float32, k), 
+	mxty     :: DenseVector{Float64} = BLAS.gemv('T', -one(Float64), x, y),
+	b        :: DenseVector{Float64} = zeros(Float64, p), 
+	b0       :: DenseVector{Float64} = zeros(Float64, p), 
+	df       :: DenseVector{Float64} = zeros(Float64, p), 
+	xlxb     :: DenseVector{Float64} = zeros(Float64, p), 
+	Xb       :: DenseVector{Float64} = zeros(Float64, n), 
+	Xb0      :: DenseVector{Float64} = zeros(Float64, n), 
+	lxb      :: DenseVector{Float64} = zeros(Float64, n), 
+	bk       :: DenseVector{Float64} = zeros(Float64, k), 
 	indices  :: DenseVector{Int}     = collect(1:p), 
 	support  :: BitArray{1}          = falses(p), 
 	support0 :: BitArray{1}          = falses(p),
-	tol      :: Float32              = 1f-4, 
-	lambda   :: Float32              = sqrt(log(p) / n)
+	tol      :: Float64              = 1e-4, 
+	lambda   :: Float64              = sqrt(log(p) / n)
 	max_iter :: Int                  = 100, 
 	max_step :: Int                  = 50,  
 	quiet    :: Bool                 = true
@@ -235,21 +235,21 @@ function L0_log(
 	k        >= 0            || throw(error("Value of k must be nonnegative!\n"))
 	max_iter >= 0            || throw(error("Value of max_iter must be nonnegative!\n"))
 	max_step >= 0            || throw(error("Value of max_step must be nonnegative!\n"))
-	tol      >  eps(Float32) || throw(error("Value of global tol must exceed machine precision!\n"))
+	tol      >  eps(Float64) || throw(error("Value of global tol must exceed machine precision!\n"))
     all(isfinite(b))         || throw(error("Argument b has nonfinite values"))
 
 	# initialize return values
-	mm_iter  = 0		                    # number of iterations of L0_reg
-	mm_time  = zero(Float32)                # compute time *within* L0_reg
-	next_obj = oftype(zero(Float32),Inf)    # objective value
+	mm_iter  = 0		        # number of iterations of L0_reg
+	mm_time  = zero(Float64)    # compute time *within* L0_reg
+	next_obj = Inf	            # objective value
 
 	# initialize algorithm variables 
-	current_obj = oftype(zero(Float32),Inf) # tracks previous objective function value
-	the_norm    = zero(Float32)             # norm(b - b0)
-	scaled_norm = zero(Float32)             # the_norm / (norm(b0) + 1)
-	mu          = zero(Float32)             # IHT step size, 0 < tau < 2/rho_max^2
-	mu_step     = 0                         # counts number of backtracking steps for mu
-	converged   = false                     # scaled_norm < tol?
+	current_obj = Inf           # tracks previous objective function value
+	the_norm    = zero(Float64) # norm(b - b0)
+	scaled_norm = zero(Float64) # the_norm / (norm(b0) + 1)
+	mu          = zero(Float64) # IHT step size, 0 < tau < 2/rho_max^2
+	mu_step     = 0             # counts number of backtracking steps for mu
+	converged   = false         # scaled_norm < tol?
    
 	# initialize x*b
 	update_xb!(Xb, x, b, indices, k, p=p, n=n)
@@ -261,7 +261,7 @@ function L0_log(
 	if !quiet
 		 println("\nBegin MM algorithm\n") 
 		 println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
-		 println("0\t0\tInf32\t\tInf32\t\tInf32")
+		 println("0\t0\tInf\t\tInf\t\tInf")
 	end
 
 	# main loop
@@ -306,7 +306,7 @@ function L0_log(
 
 		# track convergence
 		the_norm    = chebyshev(b,b0)
-		scaled_norm = the_norm / (norm(b0,Inf) + one(Float32))
+		scaled_norm = the_norm / (norm(b0,Inf) + one(Float64))
 		converged   = scaled_norm < tol
 		
 		# output algorithm progress 
@@ -383,19 +383,19 @@ end # end function
 ## -- b is the p x 1 iterate. Warm starts should use this argument. Defaults to zeros(p). 
 ## -- max_iter is the maximum number of iterations for the algorithm. Defaults to 100.
 ## -- max_step is the maximum number of backtracking steps for the step size calculation. Defaults to 50.
-## -- tol is the global tol. Defaults to 1f-4.
+## -- tol is the global tol. Defaults to 1e-4.
 ## -- quiet is a Boolean that controls algorithm output. Defaults to true (no output).
 ## -- several temporary arrays for intermediate steps of algorithm calculations:
-##		Xk        = zeros(Float32,n,k)  # store k columns of X
-##		r         = zeros(Float32,n)	# for || Y - XB ||_2^2
-##		Xb        = zeros(Float32,n)	# X*beta 
-##		Xb0       = zeros(Float32,n)	# X*beta0 
-##		b0        = zeros(Float32,p)	# previous iterate beta0 
-##		df        = zeros(Float32,p)	# (negative) gradient 
-##		w         = zeros(Float32,n)	# vector of weights on responses 
-##		tempkf    = zeros(Float32,k)    # temporary array of k floats 
-##		idx       = zeros(Float32,k)    # another temporary array of k floats 
-##		tempn     = zeros(Float32,n)    # temporary array of n floats 
+##		Xk        = zeros(Float64,n,k)  # store k columns of X
+##		r         = zeros(Float64,n)	# for || Y - XB ||_2^2
+##		Xb        = zeros(Float64,n)	# X*beta 
+##		Xb0       = zeros(Float64,n)	# X*beta0 
+##		b0        = zeros(Float64,p)	# previous iterate beta0 
+##		df        = zeros(Float64,p)	# (negative) gradient 
+##		w         = zeros(Float64,n)	# vector of weights on responses 
+##		tempkf    = zeros(Float64,k)    # temporary array of k floats 
+##		idx       = zeros(Float64,k)    # another temporary array of k floats 
+##		tempn     = zeros(Float64,n)    # temporary array of n floats 
 ##		indices   = collect(1:p)	    # indices that sort beta 
 ##		tempki    = zeros(Int,k)        # temporary array of k integers 
 ##		support   = falses(p)			# indicates nonzero components of beta
@@ -409,7 +409,7 @@ end # end function
 ##
 ## coded by Kevin L. Keys (2015)
 ## klkeys@g.ucla.edu
-#function L0_log(X::BEDFile, Y::DenseVector{Float32}, k::Int; n::Int = length(Y), p::Int = size(X,2), b::DenseVector{Float32} = zeros(p), tol::Float32 = 1f-4, max_iter::Int = 100, max_step::Int = 50,  quiet::Bool = true, Xk::DenseMatrix{Float32} = zeros(n,k), r::DenseVector{Float32} = zeros(n), Xb::DenseVector{Float32} = zeros(n), Xb0::DenseVector{Float32} = zeros(n), w::DenseVector{Float32} = ones(n), b0::DenseVector{Float32} = zeros(p), df::DenseVector{Float32} = zeros(p), tempkf::DenseVector{Float32} = zeros(k), idx::DenseVector{Float32} = zeros(k), tempn::DenseVector{Float32}= zeros(n), indices::DenseVector{Int} = collect(1:p), tempki::DenseVector{Int} = zeros(Int,k), support::BitArray{1} = falses(p), support0::BitArray{1} = falses(p))
+#function L0_log(X::BEDFile, Y::DenseVector{Float64}, k::Int; n::Int = length(Y), p::Int = size(X,2), b::DenseVector{Float64} = zeros(p), tol::Float64 = 1e-4, max_iter::Int = 100, max_step::Int = 50,  quiet::Bool = true, Xk::DenseMatrix{Float64} = zeros(n,k), r::DenseVector{Float64} = zeros(n), Xb::DenseVector{Float64} = zeros(n), Xb0::DenseVector{Float64} = zeros(n), w::DenseVector{Float64} = ones(n), b0::DenseVector{Float64} = zeros(p), df::DenseVector{Float64} = zeros(p), tempkf::DenseVector{Float64} = zeros(k), idx::DenseVector{Float64} = zeros(k), tempn::DenseVector{Float64}= zeros(n), indices::DenseVector{Int} = collect(1:p), tempki::DenseVector{Int} = zeros(Int,k), support::BitArray{1} = falses(p), support0::BitArray{1} = falses(p))
 #
 #	# start timer
 #	tic()
@@ -422,15 +422,15 @@ end # end function
 #
 #	# initialize return values
 #	mm_iter::Int       = 0		# number of iterations of L0_reg
-#	mm_time::Float32   = 0.0	# compute time *within* L0_reg
-#	next_obj::Float32  = Inf	# objective value
-#	next_loss::Float32 = -Inf	# loss function value 
+#	mm_time::Float64   = 0.0	# compute time *within* L0_reg
+#	next_obj::Float64  = Inf	# objective value
+#	next_loss::Float64 = -Inf	# loss function value 
 #
 #	# initialize floats 
-#	current_obj::Float32 = Inf      # tracks previous objective function value
-#	the_norm::Float32    = 0.0      # norm(b - b0)
-#	scaled_norm::Float32 = 0.0      # the_norm / (norm(b0) + 1)
-#	mu::Float32          = Inf	    # IHT step size, 0 < tau < 2/rho_max^2
+#	current_obj::Float64 = Inf      # tracks previous objective function value
+#	the_norm::Float64    = 0.0      # norm(b - b0)
+#	scaled_norm::Float64 = 0.0      # the_norm / (norm(b0) + 1)
+#	mu::Float64          = Inf	    # IHT step size, 0 < tau < 2/rho_max^2
 #
 #	# initialize integers
 #	mu_step::Int         = 0        # counts number of backtracking steps for mu
@@ -608,10 +608,10 @@ end # end function
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
 function iht_path_log(
-	x        :: DenseMatrix{Float32}, 
-	y        :: DenseVector{Float32}, 
+	x        :: DenseMatrix{Float64}, 
+	y        :: DenseVector{Float64}, 
 	path     :: DenseVector{Int}; 
-	tol      :: Float32 = 1f-4,
+	tol      :: Float64 = 1e-4,
 	max_iter :: Int     = 100, 
 	max_step :: Int     = 50, 
 	quiet    :: Bool    = true
@@ -621,12 +621,12 @@ function iht_path_log(
 	const (n,p) = size(x)
 
 	# preallocate intermediate variables for IHT 
-	mxty      = BLAS.gemv('T', -one(Float32), x, y) # - x * y
-	b         = zeros(Float32, p)	                # model 
-	b0        = zeros(Float32, p)	                # previous iterate beta0 
-	df        = zeros(Float32, p)	                # (negative) gradient 
-	Xb        = zeros(Float32, n)	                # X*beta 
-	Xb0       = zeros(Float32, n)	                # X*beta0 
+	mxty      = BLAS.gemv('T', -one(Float64), x, y) # - x * y
+	b         = zeros(Float64, p)	                # model 
+	b0        = zeros(Float64, p)	                # previous iterate beta0 
+	df        = zeros(Float64, p)	                # (negative) gradient 
+	Xb        = zeros(Float64, n)	                # X*beta 
+	Xb0       = zeros(Float64, n)	                # X*beta0 
 	indices   = collect(1:p)	                    # indices that sort beta 
 	support   = falses(p)			                # indicates nonzero components of beta
 	support0  = copy(support)		                # store previous nonzero indicators
