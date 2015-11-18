@@ -299,7 +299,7 @@ function L0_reg(
 	next_loss = zero(Float32)		# loss function value 
 
 	# initialize floats 
-	current_loss = oftype(zero(Float32,Inf)	# tracks previous objective function value
+	current_loss = oftype(zero(Float32),Inf)	# tracks previous objective function value
 	the_norm     = zero(Float32) 	# norm(b - b0)
 	scaled_norm  = zero(Float32) 	# the_norm / (norm(b0) + 1)
 	mu           = zero(Float32) 	# Landweber step size, 0 < tau < 2/rho_max^2

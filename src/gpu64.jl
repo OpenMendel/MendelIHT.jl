@@ -299,7 +299,7 @@ function L0_reg(
 	next_loss = zero(Float64)		# loss function value 
 
 	# initialize floats 
-	current_loss = oftype(zero(Float64,Inf)	# tracks previous objective function value
+	current_loss = oftype(zero(Float64),Inf)	# tracks previous objective function value
 	the_norm     = zero(Float64) 	# norm(b - b0)
 	scaled_norm  = zero(Float64) 	# the_norm / (norm(b0) + 1)
 	mu           = zero(Float64) 	# Landweber step size, 0 < tau < 2/rho_max^2
@@ -326,7 +326,7 @@ function L0_reg(
 	xty!(df, df_buff, X, x_buff, r, y_buff, mask_n, mask_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
 
 	# update loss 
-	next_loss = oftype(zero(Float64,Inf)
+	next_loss = oftype(zero(Float64),Inf)
 
 	# formatted output to monitor algorithm progress
 	if !quiet
