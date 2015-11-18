@@ -73,9 +73,6 @@ function loggrad!(
 	return nothing
 end
 
-#################################
-### LOGISTIC STEP CALCULATIONS ###
-##################################
 
 function iht(
 	b        :: DenseVector{Float64}, 
@@ -251,17 +248,17 @@ function L0_log(
     all(isfinite(b))         || throw(error("Argument b has nonfinite values"))
 
 	# initialize return values
-	mm_iter  = 0		        # number of iterations of L0_reg
-	mm_time  = zero(Float64)    # compute time *within* L0_reg
-	next_obj = Inf	            # objective value
+	mm_iter  = 0                            # number of iterations of L0_reg
+	mm_time  = zero(Float64)                # compute time *within* L0_reg
+	next_obj = oftype(zero(Float64),Inf)    # objective value
 
 	# initialize algorithm variables 
-	current_obj = Inf           # tracks previous objective function value
-	the_norm    = zero(Float64) # norm(b - b0)
-	scaled_norm = zero(Float64) # the_norm / (norm(b0) + 1)
-	mu          = zero(Float64) # IHT step size, 0 < tau < 2/rho_max^2
-	mu_step     = 0             # counts number of backtracking steps for mu
-	converged   = false         # scaled_norm < tol?
+	current_obj = oftype(zero(Float64),Inf) # tracks previous objective function value
+	the_norm    = zero(Float64)             # norm(b - b0)
+	scaled_norm = zero(Float64)             # the_norm / (norm(b0) + 1)
+	mu          = zero(Float64)             # IHT step size, 0 < tau < 2/rho_max^2
+	mu_step     = 0                         # counts number of backtracking steps for mu
+	converged   = false                     # scaled_norm < tol?
    
 	# initialize x*b
 	update_xb!(Xb, x, b, indices, k, p=p, n=n)

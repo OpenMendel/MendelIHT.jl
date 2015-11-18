@@ -2,17 +2,13 @@ module IHT
 
 using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK
-#using StatsBase: sample, logistic
 using RegressionTools
 using OpenCL
-using Compat
 
 export L0_reg
 export L0_log
-export L0_log2
 export iht_path
 export iht_path_log
-export iht_path_log2
 export cv_iht
 export cv_get_folds
 
@@ -21,10 +17,10 @@ include("aiht.jl")
 include("aiht32.jl")
 include("crossvalidation.jl")
 include("crossvalidation32.jl")
-include("gwas64.jl")
 include("gwas32.jl")
-#include("logistic.jl")
-#include("logistic32.jl")
+include("gwas64.jl")
+include("logistic32.jl")
+include("logistic64.jl")
 include("gpu32.jl")
 include("gpu64.jl")
 
