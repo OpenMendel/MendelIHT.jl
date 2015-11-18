@@ -1,3 +1,16 @@
+function logistic!(
+	y :: Vector{Float32},
+	x :: Vector{Float32};
+	n :: Int = length(y)
+)
+	n == length(x) || throw(ArgumentError("length(y) != length(x)"))
+	@inbounds for i = 1:n
+		y[i] = exp(x[i]) / (one(Float32) + exp(x[i]))
+	end
+	return nothing
+end
+
+
 function xpypbz!(
 	w :: Vector{Float32},
 	x :: Vector{Float32},
