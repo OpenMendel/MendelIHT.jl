@@ -138,7 +138,7 @@ function cv_iht(
     max_iter      :: Int               = 1000, 
     max_step      :: Int               = 50, 
     quiet         :: Bool              = true, 
-#    logreg        :: Bool              = false, 
+    logreg        :: Bool              = false, 
     compute_model :: Bool              = true
 ) 
 
@@ -225,8 +225,8 @@ function cv_iht(
             xty = BLAS.gemv('T', one(Float64), x_inferred, y)    
             xtx = BLAS.gemm('T', 'N', one(Float64), x_inferred, x_inferred)
             b2  = xtx \ xty
-        end
+#        end
         return errors, b2, bidx 
-#    end
+    end
     return errors
 end

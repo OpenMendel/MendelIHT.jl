@@ -100,7 +100,7 @@ function L0_reg(
     y         :: DenseVector{Float32}, 
     k         :: Int; 
     n         :: Int                  = length(y),
-    p         :: Int                  = size(X,2),
+    p         :: Int                  = size(x,2),
     xk        :: DenseMatrix{Float32} = zeros(Float32,n,k),
     b         :: DenseVector{Float32} = zeros(Float32,p),
     b0        :: DenseVector{Float32} = zeros(Float32,p),
@@ -200,7 +200,7 @@ function L0_reg(
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient 
         difference!(r,y,Xb, n=n)
-        BLAS.gemv!('T', zero(Float32), X, r, zero(Float32), df)
+        BLAS.gemv!('T', zero(Float32), x, r, zero(Float32), df)
 
         # update loss, objective, and gradient 
         next_loss = 0.5f0 * sumabs2(r)
