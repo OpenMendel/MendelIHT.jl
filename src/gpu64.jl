@@ -4,38 +4,6 @@ export iht_path
 "A shortcut for `OpenCL` module name."
 const cl = OpenCL
 
-"""
-    mask!(x,b,val,mask_val,n)
-
-A subroutine to mask entries of a vector `x`.
-
-Arguments:
-
-- `x` is the vector to mask.
-- `v` is the `Int` vector used in masking.
-- `val` is the value of `v` to use in masking.
-- `mask_val` is the actual value of the mask, i.e. if `v[i] = val` then `x[i] = mask_val`.
-
-Optional Arguments:
-
-- `n = length(x)`.
-"""
-function mask!(
-	x        :: DenseVector{Float64},
-	v        :: DenseVector{Int},
-	val      :: Int,
-	mask_val :: Float64;
-	n        :: Int = length(x)
-)
-	n == length(v) || throw(BoundsError("Vector x and its mask must have same length"))
-	@inbounds for i = 1:n
-		if v[i] == val
-			x[i] = mask_val
-		end
-	end
-    return nothing
-end
-
 
 """
     iht(b, x::BEDFile, y, k, g, mask_n)
@@ -157,7 +125,7 @@ end
 """
     L0_reg(x::BEDFile, y, k, kernfile)
 
-If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device. This variant introduces a host of extra arguments for the GPU. Most of these arguments are only meant to facilitate the calculation of a regularization path by `iht_path`. The optional arguments that a user will most likely wish to manipulate are
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device. This variant introduces a host of extra arguments for the GPU. Most of these arguments are only meant to facilitate the calculation of a regularization path by `iht_path`. The optional arguments that a user will most likely wish to manipulate are:
 
 - `device`, an `OpenCL.Device` object indicating the device to use in computations. Defaults to `last(OpenCL.devices(:gpu))`.
 - `mask_n`, an `Int` vector of `0`s and `1`s indexing the rows of `x` and `y` that should be included or masked in the analysis. Defaults to `ones(Int,n)`, which includes all data.
@@ -490,6 +458,7 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIStri
 
 - `devidx`, an index indicating the GPU device to use in computations. The device is chosen  as `OpenCL.devices(:gpu)[devidx]`. Defaults to `1` (choose the first GPU device)
 - `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
+- `header` is a `Bool` to feed to `readdlm` when loading the nongenetic covariates `x.x2`. Defaults to `false` (no header). 
 """
 function one_fold(
 	x        :: BEDFile,
@@ -639,7 +608,7 @@ end
 
 This function is the parallel execution kernel in `cv_iht()`. It is not meant to be called outside of `cv_iht()`.
 It will distribute `numfolds` crossvalidation folds across the processes supplied by the optional argument `pids` and call `one_fold()` for each fold.
-Each fold will use the GPU device indexed by its corresponding component of the optional argument `devindices`.
+Each fold will use the GPU device indexed by its corresponding component of the optional argument `devindices` to compute a regularization path given by `path`.
 `pfold()` collects the vectors of MSEs returned by calling `one_fold()` for each process, reduces them, and returns their average across all folds.
 """
 function pfold(

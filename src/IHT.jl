@@ -22,7 +22,7 @@ include("iht64.jl")
 include("iht32.jl")
 include("aiht64.jl")
 include("aiht32.jl")
-include("logistic64.jl")
-include("logistic32.jl")
+#include("logistic64.jl")
+#include("logistic32.jl")
 
 end # end module IHT

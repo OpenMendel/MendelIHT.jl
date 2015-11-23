@@ -62,35 +62,12 @@ function one_fold(
         betas    = iht_path(x_train,y_train,path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
 
         # compute the mean out-of-sample error for the TEST set
-        errors = vec(sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ test_size
+        errors = vec(0.5*sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ test_size
 #    end
 
     return errors
 end
 
-
-"""
-CREATE UNSTRATIFIED CROSSVALIDATION PARTITION
-
-    cv_get_folds(y,q) -> Vector{Int}
-
-This function will partition the `n` components of `y` into `q` disjoint sets for unstratified `q`-fold crossvalidation.
-
-Arguments:
-
-- `y` is the `n`-vector to partition.
-- `q` is the number of disjoint sets in the partition.
-"""
-function cv_get_folds(y::DenseVector, q::Int)
-    n, r = divrem(length(y), q)
-    shuffle!([repmat(1:q, n); 1:r])
-end
-
-"Can also be called with an `Int` argument `n` instead of the data vector `y`."
-function cv_get_folds(n::Int, q::Int)
-    m, r = divrem(n, q)
-    shuffle!([repmat(1:q, m); 1:r])
-end
 
 """
 PARALLEL CROSSVALIDATION ROUTINE FOR IHT

@@ -408,7 +408,7 @@ function one_fold(
         difference!(r,y,Xb)
 
         # compute out-of-sample error as squared residual averaged over size of test set
-        myerrors[i] = sumabs2(r) / test_size
+        myerrors[i] = 0.5f0*sumabs2(r) / test_size
     end
 
     return myerrors
