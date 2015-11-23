@@ -1,29 +1,29 @@
 function iht(
-    b        :: DenseVector{Float32}, 
-    x        :: BEDFile, 
-    y        :: DenseVector{Float32}, 
-    k        :: Int, 
-    g        :: DenseVector{Float32}; 
-    n        :: Int                  = length(y), 
-    p        :: Int                  = length(b), 
+    b        :: DenseVector{Float32},
+    x        :: BEDFile,
+    y        :: DenseVector{Float32},
+    k        :: Int,
+    g        :: DenseVector{Float32};
+    n        :: Int                  = length(y),
+    p        :: Int                  = length(b),
     pids     :: DenseVector{Int}     = procs(),
-    means    :: DenseVector{Float32} = mean(Float32, x, shared=true, pids=pids), 
+    means    :: DenseVector{Float32} = mean(Float32, x, shared=true, pids=pids),
     invstds  :: DenseVector{Float32} = invstd(x, means, shared=true, pids=pids),
-    b0       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids), 
-    Xb       :: DenseVector{Float32} = xb(x,b,IDX,k, means=means, invstds=invstds, pids=pids), 
-    Xb0      :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids), 
-    sortidx  :: DenseVector{Int}     = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids), 
-    xk       :: DenseMatrix{Float32} = zeros(Float32,n,k), 
-    xgk      :: DenseVector{Float32} = zeros(Float32,n), 
-    gk       :: DenseVector{Float32} = zeros(Float32,k), 
-    bk       :: DenseVector{Float32} = zeros(Float32,k), 
-    IDX      :: BitArray{1}          = falses(p), 
-    IDX0     :: BitArray{1}          = copy(IDX), 
+    b0       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids),
+    Xb       :: DenseVector{Float32} = xb(x,b,IDX,k, means=means, invstds=invstds, pids=pids),
+    Xb0      :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids),
+    sortidx  :: DenseVector{Int}     = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
+    xk       :: DenseMatrix{Float32} = zeros(Float32,n,k),
+    xgk      :: DenseVector{Float32} = zeros(Float32,n),
+    gk       :: DenseVector{Float32} = zeros(Float32,k),
+    bk       :: DenseVector{Float32} = zeros(Float32,k),
+    IDX      :: BitArray{1}          = falses(p),
+    IDX0     :: BitArray{1}          = copy(IDX),
     iter     :: Int                  = 1,
-    max_step :: Int                  = 50, 
-) 
+    max_step :: Int                  = 50,
+)
 
-    # which components of beta are nonzero? 
+    # which components of beta are nonzero?
     update_indices!(IDX, b, p=p)
 
     # if current vector is 0,
@@ -37,8 +37,8 @@ function iht(
     # then xk and gk are the same as well
     # avoid extracting and computing them if they have not changed
     # one exception: we should always extract columns on first iteration
-    if !isequal(IDX, IDX0) || iter < 2 
-        decompress_genotypes!(xk, x, IDX, means=means, invstds=invstds) 
+    if !isequal(IDX, IDX0) || iter < 2
+        decompress_genotypes!(xk, x, IDX, means=means, invstds=invstds)
     end
 
     # store relevant components of gradient
@@ -46,14 +46,14 @@ function iht(
 
     # now compute subset of x*g
     BLAS.gemv!('N', one(Float32), sdata(xk), sdata(gk), zero(Float32), sdata(xgk))
-    
+
     # warn if xgk only contains zeros
     all(xgk .== zero(Float32)) && warn("Entire active set has values equal to 0")
 
     # compute step size
     mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
 
-    # notify problems with step size 
+    # notify problems with step size
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
     mu <= eps(typeof(mu))  && warn("Step size $(mu) is below machine precision, algorithm may not converge correctly")
 
@@ -65,7 +65,7 @@ function iht(
 
     # which indices of new beta are nonzero?
     copy!(IDX0, IDX)
-    update_indices!(IDX, b, p=p) 
+    update_indices!(IDX, b, p=p)
 
     # update xb
     xb!(Xb,x,b,IDX,k, means=means, invstds=invstds, pids=pids)
@@ -81,7 +81,7 @@ function iht(
         # stephalving
         mu *= 0.5f0
 
-        # warn if mu falls below machine epsilon 
+        # warn if mu falls below machine epsilon
         mu <= eps(typeof(mu)) && warn("Step size equals zero, algorithm may not converge correctly")
 
         # recompute gradient step
@@ -92,7 +92,7 @@ function iht(
         project_k!(b, bk, sortidx, k)
 
         # which indices of new beta are nonzero?
-        update_indices!(IDX, b, p=p) 
+        update_indices!(IDX, b, p=p)
 
         # recompute xb
         xb!(Xb,x,b,IDX,k, means=means, invstds=invstds, pids=pids)
@@ -109,30 +109,30 @@ function iht(
 end
 
 function L0_reg(
-    X        :: BEDFile, 
-    Y        :: DenseVector{Float32}, 
-    k        :: Int; 
-    n        :: Int                  = length(Y), 
-    p        :: Int                  = size(X,2), 
+    X        :: BEDFile,
+    Y        :: DenseVector{Float32},
+    k        :: Int;
+    n        :: Int                  = length(Y),
+    p        :: Int                  = size(X,2),
     pids     :: DenseVector{Int}     = procs(),
-    Xk       :: DenseMatrix{Float32} = SharedArray(Float32, (n,k), init = S -> S[localindexes(S)] = zero(Float32), pids=pids), 
-    means    :: DenseVector{Float32} = mean(Float32,X, shared=true, pids=pids), 
-    invstds  :: DenseVector{Float32} = invstd(X,means, shared=true, pids=pids), 
-    b        :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    b0       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    df       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    r        :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    Xb       :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    Xb0      :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    tempn    :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    tempkf   :: DenseVector{Float32} = SharedArray(Float32, k, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    idx      :: DenseVector{Float32} = SharedArray(Float32, k, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids), 
-    indices  :: DenseVector{Int}     = SharedArray(Int,     p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids), 
-    support  :: BitArray{1}          = falses(p), 
-    support0 :: BitArray{1}          = falses(p), 
-    tol      :: Float32              = 1f-4, 
-    max_iter :: Int                  = 100, 
-    max_step :: Int                  = 50, 
+    Xk       :: DenseMatrix{Float32} = SharedArray(Float32, (n,k), init = S -> S[localindexes(S)] = zero(Float32), pids=pids),
+    means    :: DenseVector{Float32} = mean(Float32,X, shared=true, pids=pids),
+    invstds  :: DenseVector{Float32} = invstd(X,means, shared=true, pids=pids),
+    b        :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    b0       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    df       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    r        :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    Xb       :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    Xb0      :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    tempn    :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    tempkf   :: DenseVector{Float32} = SharedArray(Float32, k, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    idx      :: DenseVector{Float32} = SharedArray(Float32, k, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
+    indices  :: DenseVector{Int}     = SharedArray(Int,     p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
+    support  :: BitArray{1}          = falses(p),
+    support0 :: BitArray{1}          = falses(p),
+    tol      :: Float32              = 1f-4,
+    max_iter :: Int                  = 100,
+    max_step :: Int                  = 50,
     quiet    :: Bool                 = true
 )
 
@@ -148,9 +148,9 @@ function L0_reg(
     # initialize return values
     mm_iter   = 0                           # number of iterations of L0_reg
     mm_time   = zero(Float32)               # compute time *within* L0_reg
-    next_loss = oftype(zero(Float32),Inf)   # loss function value  
+    next_loss = oftype(zero(Float32),Inf)   # loss function value
 
-    # initialize floats 
+    # initialize floats
     current_obj = oftype(zero(Float32),Inf) # tracks previous objective function value
     the_norm    = zero(Float32)             # norm(b - b0)
     scaled_norm = zero(Float32)             # the_norm / (norm(b0) + 1)
@@ -162,8 +162,8 @@ function L0_reg(
 
     # initialize booleans
     converged = false                       # scaled_norm < tol?
-   
-    # update Xb, r, and gradient 
+
+    # update Xb, r, and gradient
     if sum(support) == 0
         fill!(Xb,zero(Float32))
         copy!(r,sdata(Y))
@@ -171,24 +171,24 @@ function L0_reg(
         xb!(Xb,X,b,support,k, means=means, invstds=invstds, pids=pids)
         difference!(r, Y, Xb)
     end
-    xty!(df, X, r, means=means, invstds=invstds, p=p, pids=pids) 
+    xty!(df, X, r, means=means, invstds=invstds, p=p, pids=pids)
 
     # formatted output to monitor algorithm progress
     if !quiet
-         println("\nBegin MM algorithm\n") 
+         println("\nBegin MM algorithm\n")
          println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
          println("0\t0\tInf\t\tInf\t\tInf")
     end
 
     # main loop
     for mm_iter = 1:max_iter
- 
+
         # notify and break if maximum iterations are reached.
         if mm_iter >= max_iter
 
             if !quiet
-                print_with_color(:red, "MM algorithm has hit maximum iterations $(max_iter)!\n") 
-                print_with_color(:red, "Current Objective: $(current_obj)\n") 
+                print_with_color(:red, "MM algorithm has hit maximum iterations $(max_iter)!\n")
+                print_with_color(:red, "Current Objective: $(current_obj)\n")
             end
 
             # send elements below tol to zero
@@ -203,21 +203,21 @@ function L0_reg(
 
             return output
         end
-        
-        # save values from previous iterate 
-        copy!(b0,b)             # b0 = b    
+
+        # save values from previous iterate
+        copy!(b0,b)             # b0 = b
         copy!(Xb0,Xb)           # Xb0 = Xb
         current_obj = next_loss
 
         # now perform IHT step
-        (mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds, iter=mm_iter, pids=pids) 
+        (mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds, iter=mm_iter, pids=pids)
 
         # the IHT kernel gives us an updated x*b
-        # use it to recompute residuals and gradient 
+        # use it to recompute residuals and gradient
         difference!(r,Y,Xb)
-        xty!(df, X, r, means=means, invstds=invstds, pids=pids) 
+        xty!(df, X, r, means=means, invstds=invstds, pids=pids)
 
-        # update loss, objective, and gradient 
+        # update loss, objective, and gradient
         next_loss = 0.5f0 * sumabs2(sdata(r))
 
         # guard against numerical instabilities
@@ -230,15 +230,15 @@ function L0_reg(
         the_norm    = chebyshev(b,b0)
         scaled_norm = the_norm / ( norm(b0,Inf) + 1)
         converged   = scaled_norm < tol
-        
-        # output algorithm progress 
+
+        # output algorithm progress
         quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_loss)
 
         # check for convergence
         # if converged and in feasible set, then algorithm converged before maximum iteration
-        # perform final computations and output return variables 
+        # perform final computations and output return variables
         if converged
-            
+
             # send elements below tol to zero
             threshold!(b, tol, n=p)
 
@@ -247,9 +247,9 @@ function L0_reg(
 
             if !quiet
                 println("\nMM algorithm has converged successfully.")
-                println("MM Results:\nIterations: $(mm_iter)") 
-                println("Final Loss: $(next_loss)") 
-                println("Total Compute Time: $(mm_time)") 
+                println("MM Results:\nIterations: $(mm_iter)")
+                println("Final Loss: $(next_loss)")
+                println("Total Compute Time: $(mm_time)")
             end
 
 
@@ -267,9 +267,9 @@ function L0_reg(
         if next_loss > current_obj + tol
             if !quiet
                 print_with_color(:red, "\nMM algorithm fails to descend!\n")
-                print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
-                print_with_color(:red, "Current Objective: $(current_obj)\n") 
-                print_with_color(:red, "Next Objective: $(next_loss)\n") 
+                print_with_color(:red, "MM Iteration: $(mm_iter)\n")
+                print_with_color(:red, "Current Objective: $(current_obj)\n")
+                print_with_color(:red, "Next Objective: $(next_loss)\n")
                 print_with_color(:red, "Difference in objectives: $(abs(next_loss - current_loss))\n")
             end
             throw(ErrorException("Descent failure!"))
@@ -283,15 +283,15 @@ end # end function
 
 
 function iht_path(
-    x        :: BEDFile, 
-    y        :: DenseVector{Float32}, 
-    path     :: DenseVector{Int}; 
+    x        :: BEDFile,
+    y        :: DenseVector{Float32},
+    path     :: DenseVector{Int};
     pids     :: DenseVector{Int}     = procs(),
-    means    :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids), 
+    means    :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids),
     invstds  :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids),
-    tol      :: Float32              = 1f-4, 
-    max_iter :: Int                  = 100, 
-    max_step :: Int                  = 50, 
+    tol      :: Float32              = 1f-4,
+    max_iter :: Int                  = 100,
+    max_step :: Int                  = 50,
     quiet    :: Bool                 = true
 )
 
@@ -300,49 +300,49 @@ function iht_path(
     p = size(x,2)
 
     # how many models will we compute?
-    num_models = length(path)         
+    num_models = length(path)
 
-    # preallocate SharedArrays for intermediate steps of algorithm calculations 
+    # preallocate SharedArrays for intermediate steps of algorithm calculations
     b       = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # for || Y - XB ||_2^2
-    b0      = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # previous iterate beta0 
-    df      = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # (negative) gradient 
+    b0      = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # previous iterate beta0
+    df      = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # (negative) gradient
     r       = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # for || Y - XB ||_2^2
-    Xb      = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # X*beta 
-    Xb0     = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # X*beta0 
-    tempn   = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # temporary array of n floats 
+    Xb      = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # X*beta
+    Xb0     = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # X*beta0
+    tempn   = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # temporary array of n floats
 
     # index vector for b has more complicated initialization
     indices = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids)
 
     # allocate the BitArrays for indexing in IHT
-    # also preallocate matrix to store betas 
+    # also preallocate matrix to store betas
     support    = falses(p)                      # indicates nonzero components of beta
     support0   = copy(support)                  # store previous nonzero indicators
     betas      = spzeros(Float32,p,num_models)  # a matrix to store calculated models
 
     # compute the path
     @inbounds for i = 1:num_models
-    
+
         # model size?
         q = path[i]
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
         Xk     = zeros(Float32,n,q)     # store q columns of X
-        tempkf = zeros(Float32,q)       # temporary array of q floats 
-        idx    = zeros(Float32,q)       # another temporary array of q floats 
+        tempkf = zeros(Float32,q)       # temporary array of q floats
+        idx    = zeros(Float32,q)       # another temporary array of q floats
 
-        # store projection of beta onto largest k nonzeroes in magnitude 
+        # store projection of beta onto largest k nonzeroes in magnitude
         project_k!(b, tempkf, indices, q)
 
         # now compute current model
-        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds, pids=pids) 
+        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds, pids=pids)
 
         # extract and save model
         copy!(sdata(b), output["beta"])
-        
+
         # ensure that we correctly index the nonzeroes in b
-        update_indices!(support, b, p=p)    
+        update_indices!(support, b, p=p)
         fill!(support0, false)
 
         # put model into sparse matrix of betas
@@ -351,20 +351,20 @@ function iht_path(
 
     # return a sparsified copy of the models
     return betas
-end 
+end
 
 
 function one_fold(
-    x        :: BEDFile, 
-    y        :: DenseVector{Float32}, 
-    path     :: DenseVector{Int}, 
-    folds    :: DenseVector{Int}, 
-    fold     :: Int; 
+    x        :: BEDFile,
+    y        :: DenseVector{Float32},
+    path     :: DenseVector{Int},
+    folds    :: DenseVector{Int},
+    fold     :: Int;
     pids     :: DenseVector{Int}     = procs(),
-    means    :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids), 
-    invstds  :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids), 
-    max_iter :: Int                  = 100, 
-    max_step :: Int                  = 50, 
+    means    :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids),
+    invstds  :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids),
+    max_iter :: Int                  = 100,
+    max_step :: Int                  = 50,
     quiet    :: Bool                 = true
 )
 
@@ -380,19 +380,19 @@ function one_fold(
 
     # allocate the arrays for the training set
     x_train = x[train_idx,:]
-    y_train = y[train_idx] 
-    Xb      = SharedArray(Float32, test_size, init = S -> S[localindexes(S)] = zero(Float32), pids=pids) 
-    b       = SharedArray(Float32, size(x,2), init = S -> S[localindexes(S)] = zero(Float32), pids=pids) 
-    r       = SharedArray(Float32, test_size, init = S -> S[localindexes(S)] = zero(Float32), pids=pids) 
+    y_train = y[train_idx]
+    Xb      = SharedArray(Float32, test_size, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)
+    b       = SharedArray(Float32, size(x,2), init = S -> S[localindexes(S)] = zero(Float32), pids=pids)
+    r       = SharedArray(Float32, test_size, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)
 
     # compute the regularization path on the training set
-    betas = iht_path(x_train,y_train,path, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds, pids=pids) 
+    betas = iht_path(x_train,y_train,path, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds, pids=pids)
 
-    # compute the mean out-of-sample error for the TEST set 
+    # compute the mean out-of-sample error for the TEST set
     # do this for every computed model in regularization path
     for i = 1:size(betas,2)
 
-        # pull ith model in dense vector format 
+        # pull ith model in dense vector format
         b2 = full(vec(betas[:,i]))
 
         # copy it into SharedArray b
@@ -417,39 +417,39 @@ end
 
 
 function cv_iht(
-    x             :: BEDFile, 
-    y             :: DenseVector{Float32}, 
-    path          :: DenseVector{Int}, 
-    numfolds      :: Int; 
-    folds         :: DenseVector{Int}     = cv_get_folds(sdata(y),numfolds), 
+    x             :: BEDFile,
+    y             :: DenseVector{Float32},
+    path          :: DenseVector{Int},
+    numfolds      :: Int;
+    folds         :: DenseVector{Int}     = cv_get_folds(sdata(y),numfolds),
     pids          :: DenseVector{Int}     = procs(),
-    means         :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids), 
+    means         :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids),
     invstds       :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids),
-    tol           :: Float32              = 1f-4, 
-    n             :: Int                  = length(y), 
-    p             :: Int                  = size(x,2), 
-    max_iter      :: Int                  = 100, 
-    max_step      :: Int                  = 50, 
-    quiet         :: Bool                 = true, 
+    tol           :: Float32              = 1f-4,
+    n             :: Int                  = length(y),
+    p             :: Int                  = size(x,2),
+    max_iter      :: Int                  = 100,
+    max_step      :: Int                  = 50,
+    quiet         :: Bool                 = true,
     compute_model :: Bool                 = false
-) 
+)
 
     # how many elements are in the path?
     num_models = length(path)
 
-    # preallocate vectors used in xval  
+    # preallocate vectors used in xval
     errors  = zeros(Float32, num_models)    # vector to save mean squared errors
     my_refs = cell(numfolds)                # cell array to store RemoteRefs
 
     # want to compute a path for each fold
     # the folds are computed asynchronously
-    # the @sync macro ensures that we wait for all of them to finish before proceeding 
+    # the @sync macro ensures that we wait for all of them to finish before proceeding
     @sync for i = 1:numfolds
-        # one_fold returns a vector of out-of-sample errors (MSE for linear regression) 
-        # @fetch(one_fold(...)) spawns one_fold() on a CPU and returns the MSE 
-        errors[i] = @fetch(one_fold(x, y, path, folds, i, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids)) 
+        # one_fold returns a vector of out-of-sample errors (MSE for linear regression)
+        # @fetch(one_fold(...)) spawns one_fold() on a CPU and returns the MSE
+        errors[i] = @fetch(one_fold(x, y, path, folds, i, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids))
     end
-    
+
     # average the mses
     errors ./= numfolds
 
@@ -463,7 +463,7 @@ function cv_iht(
         @inbounds for i = 1:num_models
             println(path[i], "\t", errors[i])
         end
-        println("\nThe lowest MSE is achieved at k = ", k) 
+        println("\nThe lowest MSE is achieved at k = ", k)
     end
 
     # recompute ideal model
@@ -476,18 +476,18 @@ function cv_iht(
         output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, b=b, pids=pids)
 
         # which components of beta are nonzero?
-        inferred_model = output["beta"] .!= zero(Float32) 
-        bidx = find( x -> x .!= zero(Float32), b) 
+        inferred_model = output["beta"] .!= zero(Float32)
+        bidx = find( x -> x .!= zero(Float32), b)
 
         # allocate the submatrix of x corresponding to the inferred model
         x_inferred = zeros(Float32,n,sum(inferred_model))
         decompress_genotypes!(x_inferred,x)
 
-        # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y 
-        xty = BLAS.gemv('T', one(Float32), x_inferred, y)   
+        # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
+        xty = BLAS.gemv('T', one(Float32), x_inferred, y)
         xtx = BLAS.gemm('T', 'N', one(Float32), x_inferred, x_inferred)
         b   = xtx \ xty
-        return errors, b, bidx 
+        return errors, b, bidx
     end
     return errors
 end

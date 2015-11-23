@@ -1,32 +1,32 @@
 function iht(
-    b         :: DenseVector{Float32}, 
-    x         :: DenseMatrix{Float32}, 
-    y         :: DenseVector{Float32}, 
-    k         :: Int, 
-    g         :: DenseVector{Float32}; 
-    n         :: Int                  = length(y), 
-    p         :: Int                  = length(b), 
-    b0        :: DenseVector{Float32} = copy(b), 
-    xb        :: DenseVector{Float32} = BLAS.gemv('N', one(Float32), x, b), 
-    xb0       :: DenseVector{Float32} = copy(xb), 
-    xk        :: DenseMatrix{Float32} = zeros(Float32,n,k), 
-    xgk       :: DenseVector{Float32} = zeros(Float32,n), 
-    gk        :: DenseVector{Float32} = zeros(Float32,k), 
-    bk        :: DenseVector{Float32} = zeros(Float32,k), 
-    sortidx   :: DenseVector{Int}     = collect(1:p), 
-    IDX       :: BitArray{1}          = falses(p), 
-    IDX0      :: BitArray{1}          = copy(IDX), 
+    b         :: DenseVector{Float32},
+    x         :: DenseMatrix{Float32},
+    y         :: DenseVector{Float32},
+    k         :: Int,
+    g         :: DenseVector{Float32};
+    n         :: Int                  = length(y),
+    p         :: Int                  = length(b),
+    b0        :: DenseVector{Float32} = copy(b),
+    xb        :: DenseVector{Float32} = BLAS.gemv('N', one(Float32), x, b),
+    xb0       :: DenseVector{Float32} = copy(xb),
+    xk        :: DenseMatrix{Float32} = zeros(Float32,n,k),
+    xgk       :: DenseVector{Float32} = zeros(Float32,n),
+    gk        :: DenseVector{Float32} = zeros(Float32,k),
+    bk        :: DenseVector{Float32} = zeros(Float32,k),
+    sortidx   :: DenseVector{Int}     = collect(1:p),
+    IDX       :: BitArray{1}          = falses(p),
+    IDX0      :: BitArray{1}          = copy(IDX),
     iter      :: Int                  = 1,
     max_step  :: Int                  = 50
-) 
+)
 
-    # which components of beta are nonzero? 
+    # which components of beta are nonzero?
     update_indices!(IDX, b, p=p)
 
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
     if sum(IDX) == 0
-        selectpermk!(sortidx,g,k, p=p) 
+        selectpermk!(sortidx,g,k, p=p)
         IDX[sortidx[1:k]] = true;
     end
 
@@ -55,7 +55,7 @@ function iht(
 
     # which indices of new beta are nonzero?
     copy!(IDX0, IDX)
-    update_indices!(IDX, b, p=p) 
+    update_indices!(IDX, b, p=p)
 
     # update xb
     update_xb!(xb, x, b, sortidx, k)
@@ -79,7 +79,7 @@ function iht(
         project_k!(b, bk, sortidx, k)
 
         # which indices of new beta are nonzero?
-        update_indices!(IDX, b, p=p) 
+        update_indices!(IDX, b, p=p)
 
         # recompute xb
         update_xb!(xb, x, b, sortidx, k)
@@ -96,9 +96,9 @@ function iht(
 end
 
 function L0_reg(
-    x         :: DenseMatrix{Float32}, 
-    y         :: DenseVector{Float32}, 
-    k         :: Int; 
+    x         :: DenseMatrix{Float32},
+    y         :: DenseVector{Float32},
+    k         :: Int;
     n         :: Int                  = length(y),
     p         :: Int                  = size(x,2),
     xk        :: DenseMatrix{Float32} = zeros(Float32,n,k),
@@ -133,9 +133,9 @@ function L0_reg(
     mm_iter   = 0                           # number of iterations of L0_reg
     mm_time   = zero(Float32)               # compute time *within* L0_reg
     next_obj  = zero(Float32)               # objective value
-    next_loss = zero(Float32)               # loss function value 
+    next_loss = zero(Float32)               # loss function value
 
-    # initialize floats 
+    # initialize floats
     current_obj = oftype(zero(Float32),Inf) # tracks previous objective function value
     the_norm    = zero(Float32)             # norm(b - b0)
     scaled_norm = zero(Float32)             # the_norm / (norm(b0) + 1)
@@ -147,33 +147,33 @@ function L0_reg(
 
     # initialize booleans
     converged = false                       # scaled_norm < tol?
-   
+
     # update X*beta
     update_xb!(Xb, x, b, indices, k, p=p, n=n)
 
-    # update r and gradient 
+    # update r and gradient
     difference!(r,y,Xb, n=n)
     BLAS.gemv!('T', one(Float32), x, r, zero(Float32), df)
 
     # update loss and objective
-    next_loss = oftype(zero(Float32),Inf) 
+    next_loss = oftype(zero(Float32),Inf)
 
     # formatted output to monitor algorithm progress
     if !quiet
-         println("\nBegin MM algorithm\n") 
+         println("\nBegin MM algorithm\n")
          println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
          println("0\t0\tInf\t\tInf\t\tInf")
     end
 
     # main loop
     for mm_iter = 1:max_iter
- 
+
         # notify and break if maximum iterations are reached.
         if mm_iter >= max_iter
 
             if !quiet
-                print_with_color(:red, "MM algorithm has hit maximum iterations $(max_iter)!\n") 
-                print_with_color(:red, "Current Objective: $(current_obj)\n") 
+                print_with_color(:red, "MM algorithm has hit maximum iterations $(max_iter)!\n")
+                print_with_color(:red, "Current Objective: $(current_obj)\n")
             end
 
             # send elements below tol to zero
@@ -188,9 +188,9 @@ function L0_reg(
 
             return output
         end
-        
-        # save values from previous iterate 
-        copy!(b0,b)             # b0 = b    
+
+        # save values from previous iterate
+        copy!(b0,b)             # b0 = b
         copy!(Xb0,Xb)           # Xb0 = Xb
         current_obj = next_obj
 
@@ -198,11 +198,11 @@ function L0_reg(
         (mu, mu_step) = iht(b,x,y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=xk, bk=tempkf, sortidx=indices, gk=gk, iter=mm_iter)
 
         # the IHT kernel gives us an updated x*b
-        # use it to recompute residuals and gradient 
+        # use it to recompute residuals and gradient
         difference!(r,y,Xb, n=n)
         BLAS.gemv!('T', zero(Float32), x, r, zero(Float32), df)
 
-        # update loss, objective, and gradient 
+        # update loss, objective, and gradient
         next_loss = 0.5f0 * sumabs2(r)
 
         # guard against numerical instabilities
@@ -213,15 +213,15 @@ function L0_reg(
         the_norm    = chebyshev(b,b0)
         scaled_norm = the_norm / ( norm(b0,Inf) + 1)
         converged   = scaled_norm < tol
-        
-        # output algorithm progress 
+
+        # output algorithm progress
         quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_loss)
 
         # check for convergence
         # if converged and in feasible set, then algorithm converged before maximum iteration
-        # perform final computations and output return variables 
+        # perform final computations and output return variables
         if converged
-            
+
             # send elements below tol to zero
             threshold!(b, tol, n=p)
 
@@ -230,9 +230,9 @@ function L0_reg(
 
             if !quiet
                 println("\nMM algorithm has converged successfully.")
-                println("MM Results:\nIterations: $(mm_iter)") 
-                println("Final Loss: $(next_loss)") 
-                println("Total Compute Time: $(mm_time)") 
+                println("MM Results:\nIterations: $(mm_iter)")
+                println("Final Loss: $(next_loss)")
+                println("Total Compute Time: $(mm_time)")
             end
 
             # these are output variables for function
@@ -249,9 +249,9 @@ function L0_reg(
         if next_obj > current_obj + tol
             if !quiet
                 print_with_color(:red, "\nMM algorithm fails to descend!\n")
-                print_with_color(:red, "MM Iteration: $(mm_iter)\n") 
-                print_with_color(:red, "Current Objective: $(current_obj)\n") 
-                print_with_color(:red, "Next Objective: $(next_obj)\n") 
+                print_with_color(:red, "MM Iteration: $(mm_iter)\n")
+                print_with_color(:red, "Current Objective: $(current_obj)\n")
+                print_with_color(:red, "Next Objective: $(next_obj)\n")
                 print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
             end
 
@@ -263,62 +263,62 @@ function L0_reg(
 end # end function
 
 function iht_path(
-    x        :: DenseMatrix{Float32}, 
-    y        :: DenseVector{Float32}, 
-    path     :: DenseVector{Int}; 
-    b        :: DenseVector{Float32} = zeros(Float32,size(x,2)), 
+    x        :: DenseMatrix{Float32},
+    y        :: DenseVector{Float32},
+    path     :: DenseVector{Int};
+    b        :: DenseVector{Float32} = zeros(Float32,size(x,2)),
     tol      :: Float32               = 1f-4,
-    max_iter :: Int                   = 1000, 
-    max_step :: Int                   = 50, 
-    quiet    :: Bool                  = true 
+    max_iter :: Int                   = 1000,
+    max_step :: Int                   = 50,
+    quiet    :: Bool                  = true
 )
 
     # size of problem?
     (n,p) = size(x)
 
     # how many models will we compute?
-    num_models = length(path)         
+    num_models = length(path)
 
-    # preallocate space for intermediate steps of algorithm calculations 
-    b0       = zeros(Float32,p)               # previous iterate beta0 
-    df       = zeros(Float32,p)               # (negative) gradient 
+    # preallocate space for intermediate steps of algorithm calculations
+    b0       = zeros(Float32,p)               # previous iterate beta0
+    df       = zeros(Float32,p)               # (negative) gradient
     r        = zeros(Float32,n)               # for || Y - XB ||_2^2
-    Xb       = zeros(Float32,n)               # X*beta 
-    Xb0      = zeros(Float32,n)               # X*beta0 
-    tempn    = zeros(Float32,n)               # temporary array of n floats 
-    indices  = collect(1:p)                   # indices that sort beta 
+    Xb       = zeros(Float32,n)               # X*beta
+    Xb0      = zeros(Float32,n)               # X*beta0
+    tempn    = zeros(Float32,n)               # temporary array of n floats
+    indices  = collect(1:p)                   # indices that sort beta
     support  = falses(p)                      # indicates nonzero components of beta
     support0 = copy(support)                  # store previous nonzero indicators
     betas    = spzeros(Float32,p,num_models)  # a matrix to store calculated models
 
     # compute the path
     for i = 1:num_models
-    
+
         # model size?
         q = path[i]
 
-        # store projection of beta onto largest k nonzeroes in magnitude 
+        # store projection of beta onto largest k nonzeroes in magnitude
         bk     = zeros(Float32,q)
         project_k!(b, bk, indices, q)
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
         xk     = zeros(Float32,n,q)           # store q columns of X
-        tempkf = zeros(Float32,q)             # temporary array of q floats 
-        gk     = zeros(Float32,q)             # another temporary array of q floats 
+        tempkf = zeros(Float32,q)             # temporary array of q floats
+        gk     = zeros(Float32,q)             # another temporary array of q floats
 
         # now compute current model
-        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, xk=xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, gk=gk, tempn=tempn, indices=indices, support=support, support0=support0) 
+        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, xk=xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, gk=gk, tempn=tempn, indices=indices, support=support, support0=support0)
 
         # extract and save model
         copy!(b, output["beta"])
-        update_indices!(support, b, p=p)    
+        update_indices!(support, b, p=p)
         fill!(support0, false)
-#        update_col!(betas, b, i, n=p, p=num_models, a=1.0) 
+#        update_col!(betas, b, i, n=p, p=num_models, a=1.0)
         betas[:,i] = sparsevec(b)
     end
 
     # return a sparsified copy of the models
 #    return sparse(betas)
     return betas
-end 
+end
