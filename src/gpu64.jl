@@ -1,10 +1,25 @@
 export L0_reg_gpu
 export iht_path
 
-# shortcut for OpenCL module name
-cl = OpenCL
+"A shortcut for `OpenCL` module name."
+const cl = OpenCL
 
-# subroutine to mask entries of a vector x
+"""
+    mask!(x,b,val,mask_val,n)
+
+A subroutine to mask entries of a vector `x`.
+
+Arguments:
+
+- `x` is the vector to mask.
+- `v` is the `Int` vector used in masking.
+- `val` is the value of `v` to use in masking.
+- `mask_val` is the actual value of the mask, i.e. if `v[i] = val` then `x[i] = mask_val`.
+
+Optional Arguments:
+
+- `n = length(x)`.
+"""
 function mask!(
 	x        :: DenseVector{Float64}, 
 	v        :: DenseVector{Int}, 
@@ -18,58 +33,16 @@ function mask!(
 			x[i] = mask_val 
 		end
 	end
+    return nothing
 end
 		
 
-# ITERATIVE HARD THRESHOLDING USING A PLINK BED FILE
-#
-# This function computes a hard threshold update
-#
-#    b+ = P_{S_k}(b + mu*X'(y - Xb))
-#
-# where mu is the step size (or learning rate) and P_{S_k} denotes the projection onto the set S_k defined by
-#
-#     S_k = { x in R^p : || x ||_0 <= k }. 
-#
-# The projection in question preserves the largest k components of b in magnitude, and it sends the remaining 
-# p-k components to zero. This update is intimately related to a projected gradient step used in Landweber iteration.
-# Unlike the Landweber method, this function performs a line search on mu whenever the step size exceeds a specified
-# threshold omega given by
-#
-#     omega = || b+ - b ||_2^2 / || X(b+ - b) ||_2^2.
-#
-# By backtracking on mu, this function guarantees a stable estimation of a sparse b. 
-#
-# This function is tuned to operate on a PLINK BEDFile object. As such, it decompresses genotypes on the fly.
-#
-# Arguments:
-#
-# -- b is the iterate of p model components;
-# -- x is the BEDFile object that contains the compressed n x p design matrix;
-# -- y is the vector of n responses;
-# -- k is the model size;
-# -- g is the negative gradient X'*(Y - Xbeta);
-#
-# Optional Arguments:
-#
-# -- p is the number of predictors. Defaults to length(b).
-# -- n is the number of samples. Defaults to length(y).
-# -- b0 is the previous iterate beta. Defaults to b.
-# -- xb = x*b.
-# -- xb0 = x*b0.
-# -- bk is a temporary array to store the k floats corresponding to the support of b.
-# -- xk is a temporary array to store the k columns of x corresponding to the support of b.
-# -- gk is a temporary array of k floats used to subset the k components of the gradient g with the support of b.
-# -- xgk = x*gk. 
-# -- max_step is the maximum number of backtracking steps to take. Defaults to 50.
-# -- sortidx is a vector to store the indices that would sort beta. Defaults to p zeros of type Int. 
-# -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type Float64. 
-# -- IDX and IDX0 are BitArrays indicating the nonzero status of components of beta. They default to falses.
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu
-# based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
-# http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
+"""
+    iht(b, x::BEDFile, y, k, g, mask_n)
+
+Calls `iht()` with a bitmask `mask_n` with `Int` values `0` or `1`.
+`mask_n` permits inclusion and exclusion of rows of a `BEDFile` object `x` without explicitly subsetting it.
+"""
 function iht(
 	b         :: DenseVector{Float64}, 
 	x         :: BEDFile, 
@@ -77,23 +50,23 @@ function iht(
 	k         :: Int, 
 	g         :: DenseVector{Float64},
 	mask_n    :: DenseVector{Int};
-	pids      :: DenseVector{Int}     = procs(),
 	n         :: Int                  = length(y), 
 	p         :: Int                  = length(b), 
-	b0        :: DenseVector{Float64} = SharedArray(Float64, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids), 
+	pids      :: DenseVector{Int}     = procs(),
 	means     :: DenseVector{Float64} = mean(Float64,x, shared=true, pids=pids), 
 	invstds   :: DenseVector{Float64} = invstd(x,means, shared=true, pids=pids), 
+	b0        :: DenseVector{Float64} = SharedArray(Float64, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids), 
 	Xb        :: DenseVector{Float64} = xb(x,b,IDX,k,mask_n, means=means, invstds=invstds, pids=pids), 
 	Xb0       :: DenseVector{Float64} = SharedArray(Float64, n, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids), 
+	sortidx   :: DenseVector{Int}     = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids), 
 	xk        :: DenseMatrix{Float64} = zeros(Float64,n,k), 
 	xgk       :: DenseVector{Float64} = zeros(Float64,n), 
 	gk        :: DenseVector{Float64} = zeros(Float64,k), 
 	bk        :: DenseVector{Float64} = zeros(Float64,k),
-	sortidx   :: DenseVector{Int}     = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids), 
 	IDX       :: BitArray{1}          = falses(p), 
 	IDX0      :: BitArray{1}          = copy(IDX), 
+	iter      :: Int                  = 1,
 	max_step  :: Int                  = 50, 
-	iter      :: Int                  = 1
 ) 
 	# which components of beta are nonzero? 
 	update_indices!(IDX, b, p=p)
@@ -181,59 +154,23 @@ function iht(
 end
 
 
-# L0 PENALIZED LEAST SQUARES REGRESSION FOR WHOLE GWAS
-#
-# This routine solves the optimization problem
-#
-#     min 0.5*|| Y - XB ||_2^2 
-#
-# subject to
-#
-#     B in S_k = { x in R^p : || x ||_0 <= k }. 
-#
-# It uses Thomas Blumensath's iterative hard thresholding framework to keep B feasible.
-#
-# Arguments:
-# -- X is the BEDFile object that contains the compressed n x p design matrix
-# -- Y is the n x 1 continuous response vector
-# -- k is the desired size of the support (active set)
-#
-# Optional Arguments:
-# -- b is the p x 1 iterate. Warm starts should use this argument. Defaults to zeros(p).
-# -- max_iter is the maximum number of iterations for the algorithm. Defaults to 1000.
-# -- max_step is the maximum number of backtracking steps for the step size calculation. Defaults to 50.
-# -- tol is the global tol. Defaults to 5e-5.
-# -- quiet is a Boolean that controls algorithm output. Defaults to true (no output).
-# -- several temporary arrays for intermediate steps of algorithm calculations:
-#		Xk        = zeros(Float64,n,k)  # store k columns of X
-#		r         = zeros(Float64,n)	# for || Y - XB ||_2^2
-#		Xb        = zeros(Float64,n)	# X*beta 
-#		Xb0       = zeros(Float64,n)	# X*beta0 
-#		b0        = zeros(Float64,p)	# previous iterate beta0 
-#		df        = zeros(Float64,p)	# (negative) gradient 
-#		tempkf    = zeros(Float64,k)    # temporary array of k floats 
-#		idx       = zeros(Float64,k)    # another temporary array of k floats 
-#		tempn     = zeros(Float64,n)    # temporary array of n floats 
-#		indices   = collect(1:p)	    # indices that sort beta 
-#		support   = falses(p)			# indicates nonzero components of beta
-#		support0  = copy(support)		# store previous nonzero indicators
-#
-# Outputs are wrapped into a Dict with the following fields:
-# -- time is the compute time for the algorithm. Note that this does not account for time spent initializing optional argument defaults
-# -- iter is the number of iterations that the algorithm took
-# -- loss is the optimal loss (residual sum of squares divided by sqrt of RSS with previous iterate)
-# -- beta is the final iterate
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu
+"""
+    L0_reg(x::BEDFile, y, k, kernfile)
+
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device. This variant introduces a host of extra arguments for the GPU. Most of these arguments are only meant to facilitate the calculation of a regularization path by `iht_path`. The optional arguments that a user will most likely wish to manipulate are 
+
+- `device`, an `OpenCL.Device` object indicating the device to use in computations. Defaults to `last(OpenCL.devices(:gpu))`.
+- `mask_n`, an `Int` vector of `0`s and `1`s indexing the rows of `x` and `y` that should be included or masked in the analysis. Defaults to `ones(Int,n)`, which includes all data.
+- `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
+"""
 function L0_reg(
 	X           :: BEDFile, 
 	Y           :: DenseVector{Float64}, 
 	k           :: Int,
 	kernfile    :: ASCIIString; 
-	pids        :: DenseVector{Int}     = procs(),
 	n           :: Int                  = length(Y), 
 	p           :: Int                  = size(X,2), 
+	pids        :: DenseVector{Int}     = procs(),
 	Xk          :: DenseMatrix{Float64} = zeros(Float64, (n,k)), 
 	b           :: DenseVector{Float64} = SharedArray(Float64, p, pids=pids), 
 	b0          :: DenseVector{Float64} = SharedArray(Float64, p, pids=pids), 
@@ -435,24 +372,15 @@ end # end function
 
 
 
-# COMPUTE AN IHT REGULARIZATION PATH FOR LEAST SQUARES REGRESSION USING GWAS DATA
-# This subroutine computes a regularization path for design matrix X and response Y from initial model size k0 to final model size k.
-# The default increment on model size is 1. The path can also be warm-started with a vector b.
-# This variant requires a calculated path in order to work.
-#
-# Arguments:
-# -- x is the BEDFILE that contains the compressed n x p design matrix.
-# -- y is the n-vector of responses
-# -- path is an Int array that contains the model sizes to test
-#
-# Optional Arguments:
-# -- b is the p-vector of effect sizes. This argument permits warmstarts to the path computation. Defaults to zeros.
-# -- max_iter caps the number of iterations for the algorithm. Defaults to 1000.
-# -- max_step caps the number of backtracking steps in the IHT kernel. Defaults to 50.
-# -- quiet is a Boolean that controls the output. Defaults to true (no output).
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu
+"""
+    iht_path(x::BEDFile, y , k ,kernfile)
+
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `iht_path` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device. The new optional arguments include: 
+
+- `device`, an `OpenCL.Device` object indicating the device to use in computations. Defaults to `last(OpenCL.devices(:gpu))`.
+- `mask_n`, an `Int` vector of `0`s and `1`s indexing the rows of `x` and `y` that should be included or masked in the analysis. Defaults to `ones(Int,n)`, which includes all data.
+- `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
+"""
 function iht_path(
 	x        :: BEDFile, 
 	y        :: DenseVector{Float64}, 
@@ -555,33 +483,14 @@ function iht_path(
 end	
 
 
-# COMPUTE ONE FOLD IN A CROSSVALIDATION SCHEME FOR A REGULARIZATION PATH FOR ENTIRE GWAS
-#
-# For a regularization path given by the vector "path", 
-# this function computes an out-of-sample error based on the indices given in the vector "test_idx". 
-# The vector test_idx indicates the portion of the data to use for testing.
-# The remaining data are used for training the model.
-# This variant of one_fold() operates on a BEDFile object
-#
-# Arguments:
-# -- x is the BEDFile object that contains the compressed n x p design matrix.
-# -- y is the n-vector of responses.
-# -- path is the Int array that indicates the model sizes to compute on the regularization path. 
-#
-# -- path is an integer array that specifies which model sizes to include in the path, e.g.
-#    > path = collect(k0:increment:k_end).
-# -- test_idx is the Int array that indicates which data to hold out for testing.
-#
-# Optional Arguments:
-# -- n is the number of samples. Defaults to length(y).
-# -- tol is the convergence tol to pass to the path computations. Defaults to 1e-4.
-# -- max_iter caps the number of permissible iterations in the IHT algorithm. Defaults to 1000.
-# -- max_step caps the number of permissible backtracking steps. Defaults to 50.
-# -- quiet is a Boolean to activate output. Defaults to true (no output).
-# -- logreg is a switch to activate logistic regression. Defaults to false (perform linear regression).
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu 
+"""
+    one_fold(x::BEDFile, y, path, kernfile, folds, fold)
+
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `one_fold` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device. The new optional arguments include: 
+
+- `devidx`, an index indicating the GPU device to use in computations. The device is chosen  as `OpenCL.devices(:gpu)[devidx]`. Defaults to `1` (choose the first GPU device)
+- `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
+"""
 function one_fold(
 	x        :: BEDFile, 
 	y        :: DenseVector{Float64}, 
@@ -725,6 +634,14 @@ function compute_max_gpu_load(x::BEDFile, wg_size::Int, device::cl.Device; prec6
 end
 
 
+"""
+    pfold(xfile, xtfile, x2file,yfile, meanfile, invstdfile,path,kernfile,folds,numfolds[, pids=procs(), devindices=ones(Int,numfolds])
+
+This function is the parallel execution kernel in `cv_iht()`. It is not meant to be called outside of `cv_iht()`.
+It will distribute `numfolds` crossvalidation folds across the processes supplied by the optional argument `pids` and call `one_fold()` for each fold.
+Each fold will use the GPU device indexed by its corresponding component of the optional argument `devindices`.
+`pfold()` collects the vectors of MSEs returned by calling `one_fold()` for each process, reduces them, and returns their average across all folds. 
+"""
 function pfold(
 	xfile      :: ASCIIString, 
 	xtfile     :: ASCIIString, 
@@ -804,44 +721,19 @@ function pfold(
 	end # end @sync
 
 	# return reduction (row-wise sum) over results
-	return reduce(+, results[1], results) 
+	return reduce(+, results[1], results) ./ numfolds 
 end
 
 
+"""
+    cv_iht(xfile,xtfile,x2file,yfile,meanfile,invstdfile,path,kernfile,folds,numfolds [, pids=procs(), wg_size=512])
 
-
-# PARALLEL CROSSVALIDATION ROUTINE FOR IHT OVER ENTIRE GWAS
-#
-# This function will perform n-fold cross validation for the ideal model size in IHT least squares regression.
-# It computes several paths as specified in the "paths" argument using the design matrix x and the response vector y.
-# Each path is asynchronously spawned using any available processor.
-# For each path, one fold is held out of the analysis for testing, while the rest of the data are used for training.
-# The function to compute each path, "one_fold()", will return a vector of out-of-sample errors (MSEs).
-# After all paths are computed, this function queries the RemoteRefs corresponding to these returned vectors.
-# It then "reduces" all components along each path to yield averaged MSEs for each model size.
-#
-# Arguments:
-# -- x is the BEDFile that contains the compressed n x p design matrix.
-# -- y is the n-vector of responses.
-# -- path is an integer array that specifies which model sizes to include in the path, e.g.
-#    > path = collect(k0:increment:k_end).
-# -- nfolds is the number of folds to compute.
-#
-# Optional Arguments:
-# -- n is the number of samples. Defaults to length(y).
-# -- p is the number of predictors. Defaults to size(x,2).
-# -- folds is the partition of the data. Defaults to a random partition into "nfolds" disjoint sets.
-# -- tol is the convergence tol to pass to the path computations. Defaults to 1e-4.
-# -- max_iter caps the number of permissible iterations in the IHT algorithm. Defaults to 1000.
-# -- max_step caps the number of permissible backtracking steps. Defaults to 50.
-# -- quiet is a Boolean to activate output. Defaults to true (no output).
-#    NOTA BENE: each processor outputs feed to the console without regard to the others,
-#    so setting quiet=true can yield very messy output!
-# -- logreg is a Boolean to indicate whether or not to perform logistic regression. Defaults to false (do linear regression).
-# -- compute_model is a Boolean to indicate whether or not to recompute the best model. Defaults to false (do not recompute). 
-#
-# coded by Kevin L. Keys (2015)
-# klkeys@g.ucla.edu 
+This variant of `cv_iht()` performs `numfolds` crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
+with column means stored in `meanfile` and column precisions stored in `invstdfile`.
+The continuous response is stored in `yfile` with data particioned by the `Int` vector `folds`.
+The calculations employ GPU acceleration by calling OpenCL kernels from `kernfile` with workgroup size `wg_size`.
+The folds are distributed across the processes given by `pids`.
+"""
 function cv_iht(
 	xfile         :: ASCIIString,
 	xtfile        :: ASCIIString,
@@ -895,9 +787,6 @@ function cv_iht(
 	# the folds are computed asynchronously
 	# only use the worker processes
 	errors = pfold(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, numfolds,	max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
-
-	# average the mses over number of folds
-	errors ./= numfolds
 
 	# what is the best model size?
 	k = convert(Int, floor(mean(path[errors .== minimum(errors)])))

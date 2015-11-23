@@ -1,52 +1,55 @@
 """
 ITERATIVE HARD THRESHOLDING
 
+    iht(b,x,y,k,g) -> (Float, Int) 
+
 This function computes a hard threshold update
 
-b+ = P_{S_k}(b + mu*X'(y - Xb))
+    b = P_Sk(b0 + mu*x'*(y - x*b0))
 
-where mu is the step size (or learning rate) and P_{S_k} denotes the projection onto the set S_k defined by
+where `mu` is the step size (or learning rate) and P_Sk denotes the projection onto the set S_k defined by
 
 S_k = { x in R^p : || x ||_0 <= k }. 
 
-The projection in question preserves the largest k components of b in magnitude, and it sends the remaining 
-p-k components to zero. This update is intimately related to a projected gradient step used in Landweber iteration.
-Unlike the Landweber method, this function performs a line search on mu whenever the step size exceeds a specified
-threshold omega given by
+The projection in question preserves the largest `k` components of `b` in magnitude, and it sends the remaining 
+`p - k` components to zero. This update is intimately related to a projected gradient step used in Landweber iteration.
+Unlike the Landweber method, this function performs a line search on `mu` whenever the step size exceeds a specified
+threshold `omega` given by
 
-omega = || b+ - b ||_2^2 / || X(b+ - b) ||_2^2.
+    omega = sumabs2(b - b0) / sumabs2(x*(b - b0))
 
-By backtracking on mu, this function guarantees a stable estimation of a sparse b. 
+By backtracking on `mu`, this function guarantees a stable estimation of a sparse `b`. 
+This function is based on the [HardLab](http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html/) demonstration code written in MATLAB by Thomas Blumensath.
 
 Arguments:
 
--- b is the iterate of p model components;
--- x is the n x p design matrix;
--- y is the vector of n responses;
--- k is the model size;
--- g is the negative gradient X'*(Y - Xbeta);
+- `b` is the iterate of `p` model components.
+- `x` is the `n` x `p` design matrix.
+- `y` is the vector of `n` responses.
+- `k` is the model size.
+- `g` is the negative gradient `x'*(y - x*b)`.
 
 Optional Arguments:
 
--- n is the number of samples. Defaults to length(y).
--- p is the number of predictors. Defaults to length(b).
--- b0 is the previous iterate beta. Defaults to copy(b).
--- xb = x*b.
--- xb0 = x*b0. Defaults to copy(xb).
--- xk is a temporary array to store the k columns of x corresponding to the support of b.
--- gk is a temporary array of k floats used to subset the k components of the gradient g with the support of b.
--- bk is a temporary array to store the k floats corresponding to the support of b.
--- xgk = x*gk. Defaults to zeros(n). 
--- sortidx is a vector to store the indices that would sort beta. Defaults to p zeros of type Int. 
--- IDX is a BitArray indicating the nonzero status of components of beta. Defaults to falses(p).
--- IDX0 = copy(IDX0). 
--- iter is the current iteration count in the MM algorithm. Defaults to 1. 
--- max_step is the maximum number of backtracking steps to take. Defaults to 50.
+- `n` is the number of samples. Defaults to `length(y)`.
+- `p` is the number of predictors. Defaults to `length(b)`.
+- `b0` is the previous iterate beta. Defaults to `copy(b)`.
+- `xb` = `x*b`.
+- `xb0` = `x*b0`. Defaults to `copy(xb)`.
+- `xk` stores the `k` columns of `x` corresponding to the support of `b`.
+- `gk` stores the `k` components of the gradient `g` with the support of `b`.
+- `bk` stores the `k` floats corresponding to the support of b. Defaults to `zeros(k)`.
+- `xgk` = `x*gk`. Defaults to `zeros(n)`. 
+- `sortidx` stores the indices that sort `b`. Defaults to `collect(1:p)`. 
+- `IDX` is a `BitArray` indicating the nonzero status of components of `b`. Defaults to `falses(p)`.
+- `IDX0` = `copy(IDX0)`. 
+- iter is the current iteration count in the IHT algorithm. Defaults to `1`. 
+- max_step is the maximum permissible number of backtracking steps. Defaults to `50`.
 
-coded by Kevin L. Keys (2015)
-klkeys@g.ucla.edu
-based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
-http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html 
+Output:
+
+- `mu` is the step size used to update `b`, after backtracking.`
+- `mu_step` is the number of backtracking steps used on `mu`.
 """
 function iht(
     b         :: DenseVector{Float64}, 
@@ -148,28 +151,30 @@ end
 """
 L0 PENALIZED LEAST SQUARES REGRESSION
 
-This routine solves the optimization problem
+    L0_reg(x,y,k) -> Dict{ASCIIString,Any}
 
-min 0.5*|| Y - XB ||_2^2 
+This routine minimizes the loss function 
 
-subject to
+    0.5*sumabs2( y - x*b )
 
-B in S_k = { x in R^p : || x ||_0 <= k }. 
+subject to `b` lying in the set S_k = { x in R^p : || x ||_0 <= k }. 
 
-It uses Thomas Blumensath's iterative hard thresholding framework to keep B feasible.
+It uses Thomas Blumensath's iterative hard thresholding framework to keep `b` feasible.
 
 Arguments:
--- X is the n x p data matrix
--- Y is the n x 1 continuous response vector
--- k is the desired size of the support (active set)
+
+- `x` is the `n` x `p` data matrix
+- `y` is the `n`-dimensional continuous response vector
+- `k` is the desired model size (support) 
 
 Optional Arguments:
--- b is the statistical model. Warm starts should use this argument. Defaults zeros(p), the null model. 
--- max_iter is the maximum number of iterations for the algorithm. Defaults to 1000.
--- max_step is the maximum number of backtracking steps for the step size calculation. Defaults to 50.
--- tol is the global tol. Defaults to 1e-4.
--- quiet is a Boolean that controls algorithm output. Defaults to true (no output).
--- several temporary arrays for intermediate steps of algorithm calculations:
+
+- `b` is the statistical model. Warm starts should use this argument. Defaults `zeros(p)`, the null model. 
+- `max_iter` is the maximum number of iterations for the algorithm. Defaults to `1000`.
+- `max_step` is the maximum number of backtracking steps for the step size calculation. Defaults to `50`.
+- `tol` is the global tolerance. Defaults to `1e-4`.
+- `quiet` is a `Bool` that controls algorithm output. Defaults to `true` (no output).
+- several temporary arrays for intermediate steps of algorithm calculations:
 
     Xk        = zeros(Float64,n,k)  # store k columns of X
     b0        = zeros(Float64,p)    # previous iterate beta0 
@@ -184,14 +189,12 @@ Optional Arguments:
     support   = falses(p)           # indicates nonzero components of beta
     support0  = copy(support)       # store previous nonzero indicators
 
-Outputs are wrapped into a Dict with the following fields:
--- 'time' is the compute time for the algorithm. Note that this does not account for time spent initializing optional argument defaults.
--- 'iter' is the number of iterations that the algorithm took before converging.
--- 'loss' is the optimal loss (half of residual sum of squares) 
--- 'beta' is the final iterate.
+Outputs are wrapped into a `Dict{ASCIIString,Any}` with the following fields:
 
-coded by Kevin L. Keys (2015)
-klkeys@g.ucla.edu
+- 'time' is the compute time for the algorithm. Note that this does not account for time spent initializing optional argument defaults.
+- 'iter' is the number of iterations that the algorithm took before converging.
+- 'loss' is the optimal loss (half of residual sum of squares) at convergence. 
+- 'beta' is the final estimate of `b`.
 """
 function L0_reg(
     x         :: DenseMatrix{Float64}, 
@@ -362,23 +365,27 @@ end # end function
 
 """
 COMPUTE AN IHT REGULARIZATION PATH FOR LEAST SQUARES REGRESSION
-This subroutine computes a regularization path for design matrix X and response Y from initial model size k0 to final model size k.
-The default increment on model size is 1. The path can also be warm-started with a vector b.
-This variant requires a calculated path in order to work.
+
+    iht_path(x,y,path) -> SparseCSCMatrix 
+
+This subroutine computes best models for matrix `x` and response `y` over a regularization path denotes `path`. 
 
 Arguments:
--- x is the n x p design matrix.
--- y is the n-vector of responses.
--- path is an Int array that contains the model sizes to test.
+
+- `x` is the `n` x `p` design matrix.
+- `y` is the `n`-vector of responses.
+- `path` is an `Int` vector that contains the model sizes to test.
 
 Optional Arguments:
--- b is the p-vector of effect sizes. This argument permits warmstarts to the path computation. Defaults to zeros(p).
--- max_iter caps the number of iterations for the algorithm. Defaults to 1000.
--- max_step caps the number of backtracking steps in the IHT kernel. Defaults to 50.
--- quiet is a Boolean that controls the output. Defaults to true (no output).
 
-coded by Kevin L. Keys (2015)
-klkeys@g.ucla.edu
+- `b` is the `p`-vector of effect sizes. This argument permits warmstarts to the path computation. Defaults to `zeros(p)`.
+- `max_iter` caps the number of iterations for the algorithm. Defaults to `1000`.
+- `max_step` caps the number of backtracking steps in the IHT kernel. Defaults to `50`.
+- `quiet` is a Boolean that controls the output. Defaults to `true` (no output).
+
+Output:
+
+- a sparse `p` x `length(path)` matrix where each column contains the computed model for each component of `path`. 
 """
 function iht_path(
     x        :: DenseMatrix{Float64}, 

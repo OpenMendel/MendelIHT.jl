@@ -1,9 +1,12 @@
 """
-If used with a BEDFile x, then the additional optional arguments are
--- pids, a vector of process IDs. Defaults to procs().
--- means, a vector of SNP means. Defaults to mean(Float64, x, shared=true, pids=procs().
--- invstds, a vector of SNP precisions. Defaults to mean(Float64, x, shared=true, pids=procs().
-In addition, the temporary arrays are SharedArrays.
+    iht(b, x::BEDFile, y, k, g)
+
+If used with a `BEDFile` object `x`, then the temporary arrays `b0`, `Xb`, `Xb0`, and `sortidx` are all initialized as `SharedArray`s of the proper dimensions.
+The additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(Float64, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
 """
 function iht(
     b        :: DenseVector{Float64}, 
@@ -116,10 +119,14 @@ function iht(
 end
 
 """
-If called with a BEDFile object X, then the additional optional arguments are
--- pids, a vector of process IDs. Defaults to procs().
--- means, a vector of SNP means. Defaults to mean(Float64, x, shared=true, pids=procs().
--- invstds, a vector of SNP precisions. Defaults to mean(Float64, x, shared=true, pids=procs().
+    L0_reg(x::BEDFile, y, k)
+
+If used with a `BEDFile` object `x`, then the temporary floating point arrays are all initialized as `SharedArray`s of the proper dimensions.
+The additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(Float64, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
 """
 function L0_reg(
     X        :: BEDFile, 
@@ -296,10 +303,14 @@ end # end function
 
 
 """
-If called with a BEDFile object X, then the additional optional arguments are
--- pids, a vector of process IDs. Defaults to procs().
--- means, a vector of SNP means. Defaults to mean(Float64, x, shared=true, pids=procs().
--- invstds, a vector of SNP precisions. Defaults to mean(Float64, x, shared=true, pids=procs().
+    iht_path(x::BEDFile, y, path)
+
+If used with a `BEDFile` object `x`, then the temporary arrays are all initialized as `SharedArray`s of the proper dimensions.
+The additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(Float64, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
 """
 function iht_path(
     x        :: BEDFile, 
@@ -374,10 +385,13 @@ end
 
 
 """
-If called with a BEDFile object X, then the additional optional arguments are
--- pids, a vector of process IDs. Defaults to procs().
--- means, a vector of SNP means. Defaults to mean(Float64, x, shared=true, pids=procs().
--- invstds, a vector of SNP precisions. Defaults to mean(Float64, x, shared=true, pids=procs().
+    one_fold(x::BEDFile, y, path, folds, fold)
+
+If used with a `BEDFile` object `x`, then the additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(Float64, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
 """
 function one_fold(
     x        :: BEDFile, 
@@ -442,10 +456,13 @@ end
 
 
 """
-If called with a BEDFile object X, then the additional optional arguments are
--- pids, a vector of process IDs. Defaults to procs().
--- means, a vector of SNP means. Defaults to mean(Float64, x, shared=true, pids=procs().
--- invstds, a vector of SNP precisions. Defaults to mean(Float64, x, shared=true, pids=procs().
+    cv_iht(x::BEDFile, y, path, numfolds)
+
+If used with a `BEDFile` object `x`, then the additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(Float64, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
 """
 function cv_iht(
     x             :: BEDFile, 
