@@ -11,6 +11,7 @@ export iht_path
 export iht_path_log
 export cv_iht
 export cv_get_folds
+export cv_log
 
 include("gpu64.jl")
 include("gpu32.jl")
@@ -22,7 +23,7 @@ include("iht64.jl")
 include("iht32.jl")
 include("aiht64.jl")
 include("aiht32.jl")
-#include("logistic64.jl")
-#include("logistic32.jl")
+include("log64.jl")
+include("log32.jl")
 
 end # end module IHT

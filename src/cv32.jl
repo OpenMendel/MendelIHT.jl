@@ -131,9 +131,9 @@ function cv_iht(
             x_inferred = x[:,bidx]
 
             # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-            xty = BLAS.gemv('T', one(Float32), x_inferred, y)
+            Xty = BLAS.gemv('T', one(Float32), x_inferred, y)
             xtx = BLAS.gemm('T', 'N', one(Float32), x_inferred, x_inferred)
-            b2  = xtx \ xty
+            b2  = xtx \ Xty
 #        end
         return errors, b2, bidx
     end

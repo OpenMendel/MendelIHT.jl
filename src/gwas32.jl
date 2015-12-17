@@ -484,9 +484,9 @@ function cv_iht(
         decompress_genotypes!(x_inferred,x)
 
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-        xty = BLAS.gemv('T', one(Float32), x_inferred, y)
+        Xty = BLAS.gemv('T', one(Float32), x_inferred, y)
         xtx = BLAS.gemm('T', 'N', one(Float32), x_inferred, x_inferred)
-        b   = xtx \ xty
+        b   = xtx \ Xty
         return errors, b, bidx
     end
     return errors

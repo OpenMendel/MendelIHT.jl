@@ -163,9 +163,9 @@ It uses Thomas Blumensath's iterative hard thresholding framework to keep `b` fe
 
 Arguments:
 
-- `x` is the `n` x `p` data matrix
-- `y` is the `n`-dimensional continuous response vector
-- `k` is the desired model size (support)
+- `x` is the `n` x `p` data matrix.
+- `y` is the `n`-dimensional continuous response vector.
+- `k` is the desired model size (support).
 
 Optional Arguments:
 
@@ -368,7 +368,7 @@ COMPUTE AN IHT REGULARIZATION PATH FOR LEAST SQUARES REGRESSION
 
     iht_path(x,y,path) -> SparseCSCMatrix
 
-This subroutine computes best models for matrix `x` and response `y` over a regularization path denotes `path`.
+This subroutine computes best linear models for matrix `x` and response `y` by calling `L0_reg` for each model over a regularization path denoted by `path`.
 
 Arguments:
 
@@ -379,6 +379,7 @@ Arguments:
 Optional Arguments:
 
 - `b` is the `p`-vector of effect sizes. This argument permits warmstarts to the path computation. Defaults to `zeros(p)`.
+- `tol` is the global convergence tolerance for `L0_reg`. Defaults to `1e-4`.
 - `max_iter` caps the number of iterations for the algorithm. Defaults to `1000`.
 - `max_step` caps the number of backtracking steps in the IHT kernel. Defaults to `50`.
 - `quiet` is a Boolean that controls the output. Defaults to `true` (no output).
@@ -392,10 +393,10 @@ function iht_path(
     y        :: DenseVector{Float64},
     path     :: DenseVector{Int};
     b        :: DenseVector{Float64} = zeros(Float64,size(x,2)),
-    tol      :: Float64               = 1e-4,
-    max_iter :: Int                   = 1000,
-    max_step :: Int                   = 50,
-    quiet    :: Bool                  = true
+    tol      :: Float64              = 1e-4,
+    max_iter :: Int                  = 1000,
+    max_step :: Int                  = 50,
+    quiet    :: Bool                 = true
 )
 
     # size of problem?
@@ -437,13 +438,9 @@ function iht_path(
 
         # extract and save model
         copy!(b, output["beta"])
-        update_indices!(support, b, p=p)
-        fill!(support0, false)
-#        update_col!(betas, b, i, n=p, p=num_models, a=1.0)
         betas[:,i] = sparsevec(b)
     end
 
     # return a sparsified copy of the models
-#    return sparse(betas)
     return betas
 end

@@ -456,7 +456,7 @@ end
 
 
 """
-    cv_iht(x::BEDFile, y, path, numfolds)
+    cv_iht(x::BEDFile, y, path, q)
 
 If used with a `BEDFile` object `x`, then the additional optional arguments are:
 
@@ -468,8 +468,8 @@ function cv_iht(
     x             :: BEDFile,
     y             :: DenseVector{Float64},
     path          :: DenseVector{Int},
-    numfolds      :: Int;
-    folds         :: DenseVector{Int}     = cv_get_folds(sdata(y),numfolds),
+    q             :: Int;
+    folds         :: DenseVector{Int}     = cv_get_folds(sdata(y),q),
     pids          :: DenseVector{Int}     = procs(),
     means         :: DenseVector{Float64} = mean(Float64,x, shared=true, pids=pids),
     invstds       :: DenseVector{Float64} = invstd(x,means, shared=true, pids=pids),
@@ -487,19 +487,18 @@ function cv_iht(
 
     # preallocate vectors used in xval
     errors  = zeros(Float64, num_models)    # vector to save mean squared errors
-    my_refs = cell(numfolds)                # cell array to store RemoteRefs
 
     # want to compute a path for each fold
     # the folds are computed asynchronously
     # the @sync macro ensures that we wait for all of them to finish before proceeding
-    @sync for i = 1:numfolds
+    @sync for i = 1:q
         # one_fold returns a vector of out-of-sample errors (MSE for linear regression)
         # @fetch(one_fold(...)) spawns one_fold() on a CPU and returns the MSE
         errors[i] = @fetch(one_fold(x, y, path, folds, i, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids))
     end
 
     # average the mses
-    errors ./= numfolds
+    errors ./= q 
 
     # what is the best model size?
     k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
@@ -532,9 +531,9 @@ function cv_iht(
         decompress_genotypes!(x_inferred,x)
 
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-        xty = BLAS.gemv('T', one(Float64), x_inferred, y)
+        Xty = BLAS.gemv('T', one(Float64), x_inferred, y)
         xtx = BLAS.gemm('T', 'N', one(Float64), x_inferred, x_inferred)
-        b   = xtx \ xty
+        b   = xtx \ Xty
         return errors, b, bidx
     end
     return errors
