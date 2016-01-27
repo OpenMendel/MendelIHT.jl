@@ -58,8 +58,10 @@ function L0_log(
     num_df    = min(p,3*k)     # largest 3*k active components of gradient
     short_df  = min(p,2*k)     # largest 2*k active components of gradient
     converged = false          # is algorithm converged?
+    stuck     = false          # is algorithm stuck in a cycle?
     normdf    = Inf            # norm of active portion of gradient
-    loss0     = Inf            # previous loss function value
+    loss0     = Inf            # penultimate loss function value
+    loss00    = Inf            # antepenultimate loss function value
     bktrk     = 0              # number of Newton backtracking steps
     nt_iter   = 0              # number of Newton iterations
     lt        = length(active) # size of current active set?
@@ -74,11 +76,15 @@ function L0_log(
     # main GraSP iterations
     for mm_iter = 1:max_iter
 
-        # notify and break if maximum iterations are reached.
-        if mm_iter >= max_iter
+        # notify and break if maximum iterations are reached
+        # also break if algorithm is cycling
+        if mm_iter >= max_iter || stuck
 
             # warn about hitting maximum iterations
-            warn("L0_log has hit maximum iterations $(max_iter)!\nCurrent loss: $(loss)\n")
+            mm_iter >= max_iter && warn("L0_log has hit maximum iterations $(max_iter)!\nCurrent loss: $(loss)\n")
+
+            # warn about cylcing
+            stuck && warn("L0_log appears to be cycling after $mm_iter iterations, aborting early...\nCurrent loss: $loss\n")
 
             # send elements below tol to zero
             threshold!(b, tol, n=p)
@@ -103,7 +109,8 @@ function L0_log(
         end
 
         # save previous loss, iterate
-        loss0 = loss
+        loss00 = loss0
+        loss0  = loss
         copy!(b0,b)
 
         # size of current active set?
@@ -186,6 +193,7 @@ function L0_log(
         converged_obj  = abs(loss - loss0) < tol
         converged_grad = normdf < tolG
         converged      = converged_obj || converged_grad
+        stuck          = abs(loss - loss00) < tol
 
         # output algorithm progress
         quiet || @printf("%d\t%d\t%d\t%3.7f\t%3.7f\n",mm_iter,nt_iter,bktrk,loss,normdf)
@@ -468,10 +476,14 @@ function L0_log(
 end # end L0_log
 
 
+
 function iht_path_log(
     x        :: DenseMatrix{Float32},
     y        :: DenseVector{Float32},
     path     :: DenseVector{Int};
+    n        :: Int     = length(y),
+    p        :: Int     = size(x,2),
+    lambdas  :: DenseVector{Float32} = ones(length(path)) * sqrt(log(p) / n),
     tol      :: Float32 = 1f-6,
     tolG     :: Float32 = 1f-3,
     tolrefit :: Float32 = 1f-6,
@@ -481,8 +493,8 @@ function iht_path_log(
     quiet    :: Bool    = true,
 )
 
-    # size of problem?
-    (n,p) = size(x)
+#    # size of problem?
+#    (n,p) = size(x)
 
     # how many models will we compute?
     num_models = length(path)
@@ -506,9 +518,13 @@ function iht_path_log(
 
         # model size?
         q = path[i]
+        quiet || println("Current model size: $q")
 
         # store projection of beta onto largest k nonzeroes in magnitude
         bk     = zeros(Float32,q)
+
+        # current regularization parameter?
+        lambda = lambdas[i]
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
@@ -521,7 +537,7 @@ function iht_path_log(
         dfk    = zeros(Float32, q)    # size q subset of df used in refitting
 
         # now compute current model
-        output = L0_log(x,y,q, n=n, p=p, b=b, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, max_iter=max_iter, max_step=max_step, quiet=quiet, b0=b0, df=df, Xb=Xb, lxb=lxb, l2xb=l2xb, bidxs=bidxs, dfidxs=dfidxs, active=active, idxs=idxs, idxs0=idxs0, bk=bk, xk=xk, xk2=xk2, d2b=d2b, bk0=bk0, ntb=ntb, db=db, dfk=dfk)
+        output = L0_log(x,y,q, n=n, p=p, b=b, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, max_iter=max_iter, max_step=max_step, quiet=quiet, b0=b0, df=df, Xb=Xb, lxb=lxb, l2xb=l2xb, bidxs=bidxs, dfidxs=dfidxs, active=active, idxs=idxs, idxs0=idxs0, bk=bk, xk=xk, xk2=xk2, d2b=d2b, bk0=bk0, ntb=ntb, db=db, dfk=dfk, lambda=lambda)
 
         # extract and save model
         copy!(b, output["beta"])
@@ -552,6 +568,9 @@ function iht_path_log(
     means    :: SharedVector{Float32} = mean(Float32,x, shared=true, pids=pids),
     invstds  :: SharedVector{Float32} = invstd(x,means, shared=true, pids=pids),
     mask_n   :: DenseVector{Int}      = ones(Int,length(y)),
+    n        :: Int                   = length(y),
+    p        :: Int                   = size(x,2),
+    lambdas  :: DenseVector{Float32}  = ones(length(path)) * sqrt(log(p) / n),
     tol      :: Float32               = 1f-6,
     tolG     :: Float32               = 1f-3,
     tolrefit :: Float32               = 1f-6,
@@ -561,9 +580,9 @@ function iht_path_log(
     quiet    :: Bool                  = true,
 )
 
-    # size of problem?
-    n = length(y)
-    p = size(x,2)
+#    # size of problem?
+#    n = length(y)
+#    p = size(x,2)
 
     # how many models will we compute?
     num_models = length(path)
@@ -592,6 +611,9 @@ function iht_path_log(
         # store projection of beta onto largest k nonzeroes in magnitude
         bk     = zeros(Float32,q)
 
+        # current regularization parameter?
+        lambda = lambdas[i]
+
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
         xk     = zeros(Float32, n, q)  # store q columns of x for refitting
@@ -603,7 +625,7 @@ function iht_path_log(
         dfk    = zeros(Float32, q)    # size q subset of df used in refitting
 
         # now compute current model
-        output = L0_log(x,y,q, n=n, p=p, b=b, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, max_iter=max_iter, max_step=max_step, quiet=quiet, b0=b0, df=df, Xb=Xb, lxb=lxb, l2xb=l2xb, bidxs=bidxs, dfidxs=dfidxs, active=active, idxs=idxs, idxs0=idxs0, bk=bk, xk=xk, xk2=xk2, d2b=d2b, bk0=bk0, ntb=ntb, db=db, dfk=dfk, means=means, invstds=invstds, idxs2=idxs2, mask_n=mask_n)
+        output = L0_log(x,y,q, n=n, p=p, b=b, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, max_iter=max_iter, max_step=max_step, quiet=quiet, b0=b0, df=df, Xb=Xb, lxb=lxb, l2xb=l2xb, bidxs=bidxs, dfidxs=dfidxs, active=active, idxs=idxs, idxs0=idxs0, bk=bk, xk=xk, xk2=xk2, d2b=d2b, bk0=bk0, ntb=ntb, db=db, dfk=dfk, means=means, invstds=invstds, idxs2=idxs2, mask_n=mask_n, lambda=lambda)
 
         # extract and save model
         copy!(b, output["beta"])
@@ -628,19 +650,26 @@ end
 
 
 function one_fold_log(
-    x        :: DenseMatrix{Float32},
-    y        :: DenseVector{Float32},
-    path     :: DenseVector{Int},
-    folds    :: DenseVector{Int},
-    fold     :: Int;
-    tol      :: Float32 = 1f-6,
-    tolG     :: Float32 = 1f-3,
-    tolrefit :: Float32 = 1f-6,
-    max_iter :: Int     = 100,
-    max_step :: Int     = 50,
-    refit    :: Bool    = true,
-    quiet    :: Bool    = true,
+    x         :: DenseMatrix{Float32},
+    y         :: DenseVector{Float32},
+    path      :: DenseVector{Int},
+    folds     :: DenseVector{Int},
+    fold      :: Int;
+    n         :: Int                   = length(y),
+    p         :: Int                   = size(x,2),
+    lambdas   :: DenseVector{Float32}  = ones(length(path)) * sqrt(log(p) / n),
+    criterion :: ASCIIString = "deviance",
+    tol       :: Float32     = 1f-6,
+    tolG      :: Float32     = 1f-3,
+    tolrefit  :: Float32     = 1f-6,
+    max_iter  :: Int         = 100,
+    max_step  :: Int         = 50,
+    refit     :: Bool        = true,
+    quiet     :: Bool        = true,
 )
+    # ensure that crossvalidation criterion is valid
+    criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
+
     # make vector of indices for folds
     test_idx = folds .== fold
     test_size = sum(test_idx)
@@ -653,7 +682,7 @@ function one_fold_log(
     y_train = y[train_idx]
 
     # compute the regularization path on the training set
-    betas = iht_path_log(x_train,y_train,path, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, refit=refit, quiet=quiet)
+    betas = iht_path_log(x_train,y_train,path, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, refit=refit, quiet=quiet, lambdas=lambdas)
 
     # compute the mean out-of-sample error for the TEST set
     errors = vec(sumabs2(broadcast(-, round(y[test_idx]), round(logistic(x[test_idx,:] * betas))), 1)) ./ length(test_idx)
@@ -663,22 +692,30 @@ end
 
 
 function one_fold_log(
-    x        :: BEDFile,
-    y        :: DenseVector{Float32},
-    path     :: DenseVector{Int},
-    folds    :: DenseVector{Int},
-    fold     :: Int;
-    pids     :: DenseVector{Int}     = procs(),
-    means    :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids),
-    invstds  :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids),
-    tol      :: Float32              = 1f-6,
-    tolG     :: Float32              = 1f-3,
-    tolrefit :: Float32              = 1f-6,
-    max_iter :: Int                  = 100,
-    max_step :: Int                  = 50,
-    refit    :: Bool                 = true,
-    quiet    :: Bool                 = true,
+    x         :: BEDFile,
+    y         :: DenseVector{Float32},
+    path      :: DenseVector{Int},
+    folds     :: DenseVector{Int},
+    fold      :: Int;
+    n         :: Int                  = length(y),
+    p         :: Int                  = size(x,2),
+    lambdas   :: DenseVector{Float32} = ones(length(path)) * sqrt(log(p) / n),
+    pids      :: DenseVector{Int}     = procs(),
+    means     :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids),
+    invstds   :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids),
+    criterion :: ASCIIString          = "deviance",
+    tol       :: Float32              = 1f-6,
+    tolG      :: Float32              = 1f-3,
+    tolrefit  :: Float32              = 1f-6,
+    max_iter  :: Int                  = 100,
+    max_step  :: Int                  = 50,
+    refit     :: Bool                 = true,
+    quiet     :: Bool                 = true,
 )
+
+    # ensure that crossvalidation criterion is valid
+    criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
+
     # make vector of indices for folds
     test_idx = folds .== fold
     test_size = sum(test_idx)
@@ -691,7 +728,7 @@ function one_fold_log(
     test_idx  = convert(Vector{Int}, train_idx)
 
     # compute the regularization path on the training set
-    betas = iht_path_log(x,y,path, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, refit=refit, quiet=quiet, mask_n=train_idx, pids=pids, means=means, invstds=invstds)
+    betas = iht_path_log(x,y,path, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, refit=refit, quiet=quiet, mask_n=train_idx, pids=pids, means=means, invstds=invstds, lambdas=lambdas)
 
     # tidy up
     gc()
@@ -727,16 +764,28 @@ function one_fold_log(
         # compute estimated response Xb with $(path[i]) nonzeroes
         xb!(Xb,x,b,indices,path[i],test_idx, means=means, invstds=invstds, pids=pids)
 
-        # compute estimated responses
-        logistic!(lxb,Xb,n=n)
+        # compute out-of-sample error as misclassification (L1 norm) averaged over size of test set
+        if criteron == "class"
 
-        # mask data from training set
-        # training set consists of data NOT in fold
-#        mask!(lxb, test_idx, 0, zero(Float32), n=n)
-        lxb[test_idx .== 0] = zero(Float32)
+            # compute estimated responses
+            logistic!(lxb,Xb,n=n)
 
-        # compute out-of-sample error as squared residual averaged over size of test set
-        errors[i] = mce(lxb, y, test_idx, n=n, mn=test_size)
+            # mask data from training set
+            # training set consists of data NOT in fold
+            mask!(lxb, test_idx, 0, zero(Float32), n=n)
+#            lxb[test_idx .== 0] = zero(Float32)
+
+            # compute misclassification error
+#            errors[i] = sum(abs(lxb[test_idx .== 1] - y[test_idx .== 1])) / test_size 
+            errors[i] = mce(lxb, y, test_idx, n=n, mn=test_size)
+#        elseif criteron == "deviance"
+        elseif criteron == "deviance"
+            # use k = 0, lambda = 0.0, sortidx = falses(p) to ensure that regularizer is not included in deviance 
+#            errors[i] = 2.0*logistic_loglik(Xb,y,b,falses(p),test_idx,0,0.0,0, n=n, mn=mn)
+#            errors[i] = 2.0*logistic_loglik(Xb,y,b,indices,test_idx,0,lambda,k, n=n, mn=mn)
+            errors[i] = -2.0f0 / n * ( dot(y[test_idx .== 1],Xb[test_idx .== 1]) - log(one(Float32) + exp(Xb[test_idx .== 1])) ) + 0.5f0*lambda*sumabs2(b[indices]) 
+        end
+
     end
 
     return errors
@@ -744,21 +793,25 @@ end
 
 
 function cv_log(
-    x        :: DenseMatrix{Float32},
-    y        :: DenseVector{Float32},
-    path     :: DenseVector{Int},
-    q        :: Int;
-    folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
-    tol      :: Float32          = 1f-4,
-    tolG     :: Float32          = 1f-3,
-    tolrefit :: Float32          = 1f-6,
-    n        :: Int              = length(y),
-    p        :: Int              = size(x,2),
-    max_iter :: Int              = 100,
-    max_step :: Int              = 50,
-    quiet    :: Bool             = true,
-    refit    :: Bool             = true
+    x         :: DenseMatrix{Float32},
+    y         :: DenseVector{Float32},
+    path      :: DenseVector{Int},
+    q         :: Int;
+    n         :: Int                  = length(y),
+    p         :: Int                  = size(x,2),
+    lambdas   :: DenseVector{Float32} = ones(length(path)) * sqrt(log(p) / n),
+    folds     :: DenseVector{Int} = cv_get_folds(n,q),
+    criterion :: ASCIIString      = "deviance",
+    tol       :: Float32          = 1f-4,
+    tolG      :: Float32          = 1f-3,
+    tolrefit  :: Float32          = 1f-6,
+    max_iter  :: Int              = 100,
+    max_step  :: Int              = 50,
+    quiet     :: Bool             = true,
+    refit     :: Bool             = true
 )
+    # ensure that crossvalidation criterion is valid
+    criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
 
     # how many elements are in the path?
     num_models = length(path)
@@ -776,10 +829,10 @@ function cv_log(
 
         # one_fold_log returns a vector of out-of-sample errors (MCE for logistic regression)
         # @spawn(one_fold_log(...)) sends calculation to any available processor and returns RemoteRef to out-of-sample error
-        myrefs[i] = @spawn(one_fold_log(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, tolG=tolG, tolrefit=tolrefit, refit=refit))
+        myrefs[i] = @spawn(one_fold_log(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas))
     end
 
-    # average the mses
+    # average the errors 
     @inbounds for i = 1:q
         errors += fetch(myrefs[i]);
     end
@@ -791,7 +844,7 @@ function cv_log(
     # print results
     if !quiet
         println("\n\nCrossvalidation Results:")
-        println("k\tMCE")
+        println("k\tError")
         @inbounds for i = 1:num_models
             println(path[i], "\t", errors[i])
         end
@@ -819,7 +872,7 @@ function cv_log(
 end
 
 
-function pfold(
+function pfold_log(
 	xfile      :: ASCIIString,
 	xtfile     :: ASCIIString,
 	x2file     :: ASCIIString,
@@ -829,7 +882,11 @@ function pfold(
 	path       :: DenseVector{Int},
 	folds      :: DenseVector{Int},
 	numfolds   :: Int;
-	pids       :: DenseVector{Int} = procs(),
+    n          :: Int                  = length(y),
+    p          :: Int                  = size(x,2),
+	pids       :: DenseVector{Int}     = procs(),
+    lambdas    :: DenseVector{Float32} = SharedArray(Float32, (length(path),), pids=pids, init = S -> S[localindexes(S)] = one(Float32)) * sqrt(log(p) / n),
+    criterion  :: ASCIIString      = "deviance",
     tol        :: Float32          = 1f-6,
     tolG       :: Float32          = 1f-3,
     tolrefit   :: Float32          = 1f-6,
@@ -839,6 +896,8 @@ function pfold(
 	refit      :: Bool             = true,
 	header     :: Bool             = false
 )
+    # ensure that crossvalidation criterion is valid
+    criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
 
 	# how many CPU processes can pfold use?
 	np = length(pids)
@@ -888,7 +947,7 @@ function pfold(
 								means = SharedArray(abspath(meanfile), Float32, (p,), pids=pids)
 								invstds = SharedArray(abspath(invstdfile), Float32, (p,), pids=pids)
 
-								one_fold_log(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit)
+								one_fold_log(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion)
 						end # end remotecall_fetch()
 					end # end while
 				end # end @async
@@ -912,6 +971,7 @@ function cv_log(
 	folds         :: DenseVector{Int},
 	numfolds      :: Int;
 	pids          :: DenseVector{Int} = procs(),
+    criterion     :: ASCIIString      = "deviance",
 	tol           :: Float32          = 1f-6,
     tolG          :: Float32          = 1f-3,
     tolrefit      :: Float32          = 1f-6,
@@ -921,13 +981,16 @@ function cv_log(
 	refit         :: Bool             = true,
 	header        :: Bool             = false
 )
+    # ensure that crossvalidation criterion is valid
+    criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
+
 	# how many elements are in the path?
 	num_models = length(path)
 
 	# want to compute a path for each fold
 	# the folds are computed asynchronously
 	# only use the worker processes
-	errors = pfold(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, header=header, tolG=tolG, tolrefit=tolrefit, refit=refit)
+	errors = pfold_log(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, header=header, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion)
 
 	# what is the best model size?
 	k = convert(Int, floor(mean(path[errors .== minimum(errors)])))

@@ -4,6 +4,7 @@ using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK
 using RegressionTools
 using OpenCL
+using StatsBase
 
 export L0_reg
 export L0_log
