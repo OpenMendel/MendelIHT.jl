@@ -861,8 +861,8 @@ function one_fold_log(
 #        errors[i] = 2.0*logistic_loglik(Xb[:,i],y,full(betas[:,i]),indices,test_idx,0,0.0,0, n=n, mn=test_size)
         for i = 1:nbetas
             update_col!(Xb,Xbetas,i,n=n,p=nbetas)
-            mask!(Xb, test_idx, 0, zero(Float64), n=n)
-#            Xb[test_idx .== 0] = zero(Float64)
+#            mask!(Xb, test_idx, 0, zero(Float64), n=n)
+            Xb[test_idx .== 0] = zero(Float64)
 #            errors[i] = -2.0 / n * ( dot(y,Xb) - sum(log(1.0 + exp(Xb))) )# + 0.5*lambda*sumabs2(b[indices]) 
             errors[i] = 2.0*logistic_loglik(Xb,y,b,notrues,test_idx,0,zero(Float64),0, n=n, mn=mn)
         end
