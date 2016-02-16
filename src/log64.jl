@@ -29,7 +29,7 @@ Optional Arguments:
 - `lambda` is the strength of the regularization parameter. Defaults to `sqrt(log(p)/n)`.
 - `mu` is the step size used in gradient descent. Defaults to `1.0`.
 - `max_iter` is the maximum number of iterations for the algorithm. Defaults to `100`.
-- `max_step` is the maximum number of backtracking steps for the step size calculation. Defaults to `50`.
+- `max_step` is the maximum number of backtracking steps for the step size calculation. Defaults to `100`.
 - `tol` is the global tolerance. Defaults to `1e-6`.
 - `tolG` is the tolerance for the gradient. Convergence occurs if the norm of the largest `3*k` elements of the gradient falls below `tolG`. Defaults to `1e-6`.
 - `tolrefit` is the tolerance for Newton's method in the refitting routine. The refitting algorithm converges when the loss function calculated on the active set (that is, the refit coefficients) falls below `tolrefit`. Defaults to `1e-6`.
@@ -95,7 +95,7 @@ function L0_log(
     tolG     :: Float64              = 1e-3,
     tolrefit :: Float64              = 1e-6,
     max_iter :: Int                  = 100,
-    max_step :: Int                  = 50,
+    max_step :: Int                  = 100,
     refit    :: Bool                 = true,
     quiet    :: Bool                 = true,
 )
@@ -168,7 +168,7 @@ function L0_log(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => active)
+            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
 
             return output
         end
@@ -186,11 +186,14 @@ function L0_log(
 
         # update x*b
         # no need to compute anything if b = 0
+        # force fitted probabilities close to 0,1 to be equal to 0,1
         if all(b .== zero(Float64))
             fill!(Xb,zero(Float64))
         else
 #            update_xb!(Xb,x,b,active,lt,p=p,n=n)
             update_xb!(Xb,x,b,bidxs,k,p=p,n=n)
+            threshold!(Xb,1.0,tol,n=n)
+            threshold!(Xb,tol,n=n)
         end
 
         # recompute active loss = (-dot(y,Xb) + sum(log(1.0 + exp(Xb)))) / n + 0.5*lambda*sumabs2(b[active])
@@ -259,6 +262,7 @@ function L0_log(
         converged_grad = normdf < tolG
         converged      = converged_obj || converged_grad
         stuck          = abs(loss - loss00) < tol
+#        stuck          = abs(loss - loss00) < tol && converged_grad
 
         # output algorithm progress
         quiet || @printf("%d\t%d\t%d\t%3.7f\t%3.7f\n",mm_iter,nt_iter,bktrk,loss,normdf)
@@ -293,7 +297,7 @@ function L0_log(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => active)
+            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
 
             return output
         end # end convergence check
@@ -346,7 +350,7 @@ function L0_log(
     tolG     :: Float64               = 1e-3,
     tolrefit :: Float64               = 1e-6,
     max_iter :: Int                   = 100,
-    max_step :: Int                   = 50,
+    max_step :: Int                   = 100,
     mn       :: Int                   = sum(mask_n),
     refit    :: Bool                  = true,
     quiet    :: Bool                  = true,
@@ -417,7 +421,7 @@ function L0_log(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => active)
+            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
 
             return output
         end
@@ -541,7 +545,7 @@ function L0_log(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => active)
+            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
 
             return output
         end # end convergence check
@@ -569,7 +573,7 @@ Optional Arguments:
 - `tolG` is the tolerance for the gradient. Convergence occurs if the norm of the largest `3*k` elements of the gradient falls below `tolG`. Defaults to `1e-6`.
 - `tolrefit` is the tolerance for Newton's method in the refitting routine. The refitting algorithm converges when the loss function calculated on the active set (that is, the refit coefficients) falls below `tolrefit`. Defaults to `1e-6`.
 - `max_iter` caps the number of iterations for the algorithm. Defaults to `100`.
-- `max_step` caps the number of backtracking steps in the IHT kernel. Defaults to `50`.
+- `max_step` caps the number of backtracking steps in the IHT kernel. Defaults to `100`.
 - `refit` is a `Bool` that controls refitting at every iterations. It is wise to refit the nonzero coefficients of `b` at every iteration as this may improve convergence behavior and estimation. Defaults to `true` (refit at every iteration).
 - `quiet` is a Boolean that controls the output. Defaults to `true` (no output).
 
@@ -588,13 +592,10 @@ function iht_path_log(
     tolG     :: Float64 = 1e-3,
     tolrefit :: Float64 = 1e-6,
     max_iter :: Int     = 100,
-    max_step :: Int     = 50,
+    max_step :: Int     = 100,
     refit    :: Bool    = true,
     quiet    :: Bool    = true,
 )
-
-#    # size of problem?
-#    (n,p) = size(x)
 
     # how many models will we compute?
     num_models = length(path)
@@ -632,19 +633,20 @@ function iht_path_log(
         xk2    = zeros(Float64, n, q)  # copy of xk also used in refitting
         d2b    = zeros(Float64, q, q)  # Hessian of q active components of b
         bk0    = zeros(Float64, q)    # copy of bk used in refitting
+        bk2    = zeros(Float64, q)    # copy of bk used in refitting
         ntb    = zeros(Float64, q)    # Newton step for bk used in refitting
         db     = zeros(Float64, q)    # gradient of bk used in refitting
         dfk    = zeros(Float64, q)    # size q subset of df used in refitting
 
         # now compute current model
-        output = L0_log(x,y,q, n=n, p=p, b=b, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, max_iter=max_iter, max_step=max_step, quiet=quiet, b0=b0, df=df, Xb=Xb, lxb=lxb, l2xb=l2xb, bidxs=bidxs, dfidxs=dfidxs, active=active, idxs=idxs, idxs0=idxs0, bk=bk, xk=xk, xk2=xk2, d2b=d2b, bk0=bk0, ntb=ntb, db=db, dfk=dfk, lambda=lambda)
+        output = L0_log(x,y,q, n=n, p=p, b=b, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, max_iter=max_iter, max_step=max_step, quiet=quiet, b0=b0, df=df, Xb=Xb, lxb=lxb, l2xb=l2xb, bidxs=bidxs, dfidxs=dfidxs, active=active, idxs=idxs, idxs0=idxs0, bk=bk, xk=xk, xk2=xk2, d2b=d2b, bk0=bk0, ntb=ntb, db=db, dfk=dfk, lambda=lambda, bk2=bk2)
 
         # extract and save model
         copy!(b, output["beta"])
-        active = output["active"]
+        active = copy(output["active"])
         betas[:,i] = sparsevec(b)
 
-        # run garbage compiler to clear temporary arrays for next step of path
+        # run garbage collector to clear temporary arrays for next step of path
         xk  = false
         xk2 = false
         d2b = false
@@ -684,7 +686,7 @@ function iht_path_log(
     tolG     :: Float64               = 1e-3,
     tolrefit :: Float64               = 1e-6,
     max_iter :: Int                   = 100,
-    max_step :: Int                   = 50,
+    max_step :: Int                   = 100,
     refit    :: Bool                  = true,
     quiet    :: Bool                  = true,
 )
@@ -738,7 +740,7 @@ function iht_path_log(
 
         # extract and save model
         copy!(b, output["beta"])
-        active = output["active"]
+        active = copy(output["active"])
         betas[:,i] = sparsevec(sdata(b))
 
         # run garbage compiler to clear temporary arrays for next step of path
@@ -777,8 +779,8 @@ Arguments:
 Optional Arguments:
 
 - `tol` is the convergence tolerance to pass to the path computations. Defaults to `1e-4`.
-- `max_iter` caps the number of permissible iterations in the IHT algorithm. Defaults to `1000`.
-- `max_step` caps the number of permissible backtracking steps. Defaults to `50`.
+- `max_iter` caps the number of permissible iterations in the IHT algorithm. Defaults to `100`.
+- `max_step` caps the number of permissible backtracking steps. Defaults to `100`.
 - `quiet` is a Boolean to activate output. Defaults to `true` (no output).
 - `deviance` is an `ASCIIString` that specifies the crossvalidation criterion, either `"deviance"` for the logistic loglikelihood or `"class"` for misclassification error. Defaults to `"deviance"`. 
 
@@ -800,12 +802,18 @@ function one_fold_log(
     tolG      :: Float64     = 1e-3,
     tolrefit  :: Float64     = 1e-6,
     max_iter  :: Int         = 100,
-    max_step  :: Int         = 50,
+    max_step  :: Int         = 100,
     refit     :: Bool        = true,
     quiet     :: Bool        = true,
 )
     # ensure that crossvalidation criterion is valid
     criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
+
+    # for deviance, will need an extra vector of "falses"
+    # this is used when computing deviances with logistic_loglik()
+    if criterion == "deviance"
+        notrues = falses(p)
+    end
 
     # make vector of indices for folds
     test_idx = folds .== fold
@@ -814,6 +822,9 @@ function one_fold_log(
     # train_idx is the vector that indexes the TRAINING set
     train_idx = !test_idx
 
+    # convert test_idx to numeric
+    test_idx = convert(Vector{Int}, test_idx)
+
     # allocate the arrays for the training set
     x_train = x[train_idx,:]
     y_train = y[train_idx]
@@ -821,9 +832,41 @@ function one_fold_log(
     # compute the regularization path on the training set
     betas = iht_path_log(x_train,y_train,path, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, refit=refit, quiet=quiet, lambdas=lambdas)
 
-    # compute the mean out-of-sample error for the TEST set
-    errors = vec(sumabs2(broadcast(-, round(y[test_idx]), round(logistic(x[test_idx,:] * betas))), 1)) ./ length(test_idx)
+    Xbetas = x*betas
+    Xb     = zeros(Float64, n)
+    nbetas = size(Xbetas,2)
+    errors = zeros(Float64, nbetas)
 
+    # compute the mean out-of-sample error for the TEST set
+    if criterion == "class"
+#        errors = vec(sumabs2(broadcast(-, round(y[test_idx]), round(logistic(x[test_idx,:] * betas))), 1)) ./ length(test_idx)
+        for i = 1:nbetas
+            # pull correct x*b 
+            update_col!(Xb,Xbetas,i,n=n,p=nbetas)
+
+            # need logistic probabilities
+            logistic!(lxb, Xb, n=n)
+
+            # mask data from training set
+            # training set consists of data NOT in fold
+            mask!(lxb, test_idx, 0, zero(Float64), n=n)
+
+            # compute misclassification error
+            errors[i] = mce(lxb, y, test_idx, n=n, mn=test_size)
+        end
+    else # else -> criterion == "deviance"
+        # use k = 0, lambda = 0.0, sortidx = falses(p) to ensure that regularizer is not included in deviance 
+#        errors[i] = 2.0*logistic_loglik(Xb,y,b,falses(p),test_idx,0,0.0,0, n=n, mn=test_size)
+#        errors[i] = 2.0*logistic_loglik(Xb,y,b,indices,test_idx,0,lambda,k, n=n, mn=test_size)
+#        errors[i] = 2.0*logistic_loglik(Xb[:,i],y,full(betas[:,i]),indices,test_idx,0,0.0,0, n=n, mn=test_size)
+        for i = 1:nbetas
+            update_col!(Xb,Xbetas,i,n=n,p=nbetas)
+            mask!(Xb, test_idx, 0, zero(Float64), n=n)
+#            Xb[test_idx .== 0] = zero(Float64)
+#            errors[i] = -2.0 / n * ( dot(y,Xb) - sum(log(1.0 + exp(Xb))) )# + 0.5*lambda*sumabs2(b[indices]) 
+            errors[i] = 2.0*logistic_loglik(Xb,y,b,notrues,test_idx,0,zero(Float64),0, n=n, mn=mn)
+        end
+    end
     return errors
 end
 
@@ -845,13 +888,19 @@ function one_fold_log(
     tolG      :: Float64              = 1e-3,
     tolrefit  :: Float64              = 1e-6,
     max_iter  :: Int                  = 100,
-    max_step  :: Int                  = 50,
+    max_step  :: Int                  = 100,
     refit     :: Bool                 = true,
     quiet     :: Bool                 = true,
 )
 
     # ensure that crossvalidation criterion is valid
     criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
+
+    # for deviance, will need an extra vector of "falses"
+    # this is used when computing deviances with logistic_loglik()
+    if criterion == "deviance"
+        notrues = falses(p)
+    end
 
     # make vector of indices for folds
     test_idx = folds .== fold
@@ -902,7 +951,7 @@ function one_fold_log(
         xb!(Xb,x,b,indices,path[i],test_idx, means=means, invstds=invstds, pids=pids)
 
         # compute out-of-sample error as misclassification (L1 norm) averaged over size of test set
-        if criteron == "class"
+        if criterion == "class"
 
             # compute estimated responses
             logistic!(lxb,Xb,n=n)
@@ -913,14 +962,14 @@ function one_fold_log(
 #            lxb[test_idx .== 0] = zero(Float64)
 
             # compute misclassification error
-#            errors[i] = sum(abs(lxb[test_idx .== 1] - y[test_idx .== 1])) / test_size 
+            # errors[i] = sum(abs(lxb[test_idx .== 1] - y[test_idx .== 1])) / test_size 
             errors[i] = mce(lxb, y, test_idx, n=n, mn=test_size)
-#        elseif criteron == "deviance"
-        elseif criteron == "deviance"
+        else # else -> criterion == "deviance"
+
             # use k = 0, lambda = 0.0, sortidx = falses(p) to ensure that regularizer is not included in deviance 
-#            errors[i] = 2.0*logistic_loglik(Xb,y,b,falses(p),test_idx,0,0.0,0, n=n, mn=mn)
+            errors[i] = 2.0*logistic_loglik(Xb,y,b,notrues,test_idx,0,zero(Float64),0, n=n, mn=mn)
 #            errors[i] = 2.0*logistic_loglik(Xb,y,b,indices,test_idx,0,lambda,k, n=n, mn=mn)
-            errors[i] = -2.0 / n * ( dot(y[test_idx .== 1],Xb[test_idx .== 1]) - log(1.0 + exp(Xb[test_idx .== 1])) ) + 0.5*lambda*sumabs2(b[indices]) 
+#            errors[i] = -2.0 / n * ( dot(y[test_idx .== 1],Xb[test_idx .== 1]) - sum(log(1.0 + exp(Xb[test_idx .== 1]))) ) # + 0.5*lambda*sumabs2(b[indices]) 
         end
 
     end
@@ -954,7 +1003,7 @@ Optional Arguments:
 - `folds` is the partition of the data. Defaults to `IHT.cv_get_folds(n,q)`.
 - `tol` is the convergence tolerance to pass to the path computations. Defaults to `1e-4`.
 - `max_iter` caps the number of permissible iterations in the IHT algorithm. Defaults to `100`.
-- `max_step` caps the number of permissible backtracking steps. Defaults to `50`.
+- `max_step` caps the number of permissible backtracking steps. Defaults to `100`.
 - `quiet` is a Boolean to activate output. Defaults to `true` (no output).
    *NOTA BENE*: each processor outputs feed to the console without regard to the others,
    so setting `quiet = false` can yield very messy output!
@@ -975,16 +1024,18 @@ function cv_log(
     y         :: DenseVector{Float64},
     path      :: DenseVector{Int},
     q         :: Int;
+	pids      :: DenseVector{Int}     = procs(),
     n         :: Int                  = length(y),
     p         :: Int                  = size(x,2),
-    lambdas   :: DenseVector{Float64} = ones(length(path)) * sqrt(log(p) / n),
+#    lambdas   :: DenseVector{Float64} = ones(length(path)) * sqrt(log(p) / n),
+    lambdas   :: SharedVector{Float64} = SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)),
     folds     :: DenseVector{Int} = cv_get_folds(n,q),
     criterion :: ASCIIString      = "deviance",
     tol       :: Float64          = 1e-4,
     tolG      :: Float64          = 1e-3,
     tolrefit  :: Float64          = 1e-6,
     max_iter  :: Int              = 100,
-    max_step  :: Int              = 50,
+    max_step  :: Int              = 100,
     quiet     :: Bool             = true,
     refit     :: Bool             = true
 )
@@ -994,27 +1045,28 @@ function cv_log(
     # how many elements are in the path?
     num_models = length(path)
 
-    # preallocate vectors used in xval
-    myrefs = cell(q)
-    errors = zeros(Float64, num_models)    # vector to save mean squared errors
-
-    # want to compute a path for each fold
-    # the folds are computed asynchronously
-    # the @sync macro ensures that we wait for all of them to finish before proceeding
-    @sync for i = 1:q
-
-        quiet || print_with_color(:blue, "spawning fold $i\n")
-
-        # one_fold_log returns a vector of out-of-sample errors (MCE for logistic regression)
-        # @spawn(one_fold_log(...)) sends calculation to any available processor and returns RemoteRef to out-of-sample error
-        myrefs[i] = @spawn(one_fold_log(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas))
-    end
-
-    # average the errors 
-    @inbounds for i = 1:q
-        errors += fetch(myrefs[i]);
-    end
-    errors ./= q
+#    # preallocate vectors used in xval
+#    myrefs = cell(q)
+#    errors = zeros(Float64, num_models)    # vector to save mean squared errors
+#
+#    # want to compute a path for each fold
+#    # the folds are computed asynchronously
+#    # the @sync macro ensures that we wait for all of them to finish before proceeding
+#    @sync for i = 1:q
+#
+#        quiet || print_with_color(:blue, "spawning fold $i\n")
+#
+#        # one_fold_log returns a vector of out-of-sample errors (MCE for logistic regression)
+#        # @spawn(one_fold_log(...)) sends calculation to any available processor and returns RemoteRef to out-of-sample error
+#        myrefs[i] = @spawn(one_fold_log(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas))
+#    end
+#
+#    # average the errors 
+#    @inbounds for i = 1:q
+#        errors += fetch(myrefs[i]);
+#    end
+#    errors ./= q
+	errors = pfold_log(x, y, path, folds, q, n=n, p=p, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas, pids=pids)
 
     # what is the best model size?
     k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
@@ -1026,7 +1078,7 @@ function cv_log(
         @inbounds for i = 1:num_models
             println(path[i], "\t", errors[i])
         end
-        println("\nThe lowest MCE is achieved at k = ", k)
+        println("\nThe lowest crossvalidation error is achieved at k = ", k)
     end
 
     # recompute ideal model
@@ -1038,7 +1090,7 @@ function cv_log(
         # use L0_log to extract model
         # with refit = true, L0_log will continuously refit predictors
         # no final refitting code necessary
-        output = L0_log(x,y,k, b=b, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit)
+        output = L0_log(x,y,k, b=b, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambdas[k])
 
         # which components of beta are nonzero?
         bidx = find( x -> x .!= zero(Float64), b)
@@ -1047,6 +1099,93 @@ function cv_log(
     end
 
     return errors
+end
+
+
+
+
+#"""
+#    pfold_log(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds[, pids=procs()])
+#
+#This function is the parallel execution kernel in `cv_log()`. It is not meant to be called outside of `cv_iht()`.
+#It will distribute `numfolds` crossvalidation folds across the processes supplied by the optional argument `pids` and call `one_fold_log()` for each fold.
+#Each fold will compute a regularization path given by `path`.
+#`pfold()` collects the vectors of MSEs returned by calling `one_fold_log()` for each process, reduces them, and returns their average across all folds.
+#"""
+function pfold_log(
+    x         :: SharedMatrix{Float64},
+    y         :: SharedVector{Float64},
+	path      :: SharedVector{Int},
+	folds     :: SharedVector{Int},
+	numfolds  :: Int;
+    n         :: Int                  = length(y),
+    p         :: Int                  = size(x,2),
+	pids      :: DenseVector{Int}     = procs(),
+    lambdas   :: SharedVector{Float64} = SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)),
+    criterion :: ASCIIString      = "deviance",
+    tol       :: Float64          = 1e-6,
+    tolG      :: Float64          = 1e-3,
+    tolrefit  :: Float64          = 1e-6,
+	max_iter  :: Int              = 100,
+	max_step  :: Int              = 100,
+	quiet     :: Bool             = true,
+	refit     :: Bool             = true,
+	header    :: Bool             = false
+)
+    # ensure that crossvalidation criterion is valid
+    criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
+
+	# how many CPU processes can pfold use?
+	np = length(pids)
+
+	# report on CPU processes
+	quiet || println("pfold: np = ", np)
+	quiet || println("pids = ", pids)
+
+	# set up function to share state (indices of folds)
+	i = 1
+	nextidx() = (idx=i; i+=1; idx)
+
+	# preallocate cell array for results
+	results = cell(numfolds)
+
+	# master process will distribute tasks to workers
+	# master synchronizes results at end before returning
+	@sync begin
+
+		# loop over all workers
+		for worker in pids
+
+			# exclude process that launched pfold, unless only one process is available
+			if worker != myid() || np == 1
+
+				# asynchronously distribute tasks
+				@async begin
+					while true
+
+						# grab next fold
+						current_fold = nextidx()
+
+						# if current fold exceeds total number of folds then exit loop
+						current_fold > numfolds && break
+
+						# report distribution of fold to worker and device
+						quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker.\n\n")
+
+						# launch job on worker
+						# worker loads data from file paths and then computes the errors in one fold
+#                        sendto([worker], criterion=criterion, max_iter=max_iter, max_step=max_step)
+						results[current_fold] = remotecall_fetch(worker) do
+								one_fold_log(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas)
+						end # end remotecall_fetch()
+					end # end while
+				end # end @async
+			end # end if
+		end # end for
+	end # end @sync
+
+	# return reduction (row-wise sum) over results
+	return reduce(+, results[1], results) ./ numfolds
 end
 
 
@@ -1071,13 +1210,13 @@ function pfold_log(
     n          :: Int                  = length(y),
     p          :: Int                  = size(x,2),
 	pids       :: DenseVector{Int}     = procs(),
-    lambdas    :: DenseVector{Float64} = SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = 1.0) * sqrt(log(p) / n),
+    lambdas    :: DenseVector{Float64} = SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)),
     criterion  :: ASCIIString      = "deviance",
     tol        :: Float64          = 1e-6,
     tolG       :: Float64          = 1e-3,
     tolrefit   :: Float64          = 1e-6,
 	max_iter   :: Int              = 100,
-	max_step   :: Int              = 50,
+	max_step   :: Int              = 100,
 	quiet      :: Bool             = true,
 	refit      :: Bool             = true,
 	header     :: Bool             = false
@@ -1133,7 +1272,7 @@ function pfold_log(
 								means = SharedArray(abspath(meanfile), Float64, (p,), pids=pids)
 								invstds = SharedArray(abspath(invstdfile), Float64, (p,), pids=pids)
 
-								one_fold_log(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion)
+								one_fold_log(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas)
 						end # end remotecall_fetch()
 					end # end while
 				end # end @async
@@ -1165,12 +1304,13 @@ function cv_log(
 	folds         :: DenseVector{Int},
 	numfolds      :: Int;
 	pids          :: DenseVector{Int} = procs(),
+    lambdas       :: DenseVector{Float64} = SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)),
     criterion     :: ASCIIString      = "deviance",
 	tol           :: Float64          = 1e-6,
     tolG          :: Float64          = 1e-3,
     tolrefit      :: Float64          = 1e-6,
 	max_iter      :: Int              = 100,
-	max_step      :: Int              = 50,
+	max_step      :: Int              = 100,
 	quiet         :: Bool             = true,
 	refit         :: Bool             = true,
 	header        :: Bool             = false
@@ -1184,7 +1324,7 @@ function cv_log(
 	# want to compute a path for each fold
 	# the folds are computed asynchronously
 	# only use the worker processes
-	errors = pfold_log(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, header=header, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion)
+	errors = pfold_log(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, header=header, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas)
 
 	# what is the best model size?
 	k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
@@ -1214,7 +1354,7 @@ function cv_log(
 		b = SharedArray(Float64, p)
 
 		# use L0_reg to extract model
-		output = L0_log(x,y,k,n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, tolG=tolG, tolrefit=tolrefit, refit=refit)
+		output = L0_log(x,y,k,n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambdas[k])
 
 		# which components of beta are nonzero?
 		inferred_model = b .!= zero(Float64)
