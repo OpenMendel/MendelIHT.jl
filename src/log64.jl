@@ -1027,7 +1027,6 @@ function cv_log(
 	pids      :: DenseVector{Int}     = procs(),
     n         :: Int                  = length(y),
     p         :: Int                  = size(x,2),
-#    lambdas   :: DenseVector{Float64} = ones(length(path)) * sqrt(log(p) / n),
     lambdas   :: SharedVector{Float64} = SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)),
     folds     :: DenseVector{Int} = cv_get_folds(n,q),
     criterion :: ASCIIString      = "deviance",
@@ -1045,27 +1044,7 @@ function cv_log(
     # how many elements are in the path?
     num_models = length(path)
 
-#    # preallocate vectors used in xval
-#    myrefs = cell(q)
-#    errors = zeros(Float64, num_models)    # vector to save mean squared errors
-#
-#    # want to compute a path for each fold
-#    # the folds are computed asynchronously
-#    # the @sync macro ensures that we wait for all of them to finish before proceeding
-#    @sync for i = 1:q
-#
-#        quiet || print_with_color(:blue, "spawning fold $i\n")
-#
-#        # one_fold_log returns a vector of out-of-sample errors (MCE for logistic regression)
-#        # @spawn(one_fold_log(...)) sends calculation to any available processor and returns RemoteRef to out-of-sample error
-#        myrefs[i] = @spawn(one_fold_log(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas))
-#    end
-#
-#    # average the errors 
-#    @inbounds for i = 1:q
-#        errors += fetch(myrefs[i]);
-#    end
-#    errors ./= q
+    # compute crossvalidation deviances
 	errors = pfold_log(x, y, path, folds, q, n=n, p=p, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas, pids=pids)
 
     # what is the best model size?
@@ -1087,10 +1066,13 @@ function cv_log(
         # initialize parameter vector
         b = zeros(Float64, p)
 
+        # get lambda value for best model
+        lambda = lambdas[path .== k][1]
+
         # use L0_log to extract model
         # with refit = true, L0_log will continuously refit predictors
         # no final refitting code necessary
-        output = L0_log(x,y,k, b=b, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambdas[k])
+        output = L0_log(x,y,k, b=b, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambda)
 
         # which components of beta are nonzero?
         bidx = find( x -> x .!= zero(Float64), b)
@@ -1353,8 +1335,11 @@ function cv_log(
 		# initialize parameter vector as SharedArray
 		b = SharedArray(Float64, p)
 
+        # get lambda value for best model
+        lambda = lambdas[path .== k][1]
+
 		# use L0_reg to extract model
-		output = L0_log(x,y,k,n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambdas[k])
+		output = L0_log(x,y,k,n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambda)
 
 		# which components of beta are nonzero?
 		inferred_model = b .!= zero(Float64)
