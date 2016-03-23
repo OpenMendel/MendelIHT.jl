@@ -611,7 +611,7 @@ It will distribute `q` crossvalidation folds across the processes supplied by th
 Each fold will use the GPU device indexed by its corresponding component of the optional argument `devindices` to compute a regularization path given by `path`.
 `pfold()` collects the vectors of MSEs returned by calling `one_fold()` for each process, reduces them, and returns their average across all folds.
 """
-function pfold{T <: Union{Float32, Float64}}(
+function pfold(
     T          :: Type,
     xfile      :: ASCIIString,
     xtfile     :: ASCIIString,
@@ -630,6 +630,9 @@ function pfold{T <: Union{Float32, Float64}}(
     quiet      :: Bool = true,
     header     :: Bool = false
 )
+
+    # ensure correct type
+    T <: Union{Float64, Float32} || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # how many CPU processes can pfold use?
     np = length(pids)
@@ -708,7 +711,7 @@ The continuous response is stored in `yfile` with data particioned by the `Int` 
 The calculations employ GPU acceleration by calling OpenCL kernels from `kernfile` with workgroup size `wg_size`.
 The folds are distributed across the processes given by `pids`.
 """
-function cv_iht{T <: Union{Float32, Float64}}(
+function cv_iht(
     T             :: Type,
     xfile         :: ASCIIString,
     xtfile        :: ASCIIString,
@@ -721,7 +724,6 @@ function cv_iht{T <: Union{Float32, Float64}}(
     folds         :: DenseVector{Int},
     q             :: Int;
     pids          :: DenseVector{Int} = procs(),
-#    tol           :: Float64          = 1e-4,
     tol           :: T                = convert(T, 1e-4),
     max_iter      :: Int              = 100,
     max_step      :: Int              = 50,
@@ -730,7 +732,8 @@ function cv_iht{T <: Union{Float32, Float64}}(
     compute_model :: Bool             = false,
     header        :: Bool             = false
 )
-    0 <= path_length <= p || throw(ArgumentError("Path length must be positive and cannot exceed number of predictors"))
+    0 <= path_length <= p        || throw(ArgumentError("Path length must be positive and cannot exceed number of predictors"))
+    T <: Union{Float64, Float32} || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # how many elements are in the path?
     num_models = length(path)
