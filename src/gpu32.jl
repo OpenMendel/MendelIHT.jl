@@ -1,9 +1,3 @@
-export L0_reg_gpu
-export iht_path
-
-# shortcut for OpenCL module name
-cl = OpenCL
-
 # subroutine to mask entries of a vector x
 function mask!(
 	x        :: DenseVector{Float32},

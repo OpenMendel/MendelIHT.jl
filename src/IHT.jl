@@ -14,6 +14,8 @@ export cv_iht
 export cv_get_folds
 export cv_log
 
+typealias Float Union{Float64, Float32}
+
 include("gpu64.jl")
 include("gpu32.jl")
 include("gwas64.jl")
