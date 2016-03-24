@@ -127,7 +127,7 @@ function iht(
 end
 
 # default type for iht is Float64
-function iht(b::DenseVector, x::BEDFile, y::DenseVector, k::Int, g::DenseVector, mask_n::DenseVector{Int}; n::Int=length(y), p::Int=length(b), pids::DenseVector{Int}=procs(), means::DenseVector=mean(Float64,x, shared=true, pids=pids), invstds::DenseVector=invstd(x,means, shared=true, pids=pids), b0::DenseVector=SharedArray(Float64, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids), Xb::DenseVector= xb(x,b,IDX,k,mask_n, means=means, invstds=invstds, pids=pids), Xb0::DenseVector= SharedArray(Float64, n, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids), sortidx::DenseVector{Int}=SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids), xk::DenseMatrix{T}=zeros(T,n,k), xgk::DenseVector{T}=zeros(T,n), gk::DenseVector{T}=zeros(T,k), bk::DenseVector{T}=zeros(T,k), IDX::BitArray{1}=falses(p), IDX0::BitArray{1}=copy(IDX), iter::Int=1, max_step::Int=50,
+function iht(b::DenseVector, x::BEDFile, y::DenseVector, k::Int, g::DenseVector, mask_n::DenseVector{Int}; n::Int=length(y), p::Int=length(b), pids::DenseVector{Int}=procs(), means::DenseVector=mean(Float64,x, shared=true, pids=pids), invstds::DenseVector=invstd(x,means, shared=true, pids=pids), b0::DenseVector=SharedArray(Float64, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids), Xb::DenseVector= xb(x,b,IDX,k,mask_n, means=means, invstds=invstds, pids=pids), Xb0::DenseVector= SharedArray(Float64, n, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids), sortidx::DenseVector{Int}=SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids), xk::DenseMatrix{Float64}=zeros(Float64,n,k), xgk::DenseVector{Float64}=zeros(Float64,n), gk::DenseVector{Float64}=zeros(Float64,k), bk::DenseVector{Float64}=zeros(Float64,k), IDX::BitArray{1}=falses(p), IDX0::BitArray{1}=copy(IDX), iter::Int=1, max_step::Int=50,
 ) = iht(Float64, b, x, y, k, g, mask_n, n=n, p=p, pids=pids, means=means, invstds=invstds, b0=b0, Xb=Xb, Xb0=Xb0, sortidx=sortidx, xk=xk, xgk=xgk, gk=gk, bk=bk, IDX=IDX, IDX0=IDX0, iter=iter, max_step=max_step)
 
 """
@@ -368,7 +368,7 @@ function iht_path(
     invstds  :: DenseVector{T}   = invstd(x,means, shared=true, pids=pids),
     mask_n   :: DenseVector{Int} = ones(Int,length(y)),
     device   :: cl.Device        = last(cl.devices(:gpu)),
-    tol      :: T                = convert(T, 1e-4),
+    tol      :: Float            = convert(T, 1e-4),
     max_iter :: Int              = 100,
     max_step :: Int              = 50,
     n        :: Int              = length(y),
@@ -424,7 +424,7 @@ function iht_path(
     df_buff     = cl.Buffer(T,    ctx, (:rw, :copy), hostbuf = sdata(df))
     mask_buff   = cl.Buffer(Int,  ctx, (:rw, :copy), hostbuf = sdata(mask_n))
     red_buff    = cl.Buffer(T,    ctx, (:rw),        p * y_chunks)
-    genofloat   = cl.LocalMem(T, wg_size)
+    genofloat   = cl.LocalMem(T,  wg_size)
 
     # compute the path
     @inbounds for i = 1:num_models
@@ -483,7 +483,7 @@ function one_fold(
     pids     :: DenseVector{Int} = procs(),
     means    :: DenseVector{T}   = mean(T,x, shared=true, pids=pids),
     invstds  :: DenseVector{T}   = invstd(x,means, shared=true, pids=pids),
-    tol      :: T                = convert(T, 1e-4),
+    tol      :: Float            = convert(T, 1e-4),
     max_iter :: Int              = 100,
     max_step :: Int              = 50,
     n        :: Int              = length(y),
@@ -742,7 +742,7 @@ function cv_iht(
     folds         :: DenseVector{Int},
     q             :: Int;
     pids          :: DenseVector{Int} = procs(),
-    tol           :: T                = convert(T, 1e-4),
+    tol           :: Float            = convert(T, 1e-4),
     max_iter      :: Int              = 100,
     max_step      :: Int              = 50,
     wg_size       :: Int              = 512,
