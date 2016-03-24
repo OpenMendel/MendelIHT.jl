@@ -1185,19 +1185,19 @@ function pfold_log(
     path       :: DenseVector{Int},
     folds      :: DenseVector{Int},
     numfolds   :: Int;
-    n          :: Int              = length(y),
-    p          :: Int              = size(x,2),
-    pids       :: DenseVector{Int} = procs(),
-    lambdas    :: DenseVector{T}   = SharedArray(T, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)), # type stable for Float32?
-    criterion  :: ASCIIString      = "deviance",
-    tol        :: Float            = convert(T, 1e-6),
-    tolG       :: Float            = convert(T, 1e-3),
-    tolrefit   :: Float            = convert(T, 1e-6),
-    max_iter   :: Int              = 100,
-    max_step   :: Int              = 100,
-    quiet      :: Bool             = true,
-    refit      :: Bool             = true,
-    header     :: Bool             = false
+    n          :: Int                = length(y),
+    p          :: Int                = size(x,2),
+    pids       :: DenseVector{Int}   = procs(),
+    lambdas    :: DenseVector{Float} = SharedArray(T, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)), # type stable for Float32?
+    criterion  :: ASCIIString        = "deviance",
+    tol        :: Float              = convert(T, 1e-6),
+    tolG       :: Float              = convert(T, 1e-3),
+    tolrefit   :: Float              = convert(T, 1e-6),
+    max_iter   :: Int                = 100,
+    max_step   :: Int                = 100,
+    quiet      :: Bool               = true,
+    refit      :: Bool               = true,
+    header     :: Bool               = false
 )
     # ensure that crossvalidation criterion is valid
     criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
@@ -1264,8 +1264,7 @@ function pfold_log(
 end
 
 # default type for pfold_log is Float64
-pfold_log(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, numfolds::Int; n::Int=length(y), p::Int=size(x,2), pids::DenseVector{Int}=procs(), lambdas::DenseVector{Float64}=SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)), criterion::ASCIIString="deviance", tol::Float64=1e-6, tolG::Float64=1e-3, tolrefit::Float64=1e-6, max_iter::Int=100, max_step::Int=100, quiet::Bool=true, refit::Bool=true, header::Bool=false)
-= pfold_log(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, n=n, p=p, pids=pids, lambdas=lambdas, criterion=criterion, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
+pfold_log(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, numfolds::Int; n::Int=length(y), p::Int=size(x,2), pids::DenseVector{Int}=procs(), lambdas::DenseVector{Float64}=SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)), criterion::ASCIIString="deviance", tol::Float64=1e-6, tolG::Float64=1e-3, tolrefit::Float64=1e-6, max_iter::Int=100, max_step::Int=100, quiet::Bool=true, refit::Bool=true, header::Bool=false) = pfold_log(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, n=n, p=p, pids=pids, lambdas=lambdas, criterion=criterion, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
 
 """
     cv_log(xfile,xtfile,x2file,yfile,meanfile,invstdfile,path,kernfile,folds,numfolds [, pids=procs()])
@@ -1287,7 +1286,7 @@ function cv_log(
     folds         :: DenseVector{Int},
     numfolds      :: Int;
     pids          :: DenseVector{Int}   = procs(),
-    lambdas       :: DenseVector{Float} = SharedArray(Float, (length(path),), pids=pids, init = S -> S[localindexes(S)] = one(T)),
+    lambdas       :: DenseVector{Float} = SharedArray(T, (length(path),), pids=pids, init = S -> S[localindexes(S)] = one(T)),
     criterion     :: ASCIIString        = "deviance",
     tol           :: Float              = convert(T, 1e-6),
     tolG          :: Float              = convert(T, 1e-3),
@@ -1352,5 +1351,4 @@ function cv_log(
     return errors
 end
 
-cv_log(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, numfolds::Int; pids::DenseVector{Int}=procs(), lambdas::DenseVector{Float64} = SharedArray(Float, (length(path),), pids=pids, init = S -> S[localindexes(S)] = one(Float64)),  criterion::ASCIIString="deviance", tol::Float64=1e-6, tolG::Float64=1e-3, tolrefit::Float64=1e-6, max_iter::Int=100, max_step::Int=100, quiet::Bool=true, refit::Bool=true, header::Bool=false)
-=cv_log(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, pids=pids, lambdas=lambdas, criterion=criterion, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
+cv_log(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, numfolds::Int; pids::DenseVector{Int}=procs(), lambdas::DenseVector{Float64} = SharedArray(Float, (length(path),), pids=pids, init = S -> S[localindexes(S)] = one(Float64)),  criterion::ASCIIString="deviance", tol::Float64=1e-6, tolG::Float64=1e-3, tolrefit::Float64=1e-6, max_iter::Int=100, max_step::Int=100, quiet::Bool=true, refit::Bool=true, header::Bool=false)=cv_log(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, pids=pids, lambdas=lambdas, criterion=criterion, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
