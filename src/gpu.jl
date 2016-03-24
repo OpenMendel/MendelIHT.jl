@@ -4,15 +4,13 @@ export iht_path
 "A shortcut for `OpenCL` module name."
 const cl = OpenCL
 
-
 """
     iht(b, x::BEDFile, y, k, g, mask_n)
 
 Calls `iht()` with a bitmask `mask_n` with `Int` values `0` or `1`.
 `mask_n` permits inclusion and exclusion of rows of a `BEDFile` object `x` without explicitly subsetting it.
 """
-function iht(
-    T         :: Type,
+function iht{T <: Float}(
     b         :: DenseVector{T},
     x         :: BEDFile,
     y         :: DenseVector{T},
@@ -37,9 +35,6 @@ function iht(
     iter      :: Int              = 1,
     max_step  :: Int              = 50,
 )
-
-    # ensure correct type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # which components of beta are nonzero?
     update_indices!(IDX, b, p=p)
@@ -97,7 +92,7 @@ function iht(
     while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
         # stephalving
-        mu *= 0.5
+        mu /= 2
 
         # warn if mu falls below machine epsilon
         mu <= eps(T) && warn("Step size equals zero, algorithm may not converge correctly")
@@ -126,9 +121,6 @@ function iht(
     return mu, mu_step
 end
 
-# default type for iht is Float64
-function iht(b::DenseVector, x::BEDFile, y::DenseVector, k::Int, g::DenseVector, mask_n::DenseVector{Int}; n::Int=length(y), p::Int=length(b), pids::DenseVector{Int}=procs(), means::DenseVector=mean(Float64,x, shared=true, pids=pids), invstds::DenseVector=invstd(x,means, shared=true, pids=pids), b0::DenseVector=SharedArray(Float64, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids), Xb::DenseVector= xb(x,b,IDX,k,mask_n, means=means, invstds=invstds, pids=pids), Xb0::DenseVector= SharedArray(Float64, n, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids), sortidx::DenseVector{Int}=SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids), xk::DenseMatrix{Float64}=zeros(Float64,n,k), xgk::DenseVector{Float64}=zeros(Float64,n), gk::DenseVector{Float64}=zeros(Float64,k), bk::DenseVector{Float64}=zeros(Float64,k), IDX::BitArray{1}=falses(p), IDX0::BitArray{1}=copy(IDX), iter::Int=1, max_step::Int=50,
-) = iht(Float64, b, x, y, k, g, mask_n, n=n, p=p, pids=pids, means=means, invstds=invstds, b0=b0, Xb=Xb, Xb0=Xb0, sortidx=sortidx, xk=xk, xgk=xgk, gk=gk, bk=bk, IDX=IDX, IDX0=IDX0, iter=iter, max_step=max_step)
 
 """
     L0_reg(x::BEDFile, y, k, kernfile)
@@ -139,31 +131,31 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIStri
 - `mask_n`, an `Int` vector of `0`s and `1`s indexing the rows of `x` and `y` that should be included or masked in the analysis. Defaults to `ones(Int,n)`, which includes all data.
 - `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
 """
-function L0_reg(
+function L0_reg{T <: Float}(
     X           :: BEDFile,
-    Y           :: DenseVector{Float64},
+    Y           :: DenseVector{T},
     k           :: Int,
     kernfile    :: ASCIIString;
     n           :: Int                  = length(Y),
     p           :: Int                  = size(X,2),
     pids        :: DenseVector{Int}     = procs(),
-    Xk          :: DenseMatrix{Float64} = zeros(Float64, (n,k)),
-    b           :: DenseVector{Float64} = SharedArray(Float64, p, pids=pids),
-    b0          :: DenseVector{Float64} = SharedArray(Float64, p, pids=pids),
-    df          :: DenseVector{Float64} = SharedArray(Float64, p, pids=pids),
-    r           :: DenseVector{Float64} = SharedArray(Float64, n, pids=pids),
-    Xb          :: DenseVector{Float64} = SharedArray(Float64, n, pids=pids),
-    Xb0         :: DenseVector{Float64} = SharedArray(Float64, n, pids=pids),
-    tempn       :: DenseVector{Float64} = SharedArray(Float64, n, pids=pids),
-    tempkf      :: DenseVector{Float64} = zeros(Float64,k),
-    idx         :: DenseVector{Float64} = zeros(Float64,k),
+    Xk          :: DenseMatrix{T} = zeros(T, (n,k)),
+    b           :: DenseVector{T} = SharedArray(T, p, pids=pids),
+    b0          :: DenseVector{T} = SharedArray(T, p, pids=pids),
+    df          :: DenseVector{T} = SharedArray(T, p, pids=pids),
+    r           :: DenseVector{T} = SharedArray(T, n, pids=pids),
+    Xb          :: DenseVector{T} = SharedArray(T, n, pids=pids),
+    Xb0         :: DenseVector{T} = SharedArray(T, n, pids=pids),
+    tempn       :: DenseVector{T} = SharedArray(T, n, pids=pids),
+    tempkf      :: DenseVector{T} = zeros(T,k),
+    idx         :: DenseVector{T} = zeros(T,k),
     indices     :: DenseVector{Int}     = SharedArray(Int, p, init = S->S[localindexes(S)] = localindexes(S), pids=pids),
     support     :: BitArray{1}          = falses(p),
     support0    :: BitArray{1}          = falses(p),
     mask_n      :: DenseVector{Int}     = ones(Int,n),
-    means       :: DenseVector{Float64} = mean(Float64,X, shared=true, pids=pids),
-    invstds     :: DenseVector{Float64} = invstd(X,means, shared=true, pids=pids),
-    tol         :: Float64              = 1e-4,
+    means       :: DenseVector{T} = mean(T,X, shared=true, pids=pids),
+    invstds     :: DenseVector{T} = invstd(X,means, shared=true, pids=pids),
+    tol         :: Float                = 1e-4,
     max_iter    :: Int                  = 100,
     max_step    :: Int                  = 50,
     quiet       :: Bool                 = true,
@@ -175,13 +167,13 @@ function L0_reg(
     ctx         :: cl.Context           = cl.Context(device),
     queue       :: cl.CmdQueue          = cl.CmdQueue(ctx),
     x_buff      :: cl.Buffer            = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(X.x)),
-    y_buff      :: cl.Buffer            = cl.Buffer(Float64, ctx, (:r,  :copy), hostbuf = sdata(r)),
-    m_buff      :: cl.Buffer            = cl.Buffer(Float64, ctx, (:r,  :copy), hostbuf = sdata(means)),
-    p_buff      :: cl.Buffer            = cl.Buffer(Float64, ctx, (:r,  :copy), hostbuf = sdata(invstds)),
-    df_buff     :: cl.Buffer            = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf = sdata(df)),
-    red_buff    :: cl.Buffer            = cl.Buffer(Float64, ctx, (:rw), p * y_chunks),
+    y_buff      :: cl.Buffer            = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(r)),
+    m_buff      :: cl.Buffer            = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(means)),
+    p_buff      :: cl.Buffer            = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(invstds)),
+    df_buff     :: cl.Buffer            = cl.Buffer(T, ctx, (:rw, :copy), hostbuf = sdata(df)),
+    red_buff    :: cl.Buffer            = cl.Buffer(T, ctx, (:rw), p * y_chunks),
     mask_buff   :: cl.Buffer            = cl.Buffer(Int,    ctx, (:r,  :copy), hostbuf = sdata(mask_n)),
-    genofloat   :: cl.LocalMem          = cl.LocalMem(Float64, wg_size),
+    genofloat   :: cl.LocalMem          = cl.LocalMem(T, wg_size),
     program     :: cl.Program           = cl.Program(ctx, source=kernfile) |> cl.build!,
     xtyk        :: cl.Kernel            = cl.Kernel(program, "compute_xt_times_vector"),
     rxtyk       :: cl.Kernel            = cl.Kernel(program, "reduce_xt_vec_chunks"),
@@ -202,20 +194,20 @@ function L0_reg(
     k        >= 0            || throw(ArgumentError("Value of k must be nonnegative!\n"))
     max_iter >= 0            || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
     max_step >= 0            || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol      >  eps(Float64) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+    tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
     sum((mask_n .== 1) $ (mask_n .== 0)) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
 
     # initialize return values
     mm_iter   = 0       # number of iterations of L0_reg
-    mm_time   = zero(Float64)       # compute time *within* L0_reg
-    next_loss = zero(Float64)       # loss function value
+    mm_time   = zero(T)       # compute time *within* L0_reg
+    next_loss = zero(T)       # loss function value
 
     # initialize floats
-    current_loss = oftype(zero(Float64),Inf)    # tracks previous objective function value
-    the_norm     = zero(Float64)    # norm(b - b0)
-    scaled_norm  = zero(Float64)    # the_norm / (norm(b0) + 1)
-    mu           = zero(Float64)    # Landweber step size, 0 < tau < 2/rho_max^2
+    current_loss = oftype(zero(T),Inf)    # tracks previous objective function value
+    the_norm     = zero(T)                # norm(b - b0)
+    scaled_norm  = zero(T)                # the_norm / (norm(b0) + 1)
+    mu           = zero(T)                # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
     i       = 0         # used for iterations in loops
@@ -226,20 +218,20 @@ function L0_reg(
 
     # update Xb, r, and gradient
     if sum(support) == 0
-        fill!(Xb,zero(Float64))
+        fill!(Xb,zero(T))
         copy!(r,sdata(Y))
-        mask!(r, mask_n, 0, zero(Float64), n=n)
+        mask!(r, mask_n, 0, zero(T), n=n)
     else
         xb!(Xb,X,b,support,k,mask_n, means=means, invstds=invstds, pids=pids)
         difference!(r, Y, Xb)
-        mask!(r, mask_n, 0, zero(Float64), n=n)
+        mask!(r, mask_n, 0, zero(T), n=n)
     end
 
     # calculate the gradient using the GPU
     xty!(df, df_buff, X, x_buff, r, y_buff, mask_n, mask_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
 
     # update loss
-    next_loss = oftype(zero(Float64),Inf)
+    next_loss = oftype(zero(T),Inf)
 
     # formatted output to monitor algorithm progress
     if !quiet
@@ -282,13 +274,13 @@ function L0_reg(
 
         # update residuals
         difference!(r,Y,Xb)
-        mask!(r, mask_n, 0, zero(Float64), n=n)
+        mask!(r, mask_n, 0, zero(T), n=n)
 
         # use updated residuals to recompute the gradient on the GPU
         xty!(df, df_buff, X, x_buff, r, y_buff, mask_n, mask_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
 
         # update objective
-        next_loss = 0.5*sumabs2(sdata(r))
+        next_loss = sumabs2(sdata(r)) / 2
 
         # guard against numerical instabilities
         # ensure that objective is finite
@@ -340,7 +332,7 @@ function L0_reg(
                 print_with_color(:red, "Difference in objectives: $(abs(next_loss - current_loss))\n")
             end
             throw(ErrorException("Descent failure!"))
-#           output = Dict{ASCIIString, Any}("time" => -one(Float64), "loss" => -one(Float64), "iter" => -1, "beta" => fill!(b,Inf))
+#           output = Dict{ASCIIString, Any}("time" => -one(T), "loss" => -one(T), "iter" => -1, "beta" => fill!(b,Inf))
             return output
         end
     end # end main loop
@@ -357,8 +349,7 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIStri
 - `mask_n`, an `Int` vector of `0`s and `1`s indexing the rows of `x` and `y` that should be included or masked in the analysis. Defaults to `ones(Int,n)`, which includes all data.
 - `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
 """
-function iht_path(
-    T        :: Type,
+function iht_path{T <: Float}(
     x        :: BEDFile,
     y        :: DenseVector{T},
     path     :: DenseVector{Int},
@@ -376,8 +367,6 @@ function iht_path(
     wg_size  :: Int              = 512,
     quiet    :: Bool             = true
 )
-    # ensure correct type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # how many models will we compute?
     const num_models = length(path)
@@ -460,8 +449,6 @@ function iht_path(
     return betas
 end
 
-# default type for iht_path is Float64
-iht_path(x::BEDFile, y::DenseVector{Float64}, path::DenseVector{Int}, kernfile::ASCIIString; pids::DenseVector{Int}=procs(), means::DenseVector{Float64}=mean(Float64,x, shared=true, pids=pids), invstds::DenseVector{Float64}=invstd(x,means, shared=true, pids=pids), mask_n::DenseVector{Int}=ones(Int,length(y)), device::cl.Device=last(cl.devices(:gpu)), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, n::Int=length(y), p::Int=size(x,2), wg_size::Int=512, quiet::Bool=true) = iht_path(Float64, x, y, path, kernfile, pids=pids, means=means, invstds=invstds, mask_n=mask_n, device=device, tol=tol, max_iter=max_iter, max_step=max_step, n=n, p=p, wg_size=wg_size, quiet=quiet)
 
 """
     one_fold(x::BEDFile, y, path, kernfile, folds, fold)
@@ -470,10 +457,9 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIStri
 
 - `devidx`, an index indicating the GPU device to use in computations. The device is chosen  as `OpenCL.devices(:gpu)[devidx]`. Defaults to `1` (choose the first GPU device)
 - `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
-- `header` is a `Bool` to feed to `readdlm` when loading the nongenetic covariates `x.x2`. Defaults to `false` (no header). 
+- `header` is a `Bool` to feed to `readdlm` when loading the nongenetic covariates `x.x2`. Defaults to `false` (no header).
 """
-function one_fold(
-    T        :: Type,
+function one_fold{T <: Float}(
     x        :: BEDFile,
     y        :: DenseVector{T},
     path     :: DenseVector{Int},
@@ -493,8 +479,6 @@ function one_fold(
     header   :: Bool             = false,
     quiet    :: Bool             = true
 )
-    # ensure correct type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # get list of available GPU devices
     # var device gets pointer to device indexed by variable devidx
@@ -514,7 +498,7 @@ function one_fold(
     test_idx  = convert(Vector{Int}, test_idx)
 
     # compute the regularization path on the training set
-    betas = iht_path(T,x,y,path,kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds, mask_n=train_idx, wg_size=wg_size, device=device, pids=pids, tol=tol, max_iter=max_iter, n=n, p=p)
+    betas = iht_path(x,y,path,kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds, mask_n=train_idx, wg_size=wg_size, device=device, pids=pids, tol=tol, max_iter=max_iter, n=n, p=p)
 
     # tidy up
     gc()
@@ -550,8 +534,8 @@ function one_fold(
         difference!(r,y,Xb)
 
         # mask data from training set
-        # training set consists of data NOT in fold
-#       r[folds .!= fold] = zero(Float64)
+        # training set consists of data NOT in fold:
+        # r[folds .!= fold] = zero(Float64)
         mask!(r, test_idx, 0, zero(T), n=n)
 
         # compute out-of-sample error as squared residual averaged over size of test set
@@ -560,10 +544,6 @@ function one_fold(
 
     return myerrors
 end
-
-# default type for one_fold is Float64
-function one_fold(x::BEDFile, y::DenseVector, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, fold::Int; pids::DenseVector{Int}=procs(), means::DenseVector=mean(Float64,x, shared=true, pids=pids), invstds::DenseVector=invstd(x,means, shared=true, pids=pids), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, n::Int= length(y), p::Int=size(x,2), wg_size::Int=512, devidx::Int=1, header::Bool=false, quiet::Bool=true) = one_fold(Float64, x, y, path, kernfile, folds, fold, pids=pids, means=means, invstds=invstds, tol=tol, max_iter=max_iter, max_step=max_step, n=n, p=p, wg_size=wg_size, devidx=devidx, header=header, quiet=quiet)
-
 
 # subroutine to calculate the approximate memory load of one fold on the GPU
 function onefold_device_memload(x::BEDFile, wg_size::Int, y_chunks::Int; prec64::Bool = true)
@@ -703,7 +683,7 @@ function pfold(
                                 means = SharedArray(abspath(meanfile), T, (p,), pids=pids)
                                 invstds = SharedArray(abspath(invstdfile), T, (p,), pids=pids)
 
-                                one_fold(T, x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, devidx=devidx, pids=pids)
+                                one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, devidx=devidx, pids=pids)
                         end # end remotecall_fetch()
                     end # end while
                 end # end @async
@@ -712,7 +692,7 @@ function pfold(
     end # end @sync
 
     # return reduction (row-wise sum) over results
-    return reduce(+, results[1], results) ./ q 
+    return reduce(+, results[1], results) ./ q
 end
 
 
@@ -750,8 +730,8 @@ function cv_iht(
     compute_model :: Bool             = false,
     header        :: Bool             = false
 )
-    0 <= path_length <= p || throw(ArgumentError("Path length must be positive and cannot exceed number of predictors"))
-    T <: Float            || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    #0 <= length(path) <= p || throw(ArgumentError("Path length must be positive and cannot exceed number of predictors"))
+    T <: Float             || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # how many elements are in the path?
     num_models = length(path)
@@ -832,5 +812,5 @@ function cv_iht(
     return errors
 end
 
-# default type for cv_iht is Float64 
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, compute_model::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter, max_step, wg_size, quiet, compute_model, header=header)
+# default type for cv_iht is Float64
+cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, compute_model::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, compute_model=compute_model, header=header)

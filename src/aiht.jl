@@ -1,25 +1,27 @@
+export L0_reg_aiht
+
 # DOUBLE OVERRELAXATION SCHEME TO ACCELERATE IHT
 #
 # This subroutine computes the (D)ouble (O)ver(R)elaxation for accelerating IHT steps.
-function dor(
-    x       :: DenseArray{Float32,2},
-    y       :: DenseArray{Float32,1},
-    b       :: DenseArray{Float32,1},
-    b0      :: DenseArray{Float32,1},
-    b00     :: DenseArray{Float32,1},
-    xb      :: DenseArray{Float32,1},
-    xb0     :: DenseArray{Float32,1},
-    xb00    :: DenseArray{Float32,1},
+function dor{T <: Float}(
+    x       :: DenseArray{T,2},
+    y       :: DenseArray{T,1},
+    b       :: DenseArray{T,1},
+    b0      :: DenseArray{T,1},
+    b00     :: DenseArray{T,1},
+    xb      :: DenseArray{T,1},
+    xb0     :: DenseArray{T,1},
+    xb00    :: DenseArray{T,1},
     sortidx :: DenseArray{Int,1},
-    bk      :: DenseArray{Float32,1},
-    z1      :: DenseArray{Float32,1},
-    z2      :: DenseArray{Float32,1},
-    xz1     :: DenseArray{Float32,1},
-    xz2     :: DenseArray{Float32,1},
-    dif     :: DenseArray{Float32,1},
-    r       :: DenseArray{Float32,1},
-    r2      :: DenseArray{Float32,1},
-    obj     :: Float32;
+    bk      :: DenseArray{T,1},
+    z1      :: DenseArray{T,1},
+    z2      :: DenseArray{T,1},
+    xz1     :: DenseArray{T,1},
+    xz2     :: DenseArray{T,1},
+    dif     :: DenseArray{T,1},
+    r       :: DenseArray{T,1},
+    r2      :: DenseArray{T,1},
+    obj     :: Float;
     k       :: Int = length(bk),
     n       :: Int = length(y),
     p       :: Int = length(b)
@@ -100,7 +102,7 @@ end
 # -- xgk = x*gk.
 # -- max_step is the maximum number of backtracking steps to take. Defaults to 50.
 # -- sortidx is a vector to store the indices that would sort beta. Defaults to p zeros of type Int.
-# -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type Float32.
+# -- betak is a vector to store the largest k values of beta. Defaults to k zeros of type T.
 # -- IDX and IDX0 are BitArrays indicating the nonzero status of components of beta. They default to falses.
 # -- r and r2 store the overall residual and partial accelerated residual, respectively. They default to zeroes.
 # -- z1 and z2 store intermediate steps of the acceleration calculations. They default to zeroes.
@@ -111,37 +113,37 @@ end
 # klkeys@g.ucla.edu
 # based on the HardLab demonstration code written in MATLAB by Thomas Blumensath
 # http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html
-function aiht(
-    x         :: DenseArray{Float32,2},
-    y         :: DenseArray{Float32,1},
-    b         :: DenseArray{Float32,1},
-    g         :: DenseArray{Float32,1},
-    obj       :: Float32,
+function aiht{T <: Float}(
+    x         :: DenseArray{T,2},
+    y         :: DenseArray{T,1},
+    b         :: DenseArray{T,1},
+    g         :: DenseArray{T,1},
+    obj       :: Float,
     k         :: Int,
     iter      :: Int;
-    n         :: Int                   = length(y),
-    p         :: Int                   = length(b),
-    xk        :: DenseArray{Float32,2} = zeros(Float32,n,k),
-    b0        :: DenseArray{Float32,1} = copy(b),
-    b00       :: DenseArray{Float32,1} = copy(b),
-    xb        :: DenseArray{Float32,1} = BLAS.gemv('N', 1.0, x, b),
-    xb0       :: DenseArray{Float32,1} = copy(xb),
-    xb00      :: DenseArray{Float32,1} = copy(xb),
-    gk        :: DenseArray{Float32,1} = zeros(Float32,k),
-    xgk       :: DenseArray{Float32,1} = zeros(Float32,n),
-    bk        :: DenseArray{Float32,1} = zeros(Float32,k),
-    r         :: DenseArray{Float32,1} = zeros(Float32,n),
-    r2        :: DenseArray{Float32,1} = zeros(Float32,n),
-    z1        :: DenseArray{Float32,1} = zeros(Float32,p),
-    z2        :: DenseArray{Float32,1} = zeros(Float32,p),
-    dif       :: DenseArray{Float32,1} = zeros(Float32,n),
-    xz1       :: DenseArray{Float32,1} = zeros(Float32,n),
-    xz2       :: DenseArray{Float32,1} = zeros(Float32,n),
-    sortidx   :: DenseArray{Int,1}     = collect(1:p),
-    IDX       :: BitArray{1}           = falses(p),
-    IDX0      :: BitArray{1}           = copy(IDX),
-    step_mult :: Float32               = 1.0f0,
-    max_step  :: Int                   = 50
+    n         :: Int               = length(y),
+    p         :: Int               = length(b),
+    xk        :: DenseArray{T,2}   = zeros(T,n,k),
+    b0        :: DenseArray{T,1}   = copy(b),
+    b00       :: DenseArray{T,1}   = copy(b),
+    xb        :: DenseArray{T,1}   = BLAS.gemv('N', one(T), x, b),
+    xb0       :: DenseArray{T,1}   = copy(xb),
+    xb00      :: DenseArray{T,1}   = copy(xb),
+    gk        :: DenseArray{T,1}   = zeros(T,k),
+    xgk       :: DenseArray{T,1}   = zeros(T,n),
+    bk        :: DenseArray{T,1}   = zeros(T,k),
+    r         :: DenseArray{T,1}   = zeros(T,n),
+    r2        :: DenseArray{T,1}   = zeros(T,n),
+    z1        :: DenseArray{T,1}   = zeros(T,p),
+    z2        :: DenseArray{T,1}   = zeros(T,p),
+    dif       :: DenseArray{T,1}   = zeros(T,n),
+    xz1       :: DenseArray{T,1}   = zeros(T,n),
+    xz2       :: DenseArray{T,1}   = zeros(T,n),
+    sortidx   :: DenseArray{Int,1} = collect(1:p),
+    IDX       :: BitArray{1}       = falses(p),
+    IDX0      :: BitArray{1}       = copy(IDX),
+    step_mult :: Float             = one(T),
+    max_step  :: Int               = 50
 )
 
     # which components of beta are nonzero?
@@ -164,11 +166,10 @@ function aiht(
     fill_perm!(gk, g, IDX, k=k, p=p)    # gk = g[IDX]
 
     # now compute subset of x*g
-    BLAS.gemv!('N', 1.0, xk, gk, 0.0, xgk)
+    BLAS.gemv!('N', one(T), xk, gk, zero(T), xgk)
 
     # compute step size
-#   mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
-    mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+    mu = step_mult * sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
     # take gradient step
@@ -200,7 +201,7 @@ function aiht(
     while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
         # stephalving
-        mu *= 0.5f0
+        mu /= 2
 
         # recompute gradient step
         copy!(b,b0)
@@ -288,37 +289,37 @@ end
 #
 # coded by Kevin L. Keys (2015)
 # klkeys@g.ucla.edu
-function L0_reg_aiht(
-    X        :: DenseArray{Float32,2},
-    Y        :: DenseArray{Float32,1},
+function L0_reg_aiht{T <: Float}(
+    X        :: DenseArray{T,2},
+    Y        :: DenseArray{T,1},
     k        :: Int;
-    n        :: Int                   = length(Y),
-    p        :: Int                   = size(X,2),
-    Xk       :: DenseArray{Float32,2} = zeros(Float32,n,k),
-    b        :: DenseArray{Float32,1} = zeros(Float32,p),
-    b0       :: DenseArray{Float32,1} = zeros(Float32,p),
-    b00      :: DenseArray{Float32,1} = zeros(Float32,p),
-    df       :: DenseArray{Float32,1} = zeros(Float32,p),
-    z1       :: DenseArray{Float32,1} = zeros(Float32,p),
-    z2       :: DenseArray{Float32,1} = zeros(Float32,p),
-    Xb       :: DenseArray{Float32,1} = zeros(Float32,n),
-    Xb0      :: DenseArray{Float32,1} = zeros(Float32,n),
-    Xb00     :: DenseArray{Float32,1} = zeros(Float32,n),
-    tempn    :: DenseArray{Float32,1} = zeros(Float32,n),
-    r        :: DenseArray{Float32,1} = zeros(Float32,n),
-    r2       :: DenseArray{Float32,1} = zeros(Float32,n),
-    dif      :: DenseArray{Float32,1} = zeros(Float32,n),
-    xz1      :: DenseArray{Float32,1} = zeros(Float32,n),
-    xz2      :: DenseArray{Float32,1} = zeros(Float32,n),
-    tempkf   :: DenseArray{Float32,1} = zeros(Float32,k),
-    idx      :: DenseArray{Float32,1} = zeros(Float32,k),
-    indices  :: DenseArray{Int,1}     = collect(1:p),
-    support  :: BitArray{1}           = falses(p),
-    support0 :: BitArray{1}           = falses(p),
-    tol      :: Float32               = 1e-4,
-    max_iter :: Int                   = 1000,
-    max_step :: Int                   = 50,
-    quiet    :: Bool                  = true
+    n        :: Int               = length(Y),
+    p        :: Int               = size(X,2),
+    Xk       :: DenseArray{T,2}   = zeros(T,n,k),
+    b        :: DenseArray{T,1}   = zeros(T,p),
+    b0       :: DenseArray{T,1}   = zeros(T,p),
+    b00      :: DenseArray{T,1}   = zeros(T,p),
+    df       :: DenseArray{T,1}   = zeros(T,p),
+    z1       :: DenseArray{T,1}   = zeros(T,p),
+    z2       :: DenseArray{T,1}   = zeros(T,p),
+    Xb       :: DenseArray{T,1}   = zeros(T,n),
+    Xb0      :: DenseArray{T,1}   = zeros(T,n),
+    Xb00     :: DenseArray{T,1}   = zeros(T,n),
+    tempn    :: DenseArray{T,1}   = zeros(T,n),
+    r        :: DenseArray{T,1}   = zeros(T,n),
+    r2       :: DenseArray{T,1}   = zeros(T,n),
+    dif      :: DenseArray{T,1}   = zeros(T,n),
+    xz1      :: DenseArray{T,1}   = zeros(T,n),
+    xz2      :: DenseArray{T,1}   = zeros(T,n),
+    tempkf   :: DenseArray{T,1}   = zeros(T,k),
+    idx      :: DenseArray{T,1}   = zeros(T,k),
+    indices  :: DenseArray{Int,1} = collect(1:p),
+    support  :: BitArray{1}       = falses(p),
+    support0 :: BitArray{1}       = falses(p),
+    tol      :: Float             = convert(T, 1e-4),
+    max_iter :: Int               = 1000,
+    max_step :: Int               = 50,
+    quiet    :: Bool              = true
 )
 
     # start timer
@@ -328,19 +329,19 @@ function L0_reg_aiht(
     k            >= 0                || throw(ArgumentError("Value of k must be nonnegative!\n"))
     max_iter     >= 0                || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
     max_step     >= 0                || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol          >  eps(Float32)     || throw(ArgumentError("Value of global tolerance must exceed machine precision!\n"))
+    tol          >  eps(typeof(tol)) || throw(ArgumentError("Value of global tolerance must exceed machine precision!\n"))
 
     # initialize return values
-    mm_iter   = 0         # number of iterations of L0_reg
-    mm_time   = 0.0f0     # compute time *within* L0_reg
-    next_obj  = 0.0f0     # objective value
-    next_loss = 0.0f0     # loss function value
+    mm_iter   = 0       # number of iterations of L0_reg
+    mm_time   = zero(T) # compute time *within* L0_reg
+    next_obj  = zero(T) # objective value
+    next_loss = zero(T) # loss function value
 
     # initialize floats
-    current_obj = Inf32   # tracks previous objective function value
-    the_norm    = 0.0f0   # norm(b - b0)
-    scaled_norm = 0.0f0   # the_norm / (norm(b0) + 1)
-    mu          = 0.0f0   # IHT step size
+    current_obj = oftype(zero(T), Inf)   # tracks previous objective function value
+    the_norm    = zero(T)                # norm(b - b0)
+    scaled_norm = zero(T)                # the_norm / (norm(b0) + 1)
+    mu          = zero(T)                # IHT step size
 
     # initialize integers
     i       = 0        # used for iterations in loops
@@ -353,12 +354,10 @@ function L0_reg_aiht(
     update_xb!(Xb, X, b, indices, k, p=p, n=n)
 
     # update r and gradient
-#    update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
     difference!(r, Y, Xb, n=n)
-    BLAS.gemv!('T', 1.0, X, r, 0.0, df)
+    BLAS.gemv!('T', one(T), X, r, zero(T), df)
 
     # update loss and objective
-#   next_loss = 0.5 * sumabs2(r)
     next_loss = Inf
     next_obj  = next_loss
 
@@ -387,12 +386,10 @@ function L0_reg_aiht(
             threshold!(b, tol, n=p)
 
             # calculate r piecemeal
-#           update_residuals!(r, X, Y, b, xb=Xb, n=n)
-#           update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
             difference!(r, Y, Xb, n=n)
 
             # calculate loss and objective
-            next_loss = 0.5 * sumabs2(r)
+            next_loss = sumabs2(r) / 2
 
             # stop timer
             mm_time = toq()
@@ -412,8 +409,7 @@ function L0_reg_aiht(
         current_obj = next_obj
 
         # now perform AIHT step
-#       (mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, step_mult=1.0, b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
-        (mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, step_mult=1.0f0, b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
+        (mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, step_mult=one(T), b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals
@@ -421,10 +417,10 @@ function L0_reg_aiht(
         difference!(r, Y, Xb, n=n)
 
         # finally, recompute the gradient
-        BLAS.gemv!('T', 1.0, X, r, 0.0, df)
+        BLAS.gemv!('T', one(T), X, r, zero(T), df)
 
         # update loss, objective, and gradient
-        next_loss = 0.5 * sumabs2(r)
+        next_loss = sumabs2(r) / 2
         next_obj  = next_loss
 
         # guard against numerical instabilities
@@ -433,7 +429,7 @@ function L0_reg_aiht(
 
         # track convergence
         the_norm    = chebyshev(b,b0)
-        scaled_norm = the_norm / ( norm(b0,Inf) + 1)
+        scaled_norm = the_norm / ( norm(b0,Inf) + one(T))
         converged   = scaled_norm < tol
 
         # output algorithm progress
@@ -446,13 +442,6 @@ function L0_reg_aiht(
 
             # send elements below tol to zero
             threshold!(b, tol, n=p)
-
-            # update r
-#           update_residuals!(r, X, Y, b, xb=Xb, n=n)
-#           update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
-
-            # calculate objective
-#           next_loss = 0.5 * sumabs2(r)
 
             # stop time
             mm_time = toq()
@@ -485,7 +474,8 @@ function L0_reg_aiht(
                 print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
             end
 
-            output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
+            throw(error("Descent failure"))
+            output = Dict{ASCIIString, Any}("time" => -one(T), "loss" => -one(T), "iter" => -1, "beta" => fill!(b,Inf))
 
             return output
         end

@@ -1,26 +1,36 @@
-function iht(
-    b        :: DenseVector{Float32},
+"""
+    iht(b, x::BEDFile, y, k, g)
+
+If used with a `BEDFile` object `x`, then the temporary arrays `b0`, `Xb`, `Xb0`, and `sortidx` are all initialized as `SharedArray`s of the proper dimensions.
+The additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
+"""
+function iht{T <: Float}(
+    b        :: DenseVector{T},
     x        :: BEDFile,
-    y        :: DenseVector{Float32},
+    y        :: DenseVector{T},
     k        :: Int,
-    g        :: DenseVector{Float32};
-    n        :: Int                  = length(y),
-    p        :: Int                  = length(b),
-    pids     :: DenseVector{Int}     = procs(),
-    means    :: DenseVector{Float32} = mean(Float32, x, shared=true, pids=pids),
-    invstds  :: DenseVector{Float32} = invstd(x, means, shared=true, pids=pids),
-    b0       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids),
-    Xb       :: DenseVector{Float32} = xb(x,b,IDX,k, means=means, invstds=invstds, pids=pids),
-    Xb0      :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids),
-    sortidx  :: DenseVector{Int}     = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
-    xk       :: DenseMatrix{Float32} = zeros(Float32,n,k),
-    xgk      :: DenseVector{Float32} = zeros(Float32,n),
-    gk       :: DenseVector{Float32} = zeros(Float32,k),
-    bk       :: DenseVector{Float32} = zeros(Float32,k),
-    IDX      :: BitArray{1}          = falses(p),
-    IDX0     :: BitArray{1}          = copy(IDX),
-    iter     :: Int                  = 1,
-    max_step :: Int                  = 50,
+    g        :: DenseVector{T};
+    n        :: Int              = length(y),
+    p        :: Int              = length(b),
+    pids     :: DenseVector{Int} = procs(),
+    means    :: DenseVector{T}   = mean(T, x, shared=true, pids=pids),
+    invstds  :: DenseVector{T}   = invstd(x, means, shared=true, pids=pids),
+    b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids),
+    Xb       :: DenseVector{T}   = xb(x,b,IDX,k, means=means, invstds=invstds, pids=pids),
+    Xb0      :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids),
+    sortidx  :: DenseVector{Int} = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
+    xk       :: DenseMatrix{T}   = zeros(T,n,k),
+    xgk      :: DenseVector{T}   = zeros(T,n),
+    gk       :: DenseVector{T}   = zeros(T,k),
+    bk       :: DenseVector{T}   = zeros(T,k),
+    IDX      :: BitArray{1}      = falses(p),
+    IDX0     :: BitArray{1}      = copy(IDX),
+    iter     :: Int              = 1,
+    max_step :: Int              = 50,
 )
 
     # which components of beta are nonzero?
@@ -45,10 +55,10 @@ function iht(
     fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)  # gk = g[IDX]
 
     # now compute subset of x*g
-    BLAS.gemv!('N', one(Float32), sdata(xk), sdata(gk), zero(Float32), sdata(xgk))
+    BLAS.gemv!('N', one(T), sdata(xk), sdata(gk), zero(T), sdata(xgk))
 
     # warn if xgk only contains zeros
-    all(xgk .== zero(Float32)) && warn("Entire active set has values equal to 0")
+    all(xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size
     mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
@@ -76,10 +86,10 @@ function iht(
 
     # backtrack until mu sits below omega and support stabilizes
     mu_step = 0
-    while mu*omega_bot > 0.99f0*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+    while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
 
         # stephalving
-        mu *= 0.5f0
+        mu /= 2
 
         # warn if mu falls below machine epsilon
         mu <= eps(typeof(mu)) && warn("Step size equals zero, algorithm may not converge correctly")
@@ -108,32 +118,42 @@ function iht(
     return mu, mu_step
 end
 
-function L0_reg(
+"""
+    L0_reg(x::BEDFile, y, k)
+
+If used with a `BEDFile` object `x`, then the temporary floating point arrays are all initialized as `SharedArray`s of the proper dimensions.
+The additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
+"""
+function L0_reg{T <: Float}(
     X        :: BEDFile,
-    Y        :: DenseVector{Float32},
+    Y        :: DenseVector{T},
     k        :: Int;
-    n        :: Int                  = length(Y),
-    p        :: Int                  = size(X,2),
-    pids     :: DenseVector{Int}     = procs(),
-    Xk       :: DenseMatrix{Float32} = SharedArray(Float32, (n,k), init = S -> S[localindexes(S)] = zero(Float32), pids=pids),
-    means    :: DenseVector{Float32} = mean(Float32,X, shared=true, pids=pids),
-    invstds  :: DenseVector{Float32} = invstd(X,means, shared=true, pids=pids),
-    b        :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    b0       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    df       :: DenseVector{Float32} = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    r        :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    Xb       :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    Xb0      :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    tempn    :: DenseVector{Float32} = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    tempkf   :: DenseVector{Float32} = SharedArray(Float32, k, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    idx      :: DenseVector{Float32} = SharedArray(Float32, k, init = S -> S[localindexes(S)] = zero(Float32),   pids=pids),
-    indices  :: DenseVector{Int}     = SharedArray(Int,     p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
-    support  :: BitArray{1}          = falses(p),
-    support0 :: BitArray{1}          = falses(p),
-    tol      :: Float32              = 1f-4,
-    max_iter :: Int                  = 100,
-    max_step :: Int                  = 50,
-    quiet    :: Bool                 = true
+    n        :: Int              = length(Y),
+    p        :: Int              = size(X,2),
+    pids     :: DenseVector{Int} = procs(),
+    Xk       :: DenseMatrix{T}   = SharedArray(T, (n,k), init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    means    :: DenseVector{T}   = mean(T,X, shared=true, pids=pids),
+    invstds  :: DenseVector{T}   = invstd(X,means, shared=true, pids=pids),
+    b        :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    df       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    r        :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    Xb       :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    Xb0      :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    tempn    :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    tempkf   :: DenseVector{T}   = SharedArray(T, k, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    idx      :: DenseVector{T}   = SharedArray(T, k, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    indices  :: DenseVector{Int} = SharedArray(Int,     p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
+    support  :: BitArray{1}      = falses(p),
+    support0 :: BitArray{1}      = falses(p),
+    tol      :: Float            = convert(T, 1e-4),
+    max_iter :: Int              = 100,
+    max_step :: Int              = 50,
+    quiet    :: Bool             = true
 )
 
     # start timer
@@ -143,18 +163,18 @@ function L0_reg(
     k        >= 0            || throw(ArgumentError("Value of k must be nonnegative!\n"))
     max_iter >= 0            || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
     max_step >= 0            || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol      >  eps(Float32) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+    tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
     # initialize return values
     mm_iter   = 0                           # number of iterations of L0_reg
-    mm_time   = zero(Float32)               # compute time *within* L0_reg
-    next_loss = oftype(zero(Float32),Inf)   # loss function value
+    mm_time   = zero(T)               # compute time *within* L0_reg
+    next_loss = oftype(zero(T),Inf)   # loss function value
 
     # initialize floats
-    current_obj = oftype(zero(Float32),Inf) # tracks previous objective function value
-    the_norm    = zero(Float32)             # norm(b - b0)
-    scaled_norm = zero(Float32)             # the_norm / (norm(b0) + 1)
-    mu          = zero(Float32)             # Landweber step size, 0 < tau < 2/rho_max^2
+    current_obj = oftype(zero(T),Inf) # tracks previous objective function value
+    the_norm    = zero(T)             # norm(b - b0)
+    scaled_norm = zero(T)             # the_norm / (norm(b0) + 1)
+    mu          = zero(T)             # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
     i       = 0                             # used for iterations in loops
@@ -165,7 +185,7 @@ function L0_reg(
 
     # update Xb, r, and gradient
     if sum(support) == 0
-        fill!(Xb,zero(Float32))
+        fill!(Xb,zero(T))
         copy!(r,sdata(Y))
     else
         xb!(Xb,X,b,support,k, means=means, invstds=invstds, pids=pids)
@@ -218,7 +238,7 @@ function L0_reg(
         xty!(df, X, r, means=means, invstds=invstds, pids=pids)
 
         # update loss, objective, and gradient
-        next_loss = 0.5f0 * sumabs2(sdata(r))
+        next_loss = sumabs2(sdata(r)) / 2
 
         # guard against numerical instabilities
         # ensure that objective is finite
@@ -282,17 +302,27 @@ end # end function
 
 
 
-function iht_path(
+"""
+    iht_path(x::BEDFile, y, path)
+
+If used with a `BEDFile` object `x`, then the temporary arrays are all initialized as `SharedArray`s of the proper dimensions.
+The additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
+"""
+function iht_path{T <: Float}(
     x        :: BEDFile,
-    y        :: DenseVector{Float32},
+    y        :: DenseVector{T},
     path     :: DenseVector{Int};
-    pids     :: DenseVector{Int}     = procs(),
-    means    :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids),
-    invstds  :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids),
-    tol      :: Float32              = 1f-4,
-    max_iter :: Int                  = 100,
-    max_step :: Int                  = 50,
-    quiet    :: Bool                 = true
+    pids     :: DenseVector{Int} = procs(),
+    means    :: DenseVector{T}   = mean(T,x, shared=true, pids=pids),
+    invstds  :: DenseVector{T}   = invstd(x,means, shared=true, pids=pids),
+    tol      :: Float            = convert(T, 1e-4),
+    max_iter :: Int              = 100,
+    max_step :: Int              = 50,
+    quiet    :: Bool             = true
 )
 
     # size of problem?
@@ -303,13 +333,13 @@ function iht_path(
     num_models = length(path)
 
     # preallocate SharedArrays for intermediate steps of algorithm calculations
-    b       = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # for || Y - XB ||_2^2
-    b0      = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # previous iterate beta0
-    df      = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # (negative) gradient
-    r       = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # for || Y - XB ||_2^2
-    Xb      = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # X*beta
-    Xb0     = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # X*beta0
-    tempn   = SharedArray(Float32, n, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)        # temporary array of n floats
+    b       = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # for || Y - XB ||_2^2
+    b0      = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # previous iterate beta0
+    df      = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # (negative) gradient
+    r       = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # for || Y - XB ||_2^2
+    Xb      = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # X*beta
+    Xb0     = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # X*beta0
+    tempn   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # temporary array of n floats
 
     # index vector for b has more complicated initialization
     indices = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids)
@@ -318,7 +348,7 @@ function iht_path(
     # also preallocate matrix to store betas
     support    = falses(p)                      # indicates nonzero components of beta
     support0   = copy(support)                  # store previous nonzero indicators
-    betas      = spzeros(Float32,p,num_models)  # a matrix to store calculated models
+    betas      = spzeros(T,p,num_models)  # a matrix to store calculated models
 
     # compute the path
     @inbounds for i = 1:num_models
@@ -328,9 +358,9 @@ function iht_path(
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
-        Xk     = zeros(Float32,n,q)     # store q columns of X
-        tempkf = zeros(Float32,q)       # temporary array of q floats
-        idx    = zeros(Float32,q)       # another temporary array of q floats
+        Xk     = zeros(T,n,q)     # store q columns of X
+        tempkf = zeros(T,q)       # temporary array of q floats
+        idx    = zeros(T,q)       # another temporary array of q floats
 
         # store projection of beta onto largest k nonzeroes in magnitude
         project_k!(b, tempkf, indices, q)
@@ -354,18 +384,27 @@ function iht_path(
 end
 
 
-function one_fold(
+"""
+    one_fold(x::BEDFile, y, path, folds, fold)
+
+If used with a `BEDFile` object `x`, then the additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
+"""
+function one_fold{T <: Float}(
     x        :: BEDFile,
-    y        :: DenseVector{Float32},
+    y        :: DenseVector{T},
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
     fold     :: Int;
-    pids     :: DenseVector{Int}     = procs(),
-    means    :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids),
-    invstds  :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids),
-    max_iter :: Int                  = 100,
-    max_step :: Int                  = 50,
-    quiet    :: Bool                 = true
+    pids     :: DenseVector{Int} = procs(),
+    means    :: DenseVector{T}   = mean(T,x, shared=true, pids=pids),
+    invstds  :: DenseVector{T}   = invstd(x,means, shared=true, pids=pids),
+    max_iter :: Int              = 100,
+    max_step :: Int              = 50,
+    quiet    :: Bool             = true
 )
 
     # make vector of indices for folds
@@ -373,17 +412,17 @@ function one_fold(
     test_size = sum(test_idx)
 
     # preallocate vector for output
-    myerrors = zeros(Float32, test_size)
+    myerrors = zeros(T, test_size)
 
-    # train_idx is the vector that indexes the Float32RAINING set
+    # train_idx is the vector that indexes the TRAINING set
     train_idx = !test_idx
 
     # allocate the arrays for the training set
     x_train = x[train_idx,:]
     y_train = y[train_idx]
-    Xb      = SharedArray(Float32, test_size, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)
-    b       = SharedArray(Float32, size(x,2), init = S -> S[localindexes(S)] = zero(Float32), pids=pids)
-    r       = SharedArray(Float32, test_size, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)
+    Xb      = SharedArray(T, test_size, init = S -> S[localindexes(S)] = zero(T), pids=pids)
+    b       = SharedArray(T, size(x,2), init = S -> S[localindexes(S)] = zero(T), pids=pids)
+    r       = SharedArray(T, test_size, init = S -> S[localindexes(S)] = zero(T), pids=pids)
 
     # compute the regularization path on the training set
     betas = iht_path(x_train,y_train,path, max_iter=max_iter, quiet=quiet, max_step=max_step, means=means, invstds=invstds, pids=pids)
@@ -408,7 +447,7 @@ function one_fold(
         difference!(r,y,Xb)
 
         # compute out-of-sample error as squared residual averaged over size of test set
-        myerrors[i] = 0.5f0*sumabs2(r) / test_size
+        myerrors[i] = sumabs2(r) / test_size / 2
     end
 
     return myerrors
@@ -416,42 +455,50 @@ end
 
 
 
-function cv_iht(
+"""
+    cv_iht(x::BEDFile, y, path, q)
+
+If used with a `BEDFile` object `x`, then the additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
+- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
+"""
+function cv_iht{T <: Float}(
     x             :: BEDFile,
-    y             :: DenseVector{Float32},
+    y             :: DenseVector{T},
     path          :: DenseVector{Int},
-    numfolds      :: Int;
-    folds         :: DenseVector{Int}     = cv_get_folds(sdata(y),numfolds),
-    pids          :: DenseVector{Int}     = procs(),
-    means         :: DenseVector{Float32} = mean(Float32,x, shared=true, pids=pids),
-    invstds       :: DenseVector{Float32} = invstd(x,means, shared=true, pids=pids),
-    tol           :: Float32              = 1f-4,
-    n             :: Int                  = length(y),
-    p             :: Int                  = size(x,2),
-    max_iter      :: Int                  = 100,
-    max_step      :: Int                  = 50,
-    quiet         :: Bool                 = true,
-    compute_model :: Bool                 = false
+    q             :: Int;
+    folds         :: DenseVector{Int} = cv_get_folds(sdata(y),q),
+    pids          :: DenseVector{Int} = procs(),
+    means         :: DenseVector{T}   = mean(T,x, shared=true, pids=pids),
+    invstds       :: DenseVector{T}   = invstd(x,means, shared=true, pids=pids),
+    tol           :: Float            = convert(T, 1e-4),
+    n             :: Int              = length(y),
+    p             :: Int              = size(x,2),
+    max_iter      :: Int              = 100,
+    max_step      :: Int              = 50,
+    quiet         :: Bool             = true,
+    compute_model :: Bool             = false
 )
 
     # how many elements are in the path?
     num_models = length(path)
 
     # preallocate vectors used in xval
-    errors  = zeros(Float32, num_models)    # vector to save mean squared errors
-    my_refs = cell(numfolds)                # cell array to store RemoteRefs
+    errors  = zeros(T, num_models)    # vector to save mean squared errors
 
     # want to compute a path for each fold
     # the folds are computed asynchronously
     # the @sync macro ensures that we wait for all of them to finish before proceeding
-    @sync for i = 1:numfolds
+    @sync for i = 1:q
         # one_fold returns a vector of out-of-sample errors (MSE for linear regression)
         # @fetch(one_fold(...)) spawns one_fold() on a CPU and returns the MSE
         errors[i] = @fetch(one_fold(x, y, path, folds, i, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids))
     end
 
     # average the mses
-    errors ./= numfolds
+    errors ./= q
 
     # what is the best model size?
     k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
@@ -470,22 +517,22 @@ function cv_iht(
     if compute_model
 
         # initialize model
-        b = SharedArray(Float32, p, init = S -> S[localindexes(S)] = zero(Float32), pids=pids)
+        b = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)
 
         # first use L0_reg to extract model
         output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, b=b, pids=pids)
 
         # which components of beta are nonzero?
-        inferred_model = output["beta"] .!= zero(Float32)
-        bidx = find( x -> x .!= zero(Float32), b)
+        inferred_model = output["beta"] .!= zero(T)
+        bidx = find( x -> x .!= zero(T), b)
 
         # allocate the submatrix of x corresponding to the inferred model
-        x_inferred = zeros(Float32,n,sum(inferred_model))
+        x_inferred = zeros(T,n,sum(inferred_model))
         decompress_genotypes!(x_inferred,x)
 
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-        Xty = BLAS.gemv('T', one(Float32), x_inferred, y)
-        xtx = BLAS.gemm('T', 'N', one(Float32), x_inferred, x_inferred)
+        Xty = BLAS.gemv('T', one(T), x_inferred, y)
+        xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
         b   = xtx \ Xty
         return errors, b, bidx
     end

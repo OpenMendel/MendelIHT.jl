@@ -25,16 +25,16 @@ Output:
 
 - `errors` is a vector of out-of-sample errors (MSEs) for the current fold.
 """
-function one_fold(
-    x        :: DenseMatrix{Float64},
-    y        :: DenseVector{Float64},
+function one_fold{T <: Float}(
+    x        :: DenseMatrix{T},
+    y        :: DenseVector{T},
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
     fold     :: Int;
-    tol      :: Float64 = 1e-4,
-    max_iter :: Int     = 1000,
-    max_step :: Int     = 50,
-    quiet    :: Bool    = true,
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 1000,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true,
 )
 
     # make vector of indices for folds
@@ -52,7 +52,7 @@ function one_fold(
     betas    = iht_path(x_train,y_train,path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
 
     # compute the mean out-of-sample error for the TEST set
-    errors = vec(0.5*sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ test_size
+    errors = vec(sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ (2*test_size)
 
     return errors
 end
@@ -98,26 +98,26 @@ If called with `refit = true`, then the output also includes, for best model siz
 - `b`, a vector of `k_star` floats
 - `bidx`, a vector of `k_star` indices indicating the support of the best model.
 """
-function cv_iht(
-    x        :: DenseMatrix{Float64},
-    y        :: DenseVector{Float64},
+function cv_iht{T <: Float}(
+    x        :: DenseMatrix{T},
+    y        :: DenseVector{T},
     path     :: DenseVector{Int},
     q        :: Int;
     folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
-    tol      :: Float64           = 1e-4,
-    n        :: Int               = length(y),
-    p        :: Int               = size(x,2),
-    max_iter :: Int               = 100,
-    max_step :: Int               = 50,
-    quiet    :: Bool              = true,
-    refit    :: Bool              = true
+    tol      :: Float            = convert(T, 1e-4),
+    n        :: Int              = length(y),
+    p        :: Int              = size(x,2),
+    max_iter :: Int              = 100,
+    max_step :: Int              = 50,
+    quiet    :: Bool             = true,
+    refit    :: Bool             = true
 )
 
     # how many elements are in the path?
     num_models = length(path)
 
     # preallocate vectors used in xval
-    errors  = zeros(Float64, num_models)    # vector to save mean squared errors
+    errors  = zeros(T, num_models)    # vector to save mean squared errors
 
     # want to compute a path for each fold
     # the folds are computed asynchronously
@@ -126,8 +126,8 @@ function cv_iht(
 
         quiet || print_with_color(:blue, "spawning fold $i\n")
 
-        # one_fold returns a vector of out-of-sample errors (MSE for linear regression) 
-        # @fetch(one_fold(...)) sends calculation to any available processor and returns out-of-sample error 
+        # one_fold returns a vector of out-of-sample errors (MSE for linear regression)
+        # @fetch(one_fold(...)) sends calculation to any available processor and returns out-of-sample error
         errors[i] = @fetch(one_fold(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet))
     end
 
@@ -148,24 +148,24 @@ function cv_iht(
     end
 
     # recompute ideal model
-    if refit 
+    if refit
 
         # initialize parameter vector
-        b = zeros(Float64, p)
+        b = zeros(T, p)
 
         # first use L0_reg to extract model
         output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
         copy!(b, output["beta"])
 
         # which components of beta are nonzero?
-        bidx = find( x -> x .!= zero(Float64), b)
+        bidx = find( x -> x .!= zero(T), b)
 
         # allocate the submatrix of x corresponding to the inferred model
         x_inferred = x[:,bidx]
 
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-        Xty = BLAS.gemv('T', one(Float64), x_inferred, y)
-        xtx = BLAS.gemm('T', 'N', one(Float64), x_inferred, x_inferred)
+        Xty = BLAS.gemv('T', one(T), x_inferred, y)
+        xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
         b2  = xtx \ Xty
 
         return errors, b2, bidx
