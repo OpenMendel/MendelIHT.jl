@@ -1,4 +1,4 @@
-module IHT
+module IHT 
 
 using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK
@@ -16,17 +16,11 @@ export cv_log
 
 typealias Float Union{Float64, Float32}
 
-include("gpu64.jl")
-include("gpu32.jl")
-include("gwas64.jl")
-include("gwas32.jl")
-include("cv64.jl")
-include("cv32.jl")
-include("iht64.jl")
-include("iht32.jl")
-include("aiht64.jl")
-include("aiht32.jl")
-include("log64.jl")
-include("log32.jl")
+include("gpu.jl")
+include("gwas.jl")
+include("cv.jl")
+include("iht.jl")
+include("aiht.jl")
+include("log.jl")
 
 end # end module IHT
