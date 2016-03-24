@@ -19,7 +19,7 @@ typealias Float Union{Float64, Float32}
 include("gpu.jl")
 include("gwas.jl")
 include("cv.jl")
-include("iht.jl")
+include("hardthreshold.jl")
 include("aiht.jl")
 include("log.jl")
 
