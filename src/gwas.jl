@@ -138,15 +138,15 @@ function L0_reg{T <: Float}(
     Xk       :: DenseMatrix{T}   = SharedArray(T, (n,k), init = S -> S[localindexes(S)] = zero(T), pids=pids),
     means    :: DenseVector{T}   = mean(T,X, shared=true, pids=pids),
     invstds  :: DenseVector{T}   = invstd(X,means, shared=true, pids=pids),
-    b        :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
-    b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
-    df       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
-    r        :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
-    Xb       :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
-    Xb0      :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
-    tempn    :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
-    tempkf   :: DenseVector{T}   = SharedArray(T, k, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
-    idx      :: DenseVector{T}   = SharedArray(T, k, init = S -> S[localindexes(S)] = zero(T),   pids=pids),
+    b        :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    df       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    r        :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    Xb       :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    Xb0      :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    tempn    :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    tempkf   :: DenseVector{T}   = SharedArray(T, k, init = S -> S[localindexes(S)] = zero(T), pids=pids),
+    idx      :: DenseVector{T}   = SharedArray(T, k, init = S -> S[localindexes(S)] = zero(T), pids=pids),
     indices  :: DenseVector{Int} = SharedArray(Int,     p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
     support  :: BitArray{1}      = falses(p),
     support0 :: BitArray{1}      = falses(p),
@@ -160,28 +160,28 @@ function L0_reg{T <: Float}(
     tic()
 
     # first handle errors
-    k        >= 0            || throw(ArgumentError("Value of k must be nonnegative!\n"))
-    max_iter >= 0            || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-    max_step >= 0            || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
+    k        >= 0      || throw(ArgumentError("Value of k must be nonnegative!\n"))
+    max_iter >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
+    max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
     tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
     # initialize return values
-    mm_iter   = 0                           # number of iterations of L0_reg
-    mm_time   = zero(T)               # compute time *within* L0_reg
-    next_loss = oftype(zero(T),Inf)   # loss function value
+    mm_iter   = 0                 # number of iterations of L0_reg
+    mm_time   = zero(T)           # compute time *within* L0_reg
+    next_loss = oftype(tol,Inf)   # loss function value
 
     # initialize floats
-    current_obj = oftype(zero(T),Inf) # tracks previous objective function value
-    the_norm    = zero(T)             # norm(b - b0)
-    scaled_norm = zero(T)             # the_norm / (norm(b0) + 1)
-    mu          = zero(T)             # Landweber step size, 0 < tau < 2/rho_max^2
+    current_obj = oftype(tol,Inf) # tracks previous objective function value
+    the_norm    = zero(T)         # norm(b - b0)
+    scaled_norm = zero(T)         # the_norm / (norm(b0) + 1)
+    mu          = zero(T)         # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    i       = 0                             # used for iterations in loops
-    mu_step = 0                             # counts number of backtracking steps for mu
+    i       = 0                   # used for iterations in loops
+    mu_step = 0                   # counts number of backtracking steps for mu
 
     # initialize booleans
-    converged = false                       # scaled_norm < tol?
+    converged = false             # scaled_norm < tol?
 
     # update Xb, r, and gradient
     if sum(support) == 0
@@ -346,8 +346,8 @@ function iht_path{T <: Float}(
 
     # allocate the BitArrays for indexing in IHT
     # also preallocate matrix to store betas
-    support    = falses(p)                      # indicates nonzero components of beta
-    support0   = copy(support)                  # store previous nonzero indicators
+    support    = falses(p)                # indicates nonzero components of beta
+    support0   = copy(support)            # store previous nonzero indicators
     betas      = spzeros(T,p,num_models)  # a matrix to store calculated models
 
     # compute the path

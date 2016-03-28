@@ -680,7 +680,7 @@ function iht_path_log{T <: Float}(
     mask_n   :: DenseVector{Int} = ones(Int,length(y)),
     n        :: Int              = length(y),
     p        :: Int              = size(x,2),
-    lambdas  :: DenseVector{T}   = ones(length(path)) * conver(T, sqrt(log(p) / n)),
+    lambdas  :: DenseVector{T}   = ones(length(path)) * convert(T, sqrt(log(p) / n)),
     tol      :: Float            = convert(T, 1e-6),
     tolG     :: Float            = convert(T, 1e-3),
     tolrefit :: Float            = convert(T, 1e-6),

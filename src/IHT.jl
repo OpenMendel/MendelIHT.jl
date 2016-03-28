@@ -1,4 +1,4 @@
-module IHT 
+module IHT
 
 using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK

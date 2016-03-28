@@ -136,78 +136,78 @@ function L0_reg{T <: Float}(
     Y           :: DenseVector{T},
     k           :: Int,
     kernfile    :: ASCIIString;
-    n           :: Int                  = length(Y),
-    p           :: Int                  = size(X,2),
-    pids        :: DenseVector{Int}     = procs(),
-    Xk          :: DenseMatrix{T} = zeros(T, (n,k)),
-    b           :: DenseVector{T} = SharedArray(T, p, pids=pids),
-    b0          :: DenseVector{T} = SharedArray(T, p, pids=pids),
-    df          :: DenseVector{T} = SharedArray(T, p, pids=pids),
-    r           :: DenseVector{T} = SharedArray(T, n, pids=pids),
-    Xb          :: DenseVector{T} = SharedArray(T, n, pids=pids),
-    Xb0         :: DenseVector{T} = SharedArray(T, n, pids=pids),
-    tempn       :: DenseVector{T} = SharedArray(T, n, pids=pids),
-    tempkf      :: DenseVector{T} = zeros(T,k),
-    idx         :: DenseVector{T} = zeros(T,k),
-    indices     :: DenseVector{Int}     = SharedArray(Int, p, init = S->S[localindexes(S)] = localindexes(S), pids=pids),
-    support     :: BitArray{1}          = falses(p),
-    support0    :: BitArray{1}          = falses(p),
-    mask_n      :: DenseVector{Int}     = ones(Int,n),
-    means       :: DenseVector{T} = mean(T,X, shared=true, pids=pids),
-    invstds     :: DenseVector{T} = invstd(X,means, shared=true, pids=pids),
-    tol         :: Float                = 1e-4,
-    max_iter    :: Int                  = 100,
-    max_step    :: Int                  = 50,
-    quiet       :: Bool                 = true,
-    wg_size     :: Int                  = 512,
-    y_chunks    :: Int                  = div(n, wg_size) + (n % wg_size != 0 ? 1 : 0),
-    y_blocks    :: Int                  = div(y_chunks, wg_size) + (y_chunks % wg_size != 0 ? 1 : 0),
-    r_chunks    :: Int                  = div(p*y_chunks, wg_size) + ((p*y_chunks) % wg_size != 0 ? 1 : 0),
-    device      :: cl.Device            = last(cl.devices(:gpu)),
-    ctx         :: cl.Context           = cl.Context(device),
-    queue       :: cl.CmdQueue          = cl.CmdQueue(ctx),
-    x_buff      :: cl.Buffer            = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(X.x)),
-    y_buff      :: cl.Buffer            = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(r)),
-    m_buff      :: cl.Buffer            = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(means)),
-    p_buff      :: cl.Buffer            = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(invstds)),
-    df_buff     :: cl.Buffer            = cl.Buffer(T, ctx, (:rw, :copy), hostbuf = sdata(df)),
-    red_buff    :: cl.Buffer            = cl.Buffer(T, ctx, (:rw), p * y_chunks),
-    mask_buff   :: cl.Buffer            = cl.Buffer(Int,    ctx, (:r,  :copy), hostbuf = sdata(mask_n)),
-    genofloat   :: cl.LocalMem          = cl.LocalMem(T, wg_size),
-    program     :: cl.Program           = cl.Program(ctx, source=kernfile) |> cl.build!,
-    xtyk        :: cl.Kernel            = cl.Kernel(program, "compute_xt_times_vector"),
-    rxtyk       :: cl.Kernel            = cl.Kernel(program, "reduce_xt_vec_chunks"),
-    reset_x     :: cl.Kernel            = cl.Kernel(program, "reset_x"),
-    wg_size32   :: Int32                = convert(Int32, wg_size),
-    n32         :: Int32                = convert(Int32, n),
-    p32         :: Int32                = convert(Int32, p),
-    y_chunks32  :: Int32                = convert(Int32, y_chunks),
-    y_blocks32  :: Int32                = convert(Int32, y_blocks),
-    blocksize32 :: Int32                = convert(Int32, X.blocksize),
-    r_length32  :: Int32                = convert(Int32, p*y_chunks)
+    n           :: Int              = length(Y),
+    p           :: Int              = size(X,2),
+    pids        :: DenseVector{Int} = procs(),
+    Xk          :: DenseMatrix{T}   = zeros(T, (n,k)),
+    b           :: DenseVector{T}   = SharedArray(T, p, pids=pids),
+    b0          :: DenseVector{T}   = SharedArray(T, p, pids=pids),
+    df          :: DenseVector{T}   = SharedArray(T, p, pids=pids),
+    r           :: DenseVector{T}   = SharedArray(T, n, pids=pids),
+    Xb          :: DenseVector{T}   = SharedArray(T, n, pids=pids),
+    Xb0         :: DenseVector{T}   = SharedArray(T, n, pids=pids),
+    tempn       :: DenseVector{T}   = SharedArray(T, n, pids=pids),
+    tempkf      :: DenseVector{T}   = zeros(T,k),
+    idx         :: DenseVector{T}   = zeros(T,k),
+    indices     :: DenseVector{Int} = SharedArray(Int, p, init = S->S[localindexes(S)] = localindexes(S), pids=pids),
+    support     :: BitArray{1}      = falses(p),
+    support0    :: BitArray{1}      = falses(p),
+    mask_n      :: DenseVector{Int} = ones(Int,n),
+    means       :: DenseVector{T}   = mean(T,X, shared=true, pids=pids),
+    invstds     :: DenseVector{T}   = invstd(X,means, shared=true, pids=pids),
+    tol         :: Float            = 1e-4,
+    max_iter    :: Int              = 100,
+    max_step    :: Int              = 50,
+    quiet       :: Bool             = true,
+    wg_size     :: Int              = 512,
+    y_chunks    :: Int              = div(n, wg_size) + (n % wg_size != 0 ? 1 : 0),
+    y_blocks    :: Int              = div(y_chunks, wg_size) + (y_chunks % wg_size != 0 ? 1 : 0),
+    r_chunks    :: Int              = div(p*y_chunks, wg_size) + ((p*y_chunks) % wg_size != 0 ? 1 : 0),
+    device      :: cl.Device        = last(cl.devices(:gpu)),
+    ctx         :: cl.Context       = cl.Context(device),
+    queue       :: cl.CmdQueue      = cl.CmdQueue(ctx),
+    x_buff      :: cl.Buffer        = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(X.x)),
+    y_buff      :: cl.Buffer        = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(r)),
+    m_buff      :: cl.Buffer        = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(means)),
+    p_buff      :: cl.Buffer        = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(invstds)),
+    df_buff     :: cl.Buffer        = cl.Buffer(T, ctx, (:rw, :copy), hostbuf = sdata(df)),
+    red_buff    :: cl.Buffer        = cl.Buffer(T, ctx, (:rw), p * y_chunks),
+    mask_buff   :: cl.Buffer        = cl.Buffer(Int,    ctx, (:r,  :copy), hostbuf = sdata(mask_n)),
+    genofloat   :: cl.LocalMem      = cl.LocalMem(T, wg_size),
+    program     :: cl.Program       = cl.Program(ctx, source=kernfile) |> cl.build!,
+    xtyk        :: cl.Kernel        = cl.Kernel(program, "compute_xt_times_vector"),
+    rxtyk       :: cl.Kernel        = cl.Kernel(program, "reduce_xt_vec_chunks"),
+    reset_x     :: cl.Kernel        = cl.Kernel(program, "reset_x"),
+    wg_size32   :: Int32            = convert(Int32, wg_size),
+    n32         :: Int32            = convert(Int32, n),
+    p32         :: Int32            = convert(Int32, p),
+    y_chunks32  :: Int32            = convert(Int32, y_chunks),
+    y_blocks32  :: Int32            = convert(Int32, y_blocks),
+    blocksize32 :: Int32            = convert(Int32, X.blocksize),
+    r_length32  :: Int32            = convert(Int32, p*y_chunks)
 )
 
     # start timer
     tic()
 
     # first handle errors
-    k        >= 0            || throw(ArgumentError("Value of k must be nonnegative!\n"))
-    max_iter >= 0            || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-    max_step >= 0            || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
+    k        >= 0      || throw(ArgumentError("Value of k must be nonnegative!\n"))
+    max_iter >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
+    max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
     tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
     sum((mask_n .== 1) $ (mask_n .== 0)) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
 
     # initialize return values
     mm_iter   = 0       # number of iterations of L0_reg
-    mm_time   = zero(T)       # compute time *within* L0_reg
-    next_loss = zero(T)       # loss function value
+    mm_time   = zero(T) # compute time *within* L0_reg
+    next_loss = zero(T) # loss function value
 
     # initialize floats
-    current_loss = oftype(zero(T),Inf)    # tracks previous objective function value
-    the_norm     = zero(T)                # norm(b - b0)
-    scaled_norm  = zero(T)                # the_norm / (norm(b0) + 1)
-    mu           = zero(T)                # Landweber step size, 0 < tau < 2/rho_max^2
+    current_loss = oftype(tol,Inf)    # tracks previous objective function value
+    the_norm     = zero(T)            # norm(b - b0)
+    scaled_norm  = zero(T)            # the_norm / (norm(b0) + 1)
+    mu           = zero(T)            # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
     i       = 0         # used for iterations in loops
@@ -385,8 +385,8 @@ function iht_path{T <: Float}(
 
     # allocate the BitArrays for indexing in IHT
     # also preallocate matrix to store betas
-    support     = falses(p)                     # indicates nonzero components of beta
-    support0    = copy(support)                 # store previous nonzero indicators
+    support     = falses(p)               # indicates nonzero components of beta
+    support0    = copy(support)           # store previous nonzero indicators
     betas       = spzeros(T,p,num_models) # a matrix to store calculated models
 
     # allocate GPU variables

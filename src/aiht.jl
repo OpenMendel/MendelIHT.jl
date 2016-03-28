@@ -47,7 +47,7 @@ function dor{T <: Float}(
     difference!(r2,y,xz2)
 
     # if z2 is better than b0, then overwrite b with z2
-    if sumabs(r2) < obj * 2.0
+    if sumabs(r2) < obj * 2
         println("Successful acceleration")
         copy!(b,z2)
         copy!(r,r2)
@@ -326,26 +326,26 @@ function L0_reg_aiht{T <: Float}(
     tic()
 
     # first handle errors
-    k            >= 0                || throw(ArgumentError("Value of k must be nonnegative!\n"))
-    max_iter     >= 0                || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-    max_step     >= 0                || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol          >  eps(typeof(tol)) || throw(ArgumentError("Value of global tolerance must exceed machine precision!\n"))
+    k            >= 0      || throw(ArgumentError("Value of k must be nonnegative!\n"))
+    max_iter     >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
+    max_step     >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
+    tol          >  eps(T) || throw(ArgumentError("Value of global tolerance must exceed machine precision!\n"))
 
     # initialize return values
-    mm_iter   = 0       # number of iterations of L0_reg
-    mm_time   = zero(T) # compute time *within* L0_reg
-    next_obj  = zero(T) # objective value
-    next_loss = zero(T) # loss function value
+    mm_iter   = 0                   # number of iterations of L0_reg
+    mm_time   = zero(T)             # compute time *within* L0_reg
+    next_obj  = oftype(tol, Inf)    # objective value
+    next_loss = oftype(tol, Inf)    # loss function value
 
     # initialize floats
-    current_obj = oftype(zero(T), Inf)   # tracks previous objective function value
-    the_norm    = zero(T)                # norm(b - b0)
-    scaled_norm = zero(T)                # the_norm / (norm(b0) + 1)
-    mu          = zero(T)                # IHT step size
+    current_obj = oftype(tol, Inf)   # tracks previous objective function value
+    the_norm    = zero(T)            # norm(b - b0)
+    scaled_norm = zero(T)            # the_norm / (norm(b0) + 1)
+    mu          = zero(T)            # IHT step size
 
     # initialize integers
-    i       = 0        # used for iterations in loops
-    mu_step = 0        # counts number of backtracking steps for mu
+    i       = 0          # used for iterations in loops
+    mu_step = 0          # counts number of backtracking steps for mu
 
     # initialize booleans
     converged = false    # scaled_norm < tol?
@@ -413,7 +413,6 @@ function L0_reg_aiht{T <: Float}(
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals
-#       update_partial_residuals!(r, Y, X, indices, b, k, n=n, p=p)
         difference!(r, Y, Xb, n=n)
 
         # finally, recompute the gradient

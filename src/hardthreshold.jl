@@ -231,23 +231,23 @@ function L0_reg{T <: Float}(
     tol      >  eps() || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
     # initialize return values
-    mm_iter   = 0                           # number of iterations of L0_reg
-    mm_time   = zero(T)               # compute time *within* L0_reg
-    next_obj  = zero(T)               # objective value
-    next_loss = zero(T)               # loss function value
+    mm_iter   = 0                 # number of iterations of L0_reg
+    mm_time   = zero(T)           # compute time *within* L0_reg
+    next_obj  = zero(T)           # objective value
+    next_loss = zero(T)           # loss function value
 
     # initialize floats
-    current_obj = oftype(zero(T),Inf) # tracks previous objective function value
-    the_norm    = zero(T)             # norm(b - b0)
-    scaled_norm = zero(T)             # the_norm / (norm(b0) + 1)
-    mu          = zero(T)             # Landweber step size, 0 < tau < 2/rho_max^2
+    current_obj = oftype(tol,Inf) # tracks previous objective function value
+    the_norm    = zero(T)         # norm(b - b0)
+    scaled_norm = zero(T)         # the_norm / (norm(b0) + 1)
+    mu          = zero(T)         # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    i       = 0                             # used for iterations in loops
-    mu_step = 0                             # counts number of backtracking steps for mu
+    i       = 0                   # used for iterations in loops
+    mu_step = 0                   # counts number of backtracking steps for mu
 
     # initialize booleans
-    converged = false                       # scaled_norm < tol?
+    converged = false             # scaled_norm < tol?
 
     # update X*beta
     update_xb!(Xb, x, b, indices, k, p=p, n=n)
@@ -257,7 +257,7 @@ function L0_reg{T <: Float}(
     BLAS.gemv!('T', one(T), x, r, zero(T), df)
 
     # update loss and objective
-    next_loss = oftype(zero(T),Inf)
+    next_loss = oftype(tol,Inf)
 
     # formatted output to monitor algorithm progress
     if !quiet
@@ -412,9 +412,9 @@ function iht_path{T <: Float}(
     Xb       = zeros(T,n)               # X*beta
     Xb0      = zeros(T,n)               # X*beta0
     tempn    = zeros(T,n)               # temporary array of n floats
-    indices  = collect(1:p)                   # indices that sort beta
-    support  = falses(p)                      # indicates nonzero components of beta
-    support0 = copy(support)                  # store previous nonzero indicators
+    indices  = collect(1:p)             # indices that sort beta
+    support  = falses(p)                # indicates nonzero components of beta
+    support0 = copy(support)            # store previous nonzero indicators
     betas    = spzeros(T,p,num_models)  # a matrix to store calculated models
 
     # compute the path
