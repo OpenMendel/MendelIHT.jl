@@ -12,8 +12,8 @@ function dor{T <: Float}(
     xb      :: DenseArray{T,1},
     xb0     :: DenseArray{T,1},
     xb00    :: DenseArray{T,1},
-    sortidx :: DenseArray{Int,1},
-    bk      :: DenseArray{T,1},
+#    sortidx :: DenseArray{Int,1},
+    IDX     :: BitArray{1},
     z1      :: DenseArray{T,1},
     z2      :: DenseArray{T,1},
     xz1     :: DenseArray{T,1},
@@ -21,8 +21,8 @@ function dor{T <: Float}(
     dif     :: DenseArray{T,1},
     r       :: DenseArray{T,1},
     r2      :: DenseArray{T,1},
-    obj     :: Float;
-    k       :: Int = length(bk),
+    obj     :: Float,
+    k       :: Int;
     n       :: Int = length(y),
     p       :: Int = length(b)
 )
@@ -40,10 +40,11 @@ function dor{T <: Float}(
     ypatzmw!(z2, z1, a2, z1, b00)                   # z2 = z1 + a2 * (z1 - b00)
 
     # project z2 onto sparsity set
-    project_k!(z2, bk, sortidx, k)
+    project_k!(z2, k)
 
     # update residual information about z2
-    update_xb!(xz2, x, z2, sortidx, k, n=n, p=p)
+#    update_xb!(xz2, x, z2, sortidx, k, n=n, p=p)
+    update_xb!(xz2, x, z2, IDX, k, n=n, p=p)
     difference!(r2,y,xz2)
 
     # if z2 is better than b0, then overwrite b with z2
@@ -96,7 +97,6 @@ end
 # -- xb = x*b.
 # -- xb0 = x*b0.
 # -- xb00 = x*b00.
-# -- bk is a temporary array to store the k floats corresponding to the support of b.
 # -- xk is a temporary array to store the k columns of x corresponding to the support of b.
 # -- gk is a temporary array of k floats used to subset the k components of the gradient g with the support of b.
 # -- xgk = x*gk.
@@ -131,7 +131,6 @@ function aiht{T <: Float}(
     xb00      :: DenseArray{T,1}   = copy(xb),
     gk        :: DenseArray{T,1}   = zeros(T,k),
     xgk       :: DenseArray{T,1}   = zeros(T,n),
-    bk        :: DenseArray{T,1}   = zeros(T,k),
     r         :: DenseArray{T,1}   = zeros(T,n),
     r2        :: DenseArray{T,1}   = zeros(T,n),
     z1        :: DenseArray{T,1}   = zeros(T,p),
@@ -139,7 +138,7 @@ function aiht{T <: Float}(
     dif       :: DenseArray{T,1}   = zeros(T,n),
     xz1       :: DenseArray{T,1}   = zeros(T,n),
     xz2       :: DenseArray{T,1}   = zeros(T,n),
-    sortidx   :: DenseArray{Int,1} = collect(1:p),
+#    sortidx   :: DenseArray{Int,1} = collect(1:p),
     IDX       :: BitArray{1}       = falses(p),
     IDX0      :: BitArray{1}       = copy(IDX),
     step_mult :: Float             = one(T),
@@ -152,8 +151,10 @@ function aiht{T <: Float}(
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
     if sum(IDX) == 0
-        selectpermk!(sortidx,g,k, p=p)
-        IDX[sortidx[1:k]] = true;
+#        selectpermk!(sortidx,g,k, p=p)
+#        IDX[sortidx[1:k]] = true
+        a = select(g, k, by=abs, rev=true)
+        threshold!(IDX, g, abs(a), n=p)
     end
 
     # store relevant columns of x
@@ -176,20 +177,22 @@ function aiht{T <: Float}(
     BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
     # preserve top k components of b
-    project_k!(b, bk, sortidx, k)
+    project_k!(b, k)
 
     # which indices of new beta are nonzero?
     copy!(IDX0, IDX)
     update_indices!(IDX, b, p=p)
 
     # update xb
-    update_xb!(xb, x, b, sortidx, k)
+#    update_xb!(xb, x, b, sortidx, k)
+    update_xb!(xb, x, b, IDX, k)
 
     # update residuals
     difference!(r,y,xb, n=n)
 
     if iter > 2
-        dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, bk, z1, z2, xz1, xz2, dif, r, r2, obj, k=k, n=n, p=p)
+#        dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, z1, z2, xz1, xz2, dif, r, r2, obj, k, n=n, p=p)
+        dor(x, y, b, b0, b00, xb, xb0, xb00, IDX, z1, z2, xz1, xz2, dif, r, r2, obj, k, n=n, p=p)
     end
 
     # calculate omega
@@ -208,19 +211,21 @@ function aiht{T <: Float}(
         BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
         # recompute projection onto top k components of b
-        project_k!(b, bk, sortidx, k)
+        project_k!(b, k)
 
         # which indices of new beta are nonzero?
         update_indices!(IDX, b, p=p)
 
         # recompute xb
-        update_xb!(xb, x, b, sortidx, k)
+#        update_xb!(xb, x, b, sortidx, k)
+        update_xb!(xb, x, b, IDX, k)
 
         # update residuals
         difference!(r,y,xb, n=n)
 
         if iter > 2
-            dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, bk, z1, z2, xz1, xz2, dif, r, r2, obj, k=k, n=n, p=p)
+#            dor(x, y, b, b0, b00, xb, xb0, xb00, sortidx, z1, z2, xz1, xz2, dif, r, r2, obj, k, n=n, p=p)
+            dor(x, y, b, b0, b00, xb, xb0, xb00, IDX, z1, z2, xz1, xz2, dif, r, r2, obj, k, n=n, p=p)
         end
 
         # calculate omega
@@ -270,7 +275,6 @@ end
 #       b0        = zeros(p)        # previous iterate beta0
 #       b00       = zeros(p)        # previous beta0
 #       df        = zeros(p)        # (negative) gradient
-#       tempkf    = zeros(k)        # temporary array of k floats
 #       idx       = zeros(k)        # another temporary array of k floats
 #       tempn     = zeros(n)        # temporary array of n floats
 #       indices   = collect(1:p)    # indices that sort beta
@@ -311,7 +315,6 @@ function L0_reg_aiht{T <: Float}(
     dif      :: DenseArray{T,1}   = zeros(T,n),
     xz1      :: DenseArray{T,1}   = zeros(T,n),
     xz2      :: DenseArray{T,1}   = zeros(T,n),
-    tempkf   :: DenseArray{T,1}   = zeros(T,k),
     idx      :: DenseArray{T,1}   = zeros(T,k),
     indices  :: DenseArray{Int,1} = collect(1:p),
     support  :: BitArray{1}       = falses(p),
@@ -409,7 +412,8 @@ function L0_reg_aiht{T <: Float}(
         current_obj = next_obj
 
         # now perform AIHT step
-        (mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, step_mult=one(T), b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
+#        (mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, sortidx=indices, gk=idx, step_mult=one(T), b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
+        (mu, mu_step) = aiht(X,Y,b,df,current_obj,k,mm_iter, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=Xk, gk=idx, step_mult=one(T), b00=b00, r=r, r2=r2, z1=z1, z2=z2, dif=dif, xz1=xz1, xz2=xz2)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals
