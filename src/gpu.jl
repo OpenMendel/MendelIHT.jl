@@ -25,10 +25,11 @@ function iht{T <: Float}(
     b0        :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids),
     Xb        :: DenseVector{T}   = xb(x,b,IDX,k,mask_n, means=means, invstds=invstds, pids=pids),
     Xb0       :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids),
-#    sortidx   :: DenseVector{Int} = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
+    sortidx   :: DenseVector{Int} = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
     xk        :: DenseMatrix{T}   = zeros(T,n,k),
     xgk       :: DenseVector{T}   = zeros(T,n),
     gk        :: DenseVector{T}   = zeros(T,k),
+    bk        :: DenseVector{T}   = zeros(T,k),
     IDX       :: BitArray{1}      = falses(p),
     IDX0      :: BitArray{1}      = copy(IDX),
     iter      :: Int              = 1,
@@ -41,10 +42,8 @@ function iht{T <: Float}(
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
     if sum(IDX) == 0
-#        selectperm!(sortidx,sdata(g),k, by=abs, rev=true, initialized=true)
-#        IDX[sortidx[1:k]] = true;
-        a = select(g, k, by=abs, rev=true)
-        threshold!(IDX, g, abs(a), n=p)
+        selectperm!(sortidx,sdata(g),k, by=abs, rev=true, initialized=true)
+        IDX[sortidx[1:k]] = true;
     end
 
     # if support has not changed between iterations,
@@ -75,7 +74,7 @@ function iht{T <: Float}(
     BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
     # preserve top k components of b
-    project_k!(b, k)
+    project_k!(b, bk, sortidx, k)
 
     # which indices of new beta are nonzero?
     copy!(IDX0, IDX)
@@ -103,7 +102,7 @@ function iht{T <: Float}(
         BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
         # recompute projection onto top k components of b
-        project_k!(b, k)
+        project_k!(b, bk, sortidx, k)
 
         # which indices of new beta are nonzero?
         update_indices!(IDX, b, p=p)
@@ -148,8 +147,9 @@ function L0_reg{T <: Float}(
     Xb          :: DenseVector{T}   = SharedArray(T, n, pids=pids),
     Xb0         :: DenseVector{T}   = SharedArray(T, n, pids=pids),
     tempn       :: DenseVector{T}   = SharedArray(T, n, pids=pids),
+    tempkf      :: DenseVector{T}   = zeros(T,k),
     idx         :: DenseVector{T}   = zeros(T,k),
-#    indices     :: DenseVector{Int} = SharedArray(Int, p, init = S->S[localindexes(S)] = localindexes(S), pids=pids),
+    indices     :: DenseVector{Int} = SharedArray(Int, p, init = S->S[localindexes(S)] = localindexes(S), pids=pids),
     support     :: BitArray{1}      = falses(p),
     support0    :: BitArray{1}      = falses(p),
     mask_n      :: DenseVector{Int} = ones(Int,n),
@@ -270,8 +270,7 @@ function L0_reg{T <: Float}(
         current_loss = next_loss
 
         # now perform IHT step
-#        (mu, mu_step) = iht(b,X,Y,k,df,mask_n, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, sortidx=indices, gk=idx, means=means, invstds=invstds,iter=mm_iter, pids=pids)
-        (mu, mu_step) = iht(b,X,Y,k,df,mask_n, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, gk=idx, means=means, invstds=invstds,iter=mm_iter, pids=pids)
+        (mu, mu_step) = iht(b,X,Y,k,df,mask_n, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, bk=tempkf, sortidx=indices, gk=idx, means=means, invstds=invstds,iter=mm_iter, pids=pids)
 
         # update residuals
         difference!(r,Y,Xb)
@@ -382,7 +381,7 @@ function iht_path{T <: Float}(
     tempn       = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # temporary array of n floats
 
     # index vector for b has more complicated initialization
-#    indices     = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids)
+    indices     = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids)
 
     # allocate the BitArrays for indexing in IHT
     # also preallocate matrix to store betas
@@ -427,14 +426,14 @@ function iht_path{T <: Float}(
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
         Xk     = zeros(T,n,q)     # store q columns of X
+        tempkf = zeros(T,q)       # temporary array of q floats
         idx    = zeros(T,q)       # another temporary array of q floats
 
         # store projection of beta onto largest k nonzeroes in magnitude
-        project_k!(b, q)
+        project_k!(b, tempkf, indices, q)
 
         # now compute current model
-#        output = L0_reg(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds, wg_size=wg_size, y_chunks=y_chunks, y_blocks=y_blocks, r_chunks=r_chunks, device=device, ctx=ctx, queue=queue, x_buff=x_buff, y_buff=y_buff, m_buff=m_buff, p_buff=p_buff, df_buff=df_buff, red_buff=red_buff, genofloat=genofloat, program=program, xtyk=xtyk, rxtyk=rxtyk, reset_x=reset_x, wg_size32=wg_size32, n32=n32, p32=p32, y_chunks32=y_chunks32, y_blocks32=y_blocks32, blocksize32=blocksize32, r_length32=r_length32, mask_n=mask_n, mask_buff=mask_buff, pids=pids)
-        output = L0_reg(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, idx=idx, tempn=tempn, support=support, support0=support0, means=means, invstds=invstds, wg_size=wg_size, y_chunks=y_chunks, y_blocks=y_blocks, r_chunks=r_chunks, device=device, ctx=ctx, queue=queue, x_buff=x_buff, y_buff=y_buff, m_buff=m_buff, p_buff=p_buff, df_buff=df_buff, red_buff=red_buff, genofloat=genofloat, program=program, xtyk=xtyk, rxtyk=rxtyk, reset_x=reset_x, wg_size32=wg_size32, n32=n32, p32=p32, y_chunks32=y_chunks32, y_blocks32=y_blocks32, blocksize32=blocksize32, r_length32=r_length32, mask_n=mask_n, mask_buff=mask_buff, pids=pids)
+        output = L0_reg(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds, wg_size=wg_size, y_chunks=y_chunks, y_blocks=y_blocks, r_chunks=r_chunks, device=device, ctx=ctx, queue=queue, x_buff=x_buff, y_buff=y_buff, m_buff=m_buff, p_buff=p_buff, df_buff=df_buff, red_buff=red_buff, genofloat=genofloat, program=program, xtyk=xtyk, rxtyk=rxtyk, reset_x=reset_x, wg_size32=wg_size32, n32=n32, p32=p32, y_chunks32=y_chunks32, y_blocks32=y_blocks32, blocksize32=blocksize32, r_length32=r_length32, mask_n=mask_n, mask_buff=mask_buff, pids=pids)
 
         # extract and save model
         copy!(sdata(b), output["beta"])

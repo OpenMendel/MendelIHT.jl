@@ -180,7 +180,7 @@ function L0_log{T <: Float}(
 
         # size of current active set?
         if mm_iter > 1
-            active = union(dfidxs[1:short_df],bidxs[1:k]) ### TODO 29 March 2016: can we do this with BitArrays and eliminate all integer arrays?
+            active = union(dfidxs[1:short_df],bidxs[1:k])
         end
         lt = length(active)
 
@@ -223,7 +223,7 @@ function L0_log{T <: Float}(
         update_x!(b, b0, df, active, mu, k=lt)
 
         # now apply hard threshold on model to original desired sparsity k
-        project_k!(b,k)
+        project_k!(b,bk,bidxs,k)
 
         # refit nonzeroes in b?
         if refit
@@ -473,7 +473,7 @@ function L0_log{T <: Float}(
         update_x!(b, b0, df, active, mu, k=lt)
 
         # now apply hard threshold on model to enforce original desired sparsity k
-        project_k!(b,k)
+        project_k!(b,bk,bidxs,k)
 
         # refit nonzeroes in b?
         if refit
