@@ -38,7 +38,6 @@ Optional Arguments:
 - `xb0` = `x*b0`. Defaults to `copy(xb)`.
 - `xk` stores the `k` columns of `x` corresponding to the support of `b`.
 - `gk` stores the `k` components of the gradient `g` with the support of `b`.
-- `bk` stores the `k` floats corresponding to the support of b. Defaults to `zeros(k)`.
 - `xgk` = `x*gk`. Defaults to `zeros(n)`.
 - `sortidx` stores the indices that sort `b`. Defaults to `collect(1:p)`.
 - `IDX` is a `BitArray` indicating the nonzero status of components of `b`. Defaults to `falses(p)`.
@@ -65,8 +64,7 @@ function iht{T <: Float}(
     xk        :: DenseMatrix{T}   = zeros(T,n,k),
     xgk       :: DenseVector{T}   = zeros(T,n),
     gk        :: DenseVector{T}   = zeros(T,k),
-    bk        :: DenseVector{T}   = zeros(T,k),
-    sortidx   :: DenseVector{Int} = collect(1:p),
+#    sortidx   :: DenseVector{Int} = collect(1:p),
     IDX       :: BitArray{1}      = falses(p),
     IDX0      :: BitArray{1}      = copy(IDX),
     iter      :: Int              = 1,
@@ -79,8 +77,10 @@ function iht{T <: Float}(
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
     if sum(IDX) == 0
-        selectpermk!(sortidx,g,k, p=p)
-        IDX[sortidx[1:k]] = true;
+#        selectpermk!(sortidx,g,k, p=p)
+#        IDX[sortidx[1:k]] = true;
+        a = select(g, k, by=abs, rev=true)
+        threshold!(IDX, g, abs(a), n=p)
     end
 
     # store relevant columns of x
@@ -104,14 +104,16 @@ function iht{T <: Float}(
     BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
     # preserve top k components of b
-    project_k!(b, bk, sortidx, k)
+    project_k!(b, k)
 
     # which indices of new beta are nonzero?
     copy!(IDX0, IDX)
     update_indices!(IDX, b, p=p)
 
     # update xb
-    update_xb!(xb, x, b, sortidx, k)
+#    update_xb!(xb, x, b, sortidx, k)
+    update_xb!(xb, x, b, IDX, k)
+    
 
     # calculate omega
     omega_top = sqeuclidean(sdata(b),(b0))
@@ -129,13 +131,14 @@ function iht{T <: Float}(
         BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
 
         # recompute projection onto top k components of b
-        project_k!(b, bk, sortidx, k)
+        project_k!(b, k)
 
         # which indices of new beta are nonzero?
         update_indices!(IDX, b, p=p)
 
         # recompute xb
-        update_xb!(xb, x, b, sortidx, k)
+#        update_xb!(xb, x, b, sortidx, k)
+        update_xb!(xb, x, b, IDX, k)
 
         # calculate omega
         omega_top = sqeuclidean(sdata(b),(b0))
@@ -183,7 +186,6 @@ Optional Arguments:
     Xb        = zeros(T,n)    # X*beta
     Xb0       = zeros(T,n)    # X*beta0
     tempn     = zeros(T,n)    # temporary array of n floats
-    tempkf    = zeros(T,k)    # temporary array of k floats
     gk        = zeros(T,k)    # another temporary array of k floats
     indices   = collect(1:p)        # indices that sort beta
     support   = falses(p)           # indicates nonzero components of beta
@@ -210,9 +212,8 @@ function L0_reg{T <: Float}(
     Xb        :: DenseVector{T}   = zeros(T,n),
     Xb0       :: DenseVector{T}   = zeros(T,n),
     tempn     :: DenseVector{T}   = zeros(T,n),
-    tempkf    :: DenseVector{T}   = zeros(T,k),
     gk        :: DenseVector{T}   = zeros(T,k),
-    indices   :: DenseVector{Int} = collect(1:p),
+#    indices   :: DenseVector{Int} = collect(1:p),
     support   :: BitArray{1}      = falses(p),
     support0  :: BitArray{1}      = falses(p),
     tol       :: Float            = convert(T, 1e-4),
@@ -250,7 +251,9 @@ function L0_reg{T <: Float}(
     converged = false             # scaled_norm < tol?
 
     # update X*beta
-    update_xb!(Xb, x, b, indices, k, p=p, n=n)
+#    update_xb!(Xb, x, b, indices, k, p=p, n=n)
+    update_indices!(IDX, b, p=p)
+    update_xb!(Xb, x, b, IDX, k, p=p, n=n)
 
     # update r and gradient
     difference!(r,y,Xb, n=n)
@@ -296,7 +299,8 @@ function L0_reg{T <: Float}(
         current_obj = next_obj
 
         # now perform IHT step
-        (mu, mu_step) = iht(b,x,y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=xk, bk=tempkf, sortidx=indices, gk=gk, iter=mm_iter)
+#        (mu, mu_step) = iht(b,x,y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=xk, sortidx=indices, gk=gk, iter=mm_iter)
+        (mu, mu_step) = iht(b,x,y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=xk, gk=gk, iter=mm_iter)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
@@ -412,7 +416,7 @@ function iht_path{T <: Float}(
     Xb       = zeros(T,n)               # X*beta
     Xb0      = zeros(T,n)               # X*beta0
     tempn    = zeros(T,n)               # temporary array of n floats
-    indices  = collect(1:p)             # indices that sort beta
+#    indices  = collect(1:p)             # indices that sort beta
     support  = falses(p)                # indicates nonzero components of beta
     support0 = copy(support)            # store previous nonzero indicators
     betas    = spzeros(T,p,num_models)  # a matrix to store calculated models
@@ -424,17 +428,16 @@ function iht_path{T <: Float}(
         q = path[i]
 
         # store projection of beta onto largest k nonzeroes in magnitude
-        bk     = zeros(T,q)
-        project_k!(b, bk, indices, q)
+        project_k!(b, q)
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
         xk     = zeros(T,n,q)           # store q columns of X
-        tempkf = zeros(T,q)             # temporary array of q floats
         gk     = zeros(T,q)             # another temporary array of q floats
 
         # now compute current model
-        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, xk=xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, tempkf=tempkf, gk=gk, tempn=tempn, indices=indices, support=support, support0=support0)
+#        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, xk=xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, indices=indices, support=support, support0=support0)
+        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, xk=xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, support=support, support0=support0)
 
         # extract and save model
         copy!(b, output["beta"])
