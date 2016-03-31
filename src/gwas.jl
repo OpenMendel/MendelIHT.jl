@@ -78,6 +78,19 @@ function iht{T <: Float}(
     copy!(IDX0, IDX)
     update_indices!(IDX, b, p=p)
 
+    # must correct for equal entries at kth pivot of b
+    # this is a total hack! but matching magnitudes are very rare
+    # should not drastically affect performance, esp. with big data
+    # hack randomly permutes indices of duplicates and retains one 
+    if sum(IDX) > k 
+        a = select(b, k, by=abs, rev=true)          # compute kth pivot
+        duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
+        c = randperm(length(duples))                # shuffle 
+        d = duples[c[2:end]]                        # permute, clipping top 
+        b[d] = zero(T)                             # zero out duplicates
+        IDX[d] = false                              # set corresponding indices to false
+    end 
+
     # update xb
     xb!(Xb,x,b,IDX,k, means=means, invstds=invstds, pids=pids)
 
@@ -104,6 +117,19 @@ function iht{T <: Float}(
 
         # which indices of new beta are nonzero?
         update_indices!(IDX, b, p=p)
+
+        # must correct for equal entries at kth pivot of b
+        # this is a total hack! but matching magnitudes are very rare
+        # should not drastically affect performance, esp. with big data
+        # hack randomly permutes indices of duplicates and retains one 
+        if sum(IDX) > k 
+            a = select(b, k, by=abs, rev=true)          # compute kth pivot
+            duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
+            c = randperm(length(duples))                # shuffle 
+            d = duples[c[2:end]]                        # permute, clipping top 
+            b[d] = zero(T)                             # zero out duplicates
+            IDX[d] = false                              # set corresponding indices to false
+        end 
 
         # recompute xb
         xb!(Xb,x,b,IDX,k, means=means, invstds=invstds, pids=pids)
