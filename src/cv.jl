@@ -1,6 +1,4 @@
 """
-COMPUTE ONE FOLD IN A CROSSVALIDATION SCHEME FOR A PENALIZED LINEAR REGRESSION REGULARIZATION PATH
-
     one_fold(x,y,path,folds,fold) -> Vector{Float}
 
 For a regularization path given by the `Int` vector `path`,
@@ -57,10 +55,80 @@ function one_fold{T <: Float}(
     return errors
 end
 
+"""
+    pfold(xfile, xtfile, x2file,yfile, meanfile, invstdfile,path,kernfile,folds,q [, pids=procs(), devindices=ones(Int,q])
+
+This function is the parallel execution kernel in `cv_iht()`. It is not meant to be called outside of `cv_iht()`.
+It will distribute `q` crossvalidation folds across the processes supplied by the optional argument `pids` and call `one_fold()` for each fold.
+Each fold will use the GPU device indexed by its corresponding component of the optional argument `devindices` to compute a regularization path given by `path`.
+`pfold()` collects the vectors of MSEs returned by calling `one_fold()` for each process, reduces them, and returns their average across all folds.
+"""
+function pfold{T <: Float}(
+    x        :: DenseMatrix{T},
+    y        :: DenseVector{T},
+    path     :: DenseVector{Int},
+    folds    :: DenseVector{Int},
+    q        :: Int;
+    pids     :: DenseVector{Int} = procs(),
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true,
+)
+    # how many CPU processes can pfold use?
+    np = length(pids)
+
+    # report on CPU processes
+    quiet || println("pfold: np = ", np)
+    quiet || println("pids = ", pids)
+
+    # set up function to share state (indices of folds)
+    i = 1
+    nextidx() = (idx=i; i+=1; idx)
+
+    # preallocate cell array for results
+    results = cell(q)
+
+    # master process will distribute tasks to workers
+    # master synchronizes results at end before returning
+    @sync begin
+
+        # loop over all workers
+        for worker in pids
+
+            # exclude process that launched pfold, unless only one process is available
+            if worker != myid() || np == 1
+
+                # asynchronously distribute tasks
+                @async begin
+                    while true
+
+                        # grab next fold
+                        current_fold = nextidx()
+
+                        # if current fold exceeds total number of folds then exit loop
+                        current_fold > q && break
+
+                        # report distribution of fold to worker and device
+                        quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker.\n\n")
+
+                        # launch job on worker
+                        # worker loads data from file paths and then computes the errors in one fold
+                        results[current_fold] = remotecall_fetch(worker) do
+                                one_fold(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+                        end # end remotecall_fetch()
+                    end # end while
+                end # end @async
+            end # end if
+        end # end for
+    end # end @sync
+
+    # return reduction (row-wise sum) over results
+    return reduce(+, results[1], results) ./ q
+end
+
 
 """
-PARALLEL CROSSVALIDATION ROUTINE FOR IHT ALGORITHM FOR PENALIZED LEAST SQUARES REGRESSION
-
     cv_iht(x,y,path,q) -> Vector{Float}
 
 This function will perform `q`-fold cross validation for the ideal model size in IHT least squares regression.
@@ -104,6 +172,7 @@ function cv_iht{T <: Float}(
     path     :: DenseVector{Int},
     q        :: Int;
     folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
+    pids     :: DenseVector{Int} = procs(),
     tol      :: Float            = convert(T, 1e-4),
     n        :: Int              = length(y),
     p        :: Int              = size(x,2),
@@ -112,27 +181,15 @@ function cv_iht{T <: Float}(
     quiet    :: Bool             = true,
     refit    :: Bool             = true
 )
-
     # how many elements are in the path?
     num_models = length(path)
 
     # preallocate vectors used in xval
-    errors  = zeros(T, num_models)    # vector to save mean squared errors
 
     # want to compute a path for each fold
-    # the folds are computed asynchronously
-    # the @sync macro ensures that we wait for all of them to finish before proceeding
-    @sync for i = 1:q
-
-        quiet || print_with_color(:blue, "spawning fold $i\n")
-
-        # one_fold returns a vector of out-of-sample errors (MSE for linear regression)
-        # @fetch(one_fold(...)) sends calculation to any available processor and returns out-of-sample error
-        errors[i] = @fetch(one_fold(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet))
-    end
-
-    # average the mses
-    errors ./= q
+    # the folds are computed asynchronously over processes enumerated by pids
+    # master process then reduces errors across folds and returns MSEs
+    errors = pfold(x, y, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet) 
 
     # what is the best model size?
     k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
