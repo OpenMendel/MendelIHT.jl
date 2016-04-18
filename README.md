@@ -3,7 +3,7 @@
 A Julia module that implements the (normalized) [iterative hard thresholding algorithm](http://eprints.soton.ac.uk/142499/1/BD_NIHT09.pdf)(IHT) of Blumensath and Davies.
 IHT performs [feature selection](https://en.wikipedia.org/wiki/Feature_selection) akin to [LASSO](https://en.wikipedia.org/wiki/Lasso_(statistics))- or [MCP](http://arxiv.org/pdf/1002.4734.pdf)-penalized regression using a greedy selection approach.
 
-# Basic use
+## Basic use
 
 Given a data matrix `x`, a continuous response `y`, and a number `k` of desired predictors, we run IHT with the simple command
 
@@ -30,7 +30,7 @@ Important optimal arguments to `cv_iht` include
     * `refit`, a `Bool` to determine whether or not to refit the model. Defaults to `true`. `refit = false` removes the output `b` and `bidx`.
 
 
-# GWAS
+## GWAS
 
 IHT.jl interfaces with [PLINK.jl](https://github.com/klkeys/PLINK.jl) to enable feature selection over [GWAS](https://en.wikipedia.org/wiki/Genome-wide_association_study) data in [PLINK binary format](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#bed).
 The interface is largely unchanged:
@@ -40,7 +40,7 @@ The interface is largely unchanged:
 
 See the documentation of PLINK.jl for details about the `BEDFile` object.
 
-# GPU acceleration
+## GPU acceleration
 
 IHT.jl interfaces with the GPU accelerator from PLINK.jl.
 The GPU accelerator farms the calculation of the gradient to a GPU,
@@ -54,7 +54,7 @@ PLINK.jl ships with kernels for `Float32` and `Float64` arrays.
 These are the only kinds of arrays supported by IHT.jl.
 Use of `Float32` arithmetic yields faster execution times but may suffer from numerical underflow.
 
-Crossvalidation with GPUs is a complicated topic. For processes indexed by a vector `pids`, IHT farms an entire copy of the data to each process ID. For the most part, the data **must** be stored in binary format. The exception is the matrix of nongenetic covariates. Then IHT.jl performs crossvalidation with GPUs via
+Crossvalidation with GPUs is a complicated topic. For processes indexed by a vector `pids`, IHT farms an entire copy of the data to each host process ID. OpenCL memory constraints dictate that each process ID should have its own copy of the data on the device. For the most part, the data **must** be stored in binary format. The exception is the matrix of nongenetic covariates. Then IHT.jl performs crossvalidation with GPUs via
 
     errors, b, bidx = cv_iht(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, q) 
 
