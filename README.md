@@ -11,10 +11,10 @@ Given a data matrix `x`, a continuous response `y`, and a number `k` of desired 
 
 Here `output` is merely a `Dict{ASCIIString,Any}` object with the following fields:
 
-    * `loss` is the optimal loss function value (minimum residual sum of squares)
-    * `iter` is the number of iterations until convergence
-    * `time` is the time spent in computations
-    * `beta` is the vector of the optimal statistical model
+* `loss` is the optimal loss function value (minimum residual sum of squares)
+* `iter` is the number of iterations until convergence
+* `time` is the time spent in computations
+* `beta` is the vector of the optimal statistical model
 
 IHT.jl also facilitates crossvalidation for the best model size. 
 Given a vector `path` of model sizes to test,
@@ -25,9 +25,9 @@ we perform _q_-fold crossvalidation via
 where `errors` contains the mean squared errors for each model size, `b` contains the estimated coefficients at the optimal statistical model, and `bidx` indexes the model itself. 
 Important optimal arguments to `cv_iht` include 
 
-    * `folds`, a `DenseVector{Int}` object to assign data to each fold
-    * `pids`, the `Int` vector of process IDs to which we distribute computations
-    * `refit`, a `Bool` to determine whether or not to refit the model. Defaults to `true`. `refit = false` removes the output `b` and `bidx`.
+* `folds`, a `DenseVector{Int}` object to assign data to each fold
+* `pids`, the `Int` vector of process IDs to which we distribute computations
+* `refit`, a `Bool` to determine whether or not to refit the model. Defaults to `true`. `refit = false` removes the output `b` and `bidx`.
 
 
 ## GWAS
