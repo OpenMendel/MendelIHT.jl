@@ -41,7 +41,8 @@ function iht{T <: Float}(
     # then take largest elements of d as nonzero components for b
     if sum(IDX) == 0
         a = select(g, k, by=abs, rev=true)
-        threshold!(IDX, g, abs(a), n=p)
+        #threshold!(IDX, g, abs(a)-2*eps(), n=p) # why -eps()? need to include abs(a) itself!
+        IDX[abs(g) .>= abs(a)-2*eps()] = true
     end
 
     # if support has not changed between iterations,
@@ -81,15 +82,15 @@ function iht{T <: Float}(
     # must correct for equal entries at kth pivot of b
     # this is a total hack! but matching magnitudes are very rare
     # should not drastically affect performance, esp. with big data
-    # hack randomly permutes indices of duplicates and retains one 
-    if sum(IDX) > k 
+    # hack randomly permutes indices of duplicates and retains one
+    if sum(IDX) > k
         a = select(b, k, by=abs, rev=true)          # compute kth pivot
         duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
-        c = randperm(length(duples))                # shuffle 
-        d = duples[c[2:end]]                        # permute, clipping top 
+        c = randperm(length(duples))                # shuffle
+        d = duples[c[2:end]]                        # permute, clipping top
         b[d] = zero(T)                             # zero out duplicates
         IDX[d] = false                              # set corresponding indices to false
-    end 
+    end
 
     # update xb
     xb!(Xb,x,b,IDX,k,mask_n, means=means, invstds=invstds, pids=pids)
@@ -121,15 +122,15 @@ function iht{T <: Float}(
         # must correct for equal entries at kth pivot of b
         # this is a total hack! but matching magnitudes are very rare
         # should not drastically affect performance, esp. with big data
-        # hack randomly permutes indices of duplicates and retains one 
-        if sum(IDX) > k 
+        # hack randomly permutes indices of duplicates and retains one
+        if sum(IDX) > k
             a = select(b, k, by=abs, rev=true)          # compute kth pivot
             duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
-            c = randperm(length(duples))                # shuffle 
-            d = duples[c[2:end]]                        # permute, clipping top 
+            c = randperm(length(duples))                # shuffle
+            d = duples[c[2:end]]                        # permute, clipping top
             b[d] = zero(T)                             # zero out duplicates
             IDX[d] = false                              # set corresponding indices to false
-        end 
+        end
 
         # recompute xb
         xb!(Xb,x,b,IDX,k,mask_n, means=means, invstds=invstds, pids=pids)
@@ -811,7 +812,7 @@ function cv_iht(
         b = SharedArray(T, p)
 
         # first use L0_reg to extract model
-        output = L0_reg(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, wg_size=wg_size, device=device)
+        output = L0_reg(x,y,k,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, wg_size=wg_size, device=devs[1])
 
         # which components of beta are nonzero?
         inferred_model = output["beta"] .!= zero(T)
