@@ -22,7 +22,6 @@ function iht{T <: Float}(
     b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids),
     Xb       :: DenseVector{T}   = xb(x,b,IDX,k, means=means, invstds=invstds, pids=pids),
     Xb0      :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids),
-#    sortidx  :: DenseVector{Int} = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
     xk       :: DenseMatrix{T}   = zeros(T,n,k),
     xgk      :: DenseVector{T}   = zeros(T,n),
     gk       :: DenseVector{T}   = zeros(T,k),
@@ -38,8 +37,6 @@ function iht{T <: Float}(
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
     if sum(IDX) == 0
-#        selectperm!(sortidx,sdata(g),k, by=abs, rev=true, initialized=true)
-#        IDX[sortidx[1:k]] = true
         a = select(g, k, by=abs, rev=true)
 #        threshold!(IDX, g, abs(a), n=p)
         IDX[abs(g) .>= abs(a)-2*eps()] = true
@@ -174,11 +171,9 @@ function L0_reg{T <: Float}(
     Xb0      :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
     tempn    :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
     gk       :: DenseVector{T}   = SharedArray(T, k, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-#    indices  :: DenseVector{Int} = SharedArray(Int,     p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids),
     support  :: BitArray{1}      = falses(p),
     support0 :: BitArray{1}      = falses(p),
     tol      :: Float            = convert(T, 1e-4),
-    sy       :: Float            = sum(Y),
     max_iter :: Int              = 100,
     max_step :: Int              = 50,
     quiet    :: Bool             = true
@@ -219,7 +214,7 @@ function L0_reg{T <: Float}(
         xb!(Xb,X,b,support,k, means=means, invstds=invstds, pids=pids)
         difference!(r, Y, Xb)
     end
-    xty!(df, X, r, means=means, invstds=invstds, p=p, pids=pids, sy=sy)
+    xty!(df, X, r, means=means, invstds=invstds, p=p, pids=pids)
 
     # formatted output to monitor algorithm progress
     if !quiet
@@ -264,7 +259,7 @@ function L0_reg{T <: Float}(
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
         difference!(r,Y,Xb)
-        xty!(df, X, r, means=means, invstds=invstds, pids=pids, sy=sy)
+        xty!(df, X, r, means=means, invstds=invstds, pids=pids)
 
         # update loss, objective, and gradient
         next_loss = sumabs2(sdata(r)) / 2
@@ -319,7 +314,7 @@ function L0_reg{T <: Float}(
                 print_with_color(:red, "MM Iteration: $(mm_iter)\n")
                 print_with_color(:red, "Current Objective: $(current_obj)\n")
                 print_with_color(:red, "Next Objective: $(next_loss)\n")
-                print_with_color(:red, "Difference in objectives: $(abs(next_loss - current_loss))\n")
+                print_with_color(:red, "Difference in objectives: $(abs(next_loss - current_obj))\n")
             end
             throw(ErrorException("Descent failure!"))
 #           output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf32))
@@ -379,9 +374,6 @@ function iht_path{T <: Float}(
     support0   = copy(support)            # store previous nonzero indicators
     betas      = spzeros(T,p,num_models)  # a matrix to store calculated models
 
-    # precompute sum(Y) for path
-    sy = sum(y)
-
     # compute the path
     @inbounds for i = 1:num_models
 
@@ -401,7 +393,7 @@ function iht_path{T <: Float}(
 
         # now compute current model
 #        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds, pids=pids)
-        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, support=support, support0=support0, means=means, invstds=invstds, pids=pids, sy=sy)
+        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, support=support, support0=support0, means=means, invstds=invstds, pids=pids)
 
         # extract and save model
         copy!(sdata(b), output["beta"])
