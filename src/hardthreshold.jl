@@ -77,7 +77,8 @@ function iht{T <: Float}(
     # then take largest elements of d as nonzero components for b
     if sum(IDX) == 0
         a = select(g, k, by=abs, rev=true)
-        threshold!(IDX, g, abs(a), n=p)
+#        threshold!(IDX, g, abs(a), n=p)
+        IDX[abs(g) .>= abs(a)-2*eps()] = true
     end
 
     # store relevant columns of x
@@ -116,7 +117,7 @@ function iht{T <: Float}(
         duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
         c = randperm(length(duples))                # shuffle 
         d = duples[c[2:end]]                        # permute, clipping top 
-        b[d] = zero(T)                             # zero out duplicates
+        b[d] = zero(T)                              # zero out duplicates
         IDX[d] = false                              # set corresponding indices to false
     end 
 
@@ -446,6 +447,9 @@ function iht_path{T <: Float}(
 
         # model size?
         q = path[i]
+
+        # monitor progress
+        quiet || print_with_color(:blue, "Computing model size $q.\n\n")
 
         # store projection of beta onto largest k nonzeroes in magnitude
         project_k!(b, q)

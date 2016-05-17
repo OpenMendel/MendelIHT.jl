@@ -172,13 +172,13 @@ function L0_reg{T <: Float}(
     Xb          :: DenseVector{T}   = SharedArray(T, n, pids=pids),
     Xb0         :: DenseVector{T}   = SharedArray(T, n, pids=pids),
     tempn       :: DenseVector{T}   = SharedArray(T, n, pids=pids),
-    idx         :: DenseVector{T}   = zeros(T,k),
+    gk          :: DenseVector{T}   = zeros(T,k),
     support     :: BitArray{1}      = falses(p),
     support0    :: BitArray{1}      = falses(p),
     mask_n      :: DenseVector{Int} = ones(Int,n),
     means       :: DenseVector{T}   = mean(T,X, shared=true, pids=pids),
     invstds     :: DenseVector{T}   = invstd(X,means, shared=true, pids=pids),
-    tol         :: Float            = 1e-4,
+    tol         :: Float            = convert(T, 1e-4),
     max_iter    :: Int              = 100,
     max_step    :: Int              = 50,
     quiet       :: Bool             = true,
@@ -293,7 +293,7 @@ function L0_reg{T <: Float}(
         current_loss = next_loss
 
         # now perform IHT step
-        (mu, mu_step) = iht(b,X,Y,k,df,mask_n, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, gk=idx, means=means, invstds=invstds,iter=mm_iter, pids=pids)
+        (mu, mu_step) = iht(b,X,Y,k,df,mask_n, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, gk=gk, means=means, invstds=invstds,iter=mm_iter, pids=pids)
 
         # update residuals
         difference!(r,Y,Xb)
@@ -441,18 +441,19 @@ function iht_path{T <: Float}(
         # model size?
         q = path[i]
 
+        # monitor progress
         quiet || print_with_color(:blue, "Computing model size $q.\n\n")
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
         Xk     = zeros(T,n,q)     # store q columns of X
-        idx    = zeros(T,q)       # another temporary array of q floats
+        gk     = zeros(T,q)       # another temporary array of q floats
 
         # store projection of beta onto largest k nonzeroes in magnitude
         project_k!(b, q)
 
         # now compute current model
-        output = L0_reg(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, idx=idx, tempn=tempn, support=support, support0=support0, means=means, invstds=invstds, wg_size=wg_size, y_chunks=y_chunks, y_blocks=y_blocks, r_chunks=r_chunks, device=device, ctx=ctx, queue=queue, x_buff=x_buff, y_buff=y_buff, m_buff=m_buff, p_buff=p_buff, df_buff=df_buff, red_buff=red_buff, genofloat=genofloat, program=program, xtyk=xtyk, rxtyk=rxtyk, reset_x=reset_x, wg_size32=wg_size32, n32=n32, p32=p32, y_chunks32=y_chunks32, y_blocks32=y_blocks32, blocksize32=blocksize32, r_length32=r_length32, mask_n=mask_n, mask_buff=mask_buff, pids=pids)
+        output = L0_reg(x,y,q,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, support=support, support0=support0, means=means, invstds=invstds, wg_size=wg_size, y_chunks=y_chunks, y_blocks=y_blocks, r_chunks=r_chunks, device=device, ctx=ctx, queue=queue, x_buff=x_buff, y_buff=y_buff, m_buff=m_buff, p_buff=p_buff, df_buff=df_buff, red_buff=red_buff, genofloat=genofloat, program=program, xtyk=xtyk, rxtyk=rxtyk, reset_x=reset_x, wg_size32=wg_size32, n32=n32, p32=p32, y_chunks32=y_chunks32, y_blocks32=y_blocks32, blocksize32=blocksize32, r_length32=r_length32, mask_n=mask_n, mask_buff=mask_buff, pids=pids)
 
         # extract and save model
         copy!(sdata(b), output["beta"])
