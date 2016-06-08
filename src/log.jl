@@ -148,7 +148,7 @@ function L0_log{T <: Float}(
             # warn about hitting maximum iterations
             mm_iter >= max_iter && warn("L0_log has hit maximum iterations $(max_iter)!\nCurrent loss: $(loss)\n")
 
-            # warn about cylcing
+            # warn about cycling
             stuck && warn("L0_log appears to be cycling after $mm_iter iterations, aborting early...\nCurrent loss: $loss\n")
 
             # send elements below tol to zero
@@ -187,43 +187,53 @@ function L0_log{T <: Float}(
         # update x*b
         # no need to compute anything if b = 0
         # force fitted probabilities close to 0,1 to be equal to 0,1
-        if all(b .== zero(T))
+        if all(b .== 0)
             fill!(Xb,zero(T))
         else
-            update_xb!(Xb,x,b,active,lt,p=p,n=n)
-#            update_xb!(Xb,x,b,bidxs,k,p=p,n=n)
-            threshold!(Xb,tol,n=n)
+#            update_xb!(Xb,x,b,active,lt,p=p,n=n)
+##            update_xb!(Xb,x,b,bidxs,k,p=p,n=n)
+#            threshold!(Xb,tol,n=n)
+            Xb = x*b
         end
 
         # recompute active loss = (-dot(y,Xb) + sum(log(1.0 + exp(Xb)))) / n + 0.5*lambda*sumabs2(b[active])
         # special case: b = 0 --> Xb = 0 --> loss = n*log(1 + exp(0))/n + 0.5*lambda*norm(0)
-        if all(Xb .== zero(T))
-            loss = log(one(T) + one(T))
+        if mm_iter < 2
+            loss = Inf
+        elseif all(Xb .== 0)
+            loss = log(2)
         else
-            loss = logistic_loglik(Xb,y,b,active,lambda,k, n=n)
+#            loss = logistic_loglik(Xb,y,b,active,lambda,k, n=n)
+            loss = (sum(log(1 + exp(Xb))) - dot(y,Xb)) / n + lambda*sumabs2(b) / 2
         end
 
         # guard against numerical instabilities in loss function
         isnan(loss) && throw(error("Loss function is NaN, something went wrong..."))
-        isinf(loss) && throw(error("Loss function is Inf, something went wrong..."))
+        mm_iter > 1 && isinf(loss) && throw(error("Loss function is Inf, something went wrong..."))
 
         # recompute active gradient df[active] = (x[:,active]'*(logistic(Xb) - y)) / n + lambda*b[active]
         # arrange calculations differently if active set is entire support 1, 2, ..., p
-        if lt == p
-            logistic_grad!(df, lxb, x, y, b, Xb, lambda, n=n, p=p)
-        else
-            logistic_grad!(df, lxb, x, y, b, Xb, active, lt, lambda, n=n)
-        end
+#        if lt == p
+#            logistic_grad!(df, lxb, x, y, b, Xb, lambda, n=n, p=p)
+#        else
+#            logistic_grad!(df, lxb, x, y, b, Xb, active, lt, lambda, n=n)
+#        end
+        logistic!(lxb, Xb, n=n)
+        df = (x' * (lxb - y)) / n + lambda*b
 
-        # identify 3*k dominant directions in gradient
+
+        # identify 2*k dominant directions in gradient
         selectperm!(dfidxs, df, 1:num_df, by=abs, rev=true, initialized=true)
 
         # clean b and fill, b[active] = b0[active] - mu*df[active]
         # note that sparsity level is size(active) which is one of [k, k+1, ..., 3*k]
-        update_x!(b, b0, df, active, mu, k=lt)
+#        update_x!(b, b0, df, active, mu, k=lt)
+        b = b0 - mu*df
 
         # now apply hard threshold on model to original desired sparsity k
         project_k!(b,k)
+        selectperm!(bidxs, b, 1:k, by=abs, rev=true, initialized=true) 
+        bk = b[bidxs[1:k]]
 
         # refit nonzeroes in b?
         if refit
@@ -233,13 +243,17 @@ function L0_log{T <: Float}(
             update_indices!(idxs, b, p=p)
 
             # update active set of x, if necessary
-            (mm_iter == 1 || !isequal(idxs,idxs0)) && update_xk!(xk, x, idxs, k=k, n=n, p=p)
+#            (mm_iter == 1 || !isequal(idxs,idxs0)) && update_xk!(xk, x, idxs, k=k, n=n, p=p)
+            xk = x[:,idxs]
+            #@show size(xk)
+            x2k = xk
 
             # attempt refit but guard against possible instabilities or singularities
             # these are more frequent if lambda is small
             # if refitting destabilizes, then leave b alone
             try
-                bk2, nt_iter, bktrk = fit_logistic(xk, y, lambda, n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
+#                bk2, nt_iter, bktrk = fit_logistic(xk, y, lambda, n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
+                bk2, nt_iter, bktrk = fit_logistic(xk, y, lambda, b=bk, tol=tolrefit, max_iter=max_step, quiet=quiet)
                 b[idxs] = bk2
             catch e
                 warn("in refitting, caught error: ", e)
@@ -278,9 +292,18 @@ function L0_log{T <: Float}(
             if refit
                 copy!(idxs0,idxs)
                 update_indices!(idxs, b, p=p)
-                !isequal(idxs,idxs0) && update_xk!(xk, x, idxs, k=k, n=n, p=p)
-                bk2,nt_iter,bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
-                b[idxs] = bk2
+#                !isequal(idxs,idxs0) && update_xk!(xk, x, idxs, k=k, n=n, p=p)
+                xk = x[:,idxs]
+                try
+#                    bk2,nt_iter,bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
+                    bk2,nt_iter,bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, tol=tolrefit, max_iter=max_step, quiet=quiet)
+                    b[idxs] = bk2
+                catch e
+                    warn("in final refitting, caught error: ", e)
+                    warn("skipping final refit")
+                    nt_iter = 0
+                    bktrk   = 0
+                end # end try-catch for refit
             end
 
             # stop time
@@ -858,7 +881,7 @@ function one_fold_log{T <: Float}(
             update_col!(Xb,Xbetas,i,n=n,p=nbetas)
 #            mask!(Xb, test_idx, 0, zero(T), n=n)
             Xb[test_idx .== 0] = zero(T)
-            errors[i] = - 1 / (2*n) * ( dot(y,Xb) - sum(log(1.0 + exp(Xb))) )# + 0.5*lambda*sumabs2(b[indices])
+            errors[i] = - 1 / (2*n) * ( dot(y,Xb) - sum(log(1 + exp(Xb))) )# + 0.5*lambda*sumabs2(b[indices])
 #            errors[i] = 2.0*logistic_loglik(Xb,y,b,notrues,test_idx,0,zero(T),0, n=n)
         end
     end
@@ -911,8 +934,6 @@ function one_fold_log{T <: Float}(
     # compute the regularization path on the training set
     betas = iht_path_log(x,y,path, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, refit=refit, quiet=quiet, mask_n=train_idx, pids=pids, means=means, invstds=invstds, lambdas=lambdas)
 
-    # tidy up
-    gc()
 
     # preallocate vector for output
     errors = zeros(T, length(path))
@@ -1058,19 +1079,17 @@ function cv_log{T <: Float}(
     # recompute ideal model
     if refit
 
-        # initialize parameter vector
-        b = zeros(T, p)
-
         # get lambda value for best model
         lambda = lambdas[path .== k][1]
 
         # use L0_log to extract model
         # with refit = true, L0_log will continuously refit predictors
         # no final refitting code necessary
-        output = L0_log(x,y,k, b=b, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambda)
+        output = L0_log(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambda)
 
         # which components of beta are nonzero?
-        bidx = find( x -> x .!= zero(T), b)
+        b = copy(output["beta"])
+        bidx = find(b)
 
         return errors, b[bidx], bidx
     end
@@ -1151,7 +1170,6 @@ function pfold_log{T <: Float}(
 
                         # launch job on worker
                         # worker loads data from file paths and then computes the errors in one fold
-#                        sendto([worker], criterion=criterion, max_iter=max_iter, max_step=max_step)
                         results[current_fold] = remotecall_fetch(worker) do
                                 one_fold_log(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas)
                         end # end remotecall_fetch()
@@ -1252,6 +1270,13 @@ function pfold_log(
                                 invstds = SharedArray(abspath(invstdfile), T, (p,), pids=pids)
 
                                 one_fold_log(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=refit, criterion=criterion, lambdas=lambdas)
+
+                                # have each worker explicitly kill arrays
+                                x       = false
+                                y       = false
+                                means   = false
+                                invstds = false
+                                gc()
                         end # end remotecall_fetch()
                     end # end while
                 end # end @async
@@ -1333,18 +1358,15 @@ function cv_log(
         means   = SharedArray(abspath(meanfile), T, (p,), pids=pids)
         invstds = SharedArray(abspath(invstdfile), T, (p,), pids=pids)
 
-        # initialize parameter vector as SharedArray
-        b = SharedArray(T, p)
-
         # get lambda value for best model
         lambda = lambdas[path .== k][1]
 
         # use L0_reg to extract model
-        output = L0_log(x,y,k,n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambda)
+        output = L0_log(x,y,k,n=n, p=p, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, tolG=tolG, tolrefit=tolrefit, refit=refit, lambda=lambda, pids=pids)
+        b = copy(output["beta"])
 
         # which components of beta are nonzero?
-        inferred_model = b .!= zero(T)
-        bidx = find( x -> x .!= zero(T), b)
+        bidx = find(b)
 
         return errors, b[bidx], bidx
     end

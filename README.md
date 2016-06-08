@@ -59,6 +59,8 @@ Crossvalidation with GPUs is a complicated topic. For processes indexed by a vec
     errors, b, bidx = cv_iht(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, q) 
 
 Here the additional `*file` arguments yield paths to construct the `BEDFile` object, the response vector `y`, and the means and inverse standard deviations (precisions).
-NOTA BENE: IHT.jl currently makes no effort to ensure that the GPU contains sufficient memory for _q_ copies of the data.
+Use of filenames facilitates initialization of the data on each process as a set of `SharedArray` objects.
+
+**NOTA BENE:** IHT.jl currently makes no effort to ensure that the GPU contains sufficient memory for _q_ copies of the data.
 Users are urged to consider device memory limits when calling `cv_iht`.
 Exceeding device memory can yield cryptic OpenCL errors regarding unallocatable buffers.
