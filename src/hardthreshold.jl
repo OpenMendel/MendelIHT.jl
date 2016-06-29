@@ -1,7 +1,18 @@
+# subroutine to update residuals and gradient from data
+function update_r_grad!{T}(
+    v :: IHTVariables{T},
+    x :: DenseMatrix{T},
+    y :: DenseVector{T}
+)
+    difference!(v.r, y, v.xb)
+    BLAS.gemv!('T', one(T), x, v.r, zero(T), v.df)
+    return nothing
+end
+
 """
 ITERATIVE HARD THRESHOLDING
 
-    iht(b,x,y,k,g) -> (Float, Int)
+    iht!(v,x,y,k) -> (Float, Int)
 
 This function computes a hard threshold update
 
@@ -23,25 +34,13 @@ This function is based on the [HardLab](http://www.personal.soton.ac.uk/tb1m08/s
 
 Arguments:
 
-- `b` is the iterate of `p` model components.
+- `v` is the `IHTVariables` object of temporary arrays 
 - `x` is the `n` x `p` design matrix.
 - `y` is the vector of `n` responses.
 - `k` is the model size.
-- `g` is the negative gradient `x'*(y - x*b)`.
 
 Optional Arguments:
 
-- `n` is the number of samples. Defaults to `length(y)`.
-- `p` is the number of predictors. Defaults to `length(b)`.
-- `b0` is the previous iterate beta. Defaults to `copy(b)`.
-- `xb` = `x*b`.
-- `xb0` = `x*b0`. Defaults to `copy(xb)`.
-- `xk` stores the `k` columns of `x` corresponding to the support of `b`.
-- `gk` stores the `k` components of the gradient `g` with the support of `b`.
-- `xgk` = `x*gk`. Defaults to `zeros(n)`.
-- `sortidx` stores the indices that sort `b`. Defaults to `collect(1:p)`.
-- `v.idx` is a `BitArray` indicating the nonzero status of components of `b`. Defaults to `falses(p)`.
-- `v.idx0` = `copy(v.idx0)`.
 - iter is the current iteration count in the IHT algorithm. Defaults to `1`.
 - max_step is the maximum permissible number of backtracking steps. Defaults to `50`.
 
@@ -59,16 +58,8 @@ function iht!{T <: Float}(
     nstep :: Int = 50,
 )
 
-    # which components of beta are nonzero?
-    update_indices!(v.idx, v.b)
-
-    # if current vector is 0,
-    # then take largest elements of d as nonzero components for b
-    if sum(v.idx) == 0
-        a = select(v.df, k, by=abs, rev=true)
-#        threshold!(v.idx, g, abs(a), n=p)
-        v.idx[abs(v.df) .>= abs(a)-2*eps()] = true
-    end
+    # compute indices of nonzeroes in beta
+    _iht_indices(v, k)
 
     # store relevant columns of x
     # need to do this on 1st iteration
@@ -85,38 +76,20 @@ function iht!{T <: Float}(
 
     # compute step size
     mu = sumabs2(sdata(v.gk)) / sumabs2(sdata(v.xgk))
+
+    # compute step size
+#    mu = _iht_stepsize(v, k) :: T
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
-    # take gradient step
-    BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
 
-    # preserve top k components of b
-    project_k!(v.b, k)
-
-    # which indices of new beta are nonzero?
-    copy!(v.idx0, v.idx)
-    update_indices!(v.idx, v.b)
-
-    # must correct for equal entries at kth pivot of b
-    # this is a total hack! but matching magnitudes are very rare
-    # should not drastically affect performance, esp. with big data
-    # hack randomly permutes indices of duplicates and retains one 
-    if sum(v.idx) > k 
-        a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
-        dupes = abs(v.b) .== abs(a)
-        duples = find(dupes)    # find duplicates
-        c = randperm(length(duples))                # shuffle 
-        d = duples[c[2:end]]                        # permute, clipping top 
-        v.b[d] = zero(T)                              # zero out duplicates
-        v.idx[d] = false                              # set corresponding indices to false
-    end 
+    # compute gradient step
+    _iht_gradstep(v, mu, k)
 
     # update xb
     update_xb!(v.xb, x, v.b, v.idx, k)
 
     # calculate omega
-    omega_top = sqeuclidean(sdata(v.b), v.b0)
-    omega_bot = sqeuclidean(sdata(v.xb), v.xb0)
+    omega_top, omega_bot = _iht_omega(v)
 
     # backtrack until mu sits below omega and support stabilizes
     mu_step = 0
@@ -127,34 +100,13 @@ function iht!{T <: Float}(
 
         # recompute gradient step
         copy!(v.b,v.b0)
-        BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
-
-        # recompute projection onto top k components of b
-        project_k!(v.b, k)
-
-        # which indices of new beta are nonzero?
-        update_indices!(v.idx, v.b)
-
-        # must correct for equal entries at kth pivot of b
-        # this is a total hack! but matching magnitudes are very rare
-        # should not drastically affect performance, esp. with big data
-        # hack randomly permutes indices of duplicates and retains one 
-        if sum(v.idx) > k 
-            a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
-            dupes = abs(v.b) .== abs(a)
-            duples = find(dupes)    # find duplicates
-            c = randperm(length(duples))                # shuffle 
-            d = duples[c[2:end]]                        # permute, clipping top 
-            v.b[d] = zero(T)                             # zero out duplicates
-            v.idx[d] = false                              # set corresponding indices to false
-        end 
+        _iht_gradstep(v, mu, k)
 
         # recompute xb
         update_xb!(v.xb, x, v.b, v.idx, k)
 
         # calculate omega
-        omega_top = sqeuclidean(sdata(v.b), v.b0)
-        omega_bot = sqeuclidean(sdata(v.xb), v.xb0)
+        omega_top, omega_bot = _iht_omega(v)
 
         # increment the counter
         mu_step += 1
@@ -184,26 +136,13 @@ Arguments:
 
 Optional Arguments:
 
-- `b` is the statistical model. Warm starts should use this argument. Defaults `zeros(p)`, the null model.
 - `max_iter` is the maximum number of iterations for the algorithm. Defaults to `1000`.
 - `max_step` is the maximum number of backtracking steps for the step size calculation. Defaults to `50`.
 - `tol` is the global tolerance. Defaults to `1e-4`.
 - `quiet` is a `Bool` that controls algorithm output. Defaults to `true` (no output).
-- several temporary arrays for intermediate steps of algorithm calculations:
+- `temp` is an `IHTVariables` structure used to house temporary arrays. Used primarily in `iht_path` for memory efficiency. 
 
-    Xk        = zeros(T,n,k)  # store k columns of X
-    b0        = zeros(T,p)    # previous iterate beta0
-    df        = zeros(T,p)    # (negative) gradient
-    r         = zeros(T,n)    # for || Y - XB ||_2^2
-    Xb        = zeros(T,n)    # X*beta
-    Xb0       = zeros(T,n)    # X*beta0
-    tempn     = zeros(T,n)    # temporary array of n floats
-    gk        = zeros(T,k)    # another temporary array of k floats
-    indices   = collect(1:p)        # indices that sort beta
-    support   = falses(p)           # indicates nonzero components of beta
-    support0  = copy(support)       # store previous nonzero indicators
-
-Outputs are wrapped into a `Dict{ASCIIString,Any}` with the following fields:
+Outputs are wrapped into an `IHTResults` structure with the following fields:
 
 - 'time' is the compute time for the algorithm. Note that this does not account for time spent initializing optional argument defaults.
 - 'iter' is the number of iterations that the algorithm took before converging.
@@ -258,8 +197,7 @@ function L0_reg{T <: Float}(
     end
 
     # update r and gradient
-    difference!(temp.r, y, temp.xb)
-    BLAS.gemv!('T', one(T), x, temp.r, zero(T), temp.df)
+    update_r_grad!(temp, x, y)
 
     # update loss and objective
     next_loss = oftype(tol,Inf)
@@ -290,7 +228,7 @@ function L0_reg{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => copy(temp.b))
+            return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
 
             return output
         end
@@ -301,12 +239,11 @@ function L0_reg{T <: Float}(
         current_obj = next_obj
 
         # now perform IHT step
-        (mu, mu_step) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter) 
+        (mu::T, mu_step::Int) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
-        difference!(temp.r, y, temp.xb)
-        BLAS.gemv!('T', one(T), x, temp.r, zero(T), temp.df)
+        update_r_grad!(temp, x, y)
 
         # update loss, objective, and gradient
         next_loss = sumabs2(temp.r) / 2
@@ -343,9 +280,7 @@ function L0_reg{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => copy(temp.b))
-
-            return output
+            return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
         end
 
         # algorithm is unconverged at this point.
@@ -362,8 +297,6 @@ function L0_reg{T <: Float}(
             end
 
             throw(error("Descent failure!"))
-#            output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf))
-#            return output
         end
     end # end main loop
 end # end function
@@ -434,7 +367,7 @@ function iht_path{T <: Float}(
         output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
         # extract and save model
-        copy!(b, output["beta"])
+        copy!(b, output.beta)
         betas[:,i] = sparsevec(b)
     end
 

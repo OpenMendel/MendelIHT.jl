@@ -178,22 +178,24 @@ function _iht_indices{T <: Float}(
     return nothing
 end
 
-
+# TODO 29 June 2016: this is type-unstable! must fix
 function _iht_stepsize{T <: Float}(
     v :: IHTVariables{T},
     k :: Int
 )
     # store relevant components of gradient
     fill_perm!(v.gk, v.df, v.idx)    # gk = g[IDX]
+#    v.gk = v.df[v.idx]
 
     # compute xk' * gk
     BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
+#    A_mul_B!(v.xgk, v.xk, v.gk)
 
     # warn if xgk only contains zeros
-    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+#    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # return step size
-    return sumabs2(v.gk) / sumabs2(v.xgk) :: T
+    return (sumabs2(v.gk) / sumabs2(v.xgk)) :: T
 end
 
 function _iht_gradstep{T <: Float}(
@@ -212,22 +214,39 @@ function _iht_gradstep{T <: Float}(
     update_indices!(v.idx, sdata(v.b))
 
     # must correct for equal entries at kth pivot of b
-    # this is a total hack! but matching magnitudes are very rare
-    # should not drastically affect performance, esp. with big data
+    # **note**: this uses Base.unsafe_setindex! to circumvent type stability issues
+    # this is a VERY DANGEROUS DARK SIDE HACK! 
     # hack randomly permutes indices of duplicates and retains one 
     if sum(v.idx) > k 
         a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
 #        duples = find(x -> abs(x) .== abs(a), v.b)    # find duplicates
-        dupes = abs(v.b) .== abs(a)
-        duples = find(dupes)    # find duplicates
-        c = randperm(length(duples))                # shuffle 
-        d = duples[c[2:end]]                        # permute, clipping top 
-        v.b[d] = zero(T)                              # zero out duplicates
-        v.idx[d] = false                              # set corresponding indices to false
+        dupes = (abs(v.b) .== abs(a))
+        l = sum(dupes)
+        l <= 1 && return nothing   # if no duplicates, then simply return
+#        @show l
+#        duples = find(dupes)    # find duplicates
+        d = find(dupes)    # find duplicates
+#        @show duples
+#        c = randperm(l)                # shuffle 
+#        d = duples[c[2:end]]                        # permute, clipping top 
+        shuffle!(d)
+        deleteat!(d, 1)
+#        @inbounds deleteat!(c, 1)
+#        @inbounds d = duples[c]                        # permute, clipping top 
+#        @show c
+#        d = Base.unsafe_getindex(c, 2:l)
+#        @show d
+#        v.b[d] = zero(T)                              # zero out duplicates
+        Base.unsafe_setindex!(v.b, zero(T), d)                              # zero out duplicates
+#        @show v.b[d]
+#        v.idx[d] = false                              # set corresponding indices to false
+        Base.unsafe_setindex!(v.idx, false, d)
+#        @show v.idx[d]
     end 
 
     return nothing
 end
+
 
 function _iht_omega{T <: Float}(
     v :: IHTVariables{T}
