@@ -1,102 +1,89 @@
 """
-    iht(b, x::BEDFile, y, k, g)
+    iht!(b, x::BEDFile, y, k, g)
 
 If used with a `BEDFile` object `x`, then the temporary arrays `b0`, `Xb`, `Xb0`, and `sortidx` are all initialized as `SharedArray`s of the proper dimensions.
 The additional optional arguments are:
 
 - `pids`, a vector of process IDs. Defaults to `procs()`.
-- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
-- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
 """
-function iht{T <: Float}(
-    b        :: DenseVector{T},
+function iht!{T <: Float}(
+    v        :: IHTVariables{T}, 
     x        :: BEDFile{T},
     y        :: DenseVector{T},
-    k        :: Int,
-    g        :: DenseVector{T};
-    n        :: Int              = length(y),
-    p        :: Int              = length(b),
-    pids     :: DenseVector{Int} = procs(),
-    b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids),
-    Xb       :: DenseVector{T}   = A_mul_B(x,b,IDX,k, pids=pids),
-    Xb0      :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids),
-    xk       :: DenseMatrix{T}   = zeros(T,n,k),
-    xgk      :: DenseVector{T}   = zeros(T,n),
-    gk       :: DenseVector{T}   = zeros(T,k),
-    IDX      :: BitArray{1}      = falses(p),
-    IDX0     :: BitArray{1}      = copy(IDX),
-    iter     :: Int              = 1,
-    max_step :: Int              = 50,
+    k        :: Int;
+    pids     :: DenseVector{Int} = procs(x),
+    iter     :: Int = 1,
+    max_step :: Int = 50,
 )
 
     # which components of beta are nonzero?
-    update_indices!(IDX, b, p=p)
+    update_indices!(v.idx, v.b)
 
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
-    if sum(IDX) == 0
-        a = select(g, k, by=abs, rev=true)
-#        threshold!(IDX, g, abs(a), n=p)
-        IDX[abs(g) .>= abs(a)-2*eps()] = true
+    if sum(v.idx) == 0
+        a = select(v.df, k, by=abs, rev=true)
+#        threshold!(v.idx, g, abs(a), n=p)
+        v.idx[abs(v.df) .>= abs(a)-2*eps()] = true
     end
 
     # if support has not changed between iterations,
     # then xk and gk are the same as well
     # avoid extracting and computing them if they have not changed
     # one exception: we should always extract columns on first iteration
-    if !isequal(IDX, IDX0) || iter < 2
-        decompress_genotypes!(xk, x, IDX) 
+    if !isequal(v.idx, v.idx0) || iter < 2
+        decompress_genotypes!(v.xk, x, v.idx) 
     end
 
     # store relevant components of gradient
-    fill_perm!(sdata(gk), sdata(g), IDX, k=k, p=p)  # gk = g[IDX]
+    fill_perm!(v.gk, v.df, v.idx)  # gk = g[v.idx]
 
     # now compute subset of x*g
-    BLAS.gemv!('N', one(T), sdata(xk), sdata(gk), zero(T), sdata(xgk))
+    BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
 
     # warn if xgk only contains zeros
-    all(xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size
-    mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+    mu = sumabs2(v.gk) / sumabs2(v.xgk)
 
     # notify problems with step size
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
     mu <= eps(typeof(mu))  && warn("Step size $(mu) is below machine precision, algorithm may not converge correctly")
 
     # take gradient step
-    BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
+    BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
 
     # preserve top k components of b
-    project_k!(b, k)
+    project_k!(v.b, k)
 
     # which indices of new beta are nonzero?
-    copy!(IDX0, IDX)
-    update_indices!(IDX, b, p=p)
+    copy!(v.idx0, v.idx)
+    update_indices!(v.idx, v.b)
 
     # must correct for equal entries at kth pivot of b
     # this is a total hack! but matching magnitudes are very rare
     # should not drastically affect performance, esp. with big data
     # hack randomly permutes indices of duplicates and retains one 
-    if sum(IDX) > k 
-        a = select(b, k, by=abs, rev=true)          # compute kth pivot
-        duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
+    if sum(v.idx) > k 
+        a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
+        duples = find(x -> abs(x) .== abs(a), v.b)    # find duplicates
         c = randperm(length(duples))                # shuffle 
         d = duples[c[2:end]]                        # permute, clipping top 
-        b[d] = zero(T)                             # zero out duplicates
-        IDX[d] = false                              # set corresponding indices to false
+        v.b[d] = zero(T)                             # zero out duplicates
+        v.idx[d] = false                              # set corresponding indices to false
     end 
 
     # update xb
-    PLINK.A_mul_B!(Xb, x, b, IDX, k, pids=pids)
+    PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
 
     # calculate omega
-    omega_top = sqeuclidean(sdata(b),sdata(b0))
-    omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
+    omega_top = sqeuclidean(sdata(v.b), v.b0)
+    omega_bot = sqeuclidean(sdata(v.xb), v.xb0)
 
     # backtrack until mu sits below omega and support stabilizes
     mu_step = 0
-    while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+    while mu*omega_bot > 0.99*omega_top && sum(v.idx) != 0 && sum(v.idx $ v.idx0) != 0 && mu_step < max_step
 
         # stephalving
         mu /= 2
@@ -105,34 +92,34 @@ function iht{T <: Float}(
         mu <= eps(typeof(mu)) && warn("Step size equals zero, algorithm may not converge correctly")
 
         # recompute gradient step
-        copy!(b,b0)
-        BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
+        copy!(v.b, v.b0)
+        BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
 
         # recompute projection onto top k components of b
-        project_k!(b, k)
+        project_k!(v.b, k)
 
         # which indices of new beta are nonzero?
-        update_indices!(IDX, b, p=p)
+        update_indices!(v.idx, v.b)
 
         # must correct for equal entries at kth pivot of b
         # this is a total hack! but matching magnitudes are very rare
         # should not drastically affect performance, esp. with big data
         # hack randomly permutes indices of duplicates and retains one 
-        if sum(IDX) > k 
-            a = select(b, k, by=abs, rev=true)          # compute kth pivot
-            duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
+        if sum(v.idx) > k 
+            a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
+            duples = find(x -> abs(x) .== abs(a), v.b)    # find duplicates
             c = randperm(length(duples))                # shuffle 
             d = duples[c[2:end]]                        # permute, clipping top 
-            b[d] = zero(T)                             # zero out duplicates
-            IDX[d] = false                              # set corresponding indices to false
+            v.b[d] = zero(T)                             # zero out duplicates
+            v.idx[d] = false                              # set corresponding indices to false
         end 
 
         # recompute xb
-        A_mul_B!(Xb,x,b,IDX,k, pids=pids)
+        A_mul_B!(v.xb,x,v.b,v.idx,k, pids=pids)
 
         # calculate omega
-        omega_top = sqeuclidean(sdata(b),sdata(b0))
-        omega_bot = sqeuclidean(sdata(Xb),sdata(Xb0))
+        omega_top = sqeuclidean(sdata(v.b),sdata(v.b0))
+        omega_bot = sqeuclidean(sdata(v.xb),sdata(v.xb0))
 
         # increment the counter
         mu_step += 1
@@ -150,23 +137,11 @@ The additional optional arguments are:
 - `pids`, a vector of process IDs. Defaults to `procs()`.
 """
 function L0_reg{T <: Float}(
-    X        :: BEDFile,
-    Y        :: DenseVector{T},
+    x        :: BEDFile{T},
+    y        :: DenseVector{T},
     k        :: Int;
-    n        :: Int              = length(Y),
-    p        :: Int              = size(X,2),
     pids     :: DenseVector{Int} = procs(),
-    Xk       :: DenseMatrix{T}   = SharedArray(T, (n,k), init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    b        :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    df       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    r        :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    Xb       :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    Xb0      :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    tempn    :: DenseVector{T}   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    gk       :: DenseVector{T}   = SharedArray(T, k, init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    support  :: BitArray{1}      = falses(p),
-    support0 :: BitArray{1}      = falses(p),
+    temp     :: IHTVariables{T}  = IHTVariables(x, y, k),
     tol      :: Float            = convert(T, 1e-4),
     max_iter :: Int              = 100,
     max_step :: Int              = 50,
@@ -188,7 +163,7 @@ function L0_reg{T <: Float}(
     next_loss = oftype(tol,Inf)   # loss function value
 
     # initialize floats
-    current_obj = oftype(tol,Inf) # tracks previous objective function value
+    loss = oftype(tol,Inf) # tracks previous objective function value
     the_norm    = zero(T)         # norm(b - b0)
     scaled_norm = zero(T)         # the_norm / (norm(b0) + 1)
     mu          = zero(T)         # Landweber step size, 0 < tau < 2/rho_max^2
@@ -201,14 +176,14 @@ function L0_reg{T <: Float}(
     converged = false             # scaled_norm < tol?
 
     # update Xb, r, and gradient
-    if sum(support) == 0
-        fill!(Xb,zero(T))
-        copy!(r,sdata(Y))
+    if sum(temp.idx) == 0
+        fill!(temp.xb,zero(T))
+        copy!(temp.r,sdata(y))
     else
-        A_mul_B!(Xb,X,b,support,k, pids=pids)
-        difference!(r, Y, Xb)
+        A_mul_B!(temp.xb,x,temp.b,temp.idx,k, pids=pids)
+        difference!(temp.r, y, temp.xb)
     end
-    At_mul_B!(df, X, r, pids=pids)
+    At_mul_B!(temp.df, x, temp.r, pids=pids)
 
     # formatted output to monitor algorithm progress
     if !quiet
@@ -225,38 +200,35 @@ function L0_reg{T <: Float}(
 
             if !quiet
                 print_with_color(:red, "MM algorithm has hit maximum iterations $(max_iter)!\n")
-                print_with_color(:red, "Current Objective: $(current_obj)\n")
+                print_with_color(:red, "Current Objective: $(loss)\n")
             end
 
             # send elements below tol to zero
-            threshold!(b, tol, n=p)
+            threshold!(temp.b, tol)
 
             # stop timer
             mm_time = toq()
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
-
-            return output
+            return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
         end
 
         # save values from previous iterate
-        copy!(b0,b)             # b0 = b
-        copy!(Xb0,Xb)           # Xb0 = Xb
-        current_obj = next_loss
+        copy!(temp.b0, temp.b)             # b0 = b
+        copy!(temp.xb0, temp.xb)           # Xb0 = Xb
+        loss = next_loss
 
         # now perform IHT step
-#        (mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, sortidx=indices, gk=idx, means=means, invstds=invstds, iter=mm_iter, pids=pids)
-        (mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, gk=gk, iter=mm_iter, pids=pids)
+        (mu, mu_step) = iht!(temp, x, y, k, max_step=max_step, iter=mm_iter, pids=pids)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
-        difference!(r,Y,Xb)
-        At_mul_B!(df, X, r, pids=pids)
+        difference!(temp.r, y, temp.xb)
+        At_mul_B!(temp.df, x, temp.r, pids=pids)
 
         # update loss, objective, and gradient
-        next_loss = sumabs2(sdata(r)) / 2
+        next_loss = sumabs2(sdata(temp.r)) / 2
 
         # guard against numerical instabilities
         # ensure that objective is finite
@@ -265,8 +237,8 @@ function L0_reg{T <: Float}(
         isinf(next_loss) && throw(error("Objective function is Inf32, aborting..."))
 
         # track convergence
-        the_norm    = chebyshev(b,b0)
-        scaled_norm = the_norm / ( norm(b0,Inf) + 1)
+        the_norm    = chebyshev(temp.b, temp.b0)
+        scaled_norm = the_norm / ( norm(temp.b0,Inf) + 1)
         converged   = scaled_norm < tol
 
         # output algorithm progress
@@ -278,7 +250,7 @@ function L0_reg{T <: Float}(
         if converged
 
             # send elements below tol to zero
-            threshold!(b, tol, n=p)
+            threshold!(temp.b, tol)
 
             # stop time
             mm_time = toq()
@@ -292,28 +264,22 @@ function L0_reg{T <: Float}(
 
 
             # these are output variables for function
-            # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
-
-            return output
+            return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
         end
 
         # algorithm is unconverged at this point.
         # if algorithm is in feasible set, then rho should not be changing
         # check descent property in that case
         # if rho is not changing but objective increases, then abort
-        if next_loss > current_obj + tol
+        if next_loss > loss + tol
             if !quiet
                 print_with_color(:red, "\nMM algorithm fails to descend!\n")
                 print_with_color(:red, "MM Iteration: $(mm_iter)\n")
-                print_with_color(:red, "Current Objective: $(current_obj)\n")
+                print_with_color(:red, "Current Objective: $(loss )\n")
                 print_with_color(:red, "Next Objective: $(next_loss)\n")
-                print_with_color(:red, "Difference in objectives: $(abs(next_loss - current_obj))\n")
+                print_with_color(:red, "Difference in objectives: $(abs(next_loss - loss))\n")
             end
             throw(ErrorException("Descent failure!"))
-#           output = Dict{ASCIIString, Any}("time" => -1.0, "loss" => -1.0, "iter" => -1, "beta" => fill!(b,Inf32))
-
-            return output
         end
     end # end main loop
 end # end function
@@ -334,7 +300,7 @@ function iht_path{T <: Float}(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int};
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: DenseVector{Int} = procs(x),
     tol      :: Float            = convert(T, 1e-4),
     max_iter :: Int              = 100,
     max_step :: Int              = 50,
@@ -344,27 +310,16 @@ function iht_path{T <: Float}(
     # size of problem?
     n = length(y)
     p = size(x,2)
+    b = zeros(T, p)
 
     # how many models will we compute?
     num_models = length(path)
 
-    # preallocate SharedArrays for intermediate steps of algorithm calculations
-    b       = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # for || Y - XB ||_2^2
-    b0      = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # previous iterate beta0
-    df      = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # (negative) gradient
-    r       = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # for || Y - XB ||_2^2
-    Xb      = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # X*beta
-    Xb0     = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # X*beta0
-    tempn   = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)        # temporary array of n floats
-
-    # index vector for b has more complicated initialization
-#    indices = SharedArray(Int, p, init = S -> S[localindexes(S)] = localindexes(S), pids=pids)
-
-    # allocate the BitArrays for indexing in IHT
     # also preallocate matrix to store betas
-    support    = falses(p)                # indicates nonzero components of beta
-    support0   = copy(support)            # store previous nonzero indicators
-    betas      = spzeros(T,p,num_models)  # a matrix to store calculated models
+    betas = spzeros(T,p,num_models)  # a matrix to store calculated models
+
+    # preallocate temporary arrays
+    temp = IHTVariables(x, y, 1)
 
     # compute the path
     @inbounds for i = 1:num_models
@@ -377,24 +332,25 @@ function iht_path{T <: Float}(
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
-        Xk     = zeros(T,n,q)     # store q columns of X
-        gk     = zeros(T,q)       # another temporary array of q floats
+#        Xk     = zeros(T,n,q)     # store q columns of X
+#        gk     = zeros(T,q)       # another temporary array of q floats
+        update_variables!(temp, x, q)
 
         # store projection of beta onto largest k nonzeroes in magnitude
-        project_k!(b, q)
+        project_k!(temp.b, q)
 
         # now compute current model
-        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, support=support, support0=support0, pids=pids)
+        output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
 
         # extract and save model
-        copy!(sdata(b), output["beta"])
+        copy!(b, output.beta)
 
         # ensure that we correctly index the nonzeroes in b
-        update_indices!(support, b, p=p)
-        fill!(support0, false)
+        update_indices!(temp.idx, b)
+        fill!(temp.idx0, false)
 
         # put model into sparse matrix of betas
-        betas[:,i] = sparsevec(sdata(b))
+        betas[:,i] = sparsevec(b)
     end
 
     # return a sparsified copy of the models

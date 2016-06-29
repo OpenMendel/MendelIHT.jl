@@ -129,8 +129,8 @@ function update_variables!{T <: Float}(
 end
 
 function update_variables!{T <: Float}(
-    x :: BEDFile{T},
     v :: IHTVariables{T},
+    x :: BEDFile{T},
     k :: Int
 )
     n    = size(x,1)
