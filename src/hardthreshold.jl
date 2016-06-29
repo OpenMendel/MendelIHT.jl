@@ -40,8 +40,8 @@ Optional Arguments:
 - `gk` stores the `k` components of the gradient `g` with the support of `b`.
 - `xgk` = `x*gk`. Defaults to `zeros(n)`.
 - `sortidx` stores the indices that sort `b`. Defaults to `collect(1:p)`.
-- `IDX` is a `BitArray` indicating the nonzero status of components of `b`. Defaults to `falses(p)`.
-- `IDX0` = `copy(IDX0)`.
+- `v.idx` is a `BitArray` indicating the nonzero status of components of `b`. Defaults to `falses(p)`.
+- `v.idx0` = `copy(v.idx0)`.
 - iter is the current iteration count in the IHT algorithm. Defaults to `1`.
 - max_step is the maximum permissible number of backtracking steps. Defaults to `50`.
 
@@ -50,120 +50,111 @@ Output:
 - `mu` is the step size used to update `b`, after backtracking.`
 - `mu_step` is the number of backtracking steps used on `mu`.
 """
-function iht{T <: Float}(
-    b         :: DenseVector{T},
-    x         :: DenseMatrix{T},
-    y         :: DenseVector{T},
-    k         :: Int,
-    g         :: DenseVector{T};
-    n         :: Int              = length(y),
-    p         :: Int              = length(b),
-    b0        :: DenseVector{T}   = copy(b),
-    xb        :: DenseVector{T}   = BLAS.gemv('N', one(T), x, b),
-    xb0       :: DenseVector{T}   = copy(xb),
-    xk        :: DenseMatrix{T}   = zeros(T,n,k),
-    xgk       :: DenseVector{T}   = zeros(T,n),
-    gk        :: DenseVector{T}   = zeros(T,k),
-    IDX       :: BitArray{1}      = falses(p),
-    IDX0      :: BitArray{1}      = copy(IDX),
-    iter      :: Int              = 1,
-    max_step  :: Int              = 50
+function iht!{T <: Float}(
+    v     :: IHTVariables{T},
+    x     :: DenseMatrix{T},
+    y     :: DenseVector{T},
+    k     :: Int;
+    iter  :: Int = 1,
+    nstep :: Int = 50,
 )
 
     # which components of beta are nonzero?
-    update_indices!(IDX, b, p=p)
+    update_indices!(v.idx, v.b)
 
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
-    if sum(IDX) == 0
-        a = select(g, k, by=abs, rev=true)
-#        threshold!(IDX, g, abs(a), n=p)
-        IDX[abs(g) .>= abs(a)-2*eps()] = true
+    if sum(v.idx) == 0
+        a = select(v.df, k, by=abs, rev=true)
+#        threshold!(v.idx, g, abs(a), n=p)
+        v.idx[abs(v.df) .>= abs(a)-2*eps()] = true
     end
 
     # store relevant columns of x
     # need to do this on 1st iteration
     # afterwards, only do if support changes
-    if !isequal(IDX,IDX0) || iter < 2
-        update_xk!(xk, x, IDX, k=k, p=p, n=n)   # xk = x[:,IDX]
+    if !isequal(v.idx, v.idx0) || iter < 2
+        update_xk!(v.xk, x, v.idx)   # xk = x[:,v.idx]
     end
 
     # store relevant components of gradient
-    fill_perm!(gk, g, IDX, k=k, p=p)    # gk = g[IDX]
+    fill_perm!(v.gk, v.df, v.idx)    # gk = g[v.idx]
 
     # now compute subset of x*g
-    BLAS.gemv!('N', one(T), xk, gk, zero(T), xgk)
+    BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
 
     # compute step size
-    mu = sumabs2(sdata(gk)) / sumabs2(sdata(xgk))
+    mu = sumabs2(sdata(v.gk)) / sumabs2(sdata(v.xgk))
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
     # take gradient step
-    BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
+    BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
 
     # preserve top k components of b
-    project_k!(b, k)
+    project_k!(v.b, k)
 
     # which indices of new beta are nonzero?
-    copy!(IDX0, IDX)
-    update_indices!(IDX, b, p=p)
+    copy!(v.idx0, v.idx)
+    update_indices!(v.idx, v.b)
 
     # must correct for equal entries at kth pivot of b
     # this is a total hack! but matching magnitudes are very rare
     # should not drastically affect performance, esp. with big data
     # hack randomly permutes indices of duplicates and retains one 
-    if sum(IDX) > k 
-        a = select(b, k, by=abs, rev=true)          # compute kth pivot
-        duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
+    if sum(v.idx) > k 
+        a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
+        dupes = abs(v.b) .== abs(a)
+        duples = find(dupes)    # find duplicates
         c = randperm(length(duples))                # shuffle 
         d = duples[c[2:end]]                        # permute, clipping top 
-        b[d] = zero(T)                              # zero out duplicates
-        IDX[d] = false                              # set corresponding indices to false
+        v.b[d] = zero(T)                              # zero out duplicates
+        v.idx[d] = false                              # set corresponding indices to false
     end 
 
     # update xb
-    update_xb!(xb, x, b, IDX, k)
+    update_xb!(v.xb, x, v.b, v.idx, k)
 
     # calculate omega
-    omega_top = sqeuclidean(sdata(b),(b0))
-    omega_bot = sqeuclidean(sdata(xb),sdata(xb0))
+    omega_top = sqeuclidean(sdata(v.b), v.b0)
+    omega_bot = sqeuclidean(sdata(v.xb), v.xb0)
 
     # backtrack until mu sits below omega and support stabilizes
     mu_step = 0
-    while mu*omega_bot > 0.99*omega_top && sum(IDX) != 0 && sum(IDX $ IDX0) != 0 && mu_step < max_step
+    while mu*omega_bot > 0.99*omega_top && sum(v.idx) != 0 && sum(v.idx $ v.idx0) != 0 && mu_step < nstep 
 
         # stephalving
         mu /= 2
 
         # recompute gradient step
-        copy!(b,b0)
-        BLAS.axpy!(p, mu, sdata(g), 1, sdata(b), 1)
+        copy!(v.b,v.b0)
+        BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
 
         # recompute projection onto top k components of b
-        project_k!(b, k)
+        project_k!(v.b, k)
 
         # which indices of new beta are nonzero?
-        update_indices!(IDX, b, p=p)
+        update_indices!(v.idx, v.b)
 
         # must correct for equal entries at kth pivot of b
         # this is a total hack! but matching magnitudes are very rare
         # should not drastically affect performance, esp. with big data
         # hack randomly permutes indices of duplicates and retains one 
-        if sum(IDX) > k 
-            a = select(b, k, by=abs, rev=true)          # compute kth pivot
-            duples = find(x -> abs(x) .== abs(a), b)    # find duplicates
+        if sum(v.idx) > k 
+            a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
+            dupes = abs(v.b) .== abs(a)
+            duples = find(dupes)    # find duplicates
             c = randperm(length(duples))                # shuffle 
             d = duples[c[2:end]]                        # permute, clipping top 
-            b[d] = zero(T)                             # zero out duplicates
-            IDX[d] = false                              # set corresponding indices to false
+            v.b[d] = zero(T)                             # zero out duplicates
+            v.idx[d] = false                              # set corresponding indices to false
         end 
 
         # recompute xb
-        update_xb!(xb, x, b, IDX, k)
+        update_xb!(v.xb, x, v.b, v.idx, k)
 
         # calculate omega
-        omega_top = sqeuclidean(sdata(b),(b0))
-        omega_bot = sqeuclidean(sdata(xb),sdata(xb0))
+        omega_top = sqeuclidean(sdata(v.b), v.b0)
+        omega_bot = sqeuclidean(sdata(v.xb), v.xb0)
 
         # increment the counter
         mu_step += 1
@@ -223,19 +214,7 @@ function L0_reg{T <: Float}(
     x         :: DenseMatrix{T},
     y         :: DenseVector{T},
     k         :: Int;
-    n         :: Int              = length(y),
-    p         :: Int              = size(x,2),
-    xk        :: DenseMatrix{T}   = zeros(T,n,k),
-    b         :: DenseVector{T}   = zeros(T,p),
-    b0        :: DenseVector{T}   = zeros(T,p),
-    df        :: DenseVector{T}   = zeros(T,p),
-    r         :: DenseVector{T}   = zeros(T,n),
-    Xb        :: DenseVector{T}   = zeros(T,n),
-    Xb0       :: DenseVector{T}   = zeros(T,n),
-    tempn     :: DenseVector{T}   = zeros(T,n),
-    gk        :: DenseVector{T}   = zeros(T,k),
-    support   :: BitArray{1}      = falses(p),
-    support0  :: BitArray{1}      = falses(p),
+    temp      :: IHTVariables{T}  = IHTVariables(x, y, k),
     tol       :: Float            = convert(T, 1e-4),
     max_iter  :: Int              = 100,
     max_step  :: Int              = 50,
@@ -271,16 +250,16 @@ function L0_reg{T <: Float}(
     converged = false             # scaled_norm < tol?
 
     # update X*beta
-    if sum(support) == 0
-        fill!(Xb, zero(T))
+    if sum(temp.idx) == 0
+        fill!(temp.xb, zero(T))
     else
-        update_indices!(support, b, p=p)
-        update_xb!(Xb, x, b, support, k, p=p, n=n)
+        update_indices!(temp.idx, temp.b)
+        update_xb!(temp.xb, x, temp.b, temp.idx, k)
     end
 
     # update r and gradient
-    difference!(r,y,Xb, n=n)
-    BLAS.gemv!('T', one(T), x, r, zero(T), df)
+    difference!(temp.r, y, temp.xb)
+    BLAS.gemv!('T', one(T), x, temp.r, zero(T), temp.df)
 
     # update loss and objective
     next_loss = oftype(tol,Inf)
@@ -304,41 +283,41 @@ function L0_reg{T <: Float}(
             end
 
             # send elements below tol to zero
-            threshold!(b, tol, n=p)
+            threshold!(temp.b, tol)
 
             # stop timer
             mm_time = toq()
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => copy(temp.b))
 
             return output
         end
 
         # save values from previous iterate
-        copy!(b0,b)             # b0 = b
-        copy!(Xb0,Xb)           # Xb0 = Xb
+        copy!(temp.b0, temp.b)             # b0 = b
+        copy!(temp.xb0, temp.xb)           # Xb0 = Xb
         current_obj = next_obj
 
         # now perform IHT step
-        (mu, mu_step) = iht(b,x,y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, xb=Xb, xb0=Xb0, xgk=tempn, xk=xk, gk=gk, iter=mm_iter)
+        (mu, mu_step) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter) 
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
-        difference!(r,y,Xb, n=n)
-        BLAS.gemv!('T', one(T), x, r, zero(T), df)
+        difference!(temp.r, y, temp.xb)
+        BLAS.gemv!('T', one(T), x, temp.r, zero(T), temp.df)
 
         # update loss, objective, and gradient
-        next_loss = sumabs2(r) / 2
+        next_loss = sumabs2(temp.r) / 2
 
         # guard against numerical instabilities
         isnan(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
         isinf(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
 
         # track convergence
-        the_norm    = chebyshev(b,b0)
-        scaled_norm = the_norm / ( norm(b0,Inf) + 1)
+        the_norm    = chebyshev(temp.b, temp.b0)
+        scaled_norm = the_norm / ( norm(temp.b0,Inf) + 1)
         converged   = scaled_norm < tol
 
         # output algorithm progress
@@ -350,7 +329,7 @@ function L0_reg{T <: Float}(
         if converged
 
             # send elements below tol to zero
-            threshold!(b, tol, n=p)
+            threshold!(temp.b, tol)
 
             # stop time
             mm_time = toq()
@@ -364,7 +343,7 @@ function L0_reg{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => copy(temp.b))
 
             return output
         end
@@ -418,7 +397,6 @@ function iht_path{T <: Float}(
     x        :: DenseMatrix{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int};
-    b        :: DenseVector{T} = zeros(T,size(x,2)),
     tol      :: Float          = convert(T, 1e-4),
     max_iter :: Int            = 1000,
     max_step :: Int            = 50,
@@ -427,20 +405,14 @@ function iht_path{T <: Float}(
 
     # size of problem?
     (n,p) = size(x)
+    b = zeros(T, p)
 
     # how many models will we compute?
     num_models = length(path)
 
     # preallocate space for intermediate steps of algorithm calculations
-    b0       = zeros(T,p)               # previous iterate beta0
-    df       = zeros(T,p)               # (negative) gradient
-    r        = zeros(T,n)               # for || Y - XB ||_2^2
-    Xb       = zeros(T,n)               # X*beta
-    Xb0      = zeros(T,n)               # X*beta0
-    tempn    = zeros(T,n)               # temporary array of n floats
-    support  = falses(p)                # indicates nonzero components of beta
-    support0 = copy(support)            # store previous nonzero indicators
-    betas    = spzeros(T,p,num_models)  # a matrix to store calculated models
+    temp  = IHTVariables(x, y, 1)
+    betas = spzeros(T, p, num_models)  # a matrix to store calculated models
 
     # compute the path
     for i = 1:num_models
@@ -452,15 +424,14 @@ function iht_path{T <: Float}(
         quiet || print_with_color(:blue, "Computing model size $q.\n\n")
 
         # store projection of beta onto largest k nonzeroes in magnitude
-        project_k!(b, q)
+        project_k!(temp.b, q)
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
-        xk     = zeros(T,n,q)           # store q columns of X
-        gk     = zeros(T,q)             # another temporary array of q floats
+        update_variables!(temp, x, q)
 
         # now compute current model
-        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, xk=xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, support=support, support0=support0)
+        output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
         # extract and save model
         copy!(b, output["beta"])

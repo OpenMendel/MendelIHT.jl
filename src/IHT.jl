@@ -16,6 +16,7 @@ export cv_log
 
 typealias Float Union{Float64, Float32}
 
+include("common.jl")
 include("gpu.jl")
 include("gwas.jl")
 include("cv.jl")
