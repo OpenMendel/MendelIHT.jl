@@ -10,17 +10,15 @@ The additional optional arguments are:
 """
 function iht{T <: Float}(
     b        :: DenseVector{T},
-    x        :: BEDFile,
+    x        :: BEDFile{T},
     y        :: DenseVector{T},
     k        :: Int,
     g        :: DenseVector{T};
     n        :: Int              = length(y),
     p        :: Int              = length(b),
     pids     :: DenseVector{Int} = procs(),
-    means    :: DenseVector{T}   = mean(T, x, shared=true, pids=pids),
-    invstds  :: DenseVector{T}   = invstd(x, means, shared=true, pids=pids),
     b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = b[localindexes(S)], pids=pids),
-    Xb       :: DenseVector{T}   = xb(x,b,IDX,k, means=means, invstds=invstds, pids=pids),
+    Xb       :: DenseVector{T}   = A_mul_B(x,b,IDX,k, pids=pids),
     Xb0      :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = Xb[localindexes(S)], pids=pids),
     xk       :: DenseMatrix{T}   = zeros(T,n,k),
     xgk      :: DenseVector{T}   = zeros(T,n),
@@ -47,7 +45,7 @@ function iht{T <: Float}(
     # avoid extracting and computing them if they have not changed
     # one exception: we should always extract columns on first iteration
     if !isequal(IDX, IDX0) || iter < 2
-        decompress_genotypes!(xk, x, IDX, means=means, invstds=invstds)
+        decompress_genotypes!(xk, x, IDX) 
     end
 
     # store relevant components of gradient
@@ -90,7 +88,7 @@ function iht{T <: Float}(
     end 
 
     # update xb
-    xb!(Xb,x,b,IDX,k, means=means, invstds=invstds, pids=pids)
+    PLINK.A_mul_B!(Xb, x, b, IDX, k, pids=pids)
 
     # calculate omega
     omega_top = sqeuclidean(sdata(b),sdata(b0))
@@ -130,7 +128,7 @@ function iht{T <: Float}(
         end 
 
         # recompute xb
-        xb!(Xb,x,b,IDX,k, means=means, invstds=invstds, pids=pids)
+        A_mul_B!(Xb,x,b,IDX,k, pids=pids)
 
         # calculate omega
         omega_top = sqeuclidean(sdata(b),sdata(b0))
@@ -150,8 +148,6 @@ If used with a `BEDFile` object `x`, then the temporary floating point arrays ar
 The additional optional arguments are:
 
 - `pids`, a vector of process IDs. Defaults to `procs()`.
-- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
-- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
 """
 function L0_reg{T <: Float}(
     X        :: BEDFile,
@@ -161,8 +157,6 @@ function L0_reg{T <: Float}(
     p        :: Int              = size(X,2),
     pids     :: DenseVector{Int} = procs(),
     Xk       :: DenseMatrix{T}   = SharedArray(T, (n,k), init = S -> S[localindexes(S)] = zero(T), pids=pids),
-    means    :: DenseVector{T}   = mean(T,X, shared=true, pids=pids),
-    invstds  :: DenseVector{T}   = invstd(X,means, shared=true, pids=pids),
     b        :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
     b0       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
     df       :: DenseVector{T}   = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids),
@@ -211,10 +205,10 @@ function L0_reg{T <: Float}(
         fill!(Xb,zero(T))
         copy!(r,sdata(Y))
     else
-        xb!(Xb,X,b,support,k, means=means, invstds=invstds, pids=pids)
+        A_mul_B!(Xb,X,b,support,k, pids=pids)
         difference!(r, Y, Xb)
     end
-    xty!(df, X, r, means=means, invstds=invstds, p=p, pids=pids)
+    At_mul_B!(df, X, r, pids=pids)
 
     # formatted output to monitor algorithm progress
     if !quiet
@@ -254,12 +248,12 @@ function L0_reg{T <: Float}(
 
         # now perform IHT step
 #        (mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, sortidx=indices, gk=idx, means=means, invstds=invstds, iter=mm_iter, pids=pids)
-        (mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, gk=gk, means=means, invstds=invstds, iter=mm_iter, pids=pids)
+        (mu, mu_step) = iht(b,X,Y,k,df, n=n, p=p, max_step=max_step, IDX=support, IDX0=support0, b0=b0, Xb=Xb, Xb0=Xb0, xgk=tempn, xk=Xk, gk=gk, iter=mm_iter, pids=pids)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
         difference!(r,Y,Xb)
-        xty!(df, X, r, means=means, invstds=invstds, pids=pids)
+        At_mul_B!(df, X, r, pids=pids)
 
         # update loss, objective, and gradient
         next_loss = sumabs2(sdata(r)) / 2
@@ -337,12 +331,10 @@ The additional optional arguments are:
 - `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
 """
 function iht_path{T <: Float}(
-    x        :: BEDFile,
+    x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int};
     pids     :: DenseVector{Int} = procs(),
-    means    :: DenseVector{T}   = mean(T,x, shared=true, pids=pids),
-    invstds  :: DenseVector{T}   = invstd(x,means, shared=true, pids=pids),
     tol      :: Float            = convert(T, 1e-4),
     max_iter :: Int              = 100,
     max_step :: Int              = 50,
@@ -392,8 +384,7 @@ function iht_path{T <: Float}(
         project_k!(b, q)
 
         # now compute current model
-#        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, idx=idx, tempn=tempn, indices=indices, support=support, support0=support0, means=means, invstds=invstds, pids=pids)
-        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, support=support, support0=support0, means=means, invstds=invstds, pids=pids)
+        output = L0_reg(x,y,q, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, Xk=Xk, r=r, Xb=Xb, Xb=Xb0, b0=b0, df=df, gk=gk, tempn=tempn, support=support, support0=support0, pids=pids)
 
         # extract and save model
         copy!(sdata(b), output["beta"])

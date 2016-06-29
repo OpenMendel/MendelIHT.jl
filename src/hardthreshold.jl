@@ -81,7 +81,6 @@ function iht!{T <: Float}(
 #    mu = _iht_stepsize(v, k) :: T
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
-
     # compute gradient step
     _iht_gradstep(v, mu, k)
 
