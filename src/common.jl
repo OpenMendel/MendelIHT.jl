@@ -1,10 +1,22 @@
 # an object with returned results
-immutable IHTResults{T <: Float}
+immutable IHTResults{T <: Float, V <: DenseVector}
     time :: T
     loss :: T
     iter :: Int
-    beta :: DenseVector{T}
+    beta :: V
+
+    IHTResults(time::T, loss::T, iter::Int, beta::DenseVector{T}) = new(time, loss, iter, beta)
 end
+function IHTResults{T <: Float}(
+    time :: T,
+    loss :: T,
+    iter :: Int,
+    beta :: DenseVector{T} 
+)
+    IHTResults{T, typeof(beta)}(time, loss, iter, beta)
+end
+
+
 
 # display function for IHTResults object
 function Base.display(x::IHTResults)
@@ -16,7 +28,6 @@ function Base.display(x::IHTResults)
 end
 
 # an object to contain intermediate variables
-#type IHTVariables{T <: Float, V <: DenseVector, U <: DenseMatrix}
 type IHTVariables{T <: Float, V <: DenseVector}
     b    :: V
     b0   :: Vector 
@@ -49,7 +60,7 @@ function IHTVariables{T <: Float}(
     r    :: DenseVector{T},
     df   :: DenseVector{T}
 )
-    IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)# :: IHT.IHTVariables{T, typeof(b)}
 end
 
 
@@ -71,7 +82,7 @@ function IHTVariables{T <: Float}(
     gk   = zeros(T, k)
     idx  = falses(p)
     idx0 = falses(p)
-    return IHTVariables(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df) :: IHT.IHTVariables{T, typeof(b)}
+    return IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 function IHTVariables{T <: Float}(
@@ -91,7 +102,7 @@ function IHTVariables{T <: Float}(
     gk   = zeros(T, k)
     idx  = falses(p)
     idx0 = falses(p)
-    return IHTVariables(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df) :: IHT.IHTVariables{T, typeof(b)}
+    return IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 function IHTVariables{T <: Float}(
@@ -112,8 +123,7 @@ function IHTVariables{T <: Float}(
     gk   = zeros(T, k)
     idx  = falses(p)
     idx0 = falses(p)
-#    return IHTVariables(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df) :: IHT.IHTVariables{T, typeof(b)}
-    return IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df) :: IHT.IHTVariables{T, typeof(b)}
+    return IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 # function to modify fields of IHTVariables that depend on k
@@ -139,24 +149,6 @@ function update_variables!{T <: Float}(
     return nothing
 end
 
-# function to reset an IHTVariables object
-# basically fills all arrays with 0
-function reset_variables!{T <: Float}(
-    v :: IHTVariables{T}
-)
-   z = zero(T)
-#   fill!(v.b, z)
-   fill!(v.b0, z)
-   fill!(v.xb, z)
-   fill!(v.xb0, z)
-   fill!(v.df, z)
-   fill!(v.r, z)
-   fill!(v.xk, z)
-   fill!(v.gk, z)
-   fill!(v.xgk, z)
-#   fill!(idx, false)
-   fill!(idx0, false)
-end
 # ----------------------------------------- #
 # common subroutines for IHT stepping
 function _iht_indices{T <: Float}(
@@ -184,12 +176,12 @@ function _iht_stepsize{T <: Float}(
     k :: Int
 )
     # store relevant components of gradient
-    fill_perm!(v.gk, v.df, v.idx)    # gk = g[IDX]
-#    v.gk = v.df[v.idx]
+#    fill_perm!(v.gk, v.df, v.idx)    # gk = g[IDX]
+    v.gk = v.df[v.idx]
 
     # compute xk' * gk
-    BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
-#    A_mul_B!(v.xgk, v.xk, v.gk)
+#    BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
+    A_mul_B!(v.xgk, v.xk, v.gk)
 
     # warn if xgk only contains zeros
 #    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
@@ -218,30 +210,15 @@ function _iht_gradstep{T <: Float}(
     # this is a VERY DANGEROUS DARK SIDE HACK! 
     # hack randomly permutes indices of duplicates and retains one 
     if sum(v.idx) > k 
-        a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
-#        duples = find(x -> abs(x) .== abs(a), v.b)    # find duplicates
-        dupes = (abs(v.b) .== abs(a))
-        l = sum(dupes)
-        l <= 1 && return nothing   # if no duplicates, then simply return
-#        @show l
-#        duples = find(dupes)    # find duplicates
-        d = find(dupes)    # find duplicates
-#        @show duples
-#        c = randperm(l)                # shuffle 
-#        d = duples[c[2:end]]                        # permute, clipping top 
-        shuffle!(d)
-        deleteat!(d, 1)
-#        @inbounds deleteat!(c, 1)
-#        @inbounds d = duples[c]                        # permute, clipping top 
-#        @show c
-#        d = Base.unsafe_getindex(c, 2:l)
-#        @show d
-#        v.b[d] = zero(T)                              # zero out duplicates
-        Base.unsafe_setindex!(v.b, zero(T), d)                              # zero out duplicates
-#        @show v.b[d]
-#        v.idx[d] = false                              # set corresponding indices to false
-        Base.unsafe_setindex!(v.idx, false, d)
-#        @show v.idx[d]
+        a = select(v.b, k, by=abs, rev=true)    # compute kth pivot
+        dupes = (abs(v.b) .== abs(a))           # find duplicates
+        l = sum(dupes)                          # how many duplicates?
+        l <= 1 && return nothing                # if no duplicates, then simply return
+        d = find(dupes)                         # find duplicates
+        shuffle!(d)                             # permute duplicates
+        deleteat!(d, 1)                         # save first duplicate
+        Base.unsafe_setindex!(v.b, zero(T), d)  # zero out other duplicates
+        Base.unsafe_setindex!(v.idx, false, d)  # set corresponding indices to false
     end 
 
     return nothing
@@ -251,8 +228,8 @@ end
 function _iht_omega{T <: Float}(
     v :: IHTVariables{T}
 )
-    a = sqeuclidean(sdata(v.b), v.b0)
-    b = sqeuclidean(sdata(v.xb), v.xb0)
+    a = sqeuclidean(v.b, v.b0::Vector{T}) :: T
+    b = sqeuclidean(v.xb, v.xb0::Vector{T}) :: T
     return a, b 
 end
 

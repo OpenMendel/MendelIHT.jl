@@ -211,8 +211,6 @@ function L0_reg{T <: Float}(
         # guard against numerical instabilities
         # ensure that objective is finite
         # if not, throw error
-#        isnan(next_loss) && throw(error("Objective function is NaN, aborting..."))
-#        isinf(next_loss) && throw(error("Objective function is Inf32, aborting..."))
         check_finiteness(next_loss)
 
         # track convergence
@@ -278,7 +276,6 @@ function iht_path{T <: Float}(
     # size of problem?
     n = length(y)
     p = size(x,2)
-#    b = zeros(T, p)
 
     # how many models will we compute?
     num_models = length(path)
@@ -308,16 +305,11 @@ function iht_path{T <: Float}(
         # now compute current model
         output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
 
-        # extract and save model
-#        copy!(b, output.beta)
-
         # ensure that we correctly index the nonzeroes in b
-#        update_indices!(temp.idx, b)
         update_indices!(temp.idx, output.beta)
         fill!(temp.idx0, false)
 
         # put model into sparse matrix of betas
-#        betas[:,i] = sparsevec(b)
         betas[:,i] = sparsevec(output.beta)
     end
 
