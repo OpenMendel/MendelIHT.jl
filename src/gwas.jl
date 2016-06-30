@@ -1,3 +1,14 @@
+function update_r_grad!{T}(
+    v    :: IHTVariables{T},
+    x    :: BEDFile{T},
+    y    :: DenseVector{T};
+    pids :: DenseVector{Int} = procs()
+)
+    difference!(v.r, y, v.xb)
+    PLINK.At_mul_B!(v.df, x, v.r, pids=pids)
+    return nothing
+end
+
 """
     iht!(b, x::BEDFile, y, k, g)
 
@@ -15,17 +26,8 @@ function iht!{T <: Float}(
     iter     :: Int = 1,
     max_step :: Int = 50,
 )
-
-    # which components of beta are nonzero?
-    update_indices!(v.idx, v.b)
-
-    # if current vector is 0,
-    # then take largest elements of d as nonzero components for b
-    if sum(v.idx) == 0
-        a = select(v.df, k, by=abs, rev=true)
-#        threshold!(v.idx, g, abs(a), n=p)
-        v.idx[abs(v.df) .>= abs(a)-2*eps()] = true
-    end
+    # compute indices of nonzeroes in beta
+    _iht_indices(v, k)
 
     # if support has not changed between iterations,
     # then xk and gk are the same as well
@@ -51,35 +53,16 @@ function iht!{T <: Float}(
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
     mu <= eps(typeof(mu))  && warn("Step size $(mu) is below machine precision, algorithm may not converge correctly")
 
-    # take gradient step
-    BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
-
-    # preserve top k components of b
-    project_k!(v.b, k)
-
-    # which indices of new beta are nonzero?
-    copy!(v.idx0, v.idx)
-    update_indices!(v.idx, v.b)
-
-    # must correct for equal entries at kth pivot of b
-    # this is a total hack! but matching magnitudes are very rare
-    # should not drastically affect performance, esp. with big data
-    # hack randomly permutes indices of duplicates and retains one 
-    if sum(v.idx) > k 
-        a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
-        duples = find(x -> abs(x) .== abs(a), v.b)    # find duplicates
-        c = randperm(length(duples))                # shuffle 
-        d = duples[c[2:end]]                        # permute, clipping top 
-        v.b[d] = zero(T)                             # zero out duplicates
-        v.idx[d] = false                              # set corresponding indices to false
-    end 
+    # compute gradient step
+    _iht_gradstep(v, mu, k)
 
     # update xb
     PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
 
     # calculate omega
-    omega_top = sqeuclidean(sdata(v.b), v.b0)
-    omega_bot = sqeuclidean(sdata(v.xb), v.xb0)
+#    omega_top = sqeuclidean(sdata(v.b), v.b0)
+#    omega_bot = sqeuclidean(sdata(v.xb), v.xb0)
+    omega_top, omega_bot = _iht_omega(v)
 
     # backtrack until mu sits below omega and support stabilizes
     mu_step = 0
@@ -93,6 +76,7 @@ function iht!{T <: Float}(
 
         # recompute gradient step
         copy!(v.b, v.b0)
+#        _iht_gradstep(v, mu, k)
         BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
 
         # recompute projection onto top k components of b
@@ -115,11 +99,12 @@ function iht!{T <: Float}(
         end 
 
         # recompute xb
-        A_mul_B!(v.xb,x,v.b,v.idx,k, pids=pids)
+        PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
 
         # calculate omega
-        omega_top = sqeuclidean(sdata(v.b),sdata(v.b0))
-        omega_bot = sqeuclidean(sdata(v.xb),sdata(v.xb0))
+#        omega_top = sqeuclidean(sdata(v.b),sdata(v.b0))
+#        omega_bot = sqeuclidean(sdata(v.xb),sdata(v.xb0))
+        omega_top, omega_bot = _iht_omega(v)
 
         # increment the counter
         mu_step += 1
@@ -179,18 +164,14 @@ function L0_reg{T <: Float}(
     if sum(temp.idx) == 0
         fill!(temp.xb,zero(T))
         copy!(temp.r,sdata(y))
+        At_mul_B!(temp.df, x, temp.r, pids=pids)
     else
         A_mul_B!(temp.xb,x,temp.b,temp.idx,k, pids=pids)
-        difference!(temp.r, y, temp.xb)
+        update_r_grad!(temp, x, y, pids=pids)
     end
-    At_mul_B!(temp.df, x, temp.r, pids=pids)
 
     # formatted output to monitor algorithm progress
-    if !quiet
-         println("\nBegin MM algorithm\n")
-         println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
-         println("0\t0\tInf\t\tInf\t\tInf")
-    end
+    !quiet && print_header()
 
     # main loop
     for mm_iter = 1:max_iter
@@ -198,10 +179,8 @@ function L0_reg{T <: Float}(
         # notify and break if maximum iterations are reached.
         if mm_iter >= max_iter
 
-            if !quiet
-                print_with_color(:red, "MM algorithm has hit maximum iterations $(max_iter)!\n")
-                print_with_color(:red, "Current Objective: $(loss)\n")
-            end
+            # alert about hitting maximum iterations
+            !quiet && print_maxiter(max_iter, loss)
 
             # send elements below tol to zero
             threshold!(temp.b, tol)
@@ -224,8 +203,7 @@ function L0_reg{T <: Float}(
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
-        difference!(temp.r, y, temp.xb)
-        At_mul_B!(temp.df, x, temp.r, pids=pids)
+        update_r_grad!(temp, x, y, pids=pids)
 
         # update loss, objective, and gradient
         next_loss = sumabs2(sdata(temp.r)) / 2
@@ -233,8 +211,9 @@ function L0_reg{T <: Float}(
         # guard against numerical instabilities
         # ensure that objective is finite
         # if not, throw error
-        isnan(next_loss) && throw(error("Objective function is NaN, aborting..."))
-        isinf(next_loss) && throw(error("Objective function is Inf32, aborting..."))
+#        isnan(next_loss) && throw(error("Objective function is NaN, aborting..."))
+#        isinf(next_loss) && throw(error("Objective function is Inf32, aborting..."))
+        check_finiteness(next_loss)
 
         # track convergence
         the_norm    = chebyshev(temp.b, temp.b0)
@@ -255,13 +234,8 @@ function L0_reg{T <: Float}(
             # stop time
             mm_time = toq()
 
-            if !quiet
-                println("\nMM algorithm has converged successfully.")
-                println("MM Results:\nIterations: $(mm_iter)")
-                println("Final Loss: $(next_loss)")
-                println("Total Compute Time: $(mm_time)")
-            end
-
+            # announce convergence 
+            !quiet && print_convergence(mm_iter, next_loss, mm_time)
 
             # these are output variables for function
             return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
@@ -272,13 +246,7 @@ function L0_reg{T <: Float}(
         # check descent property in that case
         # if rho is not changing but objective increases, then abort
         if next_loss > loss + tol
-            if !quiet
-                print_with_color(:red, "\nMM algorithm fails to descend!\n")
-                print_with_color(:red, "MM Iteration: $(mm_iter)\n")
-                print_with_color(:red, "Current Objective: $(loss )\n")
-                print_with_color(:red, "Next Objective: $(next_loss)\n")
-                print_with_color(:red, "Difference in objectives: $(abs(next_loss - loss))\n")
-            end
+            !quiet && print_descent_error(mm_iter, loss, next_loss)
             throw(ErrorException("Descent failure!"))
         end
     end # end main loop
@@ -310,7 +278,7 @@ function iht_path{T <: Float}(
     # size of problem?
     n = length(y)
     p = size(x,2)
-    b = zeros(T, p)
+#    b = zeros(T, p)
 
     # how many models will we compute?
     num_models = length(path)
@@ -332,8 +300,6 @@ function iht_path{T <: Float}(
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
-#        Xk     = zeros(T,n,q)     # store q columns of X
-#        gk     = zeros(T,q)       # another temporary array of q floats
         update_variables!(temp, x, q)
 
         # store projection of beta onto largest k nonzeroes in magnitude
@@ -343,14 +309,16 @@ function iht_path{T <: Float}(
         output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
 
         # extract and save model
-        copy!(b, output.beta)
+#        copy!(b, output.beta)
 
         # ensure that we correctly index the nonzeroes in b
-        update_indices!(temp.idx, b)
+#        update_indices!(temp.idx, b)
+        update_indices!(temp.idx, output.beta)
         fill!(temp.idx0, false)
 
         # put model into sparse matrix of betas
-        betas[:,i] = sparsevec(b)
+#        betas[:,i] = sparsevec(b)
+        betas[:,i] = sparsevec(output.beta)
     end
 
     # return a sparsified copy of the models
