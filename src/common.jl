@@ -30,12 +30,12 @@ end
 # an object to contain intermediate variables
 type IHTVariables{T <: Float, V <: DenseVector}
     b    :: V
-    b0   :: Vector 
+    b0   :: Vector{T} 
     xb   :: V
-    xb0  :: Vector 
-    xk   :: Matrix 
-    gk   :: Vector 
-    xgk  :: Vector 
+    xb0  :: Vector{T}
+    xk   :: Matrix{T}
+    gk   :: Vector{T}
+    xgk  :: Vector{T}
     idx  :: BitArray{1}
     idx0 :: BitArray{1}
     r    :: V 
@@ -60,29 +60,37 @@ function IHTVariables{T <: Float}(
     r    :: DenseVector{T},
     df   :: DenseVector{T}
 )
-    IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)# :: IHT.IHTVariables{T, typeof(b)}
+    IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 
+# minor type instability with SharedArray constructors
+# a small optimization for the future, but will not dramatically change performance 
+# try defining b0, xb0 first and then calling "SharedVector(b0)", "SharedVector(xb0)"
 function IHTVariables{T <: Float}(
     x :: SharedMatrix{T},
     y :: SharedVector{T},
     k :: Int
 )
     pids = procs(x)
+    V    = typeof(y)
     n, p = size(x)
-    b    = SharedArray(T, (p,), pids=pids) 
-    df   = SharedArray(T, (p,), pids=pids) 
-    xb   = SharedArray(T, (n,), pids=pids) 
-    r    = SharedArray(T, (n,), pids=pids) 
+#    b    = SharedArray(T, (p,), pids=pids) :: V 
+#    df   = SharedArray(T, (p,), pids=pids) :: V
+#    xb   = SharedArray(T, (n,), pids=pids) :: V
+#    r    = SharedArray(T, (n,), pids=pids) :: V
     b0   = zeros(T, p) 
+    b    = convert(V, SharedArray(T, size(b0), pids=pids)) 
+    df   = convert(V, SharedArray(T, size(b0), pids=pids)) 
+    xb   = convert(V, SharedArray(T, size(y), pids=pids))
+    r    = convert(V, SharedArray(T, size(y), pids=pids))
     xb0  = zeros(T, n) 
     xk   = zeros(T, n, k)
     xgk  = zeros(T, n)
     gk   = zeros(T, k)
     idx  = falses(p)
     idx0 = falses(p)
-    return IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    return IHTVariables{T, V}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 function IHTVariables{T <: Float}(
@@ -102,7 +110,7 @@ function IHTVariables{T <: Float}(
     gk   = zeros(T, k)
     idx  = falses(p)
     idx0 = falses(p)
-    return IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    return IHTVariables{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 function IHTVariables{T <: Float}(
@@ -112,10 +120,11 @@ function IHTVariables{T <: Float}(
 )
     n, p = size(x)
     pids = procs(x)
-    b    = SharedArray(T, (p,), pids=pids) 
-    df   = SharedArray(T, (p,), pids=pids) 
-    xb   = SharedArray(T, (n,), pids=pids) 
-    r    = SharedArray(T, (n,), pids=pids) 
+    V    = typeof(y)
+    b    = SharedArray(T, (p,), pids=pids) :: V 
+    df   = SharedArray(T, (p,), pids=pids) :: V
+    xb   = SharedArray(T, (n,), pids=pids) :: V
+    r    = SharedArray(T, (n,), pids=pids) :: V
     b0   = zeros(T, p) 
     xb0  = zeros(T, n) 
     xk   = zeros(T, n, k)
@@ -123,7 +132,7 @@ function IHTVariables{T <: Float}(
     gk   = zeros(T, k)
     idx  = falses(p)
     idx0 = falses(p)
-    return IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    return IHTVariables{T, V}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 # function to modify fields of IHTVariables that depend on k
@@ -187,8 +196,11 @@ function _iht_stepsize{T <: Float}(
 #    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # return step size
-    return (sumabs2(v.gk) / sumabs2(v.xgk)) :: T
+    a = sumabs2(v.gk)  :: T
+    b = sumabs2(v.xgk) :: T
+    return a / b :: T
 end
+
 
 function _iht_gradstep{T <: Float}(
     v  :: IHTVariables{T},

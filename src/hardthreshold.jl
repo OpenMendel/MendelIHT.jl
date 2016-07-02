@@ -75,10 +75,10 @@ function iht!{T <: Float}(
     BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
 
     # compute step size
-    mu = sumabs2(sdata(v.gk)) / sumabs2(sdata(v.xgk))
+    mu = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T 
 
     # compute step size
-#    mu = _iht_stepsize(v, k) :: T
+#    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?! 
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
     # compute gradient step
@@ -111,7 +111,7 @@ function iht!{T <: Float}(
         mu_step += 1
     end
 
-    return mu, mu_step
+    return mu::T, mu_step::Int
 end
 
 """
@@ -202,11 +202,7 @@ function L0_reg{T <: Float}(
     next_loss = oftype(tol,Inf)
 
     # formatted output to monitor algorithm progress
-    if !quiet
-         println("\nBegin MM algorithm\n")
-         println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
-         println("0\t0\tInf\t\tInf\t\tInf")
-    end
+    !quiet && print_header()
 
     # main loop
     for mm_iter = 1:max_iter
@@ -214,10 +210,8 @@ function L0_reg{T <: Float}(
         # notify and break if maximum iterations are reached.
         if mm_iter >= max_iter
 
-            if !quiet
-                print_with_color(:red, "MM algorithm has hit maximum iterations $(max_iter)!\n")
-                print_with_color(:red, "Current Objective: $(current_obj)\n")
-            end
+            # alert about hitting maximum iterations
+            !quiet && print_maxiter(max_iter, loss)
 
             # send elements below tol to zero
             threshold!(temp.b, tol)
@@ -248,8 +242,7 @@ function L0_reg{T <: Float}(
         next_loss = sumabs2(temp.r) / 2
 
         # guard against numerical instabilities
-        isnan(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
-        isinf(next_loss) && throw(error("Loss function is NaN, something went wrong..."))
+        check_finiteness(next_loss)
 
         # track convergence
         the_norm    = chebyshev(temp.b, temp.b0)
@@ -270,12 +263,8 @@ function L0_reg{T <: Float}(
             # stop time
             mm_time = toq()
 
-            if !quiet
-                println("\nMM algorithm has converged successfully.")
-                println("MM Results:\nIterations: $(mm_iter)")
-                println("Final Loss: $(next_loss)")
-                println("Total Compute Time: $(mm_time)")
-            end
+            # announce convergence 
+            !quiet && print_convergence(mm_iter, next_loss, mm_time)
 
             # these are output variables for function
             # wrap them into a Dict and return
@@ -287,15 +276,8 @@ function L0_reg{T <: Float}(
         # check descent property in that case
         # if rho is not changing but objective increases, then abort
         if next_obj > current_obj + tol
-            if !quiet
-                print_with_color(:red, "\nMM algorithm fails to descend!\n")
-                print_with_color(:red, "MM Iteration: $(mm_iter)\n")
-                print_with_color(:red, "Current Objective: $(current_obj)\n")
-                print_with_color(:red, "Next Objective: $(next_obj)\n")
-                print_with_color(:red, "Difference in objectives: $(abs(next_obj - current_obj))\n")
-            end
-
-            throw(error("Descent failure!"))
+            !quiet && print_descent_error(mm_iter, loss, next_loss)
+            throw(ErrorException("Descent failure!"))
         end
     end # end main loop
 end # end function
@@ -337,7 +319,6 @@ function iht_path{T <: Float}(
 
     # size of problem?
     (n,p) = size(x)
-    b = zeros(T, p)
 
     # how many models will we compute?
     num_models = length(path)
@@ -366,8 +347,7 @@ function iht_path{T <: Float}(
         output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
         # extract and save model
-        copy!(b, output.beta)
-        betas[:,i] = sparsevec(b)
+        betas[:,i] = sparsevec(output.beta)
     end
 
     # return a sparsified copy of the models

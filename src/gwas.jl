@@ -47,7 +47,8 @@ function iht!{T <: Float}(
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size
-    mu = sumabs2(v.gk) / sumabs2(v.xgk)
+    mu = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T
+#    mu = _iht_stepsize(v, k) :: T
 
     # notify problems with step size
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
@@ -60,8 +61,6 @@ function iht!{T <: Float}(
     PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
 
     # calculate omega
-#    omega_top = sqeuclidean(sdata(v.b), v.b0)
-#    omega_bot = sqeuclidean(sdata(v.xb), v.xb0)
     omega_top, omega_bot = _iht_omega(v)
 
     # backtrack until mu sits below omega and support stabilizes
@@ -76,7 +75,7 @@ function iht!{T <: Float}(
 
         # recompute gradient step
         copy!(v.b, v.b0)
-#        _iht_gradstep(v, mu, k)
+#        _iht_gradstep(v, mu, k)    # yields descent failure?!
         BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
 
         # recompute projection onto top k components of b
@@ -102,15 +101,13 @@ function iht!{T <: Float}(
         PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
 
         # calculate omega
-#        omega_top = sqeuclidean(sdata(v.b),sdata(v.b0))
-#        omega_bot = sqeuclidean(sdata(v.xb),sdata(v.xb0))
         omega_top, omega_bot = _iht_omega(v)
 
         # increment the counter
         mu_step += 1
     end
 
-    return mu, mu_step
+    return mu::T, mu_step::Int
 end
 
 """
