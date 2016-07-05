@@ -2,10 +2,29 @@ function update_r_grad!{T}(
     v    :: IHTVariables{T},
     x    :: BEDFile{T},
     y    :: DenseVector{T};
-    pids :: DenseVector{Int} = procs()
+    pids :: DenseVector{Int} = procs(x)
 )
     difference!(v.r, y, v.xb)
     PLINK.At_mul_B!(v.df, x, v.r, pids=pids)
+    return nothing
+end
+
+function initialize_xb_r_grad!{T <: Float}(
+    temp :: IHTVariables{T},
+    x    :: BEDFile{T},
+    y    :: DenseVector{T},
+    k    :: Int;
+    pids :: DenseVector{Int} = procs(x)
+)
+    if sum(temp.idx) == 0
+        fill!(temp.xb, zero(T))
+        copy!(temp.r, y)
+        At_mul_B!(temp.df, x, temp.r, pids=pids)
+    else
+        update_indices!(temp.idx, temp.b)
+        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, pids=pids)
+        update_r_grad!(temp, x, y, pids=pids)
+    end
     return nothing
 end
 
@@ -18,13 +37,13 @@ The additional optional arguments are:
 - `pids`, a vector of process IDs. Defaults to `procs()`.
 """
 function iht!{T <: Float}(
-    v        :: IHTVariables{T}, 
-    x        :: BEDFile{T},
-    y        :: DenseVector{T},
-    k        :: Int;
-    pids     :: DenseVector{Int} = procs(x),
-    iter     :: Int = 1,
-    max_step :: Int = 50,
+    v     :: IHTVariables{T}, 
+    x     :: BEDFile{T},
+    y     :: DenseVector{T},
+    k     :: Int;
+    pids  :: DenseVector{Int} = procs(x),
+    iter  :: Int = 1,
+    nstep :: Int = 50,
 )
     # compute indices of nonzeroes in beta
     _iht_indices(v, k)
@@ -65,7 +84,7 @@ function iht!{T <: Float}(
 
     # backtrack until mu sits below omega and support stabilizes
     mu_step = 0
-    while mu*omega_bot > 0.99*omega_top && sum(v.idx) != 0 && sum(v.idx $ v.idx0) != 0 && mu_step < max_step
+    while _iht_backtrack(v, omega_top, omega_bot, mu, mu_step, nstep) 
 
         # stephalving
         mu /= 2
@@ -75,27 +94,7 @@ function iht!{T <: Float}(
 
         # recompute gradient step
         copy!(v.b, v.b0)
-#        _iht_gradstep(v, mu, k)    # yields descent failure?!
-        BLAS.axpy!(mu, sdata(v.df), sdata(v.b))
-
-        # recompute projection onto top k components of b
-        project_k!(v.b, k)
-
-        # which indices of new beta are nonzero?
-        update_indices!(v.idx, v.b)
-
-        # must correct for equal entries at kth pivot of b
-        # this is a total hack! but matching magnitudes are very rare
-        # should not drastically affect performance, esp. with big data
-        # hack randomly permutes indices of duplicates and retains one 
-        if sum(v.idx) > k 
-            a = select(v.b, k, by=abs, rev=true)          # compute kth pivot
-            duples = find(x -> abs(x) .== abs(a), v.b)    # find duplicates
-            c = randperm(length(duples))                # shuffle 
-            d = duples[c[2:end]]                        # permute, clipping top 
-            v.b[d] = zero(T)                             # zero out duplicates
-            v.idx[d] = false                              # set corresponding indices to false
-        end 
+        _iht_gradstep(v, mu, k)
 
         # recompute xb
         PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
@@ -157,15 +156,8 @@ function L0_reg{T <: Float}(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-    # update Xb, r, and gradient
-    if sum(temp.idx) == 0
-        fill!(temp.xb,zero(T))
-        copy!(temp.r,sdata(y))
-        At_mul_B!(temp.df, x, temp.r, pids=pids)
-    else
-        A_mul_B!(temp.xb,x,temp.b,temp.idx,k, pids=pids)
-        update_r_grad!(temp, x, y, pids=pids)
-    end
+    # update xb, r, and gradient
+    initialize_xb_r_grad!(temp, x, y, k, pids=pids)
 
     # formatted output to monitor algorithm progress
     !quiet && print_header()
@@ -196,7 +188,7 @@ function L0_reg{T <: Float}(
         loss = next_loss
 
         # now perform IHT step
-        (mu, mu_step) = iht!(temp, x, y, k, max_step=max_step, iter=mm_iter, pids=pids)
+        (mu, mu_step) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter, pids=pids)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
