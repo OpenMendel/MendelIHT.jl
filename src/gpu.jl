@@ -377,7 +377,7 @@ end
 
 
 """
-    pfold(xfile, xtfile, x2file,yfile, meanfile, invstdfile,path,kernfile,folds,q [, pids=procs(), devindices=ones(Int,q])
+    pfold(xfile, xtfile, x2file,yfile, meanfile, precfile,path,kernfile,folds,q [, pids=procs(), devindices=ones(Int,q])
 
 This function is the parallel execution kernel in `cv_iht()`. It is not meant to be called outside of `cv_iht()`.
 It will distribute `q` crossvalidation folds across the processes supplied by the optional argument `pids` and call `one_fold()` for each fold.
@@ -391,7 +391,7 @@ function pfold(
     x2file     :: ASCIIString,
     yfile      :: ASCIIString,
     meanfile   :: ASCIIString,
-    invstdfile :: ASCIIString,
+    precfile :: ASCIIString,
     path       :: DenseVector{Int},
     kernfile   :: ASCIIString,
     folds      :: DenseVector{Int},
@@ -456,7 +456,7 @@ function pfold(
                                 p = size(x,2)
                                 y = SharedArray(abspath(yfile), T, (n,), pids=pids)
                                 means = SharedArray(abspath(meanfile), T, (p,), pids=pids)
-                                invstds = SharedArray(abspath(invstdfile), T, (p,), pids=pids)
+                                invstds = SharedArray(abspath(precfile), T, (p,), pids=pids)
 
                                 one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, devidx=devidx, pids=pids)
                         end # end remotecall_fetch()
@@ -472,38 +472,38 @@ end
 
 
 # default type for pfold is Float64
-pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 
 """
-    cv_iht(xfile,xtfile,x2file,yfile,meanfile,invstdfile,path,kernfile,folds,q [, pids=procs(), wg_size=512])
+    cv_iht(xfile,xtfile,x2file,yfile,meanfile,precfile,path,kernfile,folds,q [, pids=procs(), wg_size=512])
 
 This variant of `cv_iht()` performs `q`-fold crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
-with column means stored in `meanfile` and column precisions stored in `invstdfile`.
+with column means stored in `meanfile` and column precisions stored in `precfile`.
 The continuous response is stored in `yfile` with data particioned by the `Int` vector `folds`.
 The calculations employ GPU acceleration by calling OpenCL kernels from `kernfile` with workgroup size `wg_size`.
 The folds are distributed across the processes given by `pids`.
 """
 function cv_iht(
-    T             :: Type,
-    xfile         :: ASCIIString,
-    xtfile        :: ASCIIString,
-    x2file        :: ASCIIString,
-    yfile         :: ASCIIString,
-    meanfile      :: ASCIIString,
-    invstdfile    :: ASCIIString,
-    path          :: DenseVector{Int},
-    kernfile      :: ASCIIString,
-    folds         :: DenseVector{Int},
-    q             :: Int;
-    pids          :: DenseVector{Int} = procs(),
-    tol           :: Float            = convert(T, 1e-4),
-    max_iter      :: Int              = 100,
-    max_step      :: Int              = 50,
-    wg_size       :: Int              = 512,
-    quiet         :: Bool             = true,
-    compute_model :: Bool             = false,
-    header        :: Bool             = false
+    T        :: Type,
+    xfile    :: ASCIIString,
+    xtfile   :: ASCIIString,
+    x2file   :: ASCIIString,
+    yfile    :: ASCIIString,
+    meanfile :: ASCIIString,
+    precfile :: ASCIIString,
+    path     :: DenseVector{Int},
+    kernfile :: ASCIIString,
+    folds    :: DenseVector{Int},
+    q        :: Int;
+    pids     :: DenseVector{Int} = procs(x),
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    wg_size  :: Int   = 512,
+    quiet    :: Bool  = true,
+    refit    :: Bool  = false,
+    header   :: Bool  = false
 )
     #0 <= length(path) <= p || throw(ArgumentError("Path length must be positive and cannot exceed number of predictors"))
     T <: Float             || throw(ArgumentError("Argument T must be either Float32 or Float64"))
@@ -538,45 +538,31 @@ function cv_iht(
     # want to compute a path for each fold
     # the folds are computed asynchronously
     # only use the worker processes
-    errors = pfold(T, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
+    errors = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
 
     # what is the best model size?
     k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
 
     # print results
-    if !quiet
-        println("\n\nCrossvalidation Results:")
-        println("k\tMSE")
-        @inbounds for i = 1:num_models
-            println(path[i], "\t", errors[i])
-        end
-        println("\nThe lowest MSE is achieved at k = ", k)
-    end
+    !quiet && print_cv_results(errors, path, k)
 
     # recompute ideal model
-    if compute_model
+    if refit
 
         # load data on *all* processes
-        x       = BEDFile(T, xfile, xtfile, x2file, header=header, pids=pids)
-        n       = x.n
-        p       = size(x,2)
-        y       = SharedArray(abspath(yfile), T, (n,), pids=pids)
-        means   = SharedArray(abspath(meanfile), T, (p,), pids=pids)
-        invstds = SharedArray(abspath(invstdfile), T, (p,), pids=pids)
-
-        # initialize parameter vector as SharedArray
-        b = SharedArray(T, p)
+        x       = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
+        y       = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
         # first use L0_reg to extract model
-        output = L0_reg(x,y,k,kernfile, n=n, p=p, b=b, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, wg_size=wg_size, device=devs[1])
+        output = L0_reg(x,y,k,kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, wg_size=wg_size, device=devs[1])
 
         # which components of beta are nonzero?
-        inferred_model = output["beta"] .!= zero(T)
-        bidx = find( x -> x .!= zero(T), b)
+        inferred_model = output.beta .!= zero(T)
+        bidx = find(inferred_model)
 
         # allocate the submatrix of x corresponding to the inferred model
-        x_inferred = zeros(T,n,sum(inferred_model))
-        decompress_genotypes!(x_inferred,x,inferred_model,means=means,invstds=invstds)
+        x_inferred = zeros(T, n, sum(inferred_model))
+        decompress_genotypes!(x_inferred, x, inferred_model)
 
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
         xty = BLAS.gemv('T', one(T), x_inferred, y)
@@ -588,4 +574,4 @@ function cv_iht(
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, compute_model::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, compute_model=compute_model, header=header)
+cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, refit::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, refit=refit, header=header)

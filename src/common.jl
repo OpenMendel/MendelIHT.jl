@@ -290,3 +290,13 @@ function print_maxiter{T <: Float}(max_iter::Int, loss::T)
     print_with_color(:red, "IHT algorithm has hit maximum iterations $(max_iter)!\n")
     print_with_color(:red, "Current Loss: $(loss)\n")
 end 
+
+function print_cv_results{T <: Float}(errors::DenseVector{T}, path::DenseVector{Int}, k::Int)
+    println("\n\nCrossvalidation Results:")
+    println("k\tMSE")
+    for i = 1:length(errors)
+        println(path[i], "\t", errors[i])
+    end
+    println("\nThe lowest MSE is achieved at k = ", k)
+end
+

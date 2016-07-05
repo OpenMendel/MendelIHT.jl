@@ -184,8 +184,6 @@ function cv_iht{T <: Float}(
     # how many elements are in the path?
     num_models = length(path)
 
-    # preallocate vectors used in xval
-
     # want to compute a path for each fold
     # the folds are computed asynchronously over processes enumerated by pids
     # master process then reduces errors across folds and returns MSEs
@@ -195,27 +193,16 @@ function cv_iht{T <: Float}(
     k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
 
     # print results
-    if !quiet
-        println("\n\nCrossvalidation Results:")
-        println("k\tMSE")
-        @inbounds for i = 1:num_models
-            println(path[i], "\t", errors[i])
-        end
-        println("\nThe lowest MSE is achieved at k = ", k)
-    end
+    !quiet && print_cv_results(errors, path, k)
 
     # recompute ideal model
     if refit
 
-        # initialize parameter vector
-        b = zeros(T, p)
-
         # first use L0_reg to extract model
         output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
-        copy!(b, output["beta"])
 
         # which components of beta are nonzero?
-        bidx = find( x -> x .!= zero(T), b)
+        bidx = find(output.beta)
 
         # allocate the submatrix of x corresponding to the inferred model
         x_inferred = x[:,bidx]
@@ -223,9 +210,9 @@ function cv_iht{T <: Float}(
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
         Xty = BLAS.gemv('T', one(T), x_inferred, y)
         xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
-        b2  = xtx \ Xty
+        b  = xtx \ Xty
 
-        return errors, b2, bidx
+        return errors, b, bidx
     end
 
     return errors
