@@ -9,6 +9,24 @@ function update_r_grad!{T}(
     return nothing
 end
 
+function initialize_xb_r_grad!{T <: Float}(
+    temp :: IHTVariables{T},
+    x    :: DenseMatrix{T},
+    y    :: DenseVector{T},
+    k    :: Int
+)
+    # update x*beta
+    if sum(temp.idx) == 0
+        fill!(temp.xb, zero(T))
+    else
+        update_indices!(temp.idx, temp.b)
+        update_xb!(temp.xb, x, temp.b, temp.idx, k)
+    end
+
+    # update r and gradient
+    update_r_grad!(temp, x, y)
+end
+
 """
 ITERATIVE HARD THRESHOLDING
 
@@ -74,10 +92,13 @@ function iht!{T <: Float}(
     # now compute subset of x*g
     BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
 
+    # warn if xgk only contains zeros
+    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+
     # compute step size
     mu = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T 
 
-    # compute step size
+#    # compute step size
 #    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?! 
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
@@ -92,7 +113,7 @@ function iht!{T <: Float}(
 
     # backtrack until mu sits below omega and support stabilizes
     mu_step = 0
-    while mu*omega_bot > 0.99*omega_top && sum(v.idx) != 0 && sum(v.idx $ v.idx0) != 0 && mu_step < nstep 
+    while _iht_backtrack(v, omega_top, omega_bot, mu, mu_step, nstep) 
 
         # stephalving
         mu /= 2
@@ -187,16 +208,8 @@ function L0_reg{T <: Float}(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-    # update X*beta
-    if sum(temp.idx) == 0
-        fill!(temp.xb, zero(T))
-    else
-        update_indices!(temp.idx, temp.b)
-        update_xb!(temp.xb, x, temp.b, temp.idx, k)
-    end
-
-    # update r and gradient
-    update_r_grad!(temp, x, y)
+#    # update xb, r, gradient 
+    initialize_xb_r_grad!(temp, x, y, k)
 
     # update loss and objective
     next_loss = oftype(tol,Inf)
@@ -232,7 +245,7 @@ function L0_reg{T <: Float}(
         current_obj = next_obj
 
         # now perform IHT step
-        (mu::T, mu_step::Int) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter)
+        (mu, mu_step) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient

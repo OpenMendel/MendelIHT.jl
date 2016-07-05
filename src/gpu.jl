@@ -14,45 +14,18 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIStri
 - `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
 """
 function L0_reg{T <: Float}(
-    x           :: BEDFile{T},
-    y           :: DenseVector{T},
-    k           :: Int,
-    kernfile    :: ASCIIString;
-    pids        :: DenseVector{Int} = procs(),
-    temp        :: IHTVariables{T}  = IHTVariables(x, y, k),
-    n           :: Int              = length(y),
-    p           :: Int              = size(x,2),
-    tol         :: Float            = convert(T, 1e-4),
-    max_iter    :: Int              = 100,
-    max_step    :: Int              = 50,
-    quiet       :: Bool             = true,
-    mask_n      :: DenseVector{Int} = ones(Int,n),
-    wg_size     :: Int              = 512,
-    y_chunks    :: Int              = div(n, wg_size) + (n % wg_size != 0 ? 1 : 0),
-    y_blocks    :: Int              = div(y_chunks, wg_size) + (y_chunks % wg_size != 0 ? 1 : 0),
-    r_chunks    :: Int              = div(p*y_chunks, wg_size) + ((p*y_chunks) % wg_size != 0 ? 1 : 0),
-    device      :: cl.Device        = last(cl.devices(:gpu)),
-    ctx         :: cl.Context       = cl.Context(device),
-    queue       :: cl.CmdQueue      = cl.CmdQueue(ctx),
-    x_buff      :: cl.Buffer        = cl.Buffer(Int8,    ctx, (:r,  :copy), hostbuf = sdata(x.geno.x)),
-    y_buff      :: cl.Buffer        = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(r)),
-    m_buff      :: cl.Buffer        = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(x.means)),
-    p_buff      :: cl.Buffer        = cl.Buffer(T, ctx, (:r,  :copy), hostbuf = sdata(x.precs)),
-    df_buff     :: cl.Buffer        = cl.Buffer(T, ctx, (:rw, :copy), hostbuf = sdata(temp.df)),
-    red_buff    :: cl.Buffer        = cl.Buffer(T, ctx, (:rw), p * y_chunks),
-    mask_buff   :: cl.Buffer        = cl.Buffer(Int,    ctx, (:r,  :copy), hostbuf = sdata(mask_n)),
-    genofloat   :: cl.LocalMem      = cl.LocalMem(T, wg_size),
-    program     :: cl.Program       = cl.Program(ctx, source=kernfile) |> cl.build!,
-    xtyk        :: cl.Kernel        = cl.Kernel(program, "compute_xt_times_vector"),
-    rxtyk       :: cl.Kernel        = cl.Kernel(program, "reduce_xt_vec_chunks"),
-    reset_x     :: cl.Kernel        = cl.Kernel(program, "reset_x"),
-    wg_size32   :: Int32            = convert(Int32, wg_size),
-    n32         :: Int32            = convert(Int32, n),
-    p32         :: Int32            = convert(Int32, p),
-    y_chunks32  :: Int32            = convert(Int32, y_chunks),
-    y_blocks32  :: Int32            = convert(Int32, y_blocks),
-    blocksize32 :: Int32            = convert(Int32, x.geno.blocksize),
-    r_length32  :: Int32            = convert(Int32, p*y_chunks)
+    x        :: BEDFile{T},
+    y        :: DenseVector{T},
+    k        :: Int,
+    kernfile :: ASCIIString;
+    pids     :: DenseVector{Int}     = procs(),
+    temp     :: IHTVariables{T}      = IHTVariables(x, y, k, pids=pids),
+    mask_n   :: DenseVector{Int}     = ones(Int, size(y)),
+    v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n), 
+    tol      :: Float                = convert(T, 1e-4),
+    max_iter :: Int                  = 100,
+    max_step :: Int                  = 50,
+    quiet    :: Bool                 = true
 )
 
     # start timer
@@ -63,7 +36,7 @@ function L0_reg{T <: Float}(
     max_iter >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
     max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
     tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
-
+    n = length(y)
     sum((mask_n .== 1) $ (mask_n .== 0)) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
 
     # initialize return values
@@ -96,8 +69,7 @@ function L0_reg{T <: Float}(
     end
 
     # calculate the gradient using the GPU
-#    xty!(df, df_buff, X, x_buff, r, y_buff, mask_n, mask_buff, queue, means, m_buff, invstds, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, n, p, X.p2, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
-    At_mul_B!(temp.df, df_buff, x, x_buff, temp.r, y_buff, mask_n, mask_buff, queue, m_buff, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, x.geno.n, x.geno.p, x.covar.p, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
+    At_mul_B!(temp.df, x, temp.r, mask_n, v)
 
     # update loss
     next_loss = oftype(zero(T),Inf)
@@ -133,14 +105,14 @@ function L0_reg{T <: Float}(
         loss = next_loss
 
         # now perform IHT step
-        (mu, mu_step) = iht!(temp, x, y, k, max_step=max_step, iter=mm_iter, pids=pids)
+        (mu, mu_step) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter, pids=pids)
 
         # update residuals
         difference!(temp.r, y, temp.xb)
         mask!(temp.r, mask_n, 0, zero(T), n=n)
 
         # use updated residuals to recompute the gradient on the GPU
-        At_mul_B!(temp.df, df_buff, x, x_buff, temp.r, y_buff, mask_n, mask_buff, queue, m_buff, p_buff, red_buff, xtyk, rxtyk, reset_x, wg_size, y_chunks, r_chunks, x.geno.n, x.geno.p, x.covar.p, n32, p32, y_chunks32, blocksize32, wg_size32, y_blocks32, r_length32, genofloat)
+        At_mul_B!(temp.df, x, temp.r, mask_n, v)
 
         # update objective
         next_loss = sumabs2(sdata(temp.r)) / 2
@@ -197,18 +169,18 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIStri
 - `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
 """
 function iht_path{T <: Float}(
-    x        :: BEDFile,
+    x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int},
     kernfile :: ASCIIString;
-    pids     :: DenseVector{Int} = procs(),
-    mask_n   :: DenseVector{Int} = ones(Int,length(y)),
-    device   :: cl.Device        = last(cl.devices(:gpu)),
-    tol      :: Float            = convert(T, 1e-4),
-    max_iter :: Int              = 100,
-    max_step :: Int              = 50,
-    wg_size  :: Int              = 512,
-    quiet    :: Bool             = true
+    pids     :: DenseVector{Int}     = procs(),
+    mask_n   :: DenseVector{Int}     = ones(Int,length(y)),
+    temp     :: IHTVariables{T}      = IHTVariables(x, y, 1),
+    v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n), 
+    tol      :: Float                = convert(T, 1e-4),
+    max_iter :: Int                  = 100,
+    max_step :: Int                  = 50,
+    quiet    :: Bool                 = true
 )
     # size of problem?
     n,p = size(x)
@@ -216,37 +188,11 @@ function iht_path{T <: Float}(
     # how many models will we compute?
     num_models = length(path)
 
-    # preallocate temporary arrays
-    temp = IHTVariables(x, y, 1)
+#    # preallocate temporary arrays
+#    temp = IHTVariables(x, y, 1)
 
     # also preallocate matrix to store betas
-    betas       = spzeros(T,p,num_models) # a matrix to store calculated models
-
-    # allocate GPU variables
-    y_chunks    = div(n, wg_size) + (n % wg_size != 0 ? 1 : 0)
-    y_blocks    = div(y_chunks, wg_size) + (y_chunks % wg_size != 0 ? 1 : 0)
-    r_chunks    = div(p*y_chunks, wg_size) + ((p*y_chunks) % wg_size != 0 ? 1 : 0)
-    ctx         = cl.Context(device)
-    queue       = cl.CmdQueue(ctx)
-    program     = cl.Program(ctx, source=kernfile) |> cl.build!
-    xtyk        = cl.Kernel(program, "compute_xt_times_vector")
-    rxtyk       = cl.Kernel(program, "reduce_xt_vec_chunks")
-    reset_x     = cl.Kernel(program, "reset_x")
-    wg_size32   = convert(Int32, wg_size)
-    n32         = convert(Int32, n)
-    p32         = convert(Int32, p)
-    y_chunks32  = convert(Int32, y_chunks)
-    y_blocks32  = convert(Int32, y_blocks)
-    blocksize32 = convert(Int32, x.geno.blocksize)
-    r_length32  = convert(Int32, p*y_chunks)
-    x_buff      = cl.Buffer(Int8, ctx, (:r,  :copy), hostbuf = sdata(x.geno.x))
-    m_buff      = cl.Buffer(T,    ctx, (:r,  :copy), hostbuf = sdata(x.means))
-    p_buff      = cl.Buffer(T,    ctx, (:r,  :copy), hostbuf = sdata(x.precs))
-    y_buff      = cl.Buffer(T,    ctx, (:r,  :copy), hostbuf = sdata(temp.r))
-    df_buff     = cl.Buffer(T,    ctx, (:rw, :copy), hostbuf = sdata(temp.df))
-    mask_buff   = cl.Buffer(Int,  ctx, (:rw, :copy), hostbuf = sdata(mask_n))
-    red_buff    = cl.Buffer(T,    ctx, (:rw),        p * y_chunks)
-    genofloat   = cl.LocalMem(T,  wg_size)
+    betas = spzeros(T,p,num_models) # a matrix to store calculated models
 
     # compute the path
     @inbounds for i = 1:num_models
@@ -265,7 +211,7 @@ function iht_path{T <: Float}(
         project_k!(temp.b, q)
 
         # now compute current model
-        output = L0_reg(x,y,q,kernfile, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, wg_size=wg_size, y_chunks=y_chunks, y_blocks=y_blocks, r_chunks=r_chunks, device=device, ctx=ctx, queue=queue, x_buff=x_buff, y_buff=y_buff, m_buff=m_buff, p_buff=p_buff, df_buff=df_buff, red_buff=red_buff, genofloat=genofloat, program=program, xtyk=xtyk, rxtyk=rxtyk, reset_x=reset_x, wg_size32=wg_size32, n32=n32, p32=p32, y_chunks32=y_chunks32, y_blocks32=y_blocks32, blocksize32=blocksize32, r_length32=r_length32, mask_n=mask_n, mask_buff=mask_buff, pids=pids)
+        output = L0_reg(x,y,q,kernfile, temp=temp, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids) 
 
         # ensure that we correctly index the nonzeroes in b
         update_indices!(temp.idx, output.beta)

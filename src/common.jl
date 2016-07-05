@@ -214,7 +214,6 @@ function _iht_gradstep{T <: Float}(
     project_k!(v.b, k)
 
     # which indices of new beta are nonzero?
-    copy!(v.idx0, v.idx)
     update_indices!(v.idx, sdata(v.b))
 
     # must correct for equal entries at kth pivot of b
