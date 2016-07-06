@@ -391,7 +391,7 @@ function pfold(
     x2file     :: ASCIIString,
     yfile      :: ASCIIString,
     meanfile   :: ASCIIString,
-    precfile :: ASCIIString,
+    precfile   :: ASCIIString,
     path       :: DenseVector{Int},
     kernfile   :: ASCIIString,
     folds      :: DenseVector{Int},
@@ -451,12 +451,9 @@ function pfold(
                         # worker loads data from file paths and then computes the errors in one fold
                         results[current_fold] = remotecall_fetch(worker) do
                                 pids = [worker]
-                                x = BEDFile(T, xfile, xtfile, x2file, pids=pids, header=header)
-                                n = x.n
-                                p = size(x,2)
-                                y = SharedArray(abspath(yfile), T, (n,), pids=pids)
-                                means = SharedArray(abspath(meanfile), T, (p,), pids=pids)
-                                invstds = SharedArray(abspath(precfile), T, (p,), pids=pids)
+#                                x = BEDFile(T, xfile, xtfile, x2file, pids=pids, header=header)
+                                x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
+                                y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
                                 one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, devidx=devidx, pids=pids)
                         end # end remotecall_fetch()
