@@ -256,8 +256,8 @@ function L0_log{T <: Float}(
                 bk2, nt_iter, bktrk = fit_logistic(xk, y, lambda, b=bk, tol=tolrefit, max_iter=max_step, quiet=quiet)
                 b[idxs] = bk2
             catch e
-                warn("in refitting, caught error: ", e)
-                warn("skipping refit")
+#                warn("in refitting, caught error: ", e)
+#                warn("skipping refit")
                 nt_iter = 0
                 bktrk   = 0
             end # end try-catch for refit
@@ -299,8 +299,8 @@ function L0_log{T <: Float}(
                     bk2,nt_iter,bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, tol=tolrefit, max_iter=max_step, quiet=quiet)
                     b[idxs] = bk2
                 catch e
-                    warn("in final refitting, caught error: ", e)
-                    warn("skipping final refit")
+#                    warn("in final refitting, caught error: ", e)
+#                    warn("skipping final refit")
                     nt_iter = 0
                     bktrk   = 0
                 end # end try-catch for refit
@@ -515,8 +515,8 @@ function L0_log{T <: Float}(
                 bk2, nt_iter, bktrk = fit_logistic(xk, y, mask_n, lambda, n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true, mn=mn)
                 b[idxs] = bk2
             catch e
-                warn("in refitting, caught error: ", e)
-                warn("skipping refit")
+#                warn("in refitting, caught error: ", e)
+#                warn("skipping refit")
                 bktrk   = 0
                 nt_iter = 0
             end # end try-catch for refit

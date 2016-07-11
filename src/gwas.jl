@@ -342,8 +342,6 @@ function one_fold{T <: Float}(
     mask_test = convert(Int, test_idx) 
 
     # allocate the arrays for the training set
-#    x_train = x[train_idx,:]
-#    y_train = y[train_idx]
     xb      = SharedArray(T, test_size, init = S -> S[localindexes(S)] = zero(T), pids=pids)
     b       = SharedArray(T, size(x,2), init = S -> S[localindexes(S)] = zero(T), pids=pids)
     r       = SharedArray(T, test_size, init = S -> S[localindexes(S)] = zero(T), pids=pids)
@@ -365,7 +363,6 @@ function one_fold{T <: Float}(
         update_indices!(indices, b)
 
         # compute estimated response Xb with $(path[i]) nonzeroes
-#        A_mul_B!(xb, x_test, b, indices, path[i], test_idx, pids=pids)
         A_mul_B!(xb, x, b, indices, path[i], mask_test, pids=pids)
 
         # compute residuals
@@ -375,7 +372,7 @@ function one_fold{T <: Float}(
         myerrors[i] = sumabs2(r) / test_size / 2
     end
 
-    return myerrors
+    return myerrors :: Vector{T}
 end
 
 function pfold(
@@ -457,7 +454,7 @@ function pfold(
     end # end @sync
 
     # return reduction (row-wise sum) over results
-    return reduce(+, results[1], results) ./ q
+    return (reduce(+, results[1], results) ./ q) :: Vector{T}
 end
 
 
@@ -506,26 +503,14 @@ function cv_iht(
     # preallocate vectors used in xval
     errors = zeros(T, num_models)    # vector to save mean squared errors
 
-#    # want to compute a path for each fold
-#    # the folds are computed asynchronously
-#    # the @sync macro ensures that we wait for all of them to finish before proceeding
-#    @sync for i = 1:q
-#        # one_fold returns a vector of out-of-sample errors (MSE for linear regression)
-#        # @fetch(one_fold(...)) spawns one_fold() on a CPU and returns the MSE
-#        errors[i] = @fetch(one_fold(x, y, path, folds, i, max_iter=max_iter, max_step=max_step, quiet=quiet, means=means, invstds=invstds, pids=pids))
-#    end
-#
-#    # average the mses
-#    errors ./= q
-
     # compute folds in parallel
-    errors = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
+    mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
 
     # what is the best model size?
-    k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
+    k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
 
     # print results
-    !quiet && print_cv_results(errors, path, k)
+    !quiet && print_cv_results(mses, path, k)
 
     # recompute ideal model
     if refit
@@ -544,11 +529,18 @@ function cv_iht(
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
         xty = BLAS.gemv('T', one(T), x_inferred, y)
         xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
-        b   = xtx \ xty
-        return errors, b, bidx
+        try 
+            b = (xtx \ xty) :: Vector{T}
+        catch e
+            warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+            fill!(b, -Inf)
+        end 
+
+        return IHTCrossvalidationResults{T}(mses, b, bidx, k)
     end
-    return errors
+
+    return IHTCrossvalidationResults(mses, k)
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, refit::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, refit=refit, header=header)
+cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, refit::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, refit=refit, header=header)

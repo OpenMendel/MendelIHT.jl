@@ -52,7 +52,7 @@ function one_fold{T <: Float}(
     # compute the mean out-of-sample error for the TEST set
     errors = vec(sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ (2*test_size)
 
-    return errors
+    return errors :: Vector{T}
 end
 
 """
@@ -124,7 +124,7 @@ function pfold{T <: Float}(
     end # end @sync
 
     # return reduction (row-wise sum) over results
-    return reduce(+, results[1], results) ./ q
+    return (reduce(+, results[1], results) ./ q) :: Vector{T}
 end
 
 
@@ -187,13 +187,13 @@ function cv_iht{T <: Float}(
     # want to compute a path for each fold
     # the folds are computed asynchronously over processes enumerated by pids
     # master process then reduces errors across folds and returns MSEs
-    errors = pfold(x, y, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet) 
+    mses = pfold(x, y, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet) 
 
     # what is the best model size?
-    k = convert(Int, floor(mean(path[errors .== minimum(errors)])))
+    k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
 
     # print results
-    !quiet && print_cv_results(errors, path, k)
+    !quiet && print_cv_results(mses, path, k)
 
     # recompute ideal model
     if refit
@@ -208,12 +208,18 @@ function cv_iht{T <: Float}(
         x_inferred = x[:,bidx]
 
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-        Xty = BLAS.gemv('T', one(T), x_inferred, y)
+        xty = BLAS.gemv('T', one(T), x_inferred, y)
         xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
-        b  = xtx \ Xty
+        b   = zeros(T, length(bidx))
+        try 
+            b = (xtx \ xty) :: Vector{T}
+        catch e
+            warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+            fill!(b, -Inf)
+        end 
 
-        return errors, b, bidx
+        return IHTCrossvalidationResults{T}(mses, b, bidx, k)
     end
 
-    return errors
+    return IHTCrossvalidationResults(mses, k)
 end

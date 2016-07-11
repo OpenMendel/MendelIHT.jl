@@ -158,6 +158,26 @@ function update_variables!{T <: Float}(
     return nothing
 end
 
+
+# ----------------------------------------- #
+# return type for crossvalidation
+immutable IHTCrossvalidationResults{T <: Float}
+    mses :: Vector{T}
+    b    :: Vector{T}
+    bidx :: Vector{Int}
+    k    :: Int
+end
+
+function IHTCrossvalidationResults{T <: Float}(
+    mses :: Vector{T},
+    k    :: Int
+)   
+    b    = zeros(T, 1)
+    bidx = zeros(Int, 1)
+    IHTCrossvalidationResults{T}(mses, b, bidx, k)
+end
+
+
 # ----------------------------------------- #
 # common subroutines for IHT stepping
 function _iht_indices{T <: Float}(

@@ -9,26 +9,35 @@ Given a data matrix `x`, a continuous response `y`, and a number `k` of desired 
 
     output = L0_reg(x, y, k)
 
-Here `output` is merely a `Dict{ASCIIString,Any}` object with the following fields:
+Here `output` is an `IHTResults` container object with the following fields:
 
 * `loss` is the optimal loss function value (minimum residual sum of squares)
 * `iter` is the number of iterations until convergence
 * `time` is the time spent in computations
-* `beta` is the vector of the optimal statistical model
+* `beta` is the vector of the optimal statistical model.
 
 IHT.jl also facilitates crossvalidation for the best model size. 
-Given a vector `path` of model sizes to test,
+Given a vector `modelsizes` of model sizes to test,
 we perform _q_-fold crossvalidation via
 
-    errors, b, bidx = cv_iht(x, y, path, q)
+    cv_output = cv_iht(x, y, modelsizes, q)
 
-where `errors` contains the mean squared errors for each model size, `b` contains the estimated coefficients at the optimal statistical model, and `bidx` indexes the model itself. 
+where `cv_output` is an `IHTCrossvalidationResults` container object with the following fields:
+
+* `mses` contains the mean squared errors for each model size
+* `b` contains the estimated coefficients at the optimal statistical model
+* `bidx` contains the indices of the predictors in the best crossvalidated model
+* `k` is the best crossvalidated model size.
+
 Important optimal arguments to `cv_iht` include 
 
 * `folds`, a `DenseVector{Int}` object to assign data to each fold
 * `pids`, the `Int` vector of process IDs to which we distribute computations
-* `refit`, a `Bool` to determine whether or not to refit the model. Defaults to `true`. `refit = false` removes the output `b` and `bidx`.
+* `refit`, a `Bool` to determine whether or not to refit the model. 
 
+To fix the folds, pass a prespecified integer vector to `folds`.
+Note that the `refit` argument defaults to true.
+Specifying `refit = false` sets`b = [0.0]` and `bidx = [0]` in `cv_output`.
 
 ## GWAS
 
@@ -36,7 +45,7 @@ IHT.jl interfaces with [PLINK.jl](https://github.com/klkeys/PLINK.jl) to enable 
 The interface is largely unchanged:
 
     output = L0_reg(x::BEDFile, y, k)
-    errors, b, bidx = cv_iht(x::BEDFile, y, path, q)
+    cv_output = cv_iht(x::BEDFile, y, modelsizes, q)
 
 See the documentation of PLINK.jl for details about the `BEDFile` object.
 
@@ -56,10 +65,12 @@ Use of `Float32` arithmetic yields faster execution times but may suffer from nu
 
 Crossvalidation with GPUs is a complicated topic. For processes indexed by a vector `pids`, IHT farms an entire copy of the data to each host process ID. OpenCL memory constraints dictate that each process ID should have its own copy of the data on the device. For the most part, the data **must** be stored in binary format. The exception is the matrix of nongenetic covariates. Then IHT.jl performs crossvalidation with GPUs via
 
-    errors, b, bidx = cv_iht(xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, kernfile, folds, q) 
+    cv_output = cv_iht(xfile, xtfile, x2file, yfile, meanfile, invstdfile, modelsizes, kernfile, folds, q) 
 
 Here the additional `*file` arguments yield paths to construct the `BEDFile` object, the response vector `y`, and the means and inverse standard deviations (precisions).
 Use of filenames facilitates initialization of the data on each process as a set of `SharedArray` objects.
+Because `SharedArrays` perform a memory map to the binary data on the hard drive, the data **cannot** be loaded directly into `cv_iht` from the Julia REPL.
+Users should save all data to file and then run the crossvalidation routine.
 
 **NOTA BENE:** IHT.jl currently makes no effort to ensure that the GPU contains sufficient memory for _q_ copies of the data.
 Users are urged to consider device memory limits when calling `cv_iht`.
