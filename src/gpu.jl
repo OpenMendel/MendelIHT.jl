@@ -562,6 +562,7 @@ function cv_iht(
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
         xty = BLAS.gemv('T', one(T), x_inferred, y)
         xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
+        b   = zeros(T, length(bidx))
         try 
             b = (xtx \ xty) :: Vector{T}
         catch e

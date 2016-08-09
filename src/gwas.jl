@@ -328,26 +328,34 @@ function one_fold{T <: Float}(
     max_step :: Int              = 50,
     quiet    :: Bool             = true
 )
+    # dimensions of problem
+    n,p = size(x)
 
     # make vector of indices for folds
     test_idx = folds .== fold
     test_size = sum(test_idx)
 
-    # preallocate vector for output
-    myerrors = zeros(T, test_size)
-
     # train_idx is the vector that indexes the TRAINING set
     train_idx = !test_idx
-    mask_n    = convert(Int, train_idx)
-    mask_test = convert(Int, test_idx) 
-
-    # allocate the arrays for the training set
-    xb      = SharedArray(T, test_size, init = S -> S[localindexes(S)] = zero(T), pids=pids)
-    b       = SharedArray(T, size(x,2), init = S -> S[localindexes(S)] = zero(T), pids=pids)
-    r       = SharedArray(T, test_size, init = S -> S[localindexes(S)] = zero(T), pids=pids)
+    mask_n    = convert(Vector{Int}, train_idx)
+    mask_test = convert(Vector{Int}, test_idx) 
 
     # compute the regularization path on the training set
     betas = iht_path(x, y, path, mask_n=mask_n, max_iter=max_iter, quiet=quiet, max_step=max_step, pids=pids)
+
+    # tidy up
+    gc()
+
+    # preallocate vector for output
+    myerrors = zeros(T, length(path))
+
+    # allocate an index vector for b
+    indices = falses(p)
+
+    # allocate the arrays for the test set
+    xb      = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)
+    b       = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)
+    r       = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)
 
     # compute the mean out-of-sample error for the TEST set
     # do this for every computed model in regularization path
@@ -366,7 +374,7 @@ function one_fold{T <: Float}(
         A_mul_B!(xb, x, b, indices, path[i], mask_test, pids=pids)
 
         # compute residuals
-        difference!(r,y,Xb)
+        difference!(r, y, xb)
 
         # compute out-of-sample error as squared residual averaged over size of test set
         myerrors[i] = sumabs2(r) / test_size / 2
@@ -386,7 +394,6 @@ function pfold(
     path       :: DenseVector{Int},
     folds      :: DenseVector{Int},
     q          :: Int;
-    devindices :: DenseVector{Int} = ones(Int,q),
     pids       :: DenseVector{Int} = procs(),
     max_iter   :: Int  = 100,
     max_step   :: Int  = 50,
@@ -431,9 +438,6 @@ function pfold(
                         # if current fold exceeds total number of folds then exit loop
                         current_fold > q && break
 
-                        # grab index of GPU device
-                        devidx = devindices[current_fold]
-
                         # report distribution of fold to worker and device
                         quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker and device $devidx.\n\n")
 
@@ -445,7 +449,7 @@ function pfold(
                                 x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
                                 y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
-                                one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, devidx=devidx, pids=pids)
+                                one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
                         end # end remotecall_fetch()
                     end # end while
                 end # end @async
@@ -459,7 +463,7 @@ end
 
 
 # default type for pfold is Float64
-pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 
 
@@ -494,17 +498,14 @@ function cv_iht(
     header   :: Bool  = false
 )
 
-    # dimensions of problem
-    n,p = size(x)
+    # enforce type
+    T <: Float             || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # how many elements are in the path?
     num_models = length(path)
 
-    # preallocate vectors used in xval
-    errors = zeros(T, num_models)    # vector to save mean squared errors
-
     # compute folds in parallel
-    mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
+    mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, header=header)
 
     # what is the best model size?
     k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
@@ -514,6 +515,10 @@ function cv_iht(
 
     # recompute ideal model
     if refit
+
+        # load data on *all* processes
+        x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
+        y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
         # first use L0_reg to extract model
         output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
@@ -529,6 +534,7 @@ function cv_iht(
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
         xty = BLAS.gemv('T', one(T), x_inferred, y)
         xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
+        b   = zeros(T, length(bidx))
         try 
             b = (xtx \ xty) :: Vector{T}
         catch e
@@ -543,4 +549,4 @@ function cv_iht(
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, refit::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, refit=refit, header=header)
+cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, refit::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)

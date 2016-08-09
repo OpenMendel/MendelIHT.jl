@@ -166,6 +166,11 @@ immutable IHTCrossvalidationResults{T <: Float}
     b    :: Vector{T}
     bidx :: Vector{Int}
     k    :: Int
+
+#    IHTCrossvalidationResults(mses::Vector{T}, b::Vector{T}, bidx::Vector{Int}, k::Int) = new(mses, b, bidx, k)
+end
+function IHTCrossvalidationResults{T <: Float}(mses::Vector{T}, b::Vector{T}, bidx::Vector{Int}, k::Int)
+    IHTCrossvalidationResults{eltype(mses)}(mses, b, bidx, k)
 end
 
 function IHTCrossvalidationResults{T <: Float}(
