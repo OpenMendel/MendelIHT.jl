@@ -17,13 +17,13 @@ function IHTResults{T <: Float}(
 end
 
 
-
-# display function for IHTResults object
-function Base.display(x::IHTResults)
-    println("\ttime: ", x.time) 
-    println("\tloss: ", x.loss) 
-    println("\titer: ", x.iter) 
-    println("\tb:    A ", typeof(x.beta), " with ", countnz(x.beta), " nonzeroes.")
+# function to display IHTResults object
+function Base.show(io::IO, x::IHTResults)
+    println(io, "\ttime: ", x.time) 
+    println(io, "\tloss: ", x.loss) 
+    println(io, "\titer: ", x.iter) 
+    println(io, "\tb:    A ", typeof(x.beta), " with ", countnz(x.beta), " nonzeroes.")
+    print(io, DataFrame(Predictor=find(x.beta), β=x.beta[find(x.beta)]))
     return nothing
 end
 
@@ -163,23 +163,33 @@ end
 # return type for crossvalidation
 immutable IHTCrossvalidationResults{T <: Float}
     mses :: Vector{T}
+    path :: Vector{Int}
     b    :: Vector{T}
     bidx :: Vector{Int}
     k    :: Int
 
 #    IHTCrossvalidationResults(mses::Vector{T}, b::Vector{T}, bidx::Vector{Int}, k::Int) = new(mses, b, bidx, k)
 end
-function IHTCrossvalidationResults{T <: Float}(mses::Vector{T}, b::Vector{T}, bidx::Vector{Int}, k::Int)
-    IHTCrossvalidationResults{eltype(mses)}(mses, b, bidx, k)
+function IHTCrossvalidationResults{T <: Float}(mses::Vector{T}, path::Vector{Int}, b::Vector{T}, bidx::Vector{Int}, k::Int)
+    IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k)
 end
 
 function IHTCrossvalidationResults{T <: Float}(
     mses :: Vector{T},
+    path :: Vector{Int},
     k    :: Int
 )   
     b    = zeros(T, 1)
     bidx = zeros(Int, 1)
-    IHTCrossvalidationResults{T}(mses, b, bidx, k)
+    IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+end
+
+function Base.show(io::IO, x::IHTCrossvalidationResults)
+    println(io, "An IHTCrossvalidationResults object with the following results:")
+    println(io, "Minimum MSE ", minimum(x.mses), " occurs at k = $(x.k).")
+    println(io, "Best model β has the following nonzero coefficients:")
+    println(io, DataFrame(Predictor=x.bidx, β=x.b))
+    return nothing
 end
 
 

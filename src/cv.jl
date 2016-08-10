@@ -218,8 +218,8 @@ function cv_iht{T <: Float}(
             fill!(b, -Inf)
         end 
 
-        return IHTCrossvalidationResults{T}(mses, b, bidx, k)
+        return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
     end
 
-    return IHTCrossvalidationResults(mses, k)
+    return IHTCrossvalidationResults(mses, path, k)
 end

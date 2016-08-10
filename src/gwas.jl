@@ -1,32 +1,32 @@
-function update_r_grad!{T}(
-    v    :: IHTVariables{T},
-    x    :: BEDFile{T},
-    y    :: DenseVector{T};
-    pids :: DenseVector{Int} = procs(x)
-)
-    difference!(v.r, y, v.xb)
-    PLINK.At_mul_B!(v.df, x, v.r, pids=pids)
-    return nothing
-end
-
-function initialize_xb_r_grad!{T <: Float}(
-    temp :: IHTVariables{T},
-    x    :: BEDFile{T},
-    y    :: DenseVector{T},
-    k    :: Int;
-    pids :: DenseVector{Int} = procs(x)
-)
-    if sum(temp.idx) == 0
-        fill!(temp.xb, zero(T))
-        copy!(temp.r, y)
-        At_mul_B!(temp.df, x, temp.r, pids=pids)
-    else
-        update_indices!(temp.idx, temp.b)
-        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, pids=pids)
-        update_r_grad!(temp, x, y, pids=pids)
-    end
-    return nothing
-end
+#function update_r_grad!{T}(
+#    v    :: IHTVariables{T},
+#    x    :: BEDFile{T},
+#    y    :: DenseVector{T};
+#    pids :: DenseVector{Int} = procs(x)
+#)
+#    difference!(v.r, y, v.xb)
+#    PLINK.At_mul_B!(v.df, x, v.r, pids=pids)
+#    return nothing
+#end
+#
+#function initialize_xb_r_grad!{T <: Float}(
+#    temp :: IHTVariables{T},
+#    x    :: BEDFile{T},
+#    y    :: DenseVector{T},
+#    k    :: Int;
+#    pids :: DenseVector{Int} = procs(x)
+#)
+#    if sum(temp.idx) == 0
+#        fill!(temp.xb, zero(T))
+#        copy!(temp.r, y)
+#        At_mul_B!(temp.df, x, temp.r, pids=pids)
+#    else
+#        update_indices!(temp.idx, temp.b)
+#        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, pids=pids)
+#        update_r_grad!(temp, x, y, pids=pids)
+#    end
+#    return nothing
+#end
 
 """
     iht!(b, x::BEDFile, y, k, g)
@@ -123,6 +123,7 @@ function L0_reg{T <: Float}(
     k        :: Int;
     pids     :: DenseVector{Int} = procs(),
     temp     :: IHTVariables{T}  = IHTVariables(x, y, k),
+    mask_n   :: DenseVector{Int} = ones(Int, size(y)),
     tol      :: Float            = convert(T, 1e-4),
     max_iter :: Int              = 100,
     max_step :: Int              = 50,
@@ -137,6 +138,8 @@ function L0_reg{T <: Float}(
     max_iter >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
     max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
     tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+    n = length(y)
+    sum((mask_n .== 1) $ (mask_n .== 0)) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
 
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
@@ -157,7 +160,19 @@ function L0_reg{T <: Float}(
     converged = false             # scaled_norm < tol?
 
     # update xb, r, and gradient
-    initialize_xb_r_grad!(temp, x, y, k, pids=pids)
+#    initialize_xb_r_grad!(temp, x, y, k, pids=pids)
+    if sum(temp.idx) == 0
+        fill!(temp.xb, zero(T))
+        copy!(temp.r, y)
+        mask!(temp.r, mask_n, 0, zero(T), n=n)
+    else
+        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n, pids=pids)
+        difference!(temp.r, y, temp.xb)
+        mask!(temp.r, mask_n, 0, zero(T), n=n)
+    end
+
+    # calculate the gradient
+    At_mul_B!(temp.df, x, temp.r, mask_n, pids=pids)
 
     # formatted output to monitor algorithm progress
     !quiet && print_header()
@@ -192,7 +207,12 @@ function L0_reg{T <: Float}(
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
-        update_r_grad!(temp, x, y, pids=pids)
+#        update_r_grad!(temp, x, y, pids=pids)
+        difference!(temp.r, y, temp.xb)
+        mask!(temp.r, mask_n, 0, zero(T), n=n)
+
+        # use updated residuals to recompute the gradient on the GPU
+        At_mul_B!(temp.df, x, temp.r, mask_n, pids=pids)
 
         # update loss, objective, and gradient
         next_loss = sumabs2(sdata(temp.r)) / 2
@@ -264,8 +284,7 @@ function iht_path{T <: Float}(
 )
 
     # size of problem?
-    n = length(y)
-    p = size(x,2)
+    n,p = size(x)
 
     # how many models will we compute?
     num_models = length(path)
@@ -293,7 +312,7 @@ function iht_path{T <: Float}(
         project_k!(temp.b, q)
 
         # now compute current model
-        output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
+        output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n)
 
         # ensure that we correctly index the nonzeroes in b
         update_indices!(temp.idx, output.beta)
@@ -324,9 +343,10 @@ function one_fold{T <: Float}(
     folds    :: DenseVector{Int},
     fold     :: Int;
     pids     :: DenseVector{Int} = procs(x),
-    max_iter :: Int              = 100,
-    max_step :: Int              = 50,
-    quiet    :: Bool             = true
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true
 )
     # dimensions of problem
     n,p = size(x)
@@ -341,7 +361,7 @@ function one_fold{T <: Float}(
     mask_test = convert(Vector{Int}, test_idx) 
 
     # compute the regularization path on the training set
-    betas = iht_path(x, y, path, mask_n=mask_n, max_iter=max_iter, quiet=quiet, max_step=max_step, pids=pids)
+    betas = iht_path(x, y, path, mask_n=mask_n, max_iter=max_iter, quiet=quiet, max_step=max_step, pids=pids, tol=tol)
 
     # tidy up
     gc()
@@ -353,9 +373,9 @@ function one_fold{T <: Float}(
     indices = falses(p)
 
     # allocate the arrays for the test set
-    xb      = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)
-    b       = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)
-    r       = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)
+    xb = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)
+    b  = SharedArray(T, p, init = S -> S[localindexes(S)] = zero(T), pids=pids)
+    r  = SharedArray(T, n, init = S -> S[localindexes(S)] = zero(T), pids=pids)
 
     # compute the mean out-of-sample error for the TEST set
     # do this for every computed model in regularization path
@@ -375,6 +395,11 @@ function one_fold{T <: Float}(
 
         # compute residuals
         difference!(r, y, xb)
+
+        # mask data from training set
+        # training set consists of data NOT in fold:
+        # r[folds .!= fold] = zero(Float64)
+        mask!(r, mask_test, 0, zero(T))
 
         # compute out-of-sample error as squared residual averaged over size of test set
         myerrors[i] = sumabs2(r) / test_size / 2
@@ -439,13 +464,12 @@ function pfold(
                         current_fold > q && break
 
                         # report distribution of fold to worker and device
-                        quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker and device $devidx.\n\n")
+                        quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker.\n\n")
 
                         # launch job on worker
                         # worker loads data from file paths and then computes the errors in one fold
                         results[current_fold] = remotecall_fetch(worker) do
                                 pids = [worker]
-#                                x = BEDFile(T, xfile, xtfile, x2file, pids=pids, header=header)
                                 x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
                                 y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
@@ -468,17 +492,14 @@ pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCII
 
 
 """
-    cv_iht(x::BEDFile, y, path, q)
+    cv_iht(xfile,xtfile,x2file,yfile,meanfile,precfile,path,folds,q [, pids=procs()])
 
-If used with a `BEDFile` object `x`, then the additional optional arguments are:
-
-- `pids`, a vector of process IDs. Defaults to `procs()`.
-- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
-- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
+This variant of `cv_iht()` performs `q`-fold crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
+with column means stored in `meanfile` and column precisions stored in `precfile`.
+The continuous response is stored in `yfile` with data particioned by the `Int` vector `folds`.
+The folds are distributed across the processes given by `pids`.
 """
 function cv_iht(
-#    x             :: BEDFile{T},
-#    y             :: DenseVector{T},
     T        :: Type,
     xfile    :: ASCIIString,
     xtfile   :: ASCIIString,
@@ -489,17 +510,17 @@ function cv_iht(
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int}, 
     q        :: Int;
-    pids     :: DenseVector{Int} = procs(x),
+    pids     :: DenseVector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
     quiet    :: Bool  = true,
-    refit    :: Bool  = false,
+    refit    :: Bool  = true,
     header   :: Bool  = false
 )
 
     # enforce type
-    T <: Float             || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # how many elements are in the path?
     num_models = length(path)
@@ -528,7 +549,7 @@ function cv_iht(
         bidx = find(inferred_model)
 
         # allocate the submatrix of x corresponding to the inferred model
-        x_inferred = zeros(T, n, sum(inferred_model))
+        x_inferred = zeros(T, x.geno.n, sum(inferred_model))
         decompress_genotypes!(x_inferred, x, inferred_model)
 
         # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
@@ -542,11 +563,11 @@ function cv_iht(
             fill!(b, -Inf)
         end 
 
-        return IHTCrossvalidationResults{T}(mses, b, bidx, k)
+        return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
     end
 
-    return IHTCrossvalidationResults(mses, k)
+    return IHTCrossvalidationResults(mses, path, k)
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, refit::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
+cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, refit::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)

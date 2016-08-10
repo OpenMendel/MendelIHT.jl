@@ -188,9 +188,6 @@ function iht_path{T <: Float}(
     # how many models will we compute?
     num_models = length(path)
 
-#    # preallocate temporary arrays
-#    temp = IHTVariables(x, y, 1)
-
     # also preallocate matrix to store betas
     betas = spzeros(T,p,num_models) # a matrix to store calculated models
 
@@ -211,7 +208,7 @@ function iht_path{T <: Float}(
         project_k!(temp.b, q)
 
         # now compute current model
-        output = L0_reg(x,y,q,kernfile, temp=temp, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids) 
+        output = L0_reg(x, y, q, kernfile, temp=temp, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n) 
 
         # ensure that we correctly index the nonzeroes in b
         update_indices!(temp.idx, output.beta)
@@ -269,7 +266,7 @@ function one_fold{T <: Float}(
     test_idx  = convert(Vector{Int}, test_idx)
 
     # compute the regularization path on the training set
-    betas = iht_path(x, y, path, kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, mask_n=train_idx, pids=pids, tol=tol, max_iter=max_iter)
+    betas = iht_path(x, y, path, kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, mask_n=train_idx, pids=pids, tol=tol)
 
     # tidy up
     gc()
@@ -299,7 +296,6 @@ function one_fold{T <: Float}(
         update_indices!(indices, b)
 
         # compute estimated response Xb with $(path[i]) nonzeroes
-        #xb!(Xb,x,b,indices,path[i],test_idx, means=means, invstds=invstds, pids=pids)
         A_mul_B!(xb, x, b, indices, path[i], test_idx, pids=pids)
 
         # compute residuals
@@ -308,10 +304,10 @@ function one_fold{T <: Float}(
         # mask data from training set
         # training set consists of data NOT in fold:
         # r[folds .!= fold] = zero(Float64)
-        mask!(r, test_idx, 0, zero(T), n=n)
+        mask!(r, test_idx, 0, zero(T))
 
         # compute out-of-sample error as squared residual averaged over size of test set
-        myerrors[i] = sumabs2(r) / test_size
+        myerrors[i] = sumabs2(r) / test_size / 2
     end
 
     return myerrors :: Vector{T}
@@ -448,11 +444,9 @@ function pfold(
                         # worker loads data from file paths and then computes the errors in one fold
                         results[current_fold] = remotecall_fetch(worker) do
                                 pids = [worker]
-#                                x = BEDFile(T, xfile, xtfile, x2file, pids=pids, header=header)
                                 x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
                                 y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
-                                #one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, devidx=devidx, pids=pids)
                                 one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
                         end # end remotecall_fetch()
                     end # end while
@@ -473,11 +467,11 @@ pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCII
 """
     cv_iht(xfile,xtfile,x2file,yfile,meanfile,precfile,path,kernfile,folds,q [, pids=procs(), wg_size=512])
 
-This variant of `cv_iht()` performs `q`-fold crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
+This variant of `cv_iht()` uses a GPU to perform `q`-fold crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
 with column means stored in `meanfile` and column precisions stored in `precfile`.
 The continuous response is stored in `yfile` with data particioned by the `Int` vector `folds`.
-The calculations employ GPU acceleration by calling OpenCL kernels from `kernfile` with workgroup size `wg_size`.
 The folds are distributed across the processes given by `pids`.
+The calculations employ GPU acceleration by calling OpenCL kernels from `kernfile` with workgroup size `wg_size`.
 """
 function cv_iht(
     T        :: Type,
@@ -497,11 +491,11 @@ function cv_iht(
     max_step :: Int   = 50,
     wg_size  :: Int   = 512,
     quiet    :: Bool  = true,
-    refit    :: Bool  = false,
+    refit    :: Bool  = true,
     header   :: Bool  = false
 )
-    #0 <= length(path) <= p || throw(ArgumentError("Path length must be positive and cannot exceed number of predictors"))
-    T <: Float             || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    # enforce type
+    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
     # how many elements are in the path?
     num_models = length(path)
@@ -549,7 +543,7 @@ function cv_iht(
         y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
         # first use L0_reg to extract model
-        output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+        output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
 
         # which components of beta are nonzero?
         inferred_model = output.beta .!= zero(T)
@@ -570,11 +564,11 @@ function cv_iht(
             fill!(b, -Inf)
         end 
 
-        return IHTCrossvalidationResults{T}(mses, b, bidx, k)
+        return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
     end
 
-    return IHTCrossvalidationResults(mses, k)
+    return IHTCrossvalidationResults(mses, path, k)
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, refit::Bool=false, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, refit=refit, header=header)
+cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, refit::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, refit=refit, header=header)

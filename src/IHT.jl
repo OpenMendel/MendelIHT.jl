@@ -5,6 +5,10 @@ using PLINK
 using RegressionTools
 using OpenCL
 using StatsBase
+using DataFrames
+
+# used for pretty printing of IHTResults, IHTCrossvalidationResults
+import Base.show
 
 export L0_reg
 export L0_log
