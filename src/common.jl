@@ -1,4 +1,7 @@
-# an object with returned results
+# ----------------------------------------- #
+# functions for handling temporary arrays
+
+# an object that houses results returned from an IHT run
 immutable IHTResults{T <: Float, V <: DenseVector}
     time :: T
     loss :: T
@@ -7,11 +10,13 @@ immutable IHTResults{T <: Float, V <: DenseVector}
 
     IHTResults(time::T, loss::T, iter::Int, beta::DenseVector{T}) = new(time, loss, iter, beta)
 end
+
+# strongly typed external constructor for IHTResults
 function IHTResults{T <: Float}(
     time :: T,
     loss :: T,
     iter :: Int,
-    beta :: DenseVector{T} 
+    beta :: DenseVector{T}
 )
     IHTResults{T, typeof(beta)}(time, loss, iter, beta)
 end
@@ -19,18 +24,18 @@ end
 
 # function to display IHTResults object
 function Base.show(io::IO, x::IHTResults)
-    println(io, "\ttime: ", x.time) 
-    println(io, "\tloss: ", x.loss) 
-    println(io, "\titer: ", x.iter) 
-    println(io, "\tb:    A ", typeof(x.beta), " with ", countnz(x.beta), " nonzeroes.")
+    println(io, "\nCompute time:   ", x.time)
+    println(io, "Final loss:     ", x.loss)
+    println(io, "Iterations::    ", x.iter)
+    println(io, "IHT estimated a vector of type ", typeof(x.beta), " with ", countnz(x.beta), " nonzeroes.")
     print(io, DataFrame(Predictor=find(x.beta), β=x.beta[find(x.beta)]))
     return nothing
 end
 
-# an object to contain intermediate variables
+# an object to contain intermediate variables and temporary arrays
 type IHTVariables{T <: Float, V <: DenseVector}
     b    :: V
-    b0   :: Vector{T} 
+    b0   :: Vector{T}
     xb   :: V
     xb0  :: Vector{T}
     xk   :: Matrix{T}
@@ -38,15 +43,15 @@ type IHTVariables{T <: Float, V <: DenseVector}
     xgk  :: Vector{T}
     idx  :: BitArray{1}
     idx0 :: BitArray{1}
-    r    :: V 
+    r    :: V
     df   :: V
 
-    IHTVariables(b::DenseVector{T}, b0::Vector{T}, xb::DenseVector{T}, xb0::Vector{T}, xk::Matrix{T}, 
+    IHTVariables(b::DenseVector{T}, b0::Vector{T}, xb::DenseVector{T}, xb0::Vector{T}, xk::Matrix{T},
                  gk::Vector{T}, xgk::Vector{T}, idx::BitArray{1}, idx0::BitArray{1}, r::DenseVector{T},
                  df::DenseVector{T}) = new(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
-# strong type construction of previous object
+# strong type construction of IHTVariables
 function IHTVariables{T <: Float}(
     b    :: DenseVector{T},
     b0   :: Vector{T},
@@ -65,7 +70,7 @@ end
 
 
 # minor type instability with SharedArray constructors
-# a small optimization for the future, but will not dramatically change performance 
+# a small optimization for the future, but will not dramatically change performance
 # try defining b0, xb0 first and then calling "SharedVector(b0)", "SharedVector(xb0)"
 function IHTVariables{T <: Float}(
     x :: SharedMatrix{T},
@@ -75,16 +80,16 @@ function IHTVariables{T <: Float}(
     pids = procs(x)
     V    = typeof(y)
     n, p = size(x)
-#    b    = SharedArray(T, (p,), pids=pids) :: V 
+#    b    = SharedArray(T, (p,), pids=pids) :: V
 #    df   = SharedArray(T, (p,), pids=pids) :: V
 #    xb   = SharedArray(T, (n,), pids=pids) :: V
 #    r    = SharedArray(T, (n,), pids=pids) :: V
-    b0   = zeros(T, p) 
-    b    = convert(V, SharedArray(T, size(b0), pids=pids)) 
-    df   = convert(V, SharedArray(T, size(b0), pids=pids)) 
+    b0   = zeros(T, p)
+    b    = convert(V, SharedArray(T, size(b0), pids=pids))
+    df   = convert(V, SharedArray(T, size(b0), pids=pids))
     xb   = convert(V, SharedArray(T, size(y), pids=pids))
     r    = convert(V, SharedArray(T, size(y), pids=pids))
-    xb0  = zeros(T, n) 
+    xb0  = zeros(T, n)
     xk   = zeros(T, n, k)
     xgk  = zeros(T, n)
     gk   = zeros(T, k)
@@ -93,6 +98,7 @@ function IHTVariables{T <: Float}(
     return IHTVariables{T, V}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
+# strongly typed constructor for IHTVariables using regular floating point arrays
 function IHTVariables{T <: Float}(
     x :: Matrix{T},
     y :: Vector{T},
@@ -113,6 +119,7 @@ function IHTVariables{T <: Float}(
     return IHTVariables{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
+# strongly typed constructor for IHTVariables using BEDFile + SharedVector
 function IHTVariables{T <: Float}(
     x :: BEDFile{T},
     y :: SharedVector{T},
@@ -121,12 +128,12 @@ function IHTVariables{T <: Float}(
     n, p = size(x)
     pids = procs(x)
     V    = typeof(y)
-    b    = SharedArray(T, (p,), pids=pids) :: V 
+    b    = SharedArray(T, (p,), pids=pids) :: V
     df   = SharedArray(T, (p,), pids=pids) :: V
     xb   = SharedArray(T, (n,), pids=pids) :: V
     r    = SharedArray(T, (n,), pids=pids) :: V
-    b0   = zeros(T, p) 
-    xb0  = zeros(T, n) 
+    b0   = zeros(T, p)
+    xb0  = zeros(T, n)
     xk   = zeros(T, n, k)
     xgk  = zeros(T, n)
     gk   = zeros(T, k)
@@ -170,20 +177,30 @@ immutable IHTCrossvalidationResults{T <: Float}
 
 #    IHTCrossvalidationResults(mses::Vector{T}, b::Vector{T}, bidx::Vector{Int}, k::Int) = new(mses, b, bidx, k)
 end
-function IHTCrossvalidationResults{T <: Float}(mses::Vector{T}, path::Vector{Int}, b::Vector{T}, bidx::Vector{Int}, k::Int)
+
+# strongly typed constructor for IHT CVR object
+function IHTCrossvalidationResults{T <: Float}(
+    mses :: Vector{T},
+    path :: Vector{Int},
+    b    :: Vector{T},
+    bidx :: Vector{Int},
+    k    :: Int
+)
     IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k)
 end
 
+# constructor for when b, bidx are not available
 function IHTCrossvalidationResults{T <: Float}(
     mses :: Vector{T},
     path :: Vector{Int},
     k    :: Int
-)   
+)  
     b    = zeros(T, 1)
     bidx = zeros(Int, 1)
     IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
 end
 
+# function to view an IHTCrossvalidationResults object
 function Base.show(io::IO, x::IHTCrossvalidationResults)
     println(io, "An IHTCrossvalidationResults object with the following results:")
     println(io, "Minimum MSE ", minimum(x.mses), " occurs at k = $(x.k).")
@@ -192,9 +209,73 @@ function Base.show(io::IO, x::IHTCrossvalidationResults)
     return nothing
 end
 
+# ----------------------------------------- #
+# subroutines for L0_reg 
+
+# subroutine to update residuals and gradient from data
+function update_r_grad!{T}(
+    v :: IHTVariables{T},
+    x :: DenseMatrix{T},
+    y :: DenseVector{T}
+)
+    difference!(v.r, y, v.xb)
+    BLAS.gemv!('T', one(T), x, v.r, zero(T), v.df)
+    return nothing
+end
+
+function initialize_xb_r_grad!{T <: Float}(
+    temp :: IHTVariables{T},
+    x    :: DenseMatrix{T},
+    y    :: DenseVector{T},
+    k    :: Int
+)
+    # update x*beta
+    if sum(temp.idx) == 0
+        fill!(temp.xb, zero(T))
+    else
+        update_indices!(temp.idx, temp.b)
+        update_xb!(temp.xb, x, temp.b, temp.idx, k)
+    end
+
+    # update r and gradient
+    update_r_grad!(temp, x, y)
+end
+
+#function update_r_grad!{T}(
+#    v    :: IHTVariables{T},
+#    x    :: BEDFile{T},
+#    y    :: DenseVector{T};
+#    pids :: DenseVector{Int} = procs(x)
+#)
+#    difference!(v.r, y, v.xb)
+#    PLINK.At_mul_B!(v.df, x, v.r, pids=pids)
+#    return nothing
+#end
+#
+#function initialize_xb_r_grad!{T <: Float}(
+#    temp :: IHTVariables{T},
+#    x    :: BEDFile{T},
+#    y    :: DenseVector{T},
+#    k    :: Int;
+#    pids :: DenseVector{Int} = procs(x)
+#)
+#    if sum(temp.idx) == 0
+#        fill!(temp.xb, zero(T))
+#        copy!(temp.r, y)
+#        At_mul_B!(temp.df, x, temp.r, pids=pids)
+#    else
+#        update_indices!(temp.idx, temp.b)
+#        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, pids=pids)
+#        update_r_grad!(temp, x, y, pids=pids)
+#    end
+#    return nothing
+#end
+
 
 # ----------------------------------------- #
 # common subroutines for IHT stepping
+
+# this function updates the BitArray indices for b
 function _iht_indices{T <: Float}(
     v :: IHTVariables{T},
     k :: Int;
@@ -215,6 +296,7 @@ function _iht_indices{T <: Float}(
 end
 
 # TODO 29 June 2016: this is type-unstable! must fix
+# this function computes the step size for one update with iht()
 function _iht_stepsize{T <: Float}(
     v :: IHTVariables{T},
     k :: Int
@@ -236,7 +318,7 @@ function _iht_stepsize{T <: Float}(
     return a / b :: T
 end
 
-
+# this function computes one gradient step in iht()
 function _iht_gradstep{T <: Float}(
     v  :: IHTVariables{T},
     mu :: T,
@@ -253,9 +335,9 @@ function _iht_gradstep{T <: Float}(
 
     # must correct for equal entries at kth pivot of b
     # **note**: this uses Base.unsafe_setindex! to circumvent type stability issues
-    # this is a VERY DANGEROUS DARK SIDE HACK! 
-    # hack randomly permutes indices of duplicates and retains one 
-    if sum(v.idx) > k 
+    # this is a VERY DANGEROUS DARK SIDE HACK!
+    # hack randomly permutes indices of duplicates and retains one
+    if sum(v.idx) > k
         a = select(v.b, k, by=abs, rev=true)    # compute kth pivot
         dupes = (abs(v.b) .== abs(a))           # find duplicates
         l = sum(dupes)                          # how many duplicates?
@@ -265,20 +347,21 @@ function _iht_gradstep{T <: Float}(
         deleteat!(d, 1)                         # save first duplicate
         Base.unsafe_setindex!(v.b, zero(T), d)  # zero out other duplicates
         Base.unsafe_setindex!(v.idx, false, d)  # set corresponding indices to false
-    end 
+    end
 
     return nothing
 end
 
-
+# this function calculates the omega (here a / b) used for determining backtracking
 function _iht_omega{T <: Float}(
     v :: IHTVariables{T}
 )
     a = sqeuclidean(v.b, v.b0::Vector{T}) :: T
     b = sqeuclidean(v.xb, v.xb0::Vector{T}) :: T
-    return a, b 
+    return a, b
 end
 
+# a function for determining whether or not to backtrack
 function _iht_backtrack{T <: Float}(
     v       :: IHTVariables{T},
     ot      :: T,
@@ -287,20 +370,24 @@ function _iht_backtrack{T <: Float}(
     mu_step :: Int,
     nstep   :: Int
 )
-    mu*ob > 0.99*ot          && 
-    sum(v.idx) != 0          && 
-    sum(v.idx $ v.idx0) != 0 && 
+    mu*ob > 0.99*ot          &&
+    sum(v.idx) != 0          &&
+    sum(v.idx $ v.idx0) != 0 &&
     mu_step < nstep
 end
 
+
 # ----------------------------------------- #
 # printing routines
+
+# this prints the start of the algo
 function print_header()
      println("\nBegin IHT algorithm\n")
      println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
      println("0\t0\tInf\t\tInf\t\tInf")
 end
 
+# alert when a descent error is found
 function print_descent_error{T <: Float}(iter::Int, loss::T, next_loss::T)
     print_with_color(:red, "\nIHT algorithm fails to descend!\n")
     print_with_color(:red, "Iteration: $(iter)\n")
@@ -309,23 +396,28 @@ function print_descent_error{T <: Float}(iter::Int, loss::T, next_loss::T)
     print_with_color(:red, "Difference in objectives: $(abs(next_loss - loss))\n")
 end
 
+# announce algo convergence
 function print_convergence{T <: Float}(iter::Int, loss::T, ctime::T)
     println("\nIHT algorithm has converged successfully.")
     println("Results:\nIterations: $(iter)")
     println("Final Loss: $(loss)")
     println("Total Compute Time: $(ctime)")
-end 
+end
 
+# check the finiteness of an objective function value
+# throw an error if value is not finite
 function check_finiteness{T <: Float}(x::T)
     isnan(x) && throw(error("Objective function is NaN, aborting..."))
     isinf(x) && throw(error("Objective function is Inf, aborting..."))
 end
 
+# alert if iteration limit is reached
 function print_maxiter{T <: Float}(max_iter::Int, loss::T)
     print_with_color(:red, "IHT algorithm has hit maximum iterations $(max_iter)!\n")
     print_with_color(:red, "Current Loss: $(loss)\n")
-end 
+end
 
+# verbose printing of cv results
 function print_cv_results{T <: Float}(errors::DenseVector{T}, path::DenseVector{Int}, k::Int)
     println("\n\nCrossvalidation Results:")
     println("k\tMSE")
@@ -334,4 +426,3 @@ function print_cv_results{T <: Float}(errors::DenseVector{T}, path::DenseVector{
     end
     println("\nThe lowest MSE is achieved at k = ", k)
 end
-

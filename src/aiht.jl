@@ -1,3 +1,5 @@
+### 10 August 2016: currently this is not used. it has not proven to be faster than IHT itself
+### left here just in case it proves useful later
 export L0_reg_aiht
 
 # DOUBLE OVERRELAXATION SCHEME TO ACCELERATE IHT

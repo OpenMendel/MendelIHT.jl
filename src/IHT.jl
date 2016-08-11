@@ -18,6 +18,7 @@ export cv_iht
 export cv_get_folds
 export cv_log
 
+# IHT will only work on single/double precision floats!
 typealias Float Union{Float64, Float32}
 
 include("common.jl")

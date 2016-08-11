@@ -1,43 +1,13 @@
-#function update_r_grad!{T}(
-#    v    :: IHTVariables{T},
-#    x    :: BEDFile{T},
-#    y    :: DenseVector{T};
-#    pids :: DenseVector{Int} = procs(x)
-#)
-#    difference!(v.r, y, v.xb)
-#    PLINK.At_mul_B!(v.df, x, v.r, pids=pids)
-#    return nothing
-#end
-#
-#function initialize_xb_r_grad!{T <: Float}(
-#    temp :: IHTVariables{T},
-#    x    :: BEDFile{T},
-#    y    :: DenseVector{T},
-#    k    :: Int;
-#    pids :: DenseVector{Int} = procs(x)
-#)
-#    if sum(temp.idx) == 0
-#        fill!(temp.xb, zero(T))
-#        copy!(temp.r, y)
-#        At_mul_B!(temp.df, x, temp.r, pids=pids)
-#    else
-#        update_indices!(temp.idx, temp.b)
-#        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, pids=pids)
-#        update_r_grad!(temp, x, y, pids=pids)
-#    end
-#    return nothing
-#end
-
 """
-    iht!(b, x::BEDFile, y, k, g)
+    iht!(v::IHTVariables, x::BEDFile, y, k)
 
-If used with a `BEDFile` object `x`, then the temporary arrays `b0`, `Xb`, `Xb0`, and `sortidx` are all initialized as `SharedArray`s of the proper dimensions.
+If used with a `BEDFile` object `x`, then the temporary arrays `b0`, `Xb`, `Xb0`, and `r` housed in the `IHTVariables` object `v` are all initialized as `SharedArray`s of the proper dimensions.
 The additional optional arguments are:
 
-- `pids`, a vector of process IDs. Defaults to `procs()`.
+- `pids`, a vector of process IDs. Defaults to `procs(x)`.
 """
 function iht!{T <: Float}(
-    v     :: IHTVariables{T}, 
+    v     :: IHTVariables{T},
     x     :: BEDFile{T},
     y     :: DenseVector{T},
     k     :: Int;
@@ -53,7 +23,7 @@ function iht!{T <: Float}(
     # avoid extracting and computing them if they have not changed
     # one exception: we should always extract columns on first iteration
     if !isequal(v.idx, v.idx0) || iter < 2
-        decompress_genotypes!(v.xk, x, v.idx) 
+        decompress_genotypes!(v.xk, x, v.idx)
     end
 
     # store relevant components of gradient
@@ -84,7 +54,7 @@ function iht!{T <: Float}(
 
     # backtrack until mu sits below omega and support stabilizes
     mu_step = 0
-    while _iht_backtrack(v, omega_top, omega_bot, mu, mu_step, nstep) 
+    while _iht_backtrack(v, omega_top, omega_bot, mu, mu_step, nstep)
 
         # stephalving
         mu /= 2
@@ -116,6 +86,7 @@ If used with a `BEDFile` object `x`, then the temporary floating point arrays ar
 The additional optional arguments are:
 
 - `pids`, a vector of process IDs. Defaults to `procs()`.
+- `mask_n`, an `Int` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of ones.
 """
 function L0_reg{T <: Float}(
     x        :: BEDFile{T},
@@ -124,10 +95,10 @@ function L0_reg{T <: Float}(
     pids     :: DenseVector{Int} = procs(),
     temp     :: IHTVariables{T}  = IHTVariables(x, y, k),
     mask_n   :: DenseVector{Int} = ones(Int, size(y)),
-    tol      :: Float            = convert(T, 1e-4),
-    max_iter :: Int              = 100,
-    max_step :: Int              = 50,
-    quiet    :: Bool             = true
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true
 )
 
     # start timer
@@ -164,11 +135,11 @@ function L0_reg{T <: Float}(
     if sum(temp.idx) == 0
         fill!(temp.xb, zero(T))
         copy!(temp.r, y)
-        mask!(temp.r, mask_n, 0, zero(T), n=n)
+        mask!(temp.r, mask_n, 0, zero(T))
     else
         A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n, pids=pids)
         difference!(temp.r, y, temp.xb)
-        mask!(temp.r, mask_n, 0, zero(T), n=n)
+        mask!(temp.r, mask_n, 0, zero(T))
     end
 
     # calculate the gradient
@@ -198,8 +169,8 @@ function L0_reg{T <: Float}(
         end
 
         # save values from previous iterate
-        copy!(temp.b0, temp.b)             # b0 = b
-        copy!(temp.xb0, temp.xb)           # Xb0 = Xb
+        copy!(temp.b0, temp.b)   # b0 = b
+        copy!(temp.xb0, temp.xb) # Xb0 = Xb
         loss = next_loss
 
         # now perform IHT step
@@ -241,7 +212,7 @@ function L0_reg{T <: Float}(
             # stop time
             mm_time = toq()
 
-            # announce convergence 
+            # announce convergence
             !quiet && print_convergence(mm_iter, next_loss, mm_time)
 
             # these are output variables for function
@@ -267,9 +238,8 @@ end # end function
 If used with a `BEDFile` object `x`, then the temporary arrays are all initialized as `SharedArray`s of the proper dimensions.
 The additional optional arguments are:
 
-- `pids`, a vector of process IDs. Defaults to `procs()`.
-- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
-- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
+- `pids`, a vector of process IDs. Defaults to `procs(x)`.
+- `mask_n`, an `Int` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of ones.
 """
 function iht_path{T <: Float}(
     x        :: BEDFile{T},
@@ -277,10 +247,10 @@ function iht_path{T <: Float}(
     path     :: DenseVector{Int};
     pids     :: DenseVector{Int} = procs(x),
     mask_n   :: DenseVector{Int} = ones(Int, size(y)),
-    tol      :: Float            = convert(T, 1e-4),
-    max_iter :: Int              = 100,
-    max_step :: Int              = 50,
-    quiet    :: Bool             = true
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true
 )
 
     # size of problem?
@@ -332,9 +302,7 @@ end
 
 If used with a `BEDFile` object `x`, then the additional optional arguments are:
 
-- `pids`, a vector of process IDs. Defaults to `procs()`.
-- `means`, a vector of SNP means. Defaults to `mean(T, x, shared=true, pids=procs()`.
-- `invstds`, a vector of SNP precisions. Defaults to `invstd(x, means, shared=true, pids=procs()`.
+- `pids`, a vector of process IDs. Defaults to `procs(x)`.
 """
 function one_fold{T <: Float}(
     x        :: BEDFile{T},
@@ -358,7 +326,7 @@ function one_fold{T <: Float}(
     # train_idx is the vector that indexes the TRAINING set
     train_idx = !test_idx
     mask_n    = convert(Vector{Int}, train_idx)
-    mask_test = convert(Vector{Int}, test_idx) 
+    mask_test = convert(Vector{Int}, test_idx)
 
     # compute the regularization path on the training set
     betas = iht_path(x, y, path, mask_n=mask_n, max_iter=max_iter, quiet=quiet, max_step=max_step, pids=pids, tol=tol)
@@ -485,9 +453,85 @@ function pfold(
     return (reduce(+, results[1], results) ./ q) :: Vector{T}
 end
 
-
 # default type for pfold is Float64
 pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+
+function pfold(
+    T          :: Type,
+    xfile      :: ASCIIString,
+    x2file     :: ASCIIString,
+    yfile      :: ASCIIString,
+    path       :: DenseVector{Int},
+    folds      :: DenseVector{Int},
+    q          :: Int;
+    pids       :: DenseVector{Int} = procs(),
+    max_iter   :: Int  = 100,
+    max_step   :: Int  = 50,
+    quiet      :: Bool = true,
+    header     :: Bool = false
+)
+
+    # ensure correct type
+    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+
+    # how many CPU processes can pfold use?
+    np = length(pids)
+
+    # report on CPU processes
+    quiet || println("pfold: np = ", np)
+    quiet || println("pids = ", pids)
+
+    # set up function to share state (indices of folds)
+    i = 1
+    nextidx() = (idx=i; i+=1; idx)
+
+    # preallocate cell array for results
+    results = cell(q)
+
+    # master process will distribute tasks to workers
+    # master synchronizes results at end before returning
+    @sync begin
+
+        # loop over all workers
+        for worker in pids
+
+            # exclude process that launched pfold, unless only one process is available
+            if worker != myid() || np == 1
+
+                # asynchronously distribute tasks
+                @async begin
+                    while true
+
+                        # grab next fold
+                        current_fold = nextidx()
+
+                        # if current fold exceeds total number of folds then exit loop
+                        current_fold > q && break
+
+                        # report distribution of fold to worker and device
+                        quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker.\n\n")
+
+                        # launch job on worker
+                        # worker loads data from file paths and then computes the errors in one fold
+                        results[current_fold] = remotecall_fetch(worker) do
+                                pids = [worker]
+                                x = BEDFile(T, xfile, x2file, pids=pids, header=header)
+                                y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+
+                                one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
+                        end # end remotecall_fetch()
+                    end # end while
+                end # end @async
+            end # end if
+        end # end for
+    end # end @sync
+
+    # return reduction (row-wise sum) over results
+    return (reduce(+, results[1], results) ./ q) :: Vector{T}
+end
+
+# default for previous function is Float64
+pfold(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int} = procs(), max_iter::Int = 100, max_step::Int = 50, quiet::Bool = true, header::Bool = false) = pfold(Float64, xfile, x2file, yfile, path, folds, q, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 
 
@@ -508,14 +552,13 @@ function cv_iht(
     meanfile :: ASCIIString,
     precfile :: ASCIIString,
     path     :: DenseVector{Int},
-    folds    :: DenseVector{Int}, 
+    folds    :: DenseVector{Int},
     q        :: Int;
     pids     :: DenseVector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
     quiet    :: Bool  = true,
-    refit    :: Bool  = true,
     header   :: Bool  = false
 )
 
@@ -535,39 +578,99 @@ function cv_iht(
     !quiet && print_cv_results(mses, path, k)
 
     # recompute ideal model
-    if refit
+    # first load data on *all* processes
+    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
-        # load data on *all* processes
-        x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
-        y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+    # first use L0_reg to extract model
+    output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
 
-        # first use L0_reg to extract model
-        output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
+    # which components of beta are nonzero?
+    inferred_model = output.beta .!= zero(T)
+    bidx = find(inferred_model)
 
-        # which components of beta are nonzero?
-        inferred_model = output.beta .!= zero(T)
-        bidx = find(inferred_model)
+    # allocate the submatrix of x corresponding to the inferred model
+    x_inferred = zeros(T, x.geno.n, sum(inferred_model))
+    decompress_genotypes!(x_inferred, x, inferred_model)
 
-        # allocate the submatrix of x corresponding to the inferred model
-        x_inferred = zeros(T, x.geno.n, sum(inferred_model))
-        decompress_genotypes!(x_inferred, x, inferred_model)
-
-        # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-        xty = BLAS.gemv('T', one(T), x_inferred, y)
-        xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
-        b   = zeros(T, length(bidx))
-        try 
-            b = (xtx \ xty) :: Vector{T}
-        catch e
-            warn("caught error: ", e, "\nSetting returned values of b to -Inf")
-            fill!(b, -Inf)
-        end 
-
-        return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
+    xty = BLAS.gemv('T', one(T), x_inferred, y)
+    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
+    b   = zeros(T, length(bidx))
+    try
+        b = (xtx \ xty) :: Vector{T}
+    catch e
+        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        fill!(b, -Inf)
     end
 
-    return IHTCrossvalidationResults(mses, path, k)
+    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, refit::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
+cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+
+# reduced cv_iht that calculates means, precs, and transpose
+function cv_iht(
+    T        :: Type,
+    xfile    :: ASCIIString,
+    x2file   :: ASCIIString,
+    yfile    :: ASCIIString,
+    path     :: DenseVector{Int},
+    folds    :: DenseVector{Int},
+    q        :: Int;
+    pids     :: DenseVector{Int} = procs(),
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true,
+    header   :: Bool  = false
+)
+
+    # enforce type
+    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+
+    # how many elements are in the path?
+    num_models = length(path)
+
+    # compute folds in parallel
+    mses = pfold(T, xfile, x2file, yfile, path, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, header=header)
+
+    # what is the best model size?
+    k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
+
+    # print results
+    !quiet && print_cv_results(mses, path, k)
+
+    # recompute ideal model
+    # first load data on *all* processes
+    x = BEDFile(T, xfile, x2file, header=header, pids=pids)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+
+    # first use L0_reg to extract model
+    output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
+
+    # which components of beta are nonzero?
+    inferred_model = output.beta .!= zero(T)
+    bidx = find(inferred_model)
+
+    # allocate the submatrix of x corresponding to the inferred model
+    x_inferred = zeros(T, x.geno.n, sum(inferred_model))
+    decompress_genotypes!(x_inferred, x, inferred_model)
+
+    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
+    xty = BLAS.gemv('T', one(T), x_inferred, y)
+    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
+    b   = zeros(T, length(bidx))
+    try
+        b = (xtx \ xty) :: Vector{T}
+    catch e
+        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        fill!(b, -Inf)
+    end
+
+    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+end
+
+# default type for cv_iht is Float64
+cv_iht(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)

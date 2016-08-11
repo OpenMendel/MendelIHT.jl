@@ -5,27 +5,25 @@ export iht_path
 const cl = OpenCL
 
 """
-    L0_reg(x::BEDFile, y, k, kernfile)
+    L0_reg(x::BEDFile, y, k, kernfile::ASCIIString)
 
-If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device. This variant introduces a host of extra arguments for the GPU. Most of these arguments are only meant to facilitate the calculation of a regularization path by `iht_path`. The optional arguments that a user will most likely wish to manipulate are:
-
-- `device`, an `OpenCL.Device` object indicating the device to use in computations. Defaults to `last(OpenCL.devices(:gpu))`.
-- `mask_n`, an `Int` vector of `0`s and `1`s indexing the rows of `x` and `y` that should be included or masked in the analysis. Defaults to `ones(Int,n)`, which includes all data.
-- `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device. 
+This variant introduces a host of extra arguments for the GPU encapsulated in an optional `PlinkGPUVariables` argument `v`. 
+The optional argument `v` facilitates the calculation of a regularization path by `iht_path`. 
 """
 function L0_reg{T <: Float}(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     k        :: Int,
     kernfile :: ASCIIString;
-    pids     :: DenseVector{Int}     = procs(),
-    temp     :: IHTVariables{T}      = IHTVariables(x, y, k),
-    mask_n   :: DenseVector{Int}     = ones(Int, size(y)),
+    pids     :: DenseVector{Int} = procs(),
+    temp     :: IHTVariables{T}  = IHTVariables(x, y, k),
+    mask_n   :: DenseVector{Int} = ones(Int, size(y)),
     v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n), 
-    tol      :: Float                = convert(T, 1e-4),
-    max_iter :: Int                  = 100,
-    max_step :: Int                  = 50,
-    quiet    :: Bool                 = true
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true
 )
 
     # start timer
@@ -100,8 +98,8 @@ function L0_reg{T <: Float}(
         end
 
         # save values from previous iterate
-        copy!(temp.b0, temp.b)             # b0 = b
-        copy!(temp.xb0, temp.xb)           # Xb0 = Xb
+        copy!(temp.b0, temp.b)   # b0 = b
+        copy!(temp.xb0, temp.xb) # Xb0 = Xb
         loss = next_loss
 
         # now perform IHT step
@@ -109,7 +107,7 @@ function L0_reg{T <: Float}(
 
         # update residuals
         difference!(temp.r, y, temp.xb)
-        mask!(temp.r, mask_n, 0, zero(T), n=n)
+        mask!(temp.r, mask_n, 0, zero(T))
 
         # use updated residuals to recompute the gradient on the GPU
         At_mul_B!(temp.df, x, temp.r, mask_n, v)
@@ -160,27 +158,23 @@ end # end function
 
 
 """
-    iht_path(x::BEDFile, y , k ,kernfile)
+    iht_path(x::BEDFile, y, k, kernfile::ASCIIString)
 
-If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `iht_path` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device. The new optional arguments include:
-
-- `device`, an `OpenCL.Device` object indicating the device to use in computations. Defaults to `last(OpenCL.devices(:gpu))`.
-- `mask_n`, an `Int` vector of `0`s and `1`s indexing the rows of `x` and `y` that should be included or masked in the analysis. Defaults to `ones(Int,n)`, which includes all data.
-- `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `iht_path` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device.
 """
 function iht_path{T <: Float}(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int},
     kernfile :: ASCIIString;
-    pids     :: DenseVector{Int}     = procs(),
-    mask_n   :: DenseVector{Int}     = ones(Int,length(y)),
-    temp     :: IHTVariables{T}      = IHTVariables(x, y, 1),
+    pids     :: DenseVector{Int} = procs(),
+    mask_n   :: DenseVector{Int} = ones(Int,length(y)),
+    temp     :: IHTVariables{T}  = IHTVariables(x, y, 1),
     v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n), 
-    tol      :: Float                = convert(T, 1e-4),
-    max_iter :: Int                  = 100,
-    max_step :: Int                  = 50,
-    quiet    :: Bool                 = true
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true
 )
     # size of problem?
     n,p = size(x)
@@ -223,13 +217,9 @@ end
 
 
 """
-    one_fold(x::BEDFile, y, path, kernfile, folds, fold)
+    one_fold(x::BEDFile, y, path, kernfile::ASCIIString, folds, fold)
 
-If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `one_fold` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device. The new optional arguments include:
-
-- `devidx`, an index indicating the GPU device to use in computations. The device is chosen  as `OpenCL.devices(:gpu)[devidx]`. Defaults to `1` (choose the first GPU device)
-- `wg_size` is the desired workgroup size for the GPU. Defaults to `512`.
-- `header` is a `Bool` to feed to `readdlm` when loading the nongenetic covariates `x.x2`. Defaults to `false` (no header).
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `one_fold` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device.
 """
 function one_fold{T <: Float}(
     x        :: BEDFile{T},
@@ -239,11 +229,11 @@ function one_fold{T <: Float}(
     folds    :: DenseVector{Int},
     fold     :: Int;
     pids     :: DenseVector{Int} = procs(),
-    tol      :: Float            = convert(T, 1e-4),
-    max_iter :: Int              = 100,
-    max_step :: Int              = 50,
-    header   :: Bool             = false,
-    quiet    :: Bool             = true
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    header   :: Bool  = false,
+    quiet    :: Bool  = true
 )
     # dimensions of problem
     n,p = size(x)
@@ -464,23 +454,105 @@ end
 pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 
+### 10 August 2016: NOT DONE!!!
 """
-    cv_iht(xfile,xtfile,x2file,yfile,meanfile,precfile,path,kernfile,folds,q [, pids=procs(), wg_size=512])
+    pfold(xfile, x2file, yfile, path, kernfile, folds, q [, pids=procs(), devindices=ones(Int,q])
 
-This variant of `cv_iht()` uses a GPU to perform `q`-fold crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
-with column means stored in `meanfile` and column precisions stored in `precfile`.
-The continuous response is stored in `yfile` with data particioned by the `Int` vector `folds`.
-The folds are distributed across the processes given by `pids`.
-The calculations employ GPU acceleration by calling OpenCL kernels from `kernfile` with workgroup size `wg_size`.
+`pfold` can also be called without the transposed genotype files or the mean/precision files.
+In this case, it will attempt to precompute them before calling `one_fold`. 
+"""
+function pfold(
+    T          :: Type,
+    xfile      :: ASCIIString,
+    x2file     :: ASCIIString,
+    yfile      :: ASCIIString,
+    path       :: DenseVector{Int},
+    kernfile   :: ASCIIString,
+    folds      :: DenseVector{Int},
+    q          :: Int;
+    devindices :: DenseVector{Int} = ones(Int,q),
+    pids       :: DenseVector{Int} = procs(),
+    max_iter   :: Int  = 100,
+    max_step   :: Int  = 50,
+    quiet      :: Bool = true,
+    header     :: Bool = false
+)
+
+    # ensure correct type
+    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+
+    # how many CPU processes can pfold use?
+    np = length(pids)
+
+    # report on CPU processes
+    quiet || println("pfold: np = ", np)
+    quiet || println("pids = ", pids)
+
+    # set up function to share state (indices of folds)
+    i = 1
+    nextidx() = (idx=i; i+=1; idx)
+
+    # preallocate cell array for results
+    results = cell(q)
+
+    # master process will distribute tasks to workers
+    # master synchronizes results at end before returning
+    @sync begin
+
+        # loop over all workers
+        for worker in pids
+
+            # exclude process that launched pfold, unless only one process is available
+            if worker != myid() || np == 1
+
+                # asynchronously distribute tasks
+                @async begin
+                    while true
+
+                        # grab next fold
+                        current_fold = nextidx()
+
+                        # if current fold exceeds total number of folds then exit loop
+                        current_fold > q && break
+
+                        # grab index of GPU device
+                        devidx = devindices[current_fold]
+
+                        # report distribution of fold to worker and device
+                        quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker and device $devidx.\n\n")
+
+                        # launch job on worker
+                        # worker loads data from file paths and then computes the errors in one fold
+                        results[current_fold] = remotecall_fetch(worker) do
+                                pids = [worker]
+                                x = BEDFile(T, xfile, x2file, pids=pids, header=header)
+                                y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+                                one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
+                        end # end remotecall_fetch()
+                    end # end while
+                end # end @async
+            end # end if
+        end # end for
+    end # end @sync
+
+    # return reduction (row-wise sum) over results
+    return (reduce(+, results[1], results) ./ q) :: Vector{T}
+end
+
+
+# default type for pfold is Float64
+pfold(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, x2file, yfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+
+"""
+    cv_iht(xfile,x2file,yfile,path,kernfile,folds,q [, pids=procs()])
+
+If `cv_iht` is called without filepaths to the transposed genotype data or the means and precisions, then it will attempt to precompute them. 
 """
 function cv_iht(
     T        :: Type,
     xfile    :: ASCIIString,
-    xtfile   :: ASCIIString,
     x2file   :: ASCIIString,
     yfile    :: ASCIIString,
-    meanfile :: ASCIIString,
-    precfile :: ASCIIString,
     path     :: DenseVector{Int},
     kernfile :: ASCIIString,
     folds    :: DenseVector{Int},
@@ -491,7 +563,6 @@ function cv_iht(
     max_step :: Int   = 50,
     wg_size  :: Int   = 512,
     quiet    :: Bool  = true,
-    refit    :: Bool  = true,
     header   :: Bool  = false
 )
     # enforce type
@@ -527,7 +598,7 @@ function cv_iht(
     # want to compute a path for each fold
     # the folds are computed asynchronously
     # only use the worker processes
-    mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
+    mses = pfold(T, xfile, x2file, yfile, path, kernfile, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
 
     # what is the best model size?
     k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
@@ -536,39 +607,34 @@ function cv_iht(
     !quiet && print_cv_results(mses, path, k)
 
     # recompute ideal model
-    if refit
+    # first load data on *all* processes
+    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
 
-        # load data on *all* processes
-        x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
-        y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+    # first use L0_reg to extract model
+    output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
 
-        # first use L0_reg to extract model
-        output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
+    # which components of beta are nonzero?
+    inferred_model = output.beta .!= zero(T)
+    bidx = find(inferred_model)
 
-        # which components of beta are nonzero?
-        inferred_model = output.beta .!= zero(T)
-        bidx = find(inferred_model)
+    # allocate the submatrix of x corresponding to the inferred model
+    x_inferred = zeros(T, x.geno.n, sum(inferred_model))
+    decompress_genotypes!(x_inferred, x, inferred_model)
 
-        # allocate the submatrix of x corresponding to the inferred model
-        x_inferred = zeros(T, x.geno.n, sum(inferred_model))
-        decompress_genotypes!(x_inferred, x, inferred_model)
+    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
+    xty = BLAS.gemv('T', one(T), x_inferred, y)
+    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
+    b   = zeros(T, length(bidx))
+    try 
+        b = (xtx \ xty) :: Vector{T}
+    catch e
+        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        fill!(b, -Inf)
+    end 
 
-        # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-        xty = BLAS.gemv('T', one(T), x_inferred, y)
-        xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
-        b   = zeros(T, length(bidx))
-        try 
-            b = (xtx \ xty) :: Vector{T}
-        catch e
-            warn("caught error: ", e, "\nSetting returned values of b to -Inf")
-            fill!(b, -Inf)
-        end 
-
-        return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
-    end
-
-    return IHTCrossvalidationResults(mses, path, k)
+    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, refit::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, refit=refit, header=header)
+cv_iht(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, header=header)

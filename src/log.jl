@@ -1,3 +1,7 @@
+### 10 August 2016
+### this code is frustratingly unstable
+### included here just in case it is fixable
+
 """
 L0 PENALIZED LOGISTIC REGRESSION
 

@@ -1,32 +1,3 @@
-# subroutine to update residuals and gradient from data
-function update_r_grad!{T}(
-    v :: IHTVariables{T},
-    x :: DenseMatrix{T},
-    y :: DenseVector{T}
-)
-    difference!(v.r, y, v.xb)
-    BLAS.gemv!('T', one(T), x, v.r, zero(T), v.df)
-    return nothing
-end
-
-function initialize_xb_r_grad!{T <: Float}(
-    temp :: IHTVariables{T},
-    x    :: DenseMatrix{T},
-    y    :: DenseVector{T},
-    k    :: Int
-)
-    # update x*beta
-    if sum(temp.idx) == 0
-        fill!(temp.xb, zero(T))
-    else
-        update_indices!(temp.idx, temp.b)
-        update_xb!(temp.xb, x, temp.b, temp.idx, k)
-    end
-
-    # update r and gradient
-    update_r_grad!(temp, x, y)
-end
-
 """
 ITERATIVE HARD THRESHOLDING
 
@@ -52,7 +23,7 @@ This function is based on the [HardLab](http://www.personal.soton.ac.uk/tb1m08/s
 
 Arguments:
 
-- `v` is the `IHTVariables` object of temporary arrays 
+- `v` is the `IHTVariables` object of temporary arrays
 - `x` is the `n` x `p` design matrix.
 - `y` is the vector of `n` responses.
 - `k` is the model size.
@@ -96,10 +67,10 @@ function iht!{T <: Float}(
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size
-    mu = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T 
+#    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?!
+    mu = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T
 
-#    # compute step size
-#    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?! 
+    # check for finite stepsize
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
 
     # compute gradient step
@@ -111,9 +82,9 @@ function iht!{T <: Float}(
     # calculate omega
     omega_top, omega_bot = _iht_omega(v)
 
-    # backtrack until mu sits below omega and support stabilizes
+    # backtrack until mu < omega and until support stabilizes
     mu_step = 0
-    while _iht_backtrack(v, omega_top, omega_bot, mu, mu_step, nstep) 
+    while _iht_backtrack(v, omega_top, omega_bot, mu, mu_step, nstep)
 
         # stephalving
         mu /= 2
@@ -138,7 +109,7 @@ end
 """
 L0 PENALIZED LEAST SQUARES REGRESSION
 
-    L0_reg(x,y,k) -> Dict{ASCIIString,Any}
+    L0_reg(x,y,k) -> IHTResults
 
 This routine minimizes the loss function
 
@@ -160,7 +131,7 @@ Optional Arguments:
 - `max_step` is the maximum number of backtracking steps for the step size calculation. Defaults to `50`.
 - `tol` is the global tolerance. Defaults to `1e-4`.
 - `quiet` is a `Bool` that controls algorithm output. Defaults to `true` (no output).
-- `temp` is an `IHTVariables` structure used to house temporary arrays. Used primarily in `iht_path` for memory efficiency. 
+- `temp` is an `IHTVariables` structure used to house temporary arrays. Used primarily in `iht_path` for memory efficiency.
 
 Outputs are wrapped into an `IHTResults` structure with the following fields:
 
@@ -208,7 +179,7 @@ function L0_reg{T <: Float}(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-#    # update xb, r, gradient 
+#    # update xb, r, gradient
     initialize_xb_r_grad!(temp, x, y, k)
 
     # update loss and objective
@@ -276,7 +247,7 @@ function L0_reg{T <: Float}(
             # stop time
             mm_time = toq()
 
-            # announce convergence 
+            # announce convergence
             !quiet && print_convergence(mm_iter, next_loss, mm_time)
 
             # these are output variables for function
@@ -295,6 +266,7 @@ function L0_reg{T <: Float}(
     end # end main loop
 end # end function
 
+
 """
 COMPUTE AN IHT REGULARIZATION PATH FOR LEAST SQUARES REGRESSION
 
@@ -310,7 +282,6 @@ Arguments:
 
 Optional Arguments:
 
-- `b` is the `p`-vector of effect sizes. This argument permits warmstarts to the path computation. Defaults to `zeros(p)`.
 - `tol` is the global convergence tolerance for `L0_reg`. Defaults to `1e-4`.
 - `max_iter` caps the number of iterations for the algorithm. Defaults to `1000`.
 - `max_step` caps the number of backtracking steps in the IHT kernel. Defaults to `50`.
@@ -324,10 +295,10 @@ function iht_path{T <: Float}(
     x        :: DenseMatrix{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int};
-    tol      :: Float          = convert(T, 1e-4),
-    max_iter :: Int            = 1000,
-    max_step :: Int            = 50,
-    quiet    :: Bool           = true
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true
 )
 
     # size of problem?

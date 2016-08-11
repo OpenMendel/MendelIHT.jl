@@ -1,5 +1,5 @@
 """
-    one_fold(x,y,path,folds,fold) -> Vector{Float}
+    one_fold(x,y,path,folds,fold) -> Vector
 
 For a regularization path given by the `Int` vector `path`,
 this function performs penalized linear regression on `x` and `y` and computes an out-of-sample error based on the indices given in `folds`.
@@ -43,11 +43,11 @@ function one_fold{T <: Float}(
     train_idx = !test_idx
 
     # allocate the arrays for the training set
-    x_train   = x[train_idx,:]
-    y_train   = y[train_idx]
+    x_train = x[train_idx,:]
+    y_train = y[train_idx]
 
     # compute the regularization path on the training set
-    betas    = iht_path(x_train,y_train,path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
+    betas = iht_path(x_train,y_train,path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
 
     # compute the mean out-of-sample error for the TEST set
     errors = vec(sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ (2*test_size)
@@ -56,12 +56,11 @@ function one_fold{T <: Float}(
 end
 
 """
-    pfold(xfile, xtfile, x2file,yfile, meanfile, invstdfile,path,kernfile,folds,q [, pids=procs(), devindices=ones(Int,q])
+    pfold(x,y,path,folds,q [, pids=procs()]) -> Vector
 
 This function is the parallel execution kernel in `cv_iht()`. It is not meant to be called outside of `cv_iht()`.
-It will distribute `q` crossvalidation folds across the processes supplied by the optional argument `pids` and call `one_fold()` for each fold.
-Each fold will use the GPU device indexed by its corresponding component of the optional argument `devindices` to compute a regularization path given by `path`.
-`pfold()` collects the vectors of MSEs returned by calling `one_fold()` for each process, reduces them, and returns their average across all folds.
+For floating point data `x` and `y` and an integer vector `path`, `pfold` will distribute `q` crossvalidation folds across the processes supplied by the optional argument `pids`.
+It calls `one_fold()` for each fold, then collects the vectors of MSEs each process, applys a reduction, and finally returns the average MSE vector across all folds.
 """
 function pfold{T <: Float}(
     x        :: DenseMatrix{T},
@@ -129,7 +128,7 @@ end
 
 
 """
-    cv_iht(x,y,path,q) -> Vector{Float}
+    cv_iht(x,y,path,q) -> Vector
 
 This function will perform `q`-fold cross validation for the ideal model size in IHT least squares regression.
 It computes several paths as specified in the `path` argument using the design matrix `x` and the response vector `y`.
@@ -146,8 +145,6 @@ Arguments:
 
 Optional Arguments:
 
-- `n` is the number of samples. Defaults to `length(y)`.
-- `p` is the number of predictors. Defaults to `size(x,2)`.
 - `folds` is the partition of the data. Defaults to `IHT.cv_get_folds(n,q)`.
 - `tol` is the convergence tolerance to pass to the path computations. Defaults to `1e-4`.
 - `max_iter` caps the number of permissible iterations in the IHT algorithm. Defaults to `100`.
@@ -155,14 +152,14 @@ Optional Arguments:
 - `quiet` is a Boolean to activate output. Defaults to `true` (no output).
    *NOTA BENE*: each processor outputs feed to the console without regard to the others,
    so setting `quiet = false` can yield very messy output!
-- `refit` is a `Bool` to indicate whether or not to recompute the best model. Defaults to `true` (recompute).
 
 Output:
 
-- `errors` is the averaged MSE over all folds.
+An `IHTCrossvalidationResults` object with the following fields:
 
-If called with `refit = true`, then the output also includes, for best model size `k_star`:
-
+- `mses` is the averaged MSE over all folds.
+- `k` is the best crossvalidated model size.
+- `path` is the regularization path used in the crossvalidation.
 - `b`, a vector of `k_star` floats
 - `bidx`, a vector of `k_star` indices indicating the support of the best model.
 """
@@ -174,20 +171,23 @@ function cv_iht{T <: Float}(
     folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
     pids     :: DenseVector{Int} = procs(),
     tol      :: Float            = convert(T, 1e-4),
-    n        :: Int              = length(y),
-    p        :: Int              = size(x,2),
     max_iter :: Int              = 100,
     max_step :: Int              = 50,
     quiet    :: Bool             = true,
-    refit    :: Bool             = true
 )
+    # problem dimensions?
+    n,p = size(x)
+
+    # check for conformable arrays
+    n == length(y) || throw(DimensionMismatch("Row dimension of x ($n) must match number of rows in y ($(length(y)))"))
+
     # how many elements are in the path?
     num_models = length(path)
 
     # want to compute a path for each fold
     # the folds are computed asynchronously over processes enumerated by pids
     # master process then reduces errors across folds and returns MSEs
-    mses = pfold(x, y, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet) 
+    mses = pfold(x, y, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
     # what is the best model size?
     k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
@@ -196,30 +196,25 @@ function cv_iht{T <: Float}(
     !quiet && print_cv_results(mses, path, k)
 
     # recompute ideal model
-    if refit
+    # first use L0_reg to extract model
+    output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
 
-        # first use L0_reg to extract model
-        output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
+    # which components of beta are nonzero?
+    bidx = find(output.beta)
 
-        # which components of beta are nonzero?
-        bidx = find(output.beta)
+    # allocate the submatrix of x corresponding to the inferred model
+    x_inferred = x[:,bidx]
 
-        # allocate the submatrix of x corresponding to the inferred model
-        x_inferred = x[:,bidx]
-
-        # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-        xty = BLAS.gemv('T', one(T), x_inferred, y)
-        xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
-        b   = zeros(T, length(bidx))
-        try 
-            b = (xtx \ xty) :: Vector{T}
-        catch e
-            warn("caught error: ", e, "\nSetting returned values of b to -Inf")
-            fill!(b, -Inf)
-        end 
-
-        return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
+    xty = BLAS.gemv('T', one(T), x_inferred, y)
+    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
+    b   = zeros(T, length(bidx))
+    try
+        b = (xtx \ xty) :: Vector{T}
+    catch e
+        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        fill!(b, -Inf)
     end
 
-    return IHTCrossvalidationResults(mses, path, k)
+    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
 end
