@@ -453,8 +453,118 @@ end
 # default type for pfold is Float64
 pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
+"""
+    cv_iht(xfile, xtfile, x2file, yfile, meanfile, precfile, kernfile) 
+This variant of `cv_iht()` uses a GPU to perform `q`-fold crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
+with column means stored in `meanfile` and column precisions stored in `precfile`.
+The continuous response is stored in the binary file `yfile`. 
+The calculations employ GPU acceleration by calling OpenCL kernels from `kernfile` with workgroup size `wg_size`.
+"""
+function cv_iht(
+    T        :: Type,
+    xfile    :: ASCIIString,
+    xtfile   :: ASCIIString,
+    x2file   :: ASCIIString,
+    yfile    :: ASCIIString,
+    meanfile :: ASCIIString,
+    precfile :: ASCIIString,
+    kernfile :: ASCIIString;
+    q        :: Int = max(3, min(CPU_CORES, 5)),
+    path     :: DenseVector{Int} = begin 
+           # find p from the corresponding BIM file, then make path 
+            bimfile = xfile[1:(endof(xfile)-3)] * "bim"
+            p       = countlines(bimfile)
+            collect(1:min(20,p))
+            end,
+    folds    :: DenseVector{Int} = begin
+           # find n from the corresponding FAM file, then make folds
+            famfile = xfile[1:(endof(xfile)-3)] * "fam"
+            n       = countlines(famfile)
+            cv_get_folds(n, q)
+            end,
+    pids     :: DenseVector{Int} = procs(),
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    wg_size  :: Int   = 512,
+    quiet    :: Bool  = true,
+    header   :: Bool  = false
+)
+    # enforce type
+    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
 
-### 10 August 2016: NOT DONE!!!
+    # how many elements are in the path?
+    num_models = length(path)
+
+    # how many GPU devices are available to us?
+    devs = cl.devices(:gpu)
+    ndev = length(devs)
+
+    # how many folds can we fit on a GPU at once?
+    # count one less per GPU device, just in case
+#   max_folds = zeros(Int, ndev)
+#   @inbounds for i = 1:ndev
+#       max_folds[i] = max(compute_max_gpu_load(x, wg_size, devs[i], prec64 = true) - 1, 0)
+#   end
+
+    # how many rounds of folds do we need to schedule?
+#   fold_rounds = zeros(Int, ndev)
+#   @inbounds for i = 1:ndev
+#       fold_rounds[i] = div(q, max_folds[i]) + (q% max_folds[i] != 0 ? 1 : 0)
+#   end
+
+    # assign index of a GPU device for each fold
+    # default is first GPU device (devidx = 1)
+    devindices = ones(Int, q)
+#   @inbounds for i = 1:q
+#       devindices[i] += i % ndev
+#   end
+
+    # want to compute a path for each fold
+    # the folds are computed asynchronously
+    # only use the worker processes
+    mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
+
+    # what is the best model size?
+    k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
+
+    # print results
+    !quiet && print_cv_results(mses, path, k)
+
+    # load data on *all* processes
+    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+
+    # first use L0_reg to extract model
+    output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
+
+    # which components of beta are nonzero?
+    inferred_model = output.beta .!= zero(T)
+    bidx = find(inferred_model)
+
+    # allocate the submatrix of x corresponding to the inferred model
+    x_inferred = zeros(T, x.geno.n, sum(inferred_model))
+    decompress_genotypes!(x_inferred, x, inferred_model)
+
+    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
+    xty = BLAS.gemv('T', one(T), x_inferred, y)
+    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
+    b   = zeros(T, length(bidx))
+    try 
+        b = (xtx \ xty) :: Vector{T}
+    catch e
+        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        fill!(b, -Inf)
+    end 
+
+    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+end
+
+# default type for cv_iht is Float64
+cv_iht(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, kernfile::ASCIIString; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, meanfile, precfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+
+
+
 """
     pfold(xfile, x2file, yfile, path, kernfile, folds, q [, pids=procs(), devindices=ones(Int,q])
 
@@ -553,10 +663,20 @@ function cv_iht(
     xfile    :: ASCIIString,
     x2file   :: ASCIIString,
     yfile    :: ASCIIString,
-    path     :: DenseVector{Int},
-    kernfile :: ASCIIString,
-    folds    :: DenseVector{Int},
-    q        :: Int;
+    kernfile :: ASCIIString;
+    q        :: Int = max(3, min(CPU_CORES, 5)),
+    path     :: DenseVector{Int} = begin 
+           # find p from the corresponding BIM file, then make path 
+            bimfile = xfile[1:(endof(xfile)-3)] * "bim"
+            p       = countlines(bimfile)
+            collect(1:min(20,p))
+            end,
+    folds    :: DenseVector{Int} = begin
+           # find n from the corresponding FAM file, then make folds
+            famfile = xfile[1:(endof(xfile)-3)] * "fam"
+            n       = countlines(famfile)
+            cv_get_folds(n, q)
+            end,
     pids     :: DenseVector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
@@ -637,4 +757,4 @@ function cv_iht(
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, wg_size::Int=512, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path, kernfile, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, wg_size=wg_size, quiet=quiet, header=header)
+cv_iht(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, kernfile::ASCIIString; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)

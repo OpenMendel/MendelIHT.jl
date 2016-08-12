@@ -128,10 +128,9 @@ end
 
 
 """
-    cv_iht(x,y,path,q) -> Vector
+    cv_iht(x,y) -> Vector
 
-This function will perform `q`-fold cross validation for the ideal model size in IHT least squares regression.
-It computes several paths as specified in the `path` argument using the design matrix `x` and the response vector `y`.
+This function will perform `q`-fold cross validation for the ideal model size in IHT least squares regression using the `n` x `p` design matrix `x` and the response vector `y`.
 Each path is asynchronously spawned using any available processor.
 For each path, one fold is held out of the analysis for testing, while the rest of the data are used for training.
 The function to compute each path, `one_fold()`, will return a vector of out-of-sample errors (MSEs).
@@ -140,12 +139,13 @@ Arguments:
 
 - `x` is the `n` x `p` design matrix.
 - `y` is the `n`-vector of responses.
-- `path` is an `Int` vector that specifies which model sizes to include in the path, e.g. `path = collect(k0:increment:k_end)`.
-- `q` is the number of folds to compute.
 
 Optional Arguments:
 
+- `q` is the number of folds to compute. Defaults to `max(3, min(CPU_CORES, 5))`, where `CPU_CORES`is the Julia variable to query the number of available CPU cores.
+- `path` is an `Int` vector that specifies which model sizes to include in the path. Defaults to `path = collect(1:min(p,20))`.
 - `folds` is the partition of the data. Defaults to `IHT.cv_get_folds(n,q)`.
+- `pids`, a vector of process IDs. Defaults to `procs()`, which recruits all available processes.
 - `tol` is the convergence tolerance to pass to the path computations. Defaults to `1e-4`.
 - `max_iter` caps the number of permissible iterations in the IHT algorithm. Defaults to `100`.
 - `max_step` caps the number of permissible backtracking steps. Defaults to `50`.
@@ -165,16 +165,19 @@ An `IHTCrossvalidationResults` object with the following fields:
 """
 function cv_iht{T <: Float}(
     x        :: DenseMatrix{T},
-    y        :: DenseVector{T},
-    path     :: DenseVector{Int},
-    q        :: Int;
+    y        :: DenseVector{T};
+    q        :: Int   = max(3, min(CPU_CORES, 5)),
+    path     :: DenseVector{Int} = collect(1:min(size(x,2),20)),
     folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
     pids     :: DenseVector{Int} = procs(),
-    tol      :: Float            = convert(T, 1e-4),
-    max_iter :: Int              = 100,
-    max_step :: Int              = 50,
-    quiet    :: Bool             = true,
+    tol      :: Float = convert(T, 1e-4),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true,
 )
+    # do not allow crossvalidation with fewer than 3 folds
+    q > 2 || throw(ArgumentError("Number of folds q = $q must be at least 3."))
+
     # problem dimensions?
     n,p = size(x)
 

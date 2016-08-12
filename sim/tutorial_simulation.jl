@@ -24,9 +24,9 @@ function tutorial_simulation()
     y = x_temp*β + s*randn(n) 
 
     # add grand mean to data 
-    x = zeros(n,p+1)             # array to house x_temp + grand mean
-    setindex!(x, x_temp, :, 1:p) # (efficiently) assign x_temp to correct location in x
-    x[:,end] = 1.0               # rightmost column (24,000th one) now contains grand mean
+    X = zeros(n,p+1)             # array to house x_temp + grand mean
+    setindex!(X, x_temp, :, 1:p) # (efficiently) assign x_temp to correct location in x
+    X[:,end] = 1.0               # rightmost column (24,000th one) now contains grand mean
 
     # make noisier response variable
     s  = 5.0                   # very noisy!
@@ -58,14 +58,11 @@ function tutorial_simulation()
 
     # crossvalidation parameters
     nfolds  = 5                            # number of crossvalidation folds
-    pathidx = collect(1:20)                # previously pathidx = 1:10, now 1:20
     srand(2016)                            # reset seed before crossvalidation
-    folds   = IHT.cv_get_folds(y2, nfolds) # fix the crossvalidation folds; LASSO and IHT will use same fold structure
-    pids    = procs()                      # use all processes for crossvalidation
     covpath = fpath * "covfile.txt"        # filepaths used in crossvalidation with BEDFiles
 
-    return x, y, k, β, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, pathidx, folds, pids, xpath, ypath, covpath 
+    return X, y, k, β, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath 
 end
 
-x, y, k, β, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, pathidx, folds, pids, xpath, ypath, covpath, = tutorial_simulation()
+X, y, k, β, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath = tutorial_simulation()
 println("Simulation complete.")

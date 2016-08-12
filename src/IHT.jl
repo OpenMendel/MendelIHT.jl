@@ -6,9 +6,16 @@ using RegressionTools
 using OpenCL
 using StatsBase
 using DataFrames
+#using Plots
+#using UnicodePlots
+using Gadfly
 
 # used for pretty printing of IHTResults, IHTCrossvalidationResults
 import Base.show
+
+# used to plot MSEs v. models from IHTCrossvalidationResults
+#import Plots.plot
+import Gadfly.plot
 
 export L0_reg
 export L0_log
