@@ -1,5 +1,5 @@
 # ----------------------------------------- #
-# functions for handling temporary arrays
+# functions to handle IHT output
 
 # an object that houses results returned from an IHT run
 immutable IHTResults{T <: Float, V <: DenseVector}
@@ -31,6 +31,9 @@ function Base.show(io::IO, x::IHTResults)
     print(io, DataFrame(Predictor=find(x.beta), β=x.beta[find(x.beta)]))
     return nothing
 end
+
+# ----------------------------------------- #
+# functions for handling temporary arrays
 
 # an object to contain intermediate variables and temporary arrays
 type IHTVariables{T <: Float, V <: DenseVector}
@@ -174,6 +177,7 @@ immutable IHTCrossvalidationResults{T <: Float}
     b    :: Vector{T}
     bidx :: Vector{Int}
     k    :: Int
+    bids :: Vector{UTF8String}
 
 #    IHTCrossvalidationResults(mses::Vector{T}, b::Vector{T}, bidx::Vector{Int}, k::Int) = new(mses, b, bidx, k)
 end
@@ -184,20 +188,34 @@ function IHTCrossvalidationResults{T <: Float}(
     path :: Vector{Int},
     b    :: Vector{T},
     bidx :: Vector{Int},
-    k    :: Int
+    k    :: Int,
+    bids :: Vector{UTF8String}
 )
-    IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k)
+    IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k, bids)
 end
 
-# constructor for when b, bidx are not available
+## constructor for when b, bidx are not available
+#function IHTCrossvalidationResults{T <: Float}(
+#    mses :: Vector{T},
+#    path :: Vector{Int},
+#    k    :: Int
+#)  
+#    b    = zeros(T, 1)
+#    bidx = zeros(Int, 1)
+#    IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+#end
+
+# constructor for when bids are not available
+# simply makes vector of "V$i" where $i are drawn from bidx
 function IHTCrossvalidationResults{T <: Float}(
     mses :: Vector{T},
     path :: Vector{Int},
+    b    :: Vector{T},
+    bidx :: Vector{Int},
     k    :: Int
 )  
-    b    = zeros(T, 1)
-    bidx = zeros(Int, 1)
-    IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+    bids = convert(Vector{UTF8String}, ["V" * "$i" for i in bidx]) :: Vector{UTF8String}
+    IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k, bids)
 end
 
 # function to view an IHTCrossvalidationResults object
@@ -205,7 +223,7 @@ function Base.show(io::IO, x::IHTCrossvalidationResults)
     println(io, "An IHTCrossvalidationResults object with the following results:")
     println(io, "Minimum MSE ", minimum(x.mses), " occurs at k = $(x.k).")
     println(io, "Best model β has the following nonzero coefficients:")
-    println(io, DataFrame(Predictor=x.bidx, β=x.b))
+    println(io, DataFrame(Predictor=x.bidx, Name=x.bids, β=x.b))
     return nothing
 end
 

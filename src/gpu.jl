@@ -553,10 +553,11 @@ function cv_iht(
     try 
         b = (xtx \ xty) :: Vector{T}
     catch e
-        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
         fill!(b, -Inf)
     end 
 
+    bids = prednames(x)[bidx]
     return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
 end
 
@@ -749,10 +750,11 @@ function cv_iht(
     try 
         b = (xtx \ xty) :: Vector{T}
     catch e
-        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
         fill!(b, -Inf)
     end 
 
+    bids = prednames(x)[bidx]
     return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
 end
 

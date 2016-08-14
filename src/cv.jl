@@ -215,9 +215,10 @@ function cv_iht{T <: Float}(
     try
         b = (xtx \ xty) :: Vector{T}
     catch e
-        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
         fill!(b, -Inf)
     end
 
-    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+#    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+    return IHTCrossvalidationResults(mses, path, b, bidx, k)
 end
