@@ -53,7 +53,7 @@ function tutorial_simulation()
     xb        = A_mul_B(xbed, bbed, idx, k, pids=procs(xbed)) # compute x*b
     ybed2     = xb + 0.1*randn(n)                             # yields a Vector, so we must convert it to SharedVector
     ybed      = convert(SharedVector{Float64}, ybed2)         # our response variable with the BEDFile
-    ypath     = expanduser("~/Desktop/y.bin")                 # path to save response ybed
+    ypath     = ENV["TMPDIR"] * "y.bin"                       # ybed uses path to Julia TMP directory
     write(open(ypath, "w"), ybed)                             # "w"rite ybed to file
 
     # crossvalidation parameters

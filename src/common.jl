@@ -24,6 +24,7 @@ end
 
 # function to display IHTResults object
 function Base.show(io::IO, x::IHTResults)
+    println(io, "IHT results:")
     println(io, "\nCompute time (sec):   ", x.time)
     println(io, "Final loss:           ", x.loss)
     println(io, "Iterations:           ", x.iter)
@@ -220,7 +221,7 @@ end
 
 # function to view an IHTCrossvalidationResults object
 function Base.show(io::IO, x::IHTCrossvalidationResults)
-    println(io, "An IHTCrossvalidationResults object with the following results:")
+    println(io, "Crossvalidation results:") 
     println(io, "Minimum MSE ", minimum(x.mses), " occurs at k = $(x.k).")
     println(io, "Best model β has the following nonzero coefficients:")
     println(io, DataFrame(Predictor=x.bidx, Name=x.bids, β=x.b))
