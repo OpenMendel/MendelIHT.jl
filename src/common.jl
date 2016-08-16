@@ -28,8 +28,8 @@ function Base.show(io::IO, x::IHTResults)
     println(io, "\nCompute time (sec):   ", x.time)
     println(io, "Final loss:           ", x.loss)
     println(io, "Iterations:           ", x.iter)
-    println(io, "IHT estimated a vector of type ", typeof(x.beta), " with ", countnz(x.beta), " nonzeroes.")
-    print(io, DataFrame(Predictor=find(x.beta), β=x.beta[find(x.beta)]))
+    println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
+    print(io, DataFrame(Predictor=find(x.beta), Estimated_β=x.beta[find(x.beta)]))
     return nothing
 end
 
@@ -224,23 +224,13 @@ function Base.show(io::IO, x::IHTCrossvalidationResults)
     println(io, "Crossvalidation results:") 
     println(io, "Minimum MSE ", minimum(x.mses), " occurs at k = $(x.k).")
     println(io, "Best model β has the following nonzero coefficients:")
-    println(io, DataFrame(Predictor=x.bidx, Name=x.bids, β=x.b))
+    println(io, DataFrame(Predictor=x.bidx, Name=x.bids, Estimated_β=x.b))
     return nothing
 end
 
-## function to provide coarse plot in REPL of MSEs v. models
-#function Plots.plot(io::IO, x::IHTCrossvalidationResults; n::Int = 100)
-#    myplot = lineplot(x.path, x.mses, color = :blue, name = "MSEs")
-#    UnicodePlots.title!(myplot, "MSEs versus Model Size")
-#    UnicodePlots.xlabel!(myplot, "Model Sizes")
-#    UnicodePlots.ylabel!(myplot, "MSEs")
-##    lineplot!(myplot, repmat([x.k], n, 1), collect(linspace(minimum(x.mses), maximum(x.mses), n)), color = :red, name = "Best model size")
-#    lineplot!(myplot, [x.k, x.k], [minimum(x.mses), maximum(x.mses)], color = :red, name = "Best model size")
-#end
-        
 function Gadfly.plot(x::IHTCrossvalidationResults)
-    df = DataFrame(ModelSize=x.path, MSEs=x.mses)
-    plot(df, x="ModelSize", y="MSEs", xintercept=[x.k], Geom.line, Geom.vline(color=colorant"red"), Guide.xlabel("Model size"), Guide.ylabel("MSEs"), Guide.title("MSEs versus model size"))
+    df = DataFrame(ModelSize=x.path, MSE=x.mses)
+    plot(df, x="ModelSize", y="MSE", xintercept=[x.k], Geom.line, Geom.vline(color=colorant"red"), Guide.xlabel("Model size"), Guide.ylabel("MSE"), Guide.title("MSE versus model size"))
 end
 
 # ----------------------------------------- #
