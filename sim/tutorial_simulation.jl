@@ -14,14 +14,14 @@ function tutorial_simulation()
     x_temp = randn(n,p) # simulated data
 
     # make simulated model
-    beta = zeros(p)      # vector to house statistical model
-    beta[1:k] = randn(k) # k random nonzero coefficients drawn from standard normal distribution
-    shuffle!(beta)       # random indices for nonzero coefficients
-    bidx = find(beta)    # save locations of nonzero coefficients
+    b = zeros(p)      # vector to house statistical model
+    b[1:k] = randn(k) # k random nonzero coefficients drawn from standard normal distribution
+    shuffle!(b)       # random indices for nonzero coefficients
+    bidx = find(b)    # save locations of nonzero coefficients
 
     # simulate a noisy response variable
     # this makes response vector with noise level drawn from N(0,0.01)
-    y = x_temp*beta + s*randn(n) 
+    y = x_temp*b + s*randn(n) 
 
     # add grand mean to data 
     X = zeros(n,p+1)             # array to house x_temp + grand mean
@@ -30,7 +30,7 @@ function tutorial_simulation()
 
     # make noisier response variable
     s  = 5.0                   # very noisy!
-    y2 = x_temp*beta + s*randn(n) # y2 has noise distribution N(0,25), substantially noiser than y
+    y2 = x_temp*b + s*randn(n) # y2 has noise distribution N(0,25), substantially noiser than y
 
     # simulate (or recover from PLINK.jl) some GWAS data
     fpath  = expanduser("~/.julia/v0.4/PLINK/data/") # path to simulated data from PLINK module
@@ -61,8 +61,8 @@ function tutorial_simulation()
     srand(2016)                            # reset seed before crossvalidation
     covpath = fpath * "covfile.txt"        # filepaths used in crossvalidation with BEDFiles
 
-    return X, y, k, beta, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath 
+    return X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath 
 end
 
-X, y, k, beta, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath = tutorial_simulation()
+X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath = tutorial_simulation()
 println("Simulation complete.")

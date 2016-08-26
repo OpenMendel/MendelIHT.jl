@@ -20,7 +20,7 @@ IHT.jl also facilitates crossvalidation for the best model size.
 Given a vector `modelsizes` of model sizes to test,
 we perform _q_-fold crossvalidation via
 
-    cv_output = cv_iht(x, y, modelsizes, q)
+    cv_output = cv_iht(x, y)
 
 where `cv_output` is an `IHTCrossvalidationResults` container object with the following fields:
 
@@ -31,22 +31,29 @@ where `cv_output` is an `IHTCrossvalidationResults` container object with the fo
 
 Important optimal arguments to `cv_iht` include 
 
+* `path`, an `Int` vector containing the path of model sizes to test. Defaults to `collect(1:p)`, with `p = size(x,2)`. 
+* `q`, the number of crossvalidation folds to use. The default is depends on the Julia variable `CPU_CORES`, but it usually defaults to 5. 
 * `folds`, a `DenseVector{Int}` object to assign data to each fold
 * `pids`, the `Int` vector of process IDs to which we distribute computations
 * `refit`, a `Bool` to determine whether or not to refit the model. 
 
 To fix the folds, pass a prespecified integer vector to `folds`.
-Note that the `refit` argument defaults to true.
-Specifying `refit = false` sets`b = [0.0]` and `bidx = [0]` in `cv_output`.
 
 ## GWAS
 
 IHT.jl interfaces with [PLINK.jl](https://github.com/klkeys/PLINK.jl) to enable feature selection over [GWAS](https://en.wikipedia.org/wiki/Genome-wide_association_study) data in [PLINK binary format](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#bed).
-The interface is largely unchanged:
+The interface to `L0_reg` is unchanged:
 
     output = L0_reg(x::BEDFile, y, k)
-    cv_output = cv_iht(x::BEDFile, y, modelsizes, q)
 
+However, the call to `cv_iht` changes in order to accomodate parallel computing.
+For the most part, the data **must** be stored in a binary format (PLINK binary or standard binary). 
+The exception is the matrix of nongenetic covariates, which is read from a delimited text file. 
+Instead of using variables from the REPL, `cv_iht` uses file paths to the data stored in file:
+
+    cv_output = cv_iht(xfile.bed, covfile.txt, yfile.bin)
+
+Here `xfile` points to the genotype data, `covfile` points to the covariates, and `yfile` points to the response vector. Note the file extensions! They are important for correct initialization of the data. 
 See the documentation of PLINK.jl for details about the `BEDFile` object.
 
 ## GPU acceleration
@@ -54,23 +61,22 @@ See the documentation of PLINK.jl for details about the `BEDFile` object.
 IHT.jl interfaces with the GPU accelerator from PLINK.jl.
 The GPU accelerator farms the calculation of the gradient to a GPU,
 which greatly improves computational performance.
-`L0_reg` needs to know where the GPU kernels are stored:
+`L0_reg` needs to know where the GPU kernels are stored.
+PLINK.jl preloads the kernels into a variable `PLINK.gpucode64`.
 
-    kernfile = open(readall, expanduser("~/.julia/v0.4/PLINK/src/kernels/iht_kernels64.cl"))
-    output   = L0_reg(x::BEDFile, y, k, kernfile)
+    output   = L0_reg(x::BEDFile, y, k, PLINK.gpucode64)
 
-PLINK.jl ships with kernels for `Float32` and `Float64` arrays.
+PLINK.jl ships with kernels for `Float64` and `Float64` arrays.
+The corresponding kernel files are housed in `PLINK.gpucode64` and `PLINK.gpucode32`.
 These are the only kinds of arrays supported by IHT.jl.
 Use of `Float32` arithmetic yields faster execution times but may suffer from numerical underflow.
 
-Crossvalidation with GPUs is a complicated topic. For processes indexed by a vector `pids`, IHT farms an entire copy of the data to each host process ID. OpenCL memory constraints dictate that each process ID should have its own copy of the data on the device. For the most part, the data **must** be stored in binary format. The exception is the matrix of nongenetic covariates. Then IHT.jl performs crossvalidation with GPUs via
+Crossvalidation with GPUs is a complicated topic. 
+IHT farms an entire copy of the data to each host process. 
+OpenCL memory constraints dictate that each process should have its own copy of the data on the device. 
+Then IHT.jl performs crossvalidation with GPUs via
 
-    cv_output = cv_iht(xfile, xtfile, x2file, yfile, meanfile, invstdfile, modelsizes, kernfile, folds, q) 
-
-Here the additional `*file` arguments yield paths to construct the `BEDFile` object, the response vector `y`, and the means and inverse standard deviations (precisions).
-Use of filenames facilitates initialization of the data on each process as a set of `SharedArray` objects.
-Because `SharedArrays` perform a memory map to the binary data on the hard drive, the data **cannot** be loaded directly into `cv_iht` from the Julia REPL.
-Users should save all data to file and then run the crossvalidation routine.
+    cv_output = cv_iht(xfile, covfile, yfile, PLINK.gpucode64)
 
 **NOTA BENE:** IHT.jl currently makes no effort to ensure that the GPU contains sufficient memory for _q_ copies of the data.
 Users are urged to consider device memory limits when calling `cv_iht`.
