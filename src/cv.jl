@@ -30,13 +30,13 @@ function one_fold{T <: Float}(
     folds    :: DenseVector{Int},
     fold     :: Int;
     tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 1000,
+    max_iter :: Int   = 100,
     max_step :: Int   = 50,
     quiet    :: Bool  = true,
 )
 
     # make vector of indices for folds
-    test_idx = folds .== fold
+    test_idx  = folds .== fold
     test_size = sum(test_idx)
 
     # train_idx is the vector that indexes the TRAINING set
@@ -47,12 +47,15 @@ function one_fold{T <: Float}(
     y_train = y[train_idx]
 
     # compute the regularization path on the training set
-    betas = iht_path(x_train,y_train,path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
+    betas = iht_path(x_train, y_train, path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
 
     # compute the mean out-of-sample error for the TEST set
-    errors = vec(sumabs2(broadcast(-, y[test_idx], x[test_idx,:] * betas), 1)) ./ (2*test_size)
+    Xb = view(x, test_idx, :) * betas
+#    r  = broadcast(-, view(y, test_idx, 1), Xb)
+    r  = broadcast(-, y[test_idx], Xb)
+    er = vec(sumabs2(r, 1)) ./ (2*test_size)
 
-    return errors :: Vector{T}
+    return er :: Vector{T}
 end
 
 """
@@ -86,7 +89,8 @@ function pfold{T <: Float}(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-    results = cell(q)
+    results = zeros(T, length(path), q)
+    results = SharedArray(T, (length(path),q), pids=pids)
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
@@ -113,9 +117,14 @@ function pfold{T <: Float}(
 
                         # launch job on worker
                         # worker loads data from file paths and then computes the errors in one fold
-                        results[current_fold] = remotecall_fetch(worker) do
-                                one_fold(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+#                        results[:, current_fold] = remotecall_fetch(worker) do
+                        r = remotecall_fetch(worker) do
+                                ### 23 Sep 2016: this doesn't seem to work for one core!
+                                ### set i -> current_fold, hopefully this works correctly! :(
+#                                one_fold(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+                                one_fold(x, y, path, folds, current_fold, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
                         end # end remotecall_fetch()
+                        setindex!(results, r, :, current_fold)
                     end # end while
                 end # end @async
             end # end if
@@ -123,7 +132,7 @@ function pfold{T <: Float}(
     end # end @sync
 
     # return reduction (row-wise sum) over results
-    return (reduce(+, results[1], results) ./ q) :: Vector{T}
+    return (vec(sum(results, 2) ./ q)) :: Vector{T} 
 end
 
 
@@ -166,7 +175,7 @@ An `IHTCrossvalidationResults` object with the following fields:
 function cv_iht{T <: Float}(
     x        :: DenseMatrix{T},
     y        :: DenseVector{T};
-    q        :: Int   = max(3, min(CPU_CORES, 5)),
+    q        :: Int   = cv_get_num_folds(3, 5), 
     path     :: DenseVector{Int} = collect(1:min(size(x,2),20)),
     folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
     pids     :: DenseVector{Int} = procs(),
@@ -193,7 +202,9 @@ function cv_iht{T <: Float}(
     mses = pfold(x, y, path, folds, q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
     # what is the best model size?
-    k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
+    # if there are multiple model sizes of EXACTLY the same MSE,
+    # then this chooses the smaller of the two
+    k = convert(Int, floor(path[indmin(mses)]))
 
     # print results
     !quiet && print_cv_results(mses, path, k)
@@ -203,14 +214,14 @@ function cv_iht{T <: Float}(
     output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
 
     # which components of beta are nonzero?
-    bidx = find(output.beta)
+    bidx = find(output.beta) :: Vector{Int}
 
     # allocate the submatrix of x corresponding to the inferred model
     x_inferred = x[:,bidx]
 
     # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-    xty = BLAS.gemv('T', one(T), x_inferred, y)
-    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
+    xty = BLAS.gemv('T', one(T), x_inferred, y) :: Vector{T}
+    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred) :: Matrix{T}
     b   = zeros(T, length(bidx))
     try
         b = (xtx \ xty) :: Vector{T}
@@ -219,6 +230,5 @@ function cv_iht{T <: Float}(
         fill!(b, -Inf)
     end
 
-#    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
     return IHTCrossvalidationResults(mses, path, b, bidx, k)
 end

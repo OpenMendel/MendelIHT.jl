@@ -427,7 +427,7 @@ function L0_reg_aiht{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+            output = Dict{String, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
             return output
         end
@@ -487,7 +487,7 @@ function L0_reg_aiht{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
+            output = Dict{String, Any}("time" => mm_time, "loss" => next_loss, "iter" => mm_iter, "beta" => b)
 
             return output
         end
@@ -506,7 +506,7 @@ function L0_reg_aiht{T <: Float}(
             end
 
             throw(error("Descent failure"))
-            output = Dict{ASCIIString, Any}("time" => -one(T), "loss" => -one(T), "iter" => -1, "beta" => fill!(b,Inf))
+            output = Dict{String, Any}("time" => -one(T), "loss" => -one(T), "iter" => -1, "beta" => fill!(b,Inf))
 
             return output
         end

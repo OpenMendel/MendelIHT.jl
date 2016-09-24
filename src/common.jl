@@ -171,6 +171,10 @@ end
 
 
 # ----------------------------------------- #
+
+# subroutine to compute a default number of folds
+@inline cv_get_num_folds(nmin::Int, nmax::Int) = max(nmin, min(Sys.CPU_CORES::Int, nmax))
+
 # return type for crossvalidation
 immutable IHTCrossvalidationResults{T <: Float}
     mses :: Vector{T}
@@ -178,22 +182,23 @@ immutable IHTCrossvalidationResults{T <: Float}
     b    :: Vector{T}
     bidx :: Vector{Int}
     k    :: Int
-    bids :: Vector{UTF8String}
+    bids :: Vector{String}
 
-#    IHTCrossvalidationResults(mses::Vector{T}, b::Vector{T}, bidx::Vector{Int}, k::Int) = new(mses, b, bidx, k)
+    IHTCrossvalidationResults(mses::Vector{T}, path::Vector{Int}, b::Vector{T}, bidx::Vector{Int}, k::Int, bids::Vector{String}) = new(mses, path, b, bidx, k, bids)
 end
 
-# strongly typed constructor for IHT CVR object
-function IHTCrossvalidationResults{T <: Float}(
-    mses :: Vector{T},
-    path :: Vector{Int},
-    b    :: Vector{T},
-    bidx :: Vector{Int},
-    k    :: Int,
-    bids :: Vector{UTF8String}
-)
-    IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k, bids)
-end
+## strongly typed constructor for IHT CVR object
+### 22 Sep 2016: no longer needed in Julia v0.5?
+#function IHTCrossvalidationResults{T <: Float}(
+#    mses :: Vector{T},
+#    path :: Vector{Int},
+#    b    :: Vector{T},
+#    bidx :: Vector{Int},
+#    k    :: Int,
+#    bids :: Vector{String}
+#)
+#    IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k, bids)
+#end
 
 ## constructor for when b, bidx are not available
 #function IHTCrossvalidationResults{T <: Float}(
@@ -215,7 +220,7 @@ function IHTCrossvalidationResults{T <: Float}(
     bidx :: Vector{Int},
     k    :: Int
 )  
-    bids = convert(Vector{UTF8String}, ["V" * "$i" for i in bidx]) :: Vector{UTF8String}
+    bids = convert(Vector{String}, ["V" * "$i" for i in bidx]) :: Vector{String}
     IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k, bids)
 end
 

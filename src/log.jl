@@ -5,7 +5,7 @@
 """
 L0 PENALIZED LOGISTIC REGRESSION
 
-    L0_log{T <: Union{Float32, Float64}}(x,y,k) -> Dict{ASCIIString,Any}
+    L0_log{T <: Union{Float32, Float64}}(x,y,k) -> Dict{String,Any}
 
 This routine minimizes the loss function given by the negative logistic loglikelihood
 
@@ -60,7 +60,7 @@ Optional Arguments:
     idxs   = falses(p)           # nonzero components of b
     idxs0  = falses(p)           # store previous nonzero indicators for b
 
-Outputs are wrapped into a `Dict{ASCIIString,Any}` with the following fields:
+Outputs are wrapped into a `Dict{String,Any}` with the following fields:
 
 - 'time' is the compute time for the algorithm. Note that this does not account for time spent initializing optional argument defaults.
 - 'iter' is the number of iterations that the algorithm took before converging.
@@ -172,7 +172,7 @@ function L0_log{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
+            output = Dict{String, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
 
             return output
         end
@@ -323,7 +323,7 @@ function L0_log{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
+            output = Dict{String, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
 
             return output
         end # end convergence check
@@ -447,7 +447,7 @@ function L0_log{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
+            output = Dict{String, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
 
             return output
         end
@@ -571,7 +571,7 @@ function L0_log{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = Dict{ASCIIString, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
+            output = Dict{String, Any}("time" => mm_time, "loss" => loss, "iter" => mm_iter, "beta" => copy(b), "active" => copy(active))
 
             return output
         end # end convergence check
@@ -804,7 +804,7 @@ Optional Arguments:
 - `max_iter` caps the number of permissible iterations in the IHT algorithm. Defaults to `100`.
 - `max_step` caps the number of permissible backtracking steps. Defaults to `100`.
 - `quiet` is a Boolean to activate output. Defaults to `true` (no output).
-- `deviance` is an `ASCIIString` that specifies the crossvalidation criterion, either `"deviance"` for the logistic loglikelihood or `"class"` for misclassification error. Defaults to `"deviance"`.
+- `deviance` is an `String` that specifies the crossvalidation criterion, either `"deviance"` for the logistic loglikelihood or `"class"` for misclassification error. Defaults to `"deviance"`.
 
 Output:
 
@@ -819,7 +819,7 @@ function one_fold_log{T <: Float}(
     n         :: Int  = length(y),
     p         :: Int  = size(x,2),
     lambdas   :: DenseVector{T} = ones(length(path)) * convert(T, sqrt(log(p) / n)),
-    criterion :: ASCIIString    = "deviance",
+    criterion :: String    = "deviance",
     tol       :: Float = convert(T, 1e-6),
     tolG      :: Float = convert(T, 1e-3),
     tolrefit  :: Float = convert(T, 1e-6),
@@ -905,7 +905,7 @@ function one_fold_log{T <: Float}(
     pids      :: DenseVector{Int} = procs(),
     means     :: DenseVector{T}   = mean(T,x, shared=true, pids=pids),
     invstds   :: DenseVector{T}   = invstd(x,means, shared=true, pids=pids),
-    criterion :: ASCIIString      = "deviance",
+    criterion :: String      = "deviance",
     tol       :: Float            = convert(T, 1e-6),
     tolG      :: Float            = convert(T, 1e-3),
     tolrefit  :: Float            = convert(T, 1e-6),
@@ -1028,7 +1028,7 @@ Optional Arguments:
    *NOTA BENE*: each processor outputs feed to the console without regard to the others,
    so setting `quiet = false` can yield very messy output!
 - `refit` is a `Bool` to indicate whether or not to recompute the best model. Note that this argument affects both the continuous refitting in the GraSP algorithm in addition to a final refit after crossvalidation. Defaults to `true` (recompute).
-- `deviance` is an `ASCIIString` that specifies the crossvalidation criterion, either `"deviance"` for the logistic loglikelihood or `"class"` for misclassification error. Defaults to `"deviance"`.
+- `deviance` is an `String` that specifies the crossvalidation criterion, either `"deviance"` for the logistic loglikelihood or `"class"` for misclassification error. Defaults to `"deviance"`.
 
 Output:
 
@@ -1049,7 +1049,7 @@ function cv_log{T <: Float}(
     p         :: Int              = size(x,2),
     lambdas   :: SharedVector{T}  = SharedArray(T, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)),
     folds     :: DenseVector{Int} = cv_get_folds(n,q),
-    criterion :: ASCIIString      = "deviance",
+    criterion :: String      = "deviance",
     tol       :: Float            = convert(T, 1e-6),
     tolG      :: Float            = convert(T, 1e-3),
     tolrefit  :: Float            = convert(T, 1e-6),
@@ -1122,7 +1122,7 @@ function pfold_log{T <: Float}(
     p         :: Int              = size(x,2),
     pids      :: DenseVector{Int} = procs(),
     lambdas   :: SharedVector{T}  = SharedArray(T, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)), # type stable for Float32?
-    criterion :: ASCIIString      = "deviance",
+    criterion :: String      = "deviance",
     tol       :: Float            = convert(T, 1e-6),
     tolG      :: Float            = convert(T, 1e-3),
     tolrefit  :: Float            = convert(T, 1e-6),
@@ -1198,12 +1198,12 @@ Each fold will compute a regularization path given by `path`.
 """
 function pfold_log(
     T          :: Type,
-    xfile      :: ASCIIString,
-    xtfile     :: ASCIIString,
-    x2file     :: ASCIIString,
-    yfile      :: ASCIIString,
-    meanfile   :: ASCIIString,
-    invstdfile :: ASCIIString,
+    xfile      :: String,
+    xtfile     :: String,
+    x2file     :: String,
+    yfile      :: String,
+    meanfile   :: String,
+    invstdfile :: String,
     path       :: DenseVector{Int},
     folds      :: DenseVector{Int},
     numfolds   :: Int;
@@ -1211,7 +1211,7 @@ function pfold_log(
     p          :: Int                = size(x,2),
     pids       :: DenseVector{Int}   = procs(),
     lambdas    :: DenseVector{Float} = SharedArray(T, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)), # type stable for Float32?
-    criterion  :: ASCIIString        = "deviance",
+    criterion  :: String        = "deviance",
     tol        :: Float              = convert(T, 1e-6),
     tolG       :: Float              = convert(T, 1e-3),
     tolrefit   :: Float              = convert(T, 1e-6),
@@ -1293,7 +1293,7 @@ function pfold_log(
 end
 
 # default type for pfold_log is Float64
-pfold_log(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, numfolds::Int; n::Int=length(y), p::Int=size(x,2), pids::DenseVector{Int}=procs(), lambdas::DenseVector{Float64}=SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)), criterion::ASCIIString="deviance", tol::Float64=1e-6, tolG::Float64=1e-3, tolrefit::Float64=1e-6, max_iter::Int=100, max_step::Int=100, quiet::Bool=true, refit::Bool=true, header::Bool=false) = pfold_log(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, n=n, p=p, pids=pids, lambdas=lambdas, criterion=criterion, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
+pfold_log(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, invstdfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, numfolds::Int; n::Int=length(y), p::Int=size(x,2), pids::DenseVector{Int}=procs(), lambdas::DenseVector{Float64}=SharedArray(Float64, (length(path),), pids=pids, init = S -> S[localindexes(S)] = sqrt(log(p) / n)), criterion::String="deviance", tol::Float64=1e-6, tolG::Float64=1e-3, tolrefit::Float64=1e-6, max_iter::Int=100, max_step::Int=100, quiet::Bool=true, refit::Bool=true, header::Bool=false) = pfold_log(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, n=n, p=p, pids=pids, lambdas=lambdas, criterion=criterion, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
 
 """
     cv_log(xfile,xtfile,x2file,yfile,meanfile,invstdfile,path,kernfile,folds,numfolds [, pids=procs()])
@@ -1305,18 +1305,18 @@ The folds are distributed across the processes given by `pids`.
 """
 function cv_log(
     T             :: Type,
-    xfile         :: ASCIIString,
-    xtfile        :: ASCIIString,
-    x2file        :: ASCIIString,
-    yfile         :: ASCIIString,
-    meanfile      :: ASCIIString,
-    invstdfile    :: ASCIIString,
+    xfile         :: String,
+    xtfile        :: String,
+    x2file        :: String,
+    yfile         :: String,
+    meanfile      :: String,
+    invstdfile    :: String,
     path          :: DenseVector{Int},
     folds         :: DenseVector{Int},
     numfolds      :: Int;
     pids          :: DenseVector{Int}   = procs(),
     lambdas       :: DenseVector{Float} = SharedArray(T, (length(path),), pids=pids, init = S -> S[localindexes(S)] = one(T)),
-    criterion     :: ASCIIString        = "deviance",
+    criterion     :: String        = "deviance",
     tol           :: Float              = convert(T, 1e-6),
     tolG          :: Float              = convert(T, 1e-3),
     tolrefit      :: Float              = convert(T, 1e-6),
@@ -1377,4 +1377,4 @@ function cv_log(
     return errors
 end
 
-cv_log(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, invstdfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, numfolds::Int; pids::DenseVector{Int}=procs(), lambdas::DenseVector{Float64} = SharedArray(Float, (length(path),), pids=pids, init = S -> S[localindexes(S)] = one(Float64)),  criterion::ASCIIString="deviance", tol::Float64=1e-6, tolG::Float64=1e-3, tolrefit::Float64=1e-6, max_iter::Int=100, max_step::Int=100, quiet::Bool=true, refit::Bool=true, header::Bool=false)=cv_log(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, pids=pids, lambdas=lambdas, criterion=criterion, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)
+cv_log(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, invstdfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, numfolds::Int; pids::DenseVector{Int}=procs(), lambdas::DenseVector{Float64} = SharedArray(Float, (length(path),), pids=pids, init = S -> S[localindexes(S)] = one(Float64)),  criterion::String="deviance", tol::Float64=1e-6, tolG::Float64=1e-3, tolrefit::Float64=1e-6, max_iter::Int=100, max_step::Int=100, quiet::Bool=true, refit::Bool=true, header::Bool=false)=cv_log(Float64, xfile, xtfile, x2file, yfile, meanfile, invstdfile, path, folds, numfolds, pids=pids, lambdas=lambdas, criterion=criterion, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, quiet=quiet, refit=refit, header=header)

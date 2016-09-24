@@ -378,12 +378,12 @@ end
 
 function pfold(
     T          :: Type,
-    xfile      :: ASCIIString,
-    xtfile     :: ASCIIString,
-    x2file     :: ASCIIString,
-    yfile      :: ASCIIString,
-    meanfile   :: ASCIIString,
-    precfile   :: ASCIIString,
+    xfile      :: String,
+    xtfile     :: String,
+    x2file     :: String,
+    yfile      :: String,
+    meanfile   :: String,
+    precfile   :: String,
     path       :: DenseVector{Int},
     folds      :: DenseVector{Int},
     pids       :: DenseVector{Int},
@@ -454,13 +454,13 @@ function pfold(
 end
 
 # default type for pfold is Float64
-pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, pids::DenseVector{Int}, q::Int; max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, pids::DenseVector{Int}, q::Int; max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 function pfold(
     T        :: Type,
-    xfile    :: ASCIIString,
-    x2file   :: ASCIIString,
-    yfile    :: ASCIIString,
+    xfile    :: String,
+    x2file   :: String,
+    yfile    :: String,
     path     :: DenseVector{Int}, 
     folds    :: DenseVector{Int},
     pids     :: DenseVector{Int},
@@ -534,7 +534,7 @@ function pfold(
 end
 
 # default for previous function is Float64
-pfold(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, path::DenseVector{Int}, folds::DenseVector{Int}, pids::DenseVector{Int}, q::Int; max_iter::Int = 100, max_step::Int = 50, quiet::Bool = true, header::Bool = false) = pfold(Float64, xfile, x2file, yfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::String, x2file::String, yfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, pids::DenseVector{Int}, q::Int; max_iter::Int = 100, max_step::Int = 50, quiet::Bool = true, header::Bool = false) = pfold(Float64, xfile, x2file, yfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 
 
@@ -549,12 +549,12 @@ The dimensions `n` and `p` are inferred from BIM and FAM files corresponding to 
 """
 function cv_iht(
     T        :: Type,
-    xfile    :: ASCIIString,
-    xtfile   :: ASCIIString,
-    x2file   :: ASCIIString,
-    yfile    :: ASCIIString,
-    meanfile :: ASCIIString,
-    precfile :: ASCIIString;
+    xfile    :: String,
+    xtfile   :: String,
+    x2file   :: String,
+    yfile    :: String,
+    meanfile :: String,
+    precfile :: String;
     q        :: Int = max(3, min(CPU_CORES, 5)),
     path     :: DenseVector{Int} = begin 
            # find p from the corresponding BIM file, then make path 
@@ -622,11 +622,11 @@ function cv_iht(
     return IHTCrossvalidationResults{T}(mses, path, b, bidx, k, bids)
 end
 
-# default type for cv_iht is Float64
-# this encodes the default interface
-#
-#     cv_iht(xfile, xtfile, x2file, yfile, meanfile, precfile)
-cv_iht(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+# encodes default type FLoat64 for previous function
+### 22 Sep 2016: Julia v0.5 warns that this conflicts with cv_iht for GPUs
+### since this is no longer the default interface for cv_iht with CPUs,
+### then it is commented out here 
+#cv_iht(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 """
     cv_iht(T::Type, xfile, x2file, yfile, [q=max(3, min(CPU_CORES,5)), path=collect(1:min(p,20)), folds=cv_get_folds(n,q), pids=procs()])
@@ -635,9 +635,9 @@ An abbreviated call to `cv_iht` that calculates means, precs, and transpose on t
 """
 function cv_iht(
     T        :: Type,
-    xfile    :: ASCIIString,
-    x2file   :: ASCIIString,
-    yfile    :: ASCIIString;
+    xfile    :: String,
+    x2file   :: String,
+    yfile    :: String;
     q        :: Int = max(3, min(CPU_CORES, 5)),
     path     :: DenseVector{Int} = begin 
            # find p from the corresponding BIM file, then make path 
@@ -717,4 +717,4 @@ Important optional arguments and defaults include:
 - `folds`, an `Int` vector that specifies the fold structure. Defaults to `cv_get_folds(n,q)`, where `n` is the number of cases read from the PLINK FAM file.
 - `pids`, an `Int` vector of process IDs. Defaults to `procs()`.
 """
-cv_iht(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+cv_iht(xfile::String, x2file::String, yfile::String; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)

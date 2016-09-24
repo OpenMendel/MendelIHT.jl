@@ -1,13 +1,13 @@
 export L0_reg_gpu
 export iht_path
 
-"A shortcut for `OpenCL` module name."
-const cl = OpenCL
+#"A shortcut for `OpenCL` module name."
+#const cl = OpenCL
 
 """
-    L0_reg(x::BEDFile, y, k, kernfile::ASCIIString)
+    L0_reg(x::BEDFile, y, k, kernfile::String)
 
-If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device. 
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device. 
 This variant introduces a host of extra arguments for the GPU encapsulated in an optional `PlinkGPUVariables` argument `v`. 
 The optional argument `v` facilitates the calculation of a regularization path by `iht_path`. 
 """
@@ -15,7 +15,7 @@ function L0_reg{T <: Float}(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     k        :: Int,
-    kernfile :: ASCIIString;
+    kernfile :: String;
     pids     :: DenseVector{Int} = procs(),
     temp     :: IHTVariables{T}  = IHTVariables(x, y, k),
     mask_n   :: DenseVector{Int} = ones(Int, size(y)),
@@ -158,15 +158,15 @@ end # end function
 
 
 """
-    iht_path(x::BEDFile, y, k, kernfile::ASCIIString)
+    iht_path(x::BEDFile, y, k, kernfile::String)
 
-If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `iht_path` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device.
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, then `iht_path` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device.
 """
 function iht_path{T <: Float}(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int},
-    kernfile :: ASCIIString;
+    kernfile :: String;
     pids     :: DenseVector{Int} = procs(),
     mask_n   :: DenseVector{Int} = ones(Int,length(y)),
     temp     :: IHTVariables{T}  = IHTVariables(x, y, 1),
@@ -217,15 +217,15 @@ end
 
 
 """
-    one_fold(x::BEDFile, y, path, kernfile::ASCIIString, folds, fold)
+    one_fold(x::BEDFile, y, path, kernfile::String, folds, fold)
 
-If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an ASCIIString, then `one_fold` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device.
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, then `one_fold` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device.
 """
 function one_fold{T <: Float}(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int},
-    kernfile :: ASCIIString,
+    kernfile :: String,
     folds    :: DenseVector{Int},
     fold     :: Int;
     pids     :: DenseVector{Int} = procs(),
@@ -369,14 +369,14 @@ Each fold will use the GPU device indexed by its corresponding component of the 
 """
 function pfold(
     T          :: Type,
-    xfile      :: ASCIIString,
-    xtfile     :: ASCIIString,
-    x2file     :: ASCIIString,
-    yfile      :: ASCIIString,
-    meanfile   :: ASCIIString,
-    precfile   :: ASCIIString,
+    xfile      :: String,
+    xtfile     :: String,
+    x2file     :: String,
+    yfile      :: String,
+    meanfile   :: String,
+    precfile   :: String,
     path       :: DenseVector{Int},
-    kernfile   :: ASCIIString,
+    kernfile   :: String,
     folds      :: DenseVector{Int},
     q          :: Int;
     devindices :: DenseVector{Int} = ones(Int,q),
@@ -451,7 +451,7 @@ end
 
 
 # default type for pfold is Float64
-pfold(xfile::ASCIIString, xtfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, path::DenseVector{Int}, kernfile::String, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 """
     cv_iht(xfile, xtfile, x2file, yfile, meanfile, precfile, kernfile) 
@@ -462,13 +462,13 @@ The calculations employ GPU acceleration by calling OpenCL kernels from `kernfil
 """
 function cv_iht(
     T        :: Type,
-    xfile    :: ASCIIString,
-    xtfile   :: ASCIIString,
-    x2file   :: ASCIIString,
-    yfile    :: ASCIIString,
-    meanfile :: ASCIIString,
-    precfile :: ASCIIString,
-    kernfile :: ASCIIString;
+    xfile    :: String,
+    xtfile   :: String,
+    x2file   :: String,
+    yfile    :: String,
+    meanfile :: String,
+    precfile :: String,
+    kernfile :: String;
     q        :: Int = max(3, min(CPU_CORES, 5)),
     path     :: DenseVector{Int} = begin 
            # find p from the corresponding BIM file, then make path 
@@ -562,7 +562,7 @@ function cv_iht(
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, meanfile::ASCIIString, precfile::ASCIIString, kernfile::ASCIIString; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, meanfile, precfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+cv_iht(xfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, kernfile::String; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, meanfile, precfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 
 
@@ -574,11 +574,11 @@ In this case, it will attempt to precompute them before calling `one_fold`.
 """
 function pfold(
     T          :: Type,
-    xfile      :: ASCIIString,
-    x2file     :: ASCIIString,
-    yfile      :: ASCIIString,
+    xfile      :: String,
+    x2file     :: String,
+    yfile      :: String,
     path       :: DenseVector{Int},
-    kernfile   :: ASCIIString,
+    kernfile   :: String,
     folds      :: DenseVector{Int},
     q          :: Int;
     devindices :: DenseVector{Int} = ones(Int,q),
@@ -652,7 +652,7 @@ end
 
 
 # default type for pfold is Float64
-pfold(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, path::DenseVector{Int}, kernfile::ASCIIString, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, x2file, yfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::String, x2file::String, yfile::String, path::DenseVector{Int}, kernfile::String, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, x2file, yfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 """
     cv_iht(xfile,x2file,yfile,path,kernfile,folds,q [, pids=procs()])
@@ -661,10 +661,10 @@ If `cv_iht` is called without filepaths to the transposed genotype data or the m
 """
 function cv_iht(
     T        :: Type,
-    xfile    :: ASCIIString,
-    x2file   :: ASCIIString,
-    yfile    :: ASCIIString,
-    kernfile :: ASCIIString;
+    xfile    :: String,
+    x2file   :: String,
+    yfile    :: String,
+    kernfile :: String;
     q        :: Int = max(3, min(CPU_CORES, 5)),
     path     :: DenseVector{Int} = begin 
            # find p from the corresponding BIM file, then make path 
@@ -759,4 +759,4 @@ function cv_iht(
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::ASCIIString, x2file::ASCIIString, yfile::ASCIIString, kernfile::ASCIIString; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+cv_iht(xfile::String, x2file::String, yfile::String, kernfile::String; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
