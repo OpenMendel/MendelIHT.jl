@@ -171,9 +171,154 @@ end
 
 
 # ----------------------------------------- #
+# crossvalidation routines
 
 # subroutine to compute a default number of folds
 @inline cv_get_num_folds(nmin::Int, nmax::Int) = max(nmin, min(Sys.CPU_CORES::Int, nmax))
+
+# subroutine to refit preditors after crossvalidation
+function refit_iht{T <: Float}(
+    x        :: DenseMatrix{T},
+    y        :: DenseVector{T},
+    k        :: Int;
+    tol      :: T    = convert(T, 1e-6),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true,
+)
+    # initialize β vector and temporary arrays
+    v = ELSQVariables(x, y)
+
+    # first use exchange algorithm to extract model
+    output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
+
+    # which components of β are nonzero?
+    # cannot use binary indices here since we need to return Int indices
+    bidx = find(v.b) :: Vector{Int}
+    k2 = length(bidx)
+
+    # allocate the submatrix of x corresponding to the inferred model
+    # cannot use SubArray since result is not StridedArray?
+    # issue is that bidx is Vector{Int} and not a Range object
+    # use of SubArray is more memory efficient; a pity that it doesn't work!
+    x_inferred = view(sdata(x), :, bidx)
+
+    # now estimate β with the ordinary least squares estimator β = inv(x'x)x'y
+    # return it with the vector of MSEs
+    xty = At_mul_B(x_inferred, sdata(y)) :: Vector{T}
+    xtx = At_mul_B(x_inferred, x_inferred) :: Matrix{T}
+    b   = zeros(T, k2)
+    try
+        b = (xtx \ xty) :: Vector{T}
+    catch e
+        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        fill!(b, -Inf)
+    end
+   
+    return b, bidx
+end
+
+# refitting routine for GWAS data with x', mean, prec files
+function refit_iht(
+    T        :: Type,
+    xfile    :: String,
+    xtfile   :: String,
+    x2file   :: String,
+    yfile    :: String,
+    meanfile :: String,
+    precfile :: String,
+    k        :: Int;
+    pids     :: DenseVector{Int} = procs(),
+    tol      :: Float = convert(T, 1e-6),
+    max_iter :: Int   = 100,
+    max_step :: Int   = 50,
+    quiet    :: Bool  = true,
+    header   :: Bool  = false
+)
+
+    # initialize all variables
+    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
+
+    # extract model with IHT
+    output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
+    
+    # which components of β are nonzero?
+    inferred_model = v.b .!= zero(T)
+    bidx = find(inferred_model)
+   
+    # allocate the submatrix of x corresponding to the inferred model
+    x_inferred = zeros(T, x.geno.n, sum(inferred_model))
+    decompress_genotypes!(x_inferred, x, inferred_model)
+
+    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
+    # return it with the vector of MSEs
+    xty = At_mul_B(x_inferred, sdata(y))   :: Vector{T}
+    xtx = At_mul_B(x_inferred, x_inferred) :: Matrix{T}
+    b   = zeros(T, length(bidx))
+    try
+        b = (xtx \ xty) :: Vector{T}
+    catch e
+        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        fill!(b, -Inf)
+    end
+
+    # get predictor names before returning
+    bids = prednames(x)[bidx]
+
+    return b, bidx, bids
+end
+
+
+# refitting routine for GWAS data with just genotypes, covariates, y
+function refit_iht(
+    T        :: Type,
+    xfile    :: String,
+    x2file   :: String,
+    yfile    :: String,
+    k        :: Int;
+    pids     :: DenseVector{Int} = procs(),
+    tol      :: Float = convert(T, 1e-6),
+    max_iter :: Int   = 100,
+    quiet    :: Bool  = true,
+    header   :: Bool  = false
+)
+
+    # initialize all variables
+    x = BEDFile(T, xfile, x2file, pids=pids, header=header)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
+
+    # first use exchange algorithm to extract model
+    L0_reg(x, y, k, max_iter=max_iter, quiet=quiet, tol=tol, window=k)
+
+    # which components of β are nonzero?
+    inferred_model = v.b .!= zero(T)
+    bidx = find(inferred_model)
+   
+    # allocate the submatrix of x corresponding to the inferred model
+    x_inferred = zeros(T, x.geno.n, sum(inferred_model))
+    decompress_genotypes!(x_inferred, x, inferred_model)
+
+    # now estimate β with the ordinary least squares estimator b = inv(x'x)x'y
+    # return it with the vector of MSEs
+    xty = At_mul_B(x_inferred, sdata(y))   :: Vector{T}
+    xtx = At_mul_B(x_inferred, x_inferred) :: Matrix{T}
+    b   = zeros(T, length(bidx))
+    try
+        b = (xtx \ xty) :: Vector{T}
+    catch e
+        warn("caught error: ", e, "\nSetting returned values of b to -Inf")
+        fill!(b, -Inf)
+    end
+
+    # get predictor names before returning
+    bids = prednames(x)[bidx]
+
+    return b, bidx, bids
+end
+
+
+
 
 # return type for crossvalidation
 immutable IHTCrossvalidationResults{T <: Float}
@@ -247,27 +392,29 @@ function update_r_grad!{T}(
     x :: DenseMatrix{T},
     y :: DenseVector{T}
 )
-    difference!(v.r, y, v.xb)
-    BLAS.gemv!('T', one(T), x, v.r, zero(T), v.df)
+    #difference!(v.r, y, v.xb)
+    broadcast!(-, v.r, y, v.xb) # v.r = y - v.xb
+    At_mul_B!(v.df, x, v.r) # v.df = x' * v.r
     return nothing
 end
 
 function initialize_xb_r_grad!{T <: Float}(
-    temp :: IHTVariables{T},
-    x    :: DenseMatrix{T},
-    y    :: DenseVector{T},
-    k    :: Int
+    v :: IHTVariables{T},
+    x :: DenseMatrix{T},
+    y :: DenseVector{T},
+    k :: Int
 )
     # update x*beta
-    if sum(temp.idx) == 0
-        fill!(temp.xb, zero(T))
+    if sum(v.idx) == 0
+        fill!(v.xb, zero(T))
     else
-        update_indices!(temp.idx, temp.b)
-        update_xb!(temp.xb, x, temp.b, temp.idx, k)
+        update_indices!(v.idx, v.b)
+        update_xb!(v.xb, x, v.b, v.idx, k)
+        #A_mul_B!(v.xb, view(x :, v.idx), view(v.b, v.idx) )
     end
 
     # update r and gradient
-    update_r_grad!(temp, x, y)
+    update_r_grad!(v, x, y)
 end
 
 #function update_r_grad!{T}(
@@ -276,26 +423,27 @@ end
 #    y    :: DenseVector{T};
 #    pids :: DenseVector{Int} = procs(x)
 #)
-#    difference!(v.r, y, v.xb)
+#    #difference!(v.r, y, v.xb)
+#    broadcast!(-, v.r, y, v.xb)
 #    PLINK.At_mul_B!(v.df, x, v.r, pids=pids)
 #    return nothing
 #end
 #
 #function initialize_xb_r_grad!{T <: Float}(
-#    temp :: IHTVariables{T},
+#    v    :: IHTVariables{T},
 #    x    :: BEDFile{T},
 #    y    :: DenseVector{T},
 #    k    :: Int;
 #    pids :: DenseVector{Int} = procs(x)
 #)
-#    if sum(temp.idx) == 0
-#        fill!(temp.xb, zero(T))
-#        copy!(temp.r, y)
-#        At_mul_B!(temp.df, x, temp.r, pids=pids)
+#    if sum(v.idx) == 0
+#        fill!(v.xb, zero(T))
+#        copy!(v.r, y)
+#        At_mul_B!(v.df, x, v.r, pids=pids)
 #    else
-#        update_indices!(temp.idx, temp.b)
-#        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, pids=pids)
-#        update_r_grad!(temp, x, y, pids=pids)
+#        update_indices!(v.idx, v.b)
+#        A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
+#        update_r_grad!(v, x, y, pids=pids)
 #    end
 #    return nothing
 #end
@@ -324,18 +472,15 @@ function _iht_indices{T <: Float}(
     return nothing
 end
 
-# TODO 29 June 2016: this is type-unstable! must fix
 # this function computes the step size for one update with iht()
 function _iht_stepsize{T <: Float}(
     v :: IHTVariables{T},
     k :: Int
 )
     # store relevant components of gradient
-#    fill_perm!(v.gk, v.df, v.idx)    # gk = g[IDX]
     v.gk = v.df[v.idx]
 
     # compute xk' * gk
-#    BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
     A_mul_B!(v.xgk, v.xk, v.gk)
 
     # warn if xgk only contains zeros

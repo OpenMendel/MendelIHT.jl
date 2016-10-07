@@ -61,7 +61,7 @@ function iht!{T <: Float}(
     fill_perm!(v.gk, v.df, v.idx)    # gk = g[v.idx]
 
     # now compute subset of x*g
-    BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
+    A_mul_B!(v.xgk, v.xk, v.gk)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
@@ -78,6 +78,7 @@ function iht!{T <: Float}(
 
     # update xb
     update_xb!(v.xb, x, v.b, v.idx, k)
+    #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
 
     # calculate omega
     omega_top, omega_bot = _iht_omega(v)
@@ -95,6 +96,7 @@ function iht!{T <: Float}(
 
         # recompute xb
         update_xb!(v.xb, x, v.b, v.idx, k)
+        #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
 
         # calculate omega
         omega_top, omega_bot = _iht_omega(v)
@@ -179,7 +181,7 @@ function L0_reg{T <: Float}(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-#    # update xb, r, gradient
+    # update xb, r, gradient
     initialize_xb_r_grad!(temp, x, y, k)
 
     # update loss and objective

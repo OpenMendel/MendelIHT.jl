@@ -89,7 +89,7 @@ function pfold{T <: Float}(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-    results = zeros(T, length(path), q)
+    #results = zeros(T, length(path), q)
     results = SharedArray(T, (length(path),q), pids=pids)
 
     # master process will distribute tasks to workers
@@ -119,9 +119,6 @@ function pfold{T <: Float}(
                         # worker loads data from file paths and then computes the errors in one fold
 #                        results[:, current_fold] = remotecall_fetch(worker) do
                         r = remotecall_fetch(worker) do
-                                ### 23 Sep 2016: this doesn't seem to work for one core!
-                                ### set i -> current_fold, hopefully this works correctly! :(
-#                                one_fold(x, y, path, folds, i, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
                                 one_fold(x, y, path, folds, current_fold, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
                         end # end remotecall_fetch()
                         setindex!(results, r, :, current_fold)
@@ -209,26 +206,8 @@ function cv_iht{T <: Float}(
     # print results
     !quiet && print_cv_results(mses, path, k)
 
-    # recompute ideal model
-    # first use L0_reg to extract model
-    output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
-
-    # which components of beta are nonzero?
-    bidx = find(output.beta) :: Vector{Int}
-
-    # allocate the submatrix of x corresponding to the inferred model
-    x_inferred = x[:,bidx]
-
-    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-    xty = BLAS.gemv('T', one(T), x_inferred, y) :: Vector{T}
-    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred) :: Matrix{T}
-    b   = zeros(T, length(bidx))
-    try
-        b = (xtx \ xty) :: Vector{T}
-    catch e
-        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
-        fill!(b, -Inf)
-    end
+    # refit the best model
+    b, bidx = refit_iht(x, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
     return IHTCrossvalidationResults(mses, path, b, bidx, k)
 end
