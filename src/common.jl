@@ -187,7 +187,7 @@ function refit_iht{T <: Float}(
     quiet    :: Bool = true,
 )
     # initialize β vector and temporary arrays
-    v = ELSQVariables(x, y)
+    v = IHTVariables(x, y, k)
 
     # first use exchange algorithm to extract model
     output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
@@ -385,6 +385,26 @@ end
 
 # ----------------------------------------- #
 # subroutines for L0_reg 
+
+#function update_xb!{T <: Float}(
+#   v :: IHTVariables{T},
+#   x :: DenseMatrix{T},
+#   k :: Int
+#)
+#    sum(v.idx) <= k || throw(ArgumentError("Argument indices with $(sum(indices)) trues should have at most $k of them"))
+#    fill!(v.xb, zero(T))
+#    numtrue = 0
+#    @inbounds for j in eachindex(v.idx) 
+#        if v.idx[j]
+#            numtrue += 1
+#            @inbounds for i in eachindex(v.xb) 
+#                v.xb[i] += v.b[j]*x[i,j]
+#            end
+#        end
+#        numtrue >= k && break
+#    end
+#    return nothing
+#end
 
 # subroutine to update residuals and gradient from data
 function update_r_grad!{T}(
