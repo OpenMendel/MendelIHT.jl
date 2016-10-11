@@ -483,7 +483,7 @@ function _iht_indices{T <: Float}(
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
     if sum(v.idx) == 0
-        a = select(v.df, k, by=abs, rev=true)
+        a = select(v.df, k, by=abs, rev=true) :: T
 #        threshold!(IDX, g, abs(a), n=p)
         v.idx[abs(v.df) .>= abs(a)-2*eps()] = true
         v.gk = zeros(T, sum(v.idx))
@@ -532,15 +532,15 @@ function _iht_gradstep{T <: Float}(
     # this is a VERY DANGEROUS DARK SIDE HACK!
     # hack randomly permutes indices of duplicates and retains one
     if sum(v.idx) > k
-        a = select(v.b, k, by=abs, rev=true)    # compute kth pivot
-        dupes = (abs(v.b) .== abs(a))           # find duplicates
-        l = sum(dupes)                          # how many duplicates?
-        l <= 1 && return nothing                # if no duplicates, then simply return
-        d = find(dupes)                         # find duplicates
-        shuffle!(d)                             # permute duplicates
-        deleteat!(d, 1)                         # save first duplicate
-        Base.unsafe_setindex!(v.b, zero(T), d)  # zero out other duplicates
-        Base.unsafe_setindex!(v.idx, false, d)  # set corresponding indices to false
+        a = select(v.b, k, by=abs, rev=true) :: T    # compute kth pivot
+        dupes = (abs(v.b) .== abs(a)) :: BitArray{1} # find duplicates
+        l = sum(dupes) :: Int                        # how many duplicates?
+        l <= 1 && return nothing                     # if no duplicates, then simply return
+        d = find(dupes) :: Vector{Int}               # find duplicates
+        shuffle!(d)                                  # permute duplicates
+        deleteat!(d, 1)                              # save first duplicate
+        Base.unsafe_setindex!(v.b, zero(T), d)       # zero out other duplicates
+        Base.unsafe_setindex!(v.idx, false, d)       # set corresponding indices to false
     end
 
     return nothing

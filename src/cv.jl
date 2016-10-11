@@ -29,10 +29,10 @@ function one_fold{T <: Float}(
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
     fold     :: Int;
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    quiet    :: Bool  = true,
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true,
 )
 
     # make vector of indices for folds
@@ -47,7 +47,8 @@ function one_fold{T <: Float}(
     y_train = y[train_idx]
 
     # compute the regularization path on the training set
-    betas = iht_path(x_train, y_train, path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
+    #betas = iht_path(x_train, y_train, path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
+    betas = iht_path(x_train, y_train, path, tol, max_iter, max_step, quiet)
 
     # compute the mean out-of-sample error for the TEST set
     Xb = view(x, test_idx, :) * betas
@@ -71,11 +72,11 @@ function pfold{T <: Float}(
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
     q        :: Int;
-    pids     :: DenseVector{Int} = procs(),
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    quiet    :: Bool  = true,
+    pids     :: Vector{Int} = procs(),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true,
 )
     # how many CPU processes can pfold use?
     np = length(pids)
@@ -175,11 +176,11 @@ function cv_iht{T <: Float}(
     q        :: Int   = cv_get_num_folds(3, 5), 
     path     :: DenseVector{Int} = collect(1:min(size(x,2),20)),
     folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
-    pids     :: DenseVector{Int} = procs(),
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    quiet    :: Bool  = true,
+    pids     :: Vector{Int} = procs(),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true,
 )
     # do not allow crossvalidation with fewer than 3 folds
     q > 2 || throw(ArgumentError("Number of folds q = $q must be at least 3."))

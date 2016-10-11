@@ -3,10 +3,20 @@ module IHT
 using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK
 using RegressionTools
-using OpenCL
 using StatsBase
 using DataFrames
 using Gadfly
+
+# conditional load of OpenCL module
+# only load if Julia can find OpenCL module
+# this code is copied from OpenCL module
+const paths = is_apple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
+const libopencl = Libdl.find_library(["libOpenCL", "OpenCL"], paths)
+if libopencl == ""
+    warn("IHT.jl does not see an OpenCL library and will not load GPU functions")
+else
+    using OpenCL
+end
 
 # used for pretty printing of IHTResults, IHTCrossvalidationResults
 import Base.show
@@ -26,7 +36,9 @@ export cv_log
 typealias Float Union{Float64, Float32}
 
 include("common.jl")
-include("gpu.jl")
+if libopencl != ""
+    include("gpu.jl") # conditional load of GPU code
+end
 include("gwas.jl")
 include("cv.jl")
 include("hardthreshold.jl")

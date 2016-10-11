@@ -42,9 +42,9 @@ function iht!{T <: Float}(
     v     :: IHTVariables{T},
     x     :: DenseMatrix{T},
     y     :: DenseVector{T},
-    k     :: Int;
+    k     :: Int,
     iter  :: Int = 1,
-    nstep :: Int = 50,
+    nstep :: Int = 50
 )
 
     # compute indices of nonzeroes in beta
@@ -54,7 +54,8 @@ function iht!{T <: Float}(
     # need to do this on 1st iteration
     # afterwards, only do if support changes
     if !isequal(v.idx, v.idx0) || iter < 2
-        update_xk!(v.xk, x, v.idx)   # xk = x[:,v.idx]
+        #update_xk!(v.xk, x, v.idx)   # xk = x[:,v.idx]
+        copy!(v.xk, view(x, :, v.idx))
     end
 
     # store relevant components of gradient
@@ -72,6 +73,7 @@ function iht!{T <: Float}(
 
     # check for finite stepsize
     isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
+    #isfinite(mu) || warn("Step size is not finite, is active set all zero?")
 
     # compute gradient step
     _iht_gradstep(v, mu, k)
@@ -133,7 +135,7 @@ Optional Arguments:
 - `max_step` is the maximum number of backtracking steps for the step size calculation. Defaults to `50`.
 - `tol` is the global tolerance. Defaults to `1e-4`.
 - `quiet` is a `Bool` that controls algorithm output. Defaults to `true` (no output).
-- `temp` is an `IHTVariables` structure used to house temporary arrays. Used primarily in `iht_path` for memory efficiency.
+- `v` is an `IHTVariables` structure used to house temporary arrays. Used primarily in `iht_path` for memory efficiency.
 
 Outputs are wrapped into an `IHTResults` structure with the following fields:
 
@@ -142,25 +144,25 @@ Outputs are wrapped into an `IHTResults` structure with the following fields:
 - 'loss' is the optimal loss (half of residual sum of squares) at convergence.
 - 'beta' is the final estimate of `b`.
 """
-function L0_reg{T <: Float}(
-    x         :: DenseMatrix{T},
-    y         :: DenseVector{T},
-    k         :: Int;
-    temp      :: IHTVariables{T}  = IHTVariables(x, y, k),
-    tol       :: Float            = convert(T, 1e-4),
-    max_iter  :: Int              = 100,
-    max_step  :: Int              = 50,
-    quiet     :: Bool             = true
+function L0_reg{T <: Float, V <: DenseVector}(
+    x        :: DenseMatrix{T},
+    y        :: V,
+    k        :: Int,
+    v        :: IHTVariables{T, V} = IHTVariables(x, y, k),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true
 )
 
     # start timer
     tic()
 
     # first handle errors
-    k        >= 0     || throw(ArgumentError("Value of k must be nonnegative!\n"))
-    max_iter >= 0     || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-    max_step >= 0     || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol      >  eps() || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+    k        >= 0      || throw(ArgumentError("Value of k must be nonnegative!\n"))
+    max_iter >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
+    max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
+    tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
@@ -169,7 +171,7 @@ function L0_reg{T <: Float}(
     next_loss = zero(T)           # loss function value
 
     # initialize floats
-    current_obj = oftype(tol,Inf) # tracks previous objective function value
+    current_obj = convert(T, Inf) # tracks previous objective function value
     the_norm    = zero(T)         # norm(b - b0)
     scaled_norm = zero(T)         # the_norm / (norm(b0) + 1)
     mu          = zero(T)         # Landweber step size, 0 < tau < 2/rho_max^2
@@ -182,10 +184,10 @@ function L0_reg{T <: Float}(
     converged = false             # scaled_norm < tol?
 
     # update xb, r, gradient
-    initialize_xb_r_grad!(temp, x, y, k)
+    initialize_xb_r_grad!(v, x, y, k)
 
     # update loss and objective
-    next_loss = oftype(tol,Inf)
+    next_loss = convert(T, Inf)
 
     # formatted output to monitor algorithm progress
     !quiet && print_header()
@@ -200,40 +202,38 @@ function L0_reg{T <: Float}(
             !quiet && print_maxiter(max_iter, loss)
 
             # send elements below tol to zero
-            threshold!(temp.b, tol)
+            threshold!(v.b, tol)
 
             # stop timer
             mm_time = toq()
 
             # these are output variables for function
             # wrap them into a Dict and return
-            return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
-
-            return output
+            return IHTResults(mm_time, next_loss, mm_iter, copy(v.b))
         end
 
         # save values from previous iterate
-        copy!(temp.b0, temp.b)             # b0 = b
-        copy!(temp.xb0, temp.xb)           # Xb0 = Xb
+        copy!(v.b0, v.b)             # b0 = b
+        copy!(v.xb0, v.xb)           # Xb0 = Xb
         current_obj = next_obj
 
         # now perform IHT step
-        (mu, mu_step) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter)
+        (mu, mu_step) = iht!(v, x, y, k, max_step, mm_iter)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
-        update_r_grad!(temp, x, y)
+        update_r_grad!(v, x, y)
 
         # update loss, objective, and gradient
-        next_loss = sumabs2(temp.r) / 2
+        next_loss = sumabs2(v.r) / 2
 
         # guard against numerical instabilities
         check_finiteness(next_loss)
 
         # track convergence
-        the_norm    = chebyshev(temp.b, temp.b0)
-        scaled_norm = the_norm / ( norm(temp.b0,Inf) + 1)
-        converged   = scaled_norm < tol
+        the_norm    = chebyshev(v.b, v.b0)
+        scaled_norm = (the_norm / ( norm(v.b0,Inf) + 1)) :: T
+        converged   = (scaled_norm < tol) :: Bool
 
         # output algorithm progress
         quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_loss)
@@ -244,7 +244,7 @@ function L0_reg{T <: Float}(
         if converged
 
             # send elements below tol to zero
-            threshold!(temp.b, tol)
+            threshold!(v.b, tol)
 
             # stop time
             mm_time = toq()
@@ -254,7 +254,7 @@ function L0_reg{T <: Float}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
+            return IHTResults(mm_time, next_loss, mm_iter, copy(v.b))
         end
 
         # algorithm is unconverged at this point.
@@ -264,6 +264,7 @@ function L0_reg{T <: Float}(
         if next_obj > current_obj + tol
             !quiet && print_descent_error(mm_iter, loss, next_loss)
             throw(ErrorException("Descent failure!"))
+            #return IHTResults(-one(T), convert(T, -Inf), -1, [convert(T, -Inf)])
         end
     end # end main loop
 end # end function
@@ -296,11 +297,11 @@ Output:
 function iht_path{T <: Float}(
     x        :: DenseMatrix{T},
     y        :: DenseVector{T},
-    path     :: DenseVector{Int};
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    quiet    :: Bool  = true
+    path     :: DenseVector{Int},
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true
 )
 
     # size of problem?
@@ -308,10 +309,15 @@ function iht_path{T <: Float}(
 
     # how many models will we compute?
     num_models = length(path)
+    #nk = sum(path) # total number of elements in models
 
     # preallocate space for intermediate steps of algorithm calculations
-    temp  = IHTVariables(x, y, 1)
+    v  = IHTVariables(x, y, 1)
     betas = spzeros(T, p, num_models)  # a matrix to store calculated models
+    #I = zeros(Int, nk)
+    #J = zeros(Int, nk)
+    #K = zeros(T,   nk)
+    #q0 = 0 
 
     # compute the path
     for i = 1:num_models
@@ -323,19 +329,27 @@ function iht_path{T <: Float}(
         quiet || print_with_color(:blue, "Computing model size $q.\n\n")
 
         # store projection of beta onto largest k nonzeroes in magnitude
-        project_k!(temp.b, q)
+        project_k!(v.b, q)
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
-        update_variables!(temp, x, q)
+        update_variables!(v, x, q)
 
         # now compute current model
-        output = L0_reg(x, y, q, temp=temp, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+        #output = L0_reg(x, y, q, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+        output = L0_reg(x, y, q, v, tol, max_iter, max_step, quiet)
 
         # extract and save model
+        # strangely more efficient to continuously reallocate sparse matrix
+        # than to form it directly
+        #I[(q0+1):(q0+q)] = find(v.idx)
+        #J[(q0+1):(q0+q)] = i
+        #K[(q0+1):(q0+q)] = v.b[v.idx]
+        #q0 += q
         betas[:,i] = sparsevec(output.beta)
     end
 
     # return a sparsified copy of the models
+    #betas = sparse(I, J, K, p, num_models, false) 
     return betas
 end
