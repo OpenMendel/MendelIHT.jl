@@ -7,9 +7,9 @@ export iht_path
 """
     L0_reg(x::BEDFile, y, k, kernfile::String)
 
-If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device. 
-This variant introduces a host of extra arguments for the GPU encapsulated in an optional `PlinkGPUVariables` argument `v`. 
-The optional argument `v` facilitates the calculation of a regularization path by `iht_path`. 
+If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, then `L0_reg` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` with a GPU device.
+This variant introduces a host of extra arguments for the GPU encapsulated in an optional `PlinkGPUVariables` argument `v`.
+The optional argument `v` facilitates the calculation of a regularization path by `iht_path`.
 """
 function L0_reg{T <: Float}(
     x        :: BEDFile{T},
@@ -19,7 +19,7 @@ function L0_reg{T <: Float}(
     pids     :: DenseVector{Int} = procs(),
     temp     :: IHTVariables{T}  = IHTVariables(x, y, k),
     mask_n   :: DenseVector{Int} = ones(Int, size(y)),
-    v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n), 
+    v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
@@ -139,7 +139,7 @@ function L0_reg{T <: Float}(
             # stop time
             mm_time = toq()
 
-            # announce convergence 
+            # announce convergence
             !quiet && print_convergence(mm_iter, next_loss, mm_time)
 
             # these are output variables for function
@@ -170,7 +170,7 @@ function iht_path{T <: Float}(
     pids     :: DenseVector{Int} = procs(),
     mask_n   :: DenseVector{Int} = ones(Int,length(y)),
     temp     :: IHTVariables{T}  = IHTVariables(x, y, 1),
-    v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n), 
+    v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
@@ -202,7 +202,7 @@ function iht_path{T <: Float}(
         project_k!(temp.b, q)
 
         # now compute current model
-        output = L0_reg(x, y, q, kernfile, temp=temp, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n) 
+        output = L0_reg(x, y, q, kernfile, temp=temp, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n)
 
         # ensure that we correctly index the nonzeroes in b
         update_indices!(temp.idx, output.beta)
@@ -454,10 +454,10 @@ end
 pfold(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, path::DenseVector{Int}, kernfile::String, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 """
-    cv_iht(xfile, xtfile, x2file, yfile, meanfile, precfile, kernfile) 
+    cv_iht(xfile, xtfile, x2file, yfile, meanfile, precfile, kernfile)
 This variant of `cv_iht()` uses a GPU to perform `q`-fold crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
 with column means stored in `meanfile` and column precisions stored in `precfile`.
-The continuous response is stored in the binary file `yfile`. 
+The continuous response is stored in the binary file `yfile`.
 The calculations employ GPU acceleration by calling OpenCL kernels from `kernfile` with workgroup size `wg_size`.
 """
 function cv_iht(
@@ -470,8 +470,8 @@ function cv_iht(
     precfile :: String,
     kernfile :: String;
     q        :: Int = max(3, min(CPU_CORES, 5)),
-    path     :: DenseVector{Int} = begin 
-           # find p from the corresponding BIM file, then make path 
+    path     :: DenseVector{Int} = begin
+           # find p from the corresponding BIM file, then make path
             bimfile = xfile[1:(endof(xfile)-3)] * "bim"
             p       = countlines(bimfile)
             collect(1:min(20,p))
@@ -550,12 +550,12 @@ function cv_iht(
     xty = BLAS.gemv('T', one(T), x_inferred, y)
     xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
     b   = zeros(T, length(bidx))
-    try 
+    try
         b = (xtx \ xty) :: Vector{T}
     catch e
         warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
         fill!(b, -Inf)
-    end 
+    end
 
     bids = prednames(x)[bidx]
     return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
@@ -570,7 +570,7 @@ cv_iht(xfile::String, x2file::String, yfile::String, meanfile::String, precfile:
     pfold(xfile, x2file, yfile, path, kernfile, folds, q [, pids=procs(), devindices=ones(Int,q])
 
 `pfold` can also be called without the transposed genotype files or the mean/precision files.
-In this case, it will attempt to precompute them before calling `one_fold`. 
+In this case, it will attempt to precompute them before calling `one_fold`.
 """
 function pfold(
     T          :: Type,
@@ -657,7 +657,7 @@ pfold(xfile::String, x2file::String, yfile::String, path::DenseVector{Int}, kern
 """
     cv_iht(xfile,x2file,yfile,path,kernfile,folds,q [, pids=procs()])
 
-If `cv_iht` is called without filepaths to the transposed genotype data or the means and precisions, then it will attempt to precompute them. 
+If `cv_iht` is called without filepaths to the transposed genotype data or the means and precisions, then it will attempt to precompute them.
 """
 function cv_iht(
     T        :: Type,
@@ -666,8 +666,8 @@ function cv_iht(
     yfile    :: String,
     kernfile :: String;
     q        :: Int = max(3, min(CPU_CORES, 5)),
-    path     :: DenseVector{Int} = begin 
-           # find p from the corresponding BIM file, then make path 
+    path     :: DenseVector{Int} = begin
+           # find p from the corresponding BIM file, then make path
             bimfile = xfile[1:(endof(xfile)-3)] * "bim"
             p       = countlines(bimfile)
             collect(1:min(20,p))
@@ -747,12 +747,12 @@ function cv_iht(
     xty = BLAS.gemv('T', one(T), x_inferred, y)
     xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
     b   = zeros(T, length(bidx))
-    try 
+    try
         b = (xtx \ xty) :: Vector{T}
     catch e
         warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
         fill!(b, -Inf)
-    end 
+    end
 
     bids = prednames(x)[bidx]
     return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)

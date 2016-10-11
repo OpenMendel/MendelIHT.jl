@@ -214,7 +214,7 @@ function refit_iht{T <: Float}(
         warn("caught error: ", e, "\nSetting returned values of b to -Inf")
         fill!(b, -Inf)
     end
-   
+  
     return b, bidx
 end
 
@@ -242,11 +242,11 @@ function refit_iht(
 
     # extract model with IHT
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
-    
+   
     # which components of β are nonzero?
     inferred_model = v.b .!= zero(T)
     bidx = find(inferred_model)
-   
+  
     # allocate the submatrix of x corresponding to the inferred model
     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
     decompress_genotypes!(x_inferred, x, inferred_model)
@@ -294,7 +294,7 @@ function refit_iht(
     # which components of β are nonzero?
     inferred_model = v.b .!= zero(T)
     bidx = find(inferred_model)
-   
+  
     # allocate the submatrix of x corresponding to the inferred model
     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
     decompress_genotypes!(x_inferred, x, inferred_model)
@@ -350,7 +350,7 @@ end
 #    mses :: Vector{T},
 #    path :: Vector{Int},
 #    k    :: Int
-#)  
+#) 
 #    b    = zeros(T, 1)
 #    bidx = zeros(Int, 1)
 #    IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
@@ -364,14 +364,14 @@ function IHTCrossvalidationResults{T <: Float}(
     b    :: Vector{T},
     bidx :: Vector{Int},
     k    :: Int
-)  
+) 
     bids = convert(Vector{String}, ["V" * "$i" for i in bidx]) :: Vector{String}
     IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k, bids)
 end
 
 # function to view an IHTCrossvalidationResults object
 function Base.show(io::IO, x::IHTCrossvalidationResults)
-    println(io, "Crossvalidation results:") 
+    println(io, "Crossvalidation results:")
     println(io, "Minimum MSE ", minimum(x.mses), " occurs at k = $(x.k).")
     println(io, "Best model β has the following nonzero coefficients:")
     println(io, DataFrame(Predictor=x.bidx, Name=x.bids, Estimated_β=x.b))
@@ -384,7 +384,7 @@ function Gadfly.plot(x::IHTCrossvalidationResults)
 end
 
 # ----------------------------------------- #
-# subroutines for L0_reg 
+# subroutines for L0_reg
 
 #function update_xb!{T <: Float}(
 #   v :: IHTVariables{T},
@@ -394,10 +394,10 @@ end
 #    sum(v.idx) <= k || throw(ArgumentError("Argument indices with $(sum(indices)) trues should have at most $k of them"))
 #    fill!(v.xb, zero(T))
 #    numtrue = 0
-#    @inbounds for j in eachindex(v.idx) 
+#    @inbounds for j in eachindex(v.idx)
 #        if v.idx[j]
 #            numtrue += 1
-#            @inbounds for i in eachindex(v.xb) 
+#            @inbounds for i in eachindex(v.xb)
 #                v.xb[i] += v.b[j]*x[i,j]
 #            end
 #        end
@@ -575,28 +575,37 @@ end
 # printing routines
 
 # this prints the start of the algo
-function print_header()
-     println("\nBegin IHT algorithm\n")
-     println("Iter\tHalves\tMu\t\tNorm\t\tObjective")
-     println("0\t0\tInf\t\tInf\t\tInf")
+function print_header(io::IO)
+     println(io, "\nBegin IHT algorithm\n")
+     println(io, "Iter\tHalves\tMu\t\tNorm\t\tObjective")
+     println(io, "0\t0\tInf\t\tInf\t\tInf")
 end
+
+# default IO for print_header is STDOUT
+print_header() = print_header(STDOUT)
 
 # alert when a descent error is found
-function print_descent_error{T <: Float}(iter::Int, loss::T, next_loss::T)
-    print_with_color(:red, "\nIHT algorithm fails to descend!\n")
-    print_with_color(:red, "Iteration: $(iter)\n")
-    print_with_color(:red, "Current Objective: $(loss)\n")
-    print_with_color(:red, "Next Objective: $(next_loss)\n")
-    print_with_color(:red, "Difference in objectives: $(abs(next_loss - loss))\n")
+function print_descent_error{T <: Float}(io::IO, iter::Int, loss::T, next_loss::T)
+    print_with_color(:red, io, "\nIHT algorithm fails to descend!\n")
+    print_with_color(:red, io, "Iteration: $(iter)\n")
+    print_with_color(:red, io, "Current Objective: $(loss)\n")
+    print_with_color(:red, io, "Next Objective: $(next_loss)\n")
+    print_with_color(:red, io, "Difference in objectives: $(abs(next_loss - loss))\n")
 end
 
+# default IO for print_descent_error is STDOUT
+print_descent_error{T <: Float}(iter::Int, loss::T, next_loss::T) = print_descent_error(iter, loss, next_loss)
+
 # announce algo convergence
-function print_convergence{T <: Float}(iter::Int, loss::T, ctime::T)
-    println("\nIHT algorithm has converged successfully.")
-    println("Results:\nIterations: $(iter)")
-    println("Final Loss: $(loss)")
-    println("Total Compute Time: $(ctime)")
+function print_convergence{T <: Float}(io::IO, iter::Int, loss::T, ctime::T)
+    println(io, "\nIHT algorithm has converged successfully.")
+    println(io, "Results:\nIterations: $(iter)")
+    println(io, "Final Loss: $(loss)")
+    println(io, "Total Compute Time: $(ctime)")
 end
+
+# default IO for print_convergence is STDOUT
+print_convergence{T <: Float}(iter::Int, loss::T, ctime::T) = print_convergence(STDOUT, iter, loss, ctime)
 
 # check the finiteness of an objective function value
 # throw an error if value is not finite
@@ -606,17 +615,23 @@ function check_finiteness{T <: Float}(x::T)
 end
 
 # alert if iteration limit is reached
-function print_maxiter{T <: Float}(max_iter::Int, loss::T)
-    print_with_color(:red, "IHT algorithm has hit maximum iterations $(max_iter)!\n")
-    print_with_color(:red, "Current Loss: $(loss)\n")
+function print_maxiter{T <: Float}(io::IO, max_iter::Int, loss::T)
+    print_with_color(:red, io, "IHT algorithm has hit maximum iterations $(max_iter)!\n")
+    print_with_color(:red, io, "Current Loss: $(loss)\n")
 end
 
+# default IO for print_maxiter is STDOUT
+print_maxiter{T <: Float}(max_iter::Int, loss::T) = print_maxiter(STDOUT, max_iter, loss)
+
 # verbose printing of cv results
-function print_cv_results{T <: Float}(errors::DenseVector{T}, path::DenseVector{Int}, k::Int)
-    println("\n\nCrossvalidation Results:")
-    println("k\tMSE")
+function print_cv_results{T <: Float}(io::IO, errors::Vector{T}, path::DenseVector{Int}, k::Int)
+    println(io, "\n\nCrossvalidation Results:")
+    println(io, "k\tMSE")
     for i = 1:length(errors)
-        println(path[i], "\t", errors[i])
+        println(io, path[i], "\t", errors[i])
     end
-    println("\nThe lowest MSE is achieved at k = ", k)
+    println(io, "\nThe lowest MSE is achieved at k = ", k)
 end
+
+# default IO for print_cv_results is STDOUT
+print_cv_results{T <: Float}(errors::Vector{T}, path::DenseVector{Int}, k::Int) = print_cv_results(STDOUT, errors, path, k)

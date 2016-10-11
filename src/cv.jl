@@ -47,8 +47,7 @@ function one_fold{T <: Float}(
     y_train = y[train_idx]
 
     # compute the regularization path on the training set
-    #betas = iht_path(x_train, y_train, path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
-    betas = iht_path(x_train, y_train, path, tol, max_iter, max_step, quiet)
+    betas = iht_path(x_train, y_train, path, tol=tol, max_iter=max_iter, quiet=quiet, max_step=max_step)
 
     # compute the mean out-of-sample error for the TEST set
     Xb = view(x, test_idx, :) * betas
@@ -130,7 +129,7 @@ function pfold{T <: Float}(
     end # end @sync
 
     # return reduction (row-wise sum) over results
-    return (vec(sum(results, 2) ./ q)) :: Vector{T} 
+    return (vec(sum(results, 2) ./ q)) :: Vector{T}
 end
 
 
@@ -173,7 +172,7 @@ An `IHTCrossvalidationResults` object with the following fields:
 function cv_iht{T <: Float}(
     x        :: DenseMatrix{T},
     y        :: DenseVector{T};
-    q        :: Int   = cv_get_num_folds(3, 5), 
+    q        :: Int   = cv_get_num_folds(3, 5),
     path     :: DenseVector{Int} = collect(1:min(size(x,2),20)),
     folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
     pids     :: Vector{Int} = procs(),

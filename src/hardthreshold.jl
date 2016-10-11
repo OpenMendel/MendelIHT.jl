@@ -1,24 +1,24 @@
 """
 ITERATIVE HARD THRESHOLDING
 
-    iht!(v,x,y,k) -> (Float, Int)
+    iht!(v, x, y, k [, iter=1, nstep=50]) -> (Float, Int)
 
 This function computes a hard threshold update
 
-    b = P_Sk(b0 + mu*x'*(y - x*b0))
+    β = P_Sk(β0 + μ*x'*(y - x*β0))
 
-where `mu` is the step size (or learning rate) and P_Sk denotes the projection onto the set S_k defined by
+where `μ` is the step size (or learning rate) and P_Sk denotes the projection onto the set S_k defined by
 
 S_k = { x in R^p : || x ||_0 <= k }.
 
-The projection in question preserves the largest `k` components of `b` in magnitude, and it sends the remaining
+The projection in question preserves the largest `k` components of `β` in magnitude, and it sends the remaining
 `p - k` components to zero. This update is intimately related to a projected gradient step used in Landweber iteration.
-Unlike the Landweber method, this function performs a line search on `mu` whenever the step size exceeds a specified
-threshold `omega` given by
+Unlike the Landweber method, this function performs a line search on `μ` whenever the step size exceeds a specified
+threshold `ω` given by
 
-    omega = sumabs2(b - b0) / sumabs2(x*(b - b0))
+    ω = sumabs2(β - β0) / sumabs2(x*(β - β0))
 
-By backtracking on `mu`, this function guarantees a stable estimation of a sparse `b`.
+By backtracking on `μ`, this function guarantees a stable estimation of a sparse `β`.
 This function is based on the [HardLab](http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html/) demonstration code written in MATLAB by Thomas Blumensath.
 
 Arguments:
@@ -27,16 +27,13 @@ Arguments:
 - `x` is the `n` x `p` design matrix.
 - `y` is the vector of `n` responses.
 - `k` is the model size.
-
-Optional Arguments:
-
-- iter is the current iteration count in the IHT algorithm. Defaults to `1`.
-- max_step is the maximum permissible number of backtracking steps. Defaults to `50`.
+- `iter` is the current iteration count in the IHT algorithm. Defaults to `1`.
+- `nstep` is the maximum permissible number of backtracking steps. Defaults to `50`.
 
 Output:
 
-- `mu` is the step size used to update `b`, after backtracking.`
-- `mu_step` is the number of backtracking steps used on `mu`.
+- `μ` is the step size used to update `β`, after backtracking.`
+- `μ_step` is the number of backtracking steps used on `μ`.
 """
 function iht!{T <: Float}(
     v     :: IHTVariables{T},
@@ -69,45 +66,44 @@ function iht!{T <: Float}(
 
     # compute step size
 #    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?!
-    mu = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T
+    μ = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T
 
     # check for finite stepsize
-    isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
-    #isfinite(mu) || warn("Step size is not finite, is active set all zero?")
+    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
 
     # compute gradient step
-    _iht_gradstep(v, mu, k)
+    _iht_gradstep(v, μ, k)
 
     # update xb
     update_xb!(v.xb, x, v.b, v.idx, k)
     #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
 
     # calculate omega
-    omega_top, omega_bot = _iht_omega(v)
+    ω_top, ω_bot = _iht_omega(v)
 
     # backtrack until mu < omega and until support stabilizes
-    mu_step = 0
-    while _iht_backtrack(v, omega_top, omega_bot, mu, mu_step, nstep)
+    μ_step = 0
+    while _iht_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
 
         # stephalving
-        mu /= 2
+        μ /= 2
 
         # recompute gradient step
         copy!(v.b,v.b0)
-        _iht_gradstep(v, mu, k)
+        _iht_gradstep(v, μ, k)
 
         # recompute xb
         update_xb!(v.xb, x, v.b, v.idx, k)
         #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
 
         # calculate omega
-        omega_top, omega_bot = _iht_omega(v)
+        ω_top, ω_bot = _iht_omega(v)
 
         # increment the counter
-        mu_step += 1
+        μ_step += 1
     end
 
-    return mu::T, mu_step::Int
+    return μ::T, μ_step::Int
 end
 
 """
@@ -117,11 +113,11 @@ L0 PENALIZED LEAST SQUARES REGRESSION
 
 This routine minimizes the loss function
 
-    0.5*sumabs2( y - x*b )
+    0.5*sumabs2( y - x*β )
 
-subject to `b` lying in the set S_k = { x in R^p : || x ||_0 <= k }.
+subject to `β` lying in the set S_k = { x in R^p : || x ||_0 <= k }.
 
-It uses Thomas Blumensath's iterative hard thresholding framework to keep `b` feasible.
+It uses Thomas Blumensath's iterative hard thresholding framework to keep `β` feasible.
 
 Arguments:
 
@@ -147,7 +143,7 @@ Outputs are wrapped into an `IHTResults` structure with the following fields:
 function L0_reg{T <: Float, V <: DenseVector}(
     x        :: DenseMatrix{T},
     y        :: V,
-    k        :: Int,
+    k        :: Int;
     v        :: IHTVariables{T, V} = IHTVariables(x, y, k),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
@@ -165,8 +161,8 @@ function L0_reg{T <: Float, V <: DenseVector}(
     tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
     # initialize return values
-    mm_iter   = 0                 # number of iterations of L0_reg
-    mm_time   = zero(T)           # compute time *within* L0_reg
+    iter   = 0                    # number of iterations of L0_reg
+    exec_time   = zero(T)           # compute time *within* L0_reg
     next_obj  = zero(T)           # objective value
     next_loss = zero(T)           # loss function value
 
@@ -174,11 +170,11 @@ function L0_reg{T <: Float, V <: DenseVector}(
     current_obj = convert(T, Inf) # tracks previous objective function value
     the_norm    = zero(T)         # norm(b - b0)
     scaled_norm = zero(T)         # the_norm / (norm(b0) + 1)
-    mu          = zero(T)         # Landweber step size, 0 < tau < 2/rho_max^2
+    μ           = zero(T)          # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    i       = 0                   # used for iterations in loops
-    mu_step = 0                   # counts number of backtracking steps for mu
+    i      = 0                    # used for iterations in loops
+    μ_step = 0                    # counts number of backtracking steps for mu
 
     # initialize booleans
     converged = false             # scaled_norm < tol?
@@ -193,10 +189,10 @@ function L0_reg{T <: Float, V <: DenseVector}(
     !quiet && print_header()
 
     # main loop
-    for mm_iter = 1:max_iter
+    for iter = 1:max_iter
 
         # notify and break if maximum iterations are reached.
-        if mm_iter >= max_iter
+        if iter >= max_iter
 
             # alert about hitting maximum iterations
             !quiet && print_maxiter(max_iter, loss)
@@ -205,11 +201,12 @@ function L0_reg{T <: Float, V <: DenseVector}(
             threshold!(v.b, tol)
 
             # stop timer
-            mm_time = toq()
+            exec_time = toq()
 
             # these are output variables for function
             # wrap them into a Dict and return
-            return IHTResults(mm_time, next_loss, mm_iter, copy(v.b))
+            #return IHTResults(exec_time, next_loss, iter, copy(v.b))
+            return IHTResults(exec_time, next_loss, iter, v.b)
         end
 
         # save values from previous iterate
@@ -218,7 +215,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
         current_obj = next_obj
 
         # now perform IHT step
-        (mu, mu_step) = iht!(v, x, y, k, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, y, k, max_step, iter)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
@@ -236,7 +233,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
         converged   = (scaled_norm < tol) :: Bool
 
         # output algorithm progress
-        quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_loss)
+        quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", iter, μ_step, μ, the_norm, next_loss)
 
         # check for convergence
         # if converged and in feasible set, then algorithm converged before maximum iteration
@@ -247,14 +244,15 @@ function L0_reg{T <: Float, V <: DenseVector}(
             threshold!(v.b, tol)
 
             # stop time
-            mm_time = toq()
+            exec_time = toq()
 
             # announce convergence
-            !quiet && print_convergence(mm_iter, next_loss, mm_time)
+            !quiet && print_convergence(iter, next_loss, exec_time)
 
             # these are output variables for function
             # wrap them into a Dict and return
-            return IHTResults(mm_time, next_loss, mm_iter, copy(v.b))
+            #return IHTResults(exec_time, next_loss, iter, copy(v.b))
+            return IHTResults(exec_time, next_loss, iter, v.b)
         end
 
         # algorithm is unconverged at this point.
@@ -262,11 +260,14 @@ function L0_reg{T <: Float, V <: DenseVector}(
         # check descent property in that case
         # if rho is not changing but objective increases, then abort
         if next_obj > current_obj + tol
-            !quiet && print_descent_error(mm_iter, loss, next_loss)
+            !quiet && print_descent_error(iter, loss, next_loss)
             throw(ErrorException("Descent failure!"))
             #return IHTResults(-one(T), convert(T, -Inf), -1, [convert(T, -Inf)])
         end
     end # end main loop
+
+    # return null result
+    return IHTResults(zero(T), zero(T), 0, [zero(T)])
 end # end function
 
 
@@ -297,7 +298,7 @@ Output:
 function iht_path{T <: Float}(
     x        :: DenseMatrix{T},
     y        :: DenseVector{T},
-    path     :: DenseVector{Int},
+    path     :: DenseVector{Int};
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
@@ -317,7 +318,7 @@ function iht_path{T <: Float}(
     #I = zeros(Int, nk)
     #J = zeros(Int, nk)
     #K = zeros(T,   nk)
-    #q0 = 0 
+    #q0 = 0
 
     # compute the path
     for i = 1:num_models
@@ -336,8 +337,7 @@ function iht_path{T <: Float}(
         update_variables!(v, x, q)
 
         # now compute current model
-        #output = L0_reg(x, y, q, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
-        output = L0_reg(x, y, q, v, tol, max_iter, max_step, quiet)
+        output = L0_reg(x, y, q, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
         # extract and save model
         # strangely more efficient to continuously reallocate sparse matrix
@@ -350,6 +350,6 @@ function iht_path{T <: Float}(
     end
 
     # return a sparsified copy of the models
-    #betas = sparse(I, J, K, p, num_models, false) 
+    #betas = sparse(I, J, K, p, num_models, false)
     return betas
 end

@@ -236,7 +236,7 @@ function L0_log{T <: Float}(
 
         # now apply hard threshold on model to original desired sparsity k
         project_k!(b,k)
-        selectperm!(bidxs, b, 1:k, by=abs, rev=true, initialized=true) 
+        selectperm!(bidxs, b, 1:k, by=abs, rev=true, initialized=true)
         bk = b[bidxs[1:k]]
 
         # refit nonzeroes in b?
