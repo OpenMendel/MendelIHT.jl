@@ -205,8 +205,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            #return IHTResults(exec_time, next_loss, iter, copy(v.b))
-            return IHTResults(exec_time, next_loss, iter, v.b)
+            return IHTResults(exec_time, next_loss, iter, copy(v.b))
         end
 
         # save values from previous iterate
@@ -251,8 +250,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            #return IHTResults(exec_time, next_loss, iter, copy(v.b))
-            return IHTResults(exec_time, next_loss, iter, v.b)
+            return IHTResults(exec_time, next_loss, iter, copy(v.b))
         end
 
         # algorithm is unconverged at this point.
