@@ -635,3 +635,142 @@ end
 
 # default IO for print_cv_results is STDOUT
 print_cv_results{T <: Float}(errors::Vector{T}, path::DenseVector{Int}, k::Int) = print_cv_results(STDOUT, errors, path, k)
+
+# -------------------------------------------- #
+# functions related to logistic regression
+
+# container object for temporary arrays
+type IHTLogVariables{T <: Float, V <: DenseVector}
+    xk       :: Matrix{T}
+    xk2      :: Matrix{T}
+    d2b      :: Matrix{T}
+    b        :: V
+    b0       :: Vector{T}
+    df       :: V 
+    Xb       :: V 
+    lxb      :: V 
+    l2xb     :: Vector{T}
+    bk       :: Vector{T}
+    bk2      :: Vector{T}
+    bk0      :: Vector{T}
+    ntb      :: Vector{T}
+    db       :: Vector{T}
+    dfk      :: Vector{T}
+    active   :: Vector{Int}
+    bidxs    :: Vector{Int}
+    dfidxs   :: Vector{Int}
+    idxs     :: BitArray{1}
+    idxs2    :: BitArray{1}
+    idxs0    :: BitArray{1}
+
+    IHTLogVariables(xk::Matrix{T}, xk2::Matrix{T}, d2b::Matrix{T}, b::DenseVector{T}, b0::Vector{T}, df::DenseVector{T}, Xb::DenseVector{T}, lxb::DenseVector{T}, l2xb::Vector{T}, bk::Vector{T}, bk2::Vector{T}, bk0::Vector{T}, ntb::Vector{T}, db::Vector{T}, dfk::Vector{T}, active::Vector{Int}, bidxs::Vector{Int}, dfidxs::Vector{Int}, idxs::BitArray{1}, idxs2::BitArray{1}, idxs0::BitArray{1}) = new(xk, xk2, d2b, b, b0, df, Xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+end
+
+#strongly typed constructor of IHTLogVariables
+function IHTLogVariables{T <: Float}(
+    xk       :: Matrix{T},
+    xk2      :: Matrix{T},
+    d2b      :: Matrix{T},
+    b        :: DenseVector{T},
+    b0       :: Vector{T},
+    df       :: DenseVector{T},
+    Xb       :: DenseVector{T},
+    lxb      :: DenseVector{T},
+    l2xb     :: Vector{T},
+    bk       :: Vector{T},
+    bk2      :: Vector{T},
+    bk0      :: Vector{T},
+    ntb      :: Vector{T},
+    db       :: Vector{T},
+    dfk      :: Vector{T},
+    active   :: Vector{Int},
+    bidxs    :: Vector{Int},
+    dfidxs   :: Vector{Int},
+    idxs     :: BitArray{1},
+    idxs2    :: BitArray{1},
+    idxs0    :: BitArray{1}
+)
+    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, Xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+end
+
+# construct IHTLogVariables from data x, y, k
+function IHTLogVariables{T <: Float}(
+    x :: Matrix{T},
+    y :: Vector{T},
+    k :: Int
+)
+    (n,p)  = size(x)
+    xk     = zeros(T, n, k)
+    xk2    = zeros(T, n, k)
+    d2b    = zeros(T, k, k)
+    b      = zeros(T, p)
+    b0     = zeros(T, p)
+    df     = zeros(T, p)
+    Xb     = zeros(T, n)
+    lxb    = zeros(T, n)
+    l2xb   = zeros(T, n)
+    bk     = zeros(T, k)
+    bk2    = zeros(T, k)
+    bk0    = zeros(T, k)
+    ntb    = zeros(T, k)
+    db     = zeros(T, k)
+    dfk    = zeros(T, k)
+    active = collect(1:p)
+    bidxs  = collect(1:p)
+    dfidxs = collect(1:p)
+    idxs   = falses(p)
+    idxs0  = falses(p)
+    idxs2  = falses(p)
+
+    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, Xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+end
+
+###
+### TODO: constructors for SharedArrays, BEDFiles!
+###
+
+# new return object for results file
+immutable IHTLogResults{T <: Float, V <: DenseVector}
+    time   :: T
+    iter   :: Int
+    loss   :: T
+    β      :: V 
+    active :: Vector{Int}
+
+    IHTLogResults(time::T, iter::Int, loss::T, β::DenseVector{T}, active::Vector{Int}) = new(time, iter, loss, β, active)
+end
+
+# strongly typed external constructor for IHTLogResults
+function IHTLogResults{T <: Float}( 
+    time   :: T,
+    iter   :: Int,
+    loss   :: T,
+    β      :: DenseVector{T},
+    active :: Vector{Int}
+)
+    IHTLogResults{T, typeof(b)}(time::T, iter::Int, loss::T, β::DenseVector{T}, active::Vector{Int})
+end
+
+# function to display IHTLogResults object
+function Base.show(io::IO, x::IHTLogResults)
+    println(io, "IHT results:")
+    println(io, "\nCompute time (sec):   ", x.time)
+    println(io, "Final loss:           ", x.loss)
+    println(io, "Iterations:           ", x.iter)
+    println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
+    print(io, DataFrame(Predictor=find(x.beta), Estimated_β=x.beta[find(x.beta)]))
+    return nothing
+end
+
+
+# announce algo convergence
+function print_log_convergence{T <: Float}(io::IO, iter::Int, loss::T, ctime::T, nrmdf::T)
+    println("\nL0_log has converged successfully.")
+    @printf("Results:\nIterations: %d\n", iter)
+    @printf("Final Loss: %3.7f\n", loss)
+    @printf("Norm of active gradient: %3.7f\n", normdf)
+    @printf("Total Compute Time: %3.3f sec\n", exec_time)
+end
+
+# default IO for print_convergence is STDOUT
+print_log_convergence{T <: Float}(iter::Int, loss::T, ctime::T, nrmdf::T) = print_log_convergence(STDOUT, iter, loss, ctime, nrmdf)
