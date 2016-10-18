@@ -647,7 +647,7 @@ type IHTLogVariables{T <: Float, V <: DenseVector}
     b        :: V
     b0       :: Vector{T}
     df       :: V 
-    Xb       :: V 
+    xb       :: V 
     lxb      :: V 
     l2xb     :: Vector{T}
     bk       :: Vector{T}
@@ -663,7 +663,7 @@ type IHTLogVariables{T <: Float, V <: DenseVector}
     idxs2    :: BitArray{1}
     idxs0    :: BitArray{1}
 
-    IHTLogVariables(xk::Matrix{T}, xk2::Matrix{T}, d2b::Matrix{T}, b::DenseVector{T}, b0::Vector{T}, df::DenseVector{T}, Xb::DenseVector{T}, lxb::DenseVector{T}, l2xb::Vector{T}, bk::Vector{T}, bk2::Vector{T}, bk0::Vector{T}, ntb::Vector{T}, db::Vector{T}, dfk::Vector{T}, active::Vector{Int}, bidxs::Vector{Int}, dfidxs::Vector{Int}, idxs::BitArray{1}, idxs2::BitArray{1}, idxs0::BitArray{1}) = new(xk, xk2, d2b, b, b0, df, Xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+    IHTLogVariables(xk::Matrix{T}, xk2::Matrix{T}, d2b::Matrix{T}, b::DenseVector{T}, b0::Vector{T}, df::DenseVector{T}, xb::DenseVector{T}, lxb::DenseVector{T}, l2xb::Vector{T}, bk::Vector{T}, bk2::Vector{T}, bk0::Vector{T}, ntb::Vector{T}, db::Vector{T}, dfk::Vector{T}, active::Vector{Int}, bidxs::Vector{Int}, dfidxs::Vector{Int}, idxs::BitArray{1}, idxs2::BitArray{1}, idxs0::BitArray{1}) = new(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
 end
 
 #strongly typed constructor of IHTLogVariables
@@ -674,7 +674,7 @@ function IHTLogVariables{T <: Float}(
     b        :: DenseVector{T},
     b0       :: Vector{T},
     df       :: DenseVector{T},
-    Xb       :: DenseVector{T},
+    xb       :: DenseVector{T},
     lxb      :: DenseVector{T},
     l2xb     :: Vector{T},
     bk       :: Vector{T},
@@ -690,7 +690,7 @@ function IHTLogVariables{T <: Float}(
     idxs2    :: BitArray{1},
     idxs0    :: BitArray{1}
 )
-    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, Xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
 end
 
 # construct IHTLogVariables from data x, y, k
@@ -706,7 +706,7 @@ function IHTLogVariables{T <: Float}(
     b      = zeros(T, p)
     b0     = zeros(T, p)
     df     = zeros(T, p)
-    Xb     = zeros(T, n)
+    xb     = zeros(T, n)
     lxb    = zeros(T, n)
     l2xb   = zeros(T, n)
     bk     = zeros(T, k)
@@ -722,7 +722,7 @@ function IHTLogVariables{T <: Float}(
     idxs0  = falses(p)
     idxs2  = falses(p)
 
-    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, Xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
 end
 
 ###
@@ -734,7 +734,7 @@ immutable IHTLogResults{T <: Float, V <: DenseVector}
     time   :: T
     iter   :: Int
     loss   :: T
-    β      :: V 
+    beta   :: V 
     active :: Vector{Int}
 
     IHTLogResults(time::T, iter::Int, loss::T, β::DenseVector{T}, active::Vector{Int}) = new(time, iter, loss, β, active)
@@ -748,15 +748,15 @@ function IHTLogResults{T <: Float}(
     β      :: DenseVector{T},
     active :: Vector{Int}
 )
-    IHTLogResults{T, typeof(b)}(time::T, iter::Int, loss::T, β::DenseVector{T}, active::Vector{Int})
+    IHTLogResults{T, typeof(β)}(time::T, iter::Int, loss::T, β::DenseVector{T}, active::Vector{Int})
 end
 
 # function to display IHTLogResults object
 function Base.show(io::IO, x::IHTLogResults)
     println(io, "IHT results:")
-    println(io, "\nCompute time (sec):   ", x.time)
-    println(io, "Final loss:           ", x.loss)
-    println(io, "Iterations:           ", x.iter)
+    @printf(io, "\nCompute time (sec):   %3.4f\n", x.time)
+    @printf(io, "Final loss:           %3.7f\n", x.loss)
+    @printf(io, "Iterations:           %3.7f\n", x.iter)
     println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
     print(io, DataFrame(Predictor=find(x.beta), Estimated_β=x.beta[find(x.beta)]))
     return nothing
@@ -768,9 +768,19 @@ function print_log_convergence{T <: Float}(io::IO, iter::Int, loss::T, ctime::T,
     println("\nL0_log has converged successfully.")
     @printf("Results:\nIterations: %d\n", iter)
     @printf("Final Loss: %3.7f\n", loss)
-    @printf("Norm of active gradient: %3.7f\n", normdf)
-    @printf("Total Compute Time: %3.3f sec\n", exec_time)
+    @printf("Norm of active gradient: %3.7f\n", nrmdf)
+    @printf("Total Compute Time: %3.3f sec\n", ctime)
 end
 
 # default IO for print_convergence is STDOUT
 print_log_convergence{T <: Float}(iter::Int, loss::T, ctime::T, nrmdf::T) = print_log_convergence(STDOUT, iter, loss, ctime, nrmdf)
+
+# this prints the start of the algo
+function print_header_log(io::IO)
+     println(io, "\nBegin IHT algorithm\n")
+     println(io, "Iter\tSteps\tHalves\t\tf(β)\t\t||df(β)||")
+     println(io, "0\t0\t0\t\tInf\t\tInf")
+end
+
+# default IO for print_header is STDOUT
+print_header_log() = print_header_log(STDOUT)

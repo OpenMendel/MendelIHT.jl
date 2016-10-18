@@ -3,19 +3,20 @@ module IHT
 using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK
 using RegressionTools
-using StatsBase
+#using StatsBase
+using StatsFuns: logistic, logit, softplus
 using DataFrames
 using Gadfly
 
-# conditional load of OpenCL module
+### idea from Julia Hoffimann Mendes to conditionally load OpenCL module
 # only load if Julia can find OpenCL module
-# this code is copied from OpenCL module
-const paths = is_apple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
-const libopencl = Libdl.find_library(["libOpenCL", "OpenCL"], paths)
-if libopencl == ""
-    warn("IHT.jl does not see an OpenCL library and will not load GPU functions")
-else
+# otherwise warn and set "cl" variable to Void
+# will load GPU code based on value of "cl"
+try
     using OpenCL
+catch e
+    warn("IHT.jl cannot find an OpenCL library and will not load GPU functions correctly.")
+    global cl = nothing
 end
 
 # used for pretty printing of IHTResults, IHTCrossvalidationResults
@@ -36,7 +37,7 @@ export cv_log
 typealias Float Union{Float64, Float32}
 
 include("common.jl")
-if libopencl != ""
+if cl != nothing 
     include("gpu.jl") # conditional load of GPU code
 end
 include("gwas.jl")

@@ -1,5 +1,269 @@
 default_lambda{T <: Float}(x::DenseMatrix{T}, y::DenseVector{T}) = sqrt( log(size(x,2)) / length(y)) :: T
 
+
+"""
+    fit_logistic(x, y, λ)
+
+Refit a regularized logistic model using Newton's method.
+
+Arguments:
+
+- `x` is the `n` x `p` statistical model.
+- `y` is the `n`-vector of binary responses.
+- `λ` is the regularization parameter
+
+Optional Arguments:
+
+- `tol` is the convergence tolerance. Defaults to `1e-8`.
+- `max_iter` sets the maximum number of backtracking steps. Defaults to `50`.
+- `quiet` controls output. Defaults to `true` (no output).
+
+Output:
+
+- a vector of refit coefficients for `β`
+- the number of backtracking steps taken.
+"""
+function fit_logistic!{T <: Float, V <: DenseVector}(
+    v        :: IHTLogVariables{T, V},
+    y        :: V, 
+    λ        :: T;
+    tol      :: T    = convert(T, 1e-8),
+    max_iter :: Int  = 50,
+    quiet    :: Bool = true
+)
+    # number of cases?
+    n = length(y)
+
+    # if b is not warm-started, then ensure that it is not entirely zero
+    if all(v.bk .== 0) 
+        v.bk[1] = logit(abs(mean(y)))
+    end
+
+    # initialize intermediate arrays for calculations
+    #BLAS.gemv!('N', one(T), x, b, zero(T), xβ)
+    A_mul_B!(v.xb, v.xk, v.bk)
+    log2xb!(v.lxb, v.l2xb, v.xb)
+    copy!(v.bk0, v.bk)
+    fill!(v.db, zero(T))
+
+    # track objective
+    old_obj = convert(T, Inf)
+    # new_obj = (sum(log(1 + exp(v.xb))) - dot(y, v.xb)) / n + λ*sumabs2(v.bk) / 2
+    new_obj = logistic_loglik(v.xb, y, v.bk, λ)
+
+    # output progress to console
+    quiet || println("Iter\tHalves\tObjective")
+
+    i = 0
+    bktrk = 0
+    # enter loop for Newton's method
+    for i = 1:max_iter
+
+        # db = (x'*(lxβ - y)) / n + λ*b
+        BLAS.axpy!(-one(T), sdata(y), sdata(v.lxb))
+        At_mul_B!(v.db, v.xk, v.lxb)
+        scale!(v.db, 1/n)
+        BLAS.axpy!(λ, v.bk, v.db)
+
+        # d2b = (x'*diagm(l2xb)*x)/n + λ*I
+        # note that log2xb!() already performs division by n on l2xb
+        copy!(v.xk2, v.xk)
+        scale!(v.l2xb, v.xk2)
+        At_mul_B!(v.d2b, v.xk, v.xk2)
+        v.d2b += λ*I
+
+        # b = b0 - ntb = b0 - inv(d2b)*db
+        #   = b0 - inv[ x' diagm(pi) diagm(1 - pi) x + λ*I] [x' (pi - y) + λ*b]
+        try
+            v.ntb = v.d2b \ v.db
+        catch e
+            warn("in fit_logistic, aborting after caught error: ", e)
+            return i, div(bktrk, max_iter)
+        end
+        copy!(v.bk, v.bk0)
+        BLAS.axpy!(-one(T), v.ntb, v.bk)
+
+        # compute objective
+        A_mul_B!(v.xb, v.xk, v.bk)
+        # new_obj = (sum(log(1 + exp(v.xb))) - dot(y, v.xb)) / n + λ*sumabs2(v.bk) / 2
+        new_obj = logistic_loglik(v.xb, y, v.bk, λ)
+
+        # control against nonfinite objective
+        isfinite(new_obj) || throw(error("in fit_logistic, objective is no longer finite"))
+
+        # backtrack
+        j = 0
+        while (new_obj > old_obj + tol) && (j < 50)
+
+            # increment iterator
+            j += 1
+
+            # b = b0 - 0.5*ntb
+            copy!(v.bk, v.bk0)
+            #BLAS.axpy!(p,-one(T) / (2^j),ntb,1,b,1)
+            #BLAS.axpy!(-one(T) / (2^j),ntb,v.b)
+            BLAS.axpy!(-1/(2^j), v.ntb, v.bk)
+
+            # recalculate objective
+            A_mul_B!(v.xb, v.xk, v.bk)
+            new_obj = logistic_loglik(v.xb, y, v.bk, λ)
+
+            # ensure a finite objective
+            isfinite(new_obj) || throw(error("in fit_logistic, objective is no longer finite"))
+        end
+
+        # accumulate total backtracking steps
+        bktrk += j
+
+        # track distance between iterates
+        dist = euclidean(v.bk, v.bk0) / (norm(v.bk0,2) + one(T))
+
+        # track progress
+        quiet || println(i, "\t", j, "\t", dist)
+
+        # check for convergence
+        # if converged, then return b
+        dist < tol && return i, div(bktrk, i)
+
+        # unconverged at this point, so update intermediate arrays
+        #BLAS.gemv!('N', one(T), sdata(x), sdata(b), zero(T), sdata(xβ))
+        A_mul_B!(v.xb, v.xk, v.bk)
+        log2xb!(v.lxb, v.l2xb, v.xb)
+
+        # save previous β 
+        copy!(v.bk0, v.bk)
+        old_obj = new_obj
+    end
+
+    warn("fit_logistic failed to converge in $(max_iter) iterations, exiting...")
+    return i, div(bktrk, max_iter)
+end
+
+
+### 17 OCT 2016: MUST RECODE THIS FUNCTION
+"""
+    fit_logistic(x, y, mask_n, λ)
+
+If called with an `Int` vector `mask_n`, then `fit_logistic()` will refit logistic effect sizes while masking components `y[i]` where `mask_n[i] = 0`.
+"""
+function fit_logistic{T <: Float}(
+    x        :: DenseMatrix{T},
+    y        :: DenseVector{T},
+    mask_n   :: DenseVector{Int},
+    λ   :: T;
+    n        :: Int    = length(y),
+    p        :: Int    = size(x,2),
+    mn       :: Int    = sum(mask_n),
+    d2b      :: DenseMatrix{T} = zeros(T, p,p),
+    x2       :: DenseMatrix{T} = zeros(T, n,p),
+    b        :: DenseVector{T} = zeros(T, p),
+    b0       :: DenseVector{T} = zeros(T, p),
+    ntb      :: DenseVector{T} = zeros(T, p),
+    db       :: DenseVector{T} = zeros(T, p),
+    xβ       :: DenseVector{T} = zeros(T, n),
+    lxβ      :: DenseVector{T} = zeros(T, n),
+    l2xb     :: DenseVector{T} = zeros(T, n),
+    tol      :: Float = convert(T, 1e-8),
+    max_iter :: Int   = 50,
+    quiet    :: Bool  = true,
+)
+
+    # if b is not warm-started, then ensure that it is not entirely zero
+    if all(b .== 0) 
+        b[1] = logit(mean(y[mask_n .== 1]))
+    end
+
+    # initialize intermediate arrays for calculations
+    BLAS.gemv!('N', one(T), x, b, zero(T), xβ)
+    log2xb!(lxβ, l2xb, xβ, n=n)
+    mask!(lxβ, mask_n, 0, zero(T), n=n)
+#    lxβ[mask_n .== 0] = zero(T)
+    copy!(b0,b)
+    fill!(db, zero(T))
+
+    # track objective
+    old_obj = Inf
+    new_obj = logistic_loglik(xβ,y,b,mask_n,0,λ,p, n=n)
+
+    # output progress to console
+    quiet || println("Iter\tHalves\tObjective")
+
+    i = 0
+    bktrk = 0
+    # enter loop for Newton's method
+    for i = 1:max_iter
+
+        # db = (x'*(lxβ - y)) / n + λ*b
+        BLAS.axpy!(n, -one(T), sdata(y), 1, sdata(lxβ), 1)
+        mask!(lxβ, mask_n, 0, zero(T), n=n)
+#        lxβ[mask_n .== 0] = zero(T)
+        BLAS.gemv!('T', one(T), sdata(x), sdata(lxβ), zero(T), sdata(db))
+#        BLAS.scal!(p, 1/n, sdata(db), 1)
+        BLAS.scal!(p, 1/mn, sdata(db), 1)
+        BLAS.axpy!(p, λ, sdata(b), 1, sdata(db), 1)
+
+        # d2b = (x'*diagm(l2xb)*x)/n + λ*I
+        # note that log2xb!() already performs division by n on l2xb
+        copy!(x2,x)
+        mask!(l2xb, mask_n, 0, zero(T), n=n)
+#        l2xb[mask_n .== 0] = zero(T)
+        BLAS.scal!(p, n/mn, sdata(l2xb), 1) # rescale to number of unmasked samples
+        scale!(sdata(l2xb), sdata(x2))
+        BLAS.gemm!('T', 'N', one(T), sdata(x), sdata(x2), zero(T), sdata(d2b))
+        d2b += λ*I
+
+        # b = b0 - ntb = b0 - inv(d2b)*db
+        #   = b0 - inv[ x' diagm(pi) diagm(1 - pi) x + λ*I] [x' (pi - y) + λ*b]
+        ntb = d2b\db
+        copy!(b,b0)
+        BLAS.axpy!(p,-one(T),ntb,1,b,1)
+
+        # compute objective
+        new_obj = logistic_loglik(xβ,y,b,mask_n,0,λ,p, n=n)
+
+        # backtrack
+        j = 0
+        while (new_obj > old_obj + tol) && (j < 50)
+
+            # increment iterator
+            j += 1
+
+            # b = b0 - 0.5*ntb
+            copy!(b,b0)
+#            BLAS.axpy!(p,-(0.5^j),ntb,1,b,1)
+            BLAS.axpy!(p,-one(T) / (2^j),ntb,1,b,1)
+
+            # recalculate objective
+            new_obj = logistic_loglik(xβ,y,b,mask_n,0,λ,p, n=n)
+
+        end
+
+        # accumulate total backtracking steps
+        bktrk += j
+
+        # track distance between iterates
+        dist = euclidean(sdata(b),sdata(b0)) / (norm(sdata(b0),2) + one(T))
+
+        # track progress
+        quiet || println(i, "\t", j, "\t", dist)
+
+        # check for convergence
+        # if converged, then return b
+        dist < tol && return b, i, div(bktrk,i)
+
+        # unconverged at this point, so update intermediate arrays
+        BLAS.gemv!('N', one(T), sdata(x), sdata(b), zero(T), sdata(xβ))
+        log2xb!(lxβ, l2xb, xβ, n=n)
+
+        # save previous beta
+        copy!(b0, b)
+        old_obj = new_obj
+    end
+
+    warn("fit_logistic failed to converge in $(max_iter) iterations, exiting...")
+    return b, i, div(bktrk,max_iter)
+end
+
 ### 10 August 2016
 ### this code is frustratingly unstable
 ### included here just in case it is fixable
@@ -16,9 +280,9 @@ This routine minimizes the loss function given by the negative logistic loglikel
 subject to `β` lying in the set S_k = { x in R^p : || x ||_0 <= k }.
 To ensure a stable model selection process, the optimization is performed over a Tikhonov-regularized copy of `L(β)`; the actual optimized objective is
 
-    g(β) = L(β) + 0.5*λ*sumabs2(β)
+    g(β) = L(β) + 0.5*lambda*sumabs2(β)
 
-where `λ` controls the strength of the L2 penalty.
+where `lambda` controls the strength of the L2 penalty.
 This function extends the [MATLAB source code](http://users.ece.gatech.edu/sbahmani7/GraSP.html) for Sohail Bahmani's nonlinear hard thresholding pursuit framework [GraSP](http://jmlr.csail.mit.edu/papers/v14/bahmani13a.html).
 
 Arguments:
@@ -29,11 +293,8 @@ Arguments:
 
 Optional Arguments:
 
-- `n` is the number of samples. Defaults to `length(y)`.
-- `p` is the number of predictors. Defaults to `size(x,2)`.
-- `b` is the statistical model. Warm starts should use this argument. Defaults `zeros(p)`, the null model.
-- `λ` is the strength of the regularization parameter. Defaults to `sqrt(log(p)/n)`.
-- `μ` is the step size used in gradient descent. Defaults to `1.0`.
+- `lambda` is the strength of the regularization parameter. Defaults to `sqrt(log(p)/n)`.
+- `mu` is the step size used in gradient descent. Defaults to `1.0`.
 - `max_iter` is the maximum number of iterations for the algorithm. Defaults to `100`.
 - `max_step` is the maximum number of backtracking steps for the step size calculation. Defaults to `100`.
 - `tol` is the global tolerance. Defaults to `1e-6`.
@@ -55,8 +316,8 @@ function L0_log{T <: Float, V <: DenseVector}(
     y        :: V,
     k        :: Int;
     v        :: IHTLogVariables{T, V} = IHTLogVariables(x, y, k),
-    λ        :: T    = default_lambda(x, y), 
-    μ        :: T    = one(T),
+    lambda   :: T    = default_lambda(x, y), 
+    mu       :: T    = one(T),
     tol      :: T    = convert(T, 1e-6),
     tolG     :: T    = convert(T, 1e-3),
     tolrefit :: T    = convert(T, 1e-6),
@@ -73,15 +334,15 @@ function L0_log{T <: Float, V <: DenseVector}(
     n,p = size(x)
 
     # check arguments
-    n        == length(y) || throw(ArgumentError("Length n = $n of response vector y does not match number of rows = $(size(x,1)) in x"))
-    k        >  p         && throw(ArgumentError("Value of argument k = $k exceeds number of predictors p = $p"))
-    λ        <  zero(T)   && throw(ArgumentError("Value of argument λ = $λ must be nonnegative"))
-    μ        >  zero(T)   || throw(ArgumentError("Value of argument μ must be positive"))
-    tol      >  eps(T)    || throw(ArgumentError("Value of argument tol must exceed machine precision"))
-    tolG     >  eps(T)    || throw(ArgumentError("Value of argument tolG must exceed machine precision"))
-    tolrefit >  eps(T)    || throw(ArgumentError("Value of argument tolrefit must exceed machine precision"))
-    max_iter >= 0         || throw(ArgumentError("Value of max_iter must be nonnegative\n"))
-    max_step >= 0         || throw(ArgumentError("Value of max_step must be nonnegative\n"))
+    length(y) == n      || throw(ArgumentError("Length n = $n of response vector y does not match number of rows = $(size(x,1)) in x"))
+    k        >  p       && throw(ArgumentError("Value of argument k = $k exceeds number of predictors p = $p"))
+    lambda   <  zero(T) && throw(ArgumentError("Value of argument lambda = $lambda must be nonnegative"))
+    mu       >  zero(T) || throw(ArgumentError("Value of argument mu = $mu must be positive"))
+    tol      >  eps(T)  || throw(ArgumentError("Value of argument tol must exceed machine precision"))
+    tolG     >  eps(T)  || throw(ArgumentError("Value of argument tolG must exceed machine precision"))
+    tolrefit >  eps(T)  || throw(ArgumentError("Value of argument tolrefit must exceed machine precision"))
+    max_iter >= 0       || throw(ArgumentError("Value of max_iter must be nonnegative\n"))
+    max_step >= 0       || throw(ArgumentError("Value of max_step must be nonnegative\n"))
 
     # initialize return values
     iter      = 0                 # number of iterations of L0_reg
@@ -102,10 +363,7 @@ function L0_log{T <: Float, V <: DenseVector}(
 
 
     # formatted output to monitor algorithm progress
-    if !quiet
-         println("Iter\tSteps\tHalves\tLoss\t\tGrad Norm")
-         println("0\t0\t0\tInf\t\tInf")
-    end
+    quiet || print_header_log()
 
     # main GraSP iterations
     for iter = 1:max_iter
@@ -132,8 +390,9 @@ function L0_log{T <: Float, V <: DenseVector}(
 
 
                 ### FINISH THIS PART
-                bk2, nt_iter, bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
-                b[idxs] = bk2
+                #bk2, nt_iter, bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
+                nt_iter, bktrk = fit_logistic!(v, y, zero(T), tol=tolrefit, max_iter=max_step, quiet=true)
+                v.b[v.idxs] = v.bk
             end
 
             # stop timer
@@ -141,9 +400,7 @@ function L0_log{T <: Float, V <: DenseVector}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            output = IHTLogResults(exec_time, loss, iter, copy(v.b), copy(v.active))
-
-            return output
+            return IHTLogResults(exec_time, iter, loss, copy(v.b), copy(v.active))
         end
 
         # save previous loss, iterate
@@ -153,79 +410,80 @@ function L0_log{T <: Float, V <: DenseVector}(
 
         # size of current active set?
         if iter > 1
-            v.active = union(dfidxs[1:short_df],bidxs[1:k]) ### TODO 29 March 2016: can we do this with BitArrays and eliminate all integer arrays?
+            v.active = union(v.dfidxs[1:short_df], v.bidxs[1:k]) ### TODO 29 March 2016: can we do this with BitArrays and eliminate all integer arrays?
         end
         lt = length(v.active)
 
         # update x*b
         # no need to compute anything if b = 0
         # force fitted probabilities close to 0,1 to be equal to 0,1
-        if all(b .== 0)
-            fill!(Xb,zero(T))
+        if all(v.b .== 0)
+            fill!(v.xb,zero(T))
         else
 #            update_xb!(Xb,x,b,active,lt,p=p,n=n)
 ##            update_xb!(Xb,x,b,bidxs,k,p=p,n=n)
 #            threshold!(Xb,tol,n=n)
-            Xb = x*b
+            A_mul_B!(v.xb, x, v.b) 
         end
 
-        # recompute active loss = (-dot(y,Xb) + sum(log(1.0 + exp(Xb)))) / n + 0.5*λ*sumabs2(b[active])
-        # special case: b = 0 --> Xb = 0 --> loss = n*log(1 + exp(0))/n + 0.5*λ*norm(0)
+        # recompute active loss = (-dot(y,Xb) + sum(log(1.0 + exp(Xb)))) / n + 0.5*lambda*sumabs2(b[active])
+        # special case: b = 0 --> Xb = 0 --> loss = n*log(1 + exp(0))/n + 0.5*lambda*norm(0)
         if iter < 2
             loss = 1 / eps(T)
-        elseif all(Xb .== 0)
+        elseif all(v.xb .== 0)
             loss = log(2)
         else
-#            loss = logistic_loglik(Xb,y,b,active,λ,k, n=n)
-            loss = (sum(log(1 + exp(Xb))) - dot(y,Xb)) / n + λ*sumabs2(b) / 2
+#            loss = logistic_loglik(Xb,y,b,active,lambda,k, n=n)
+            loss = (sum(log(1 + exp(v.xb))) - dot(y, v.xb)) / n + lambda*sumabs2(v.b) / 2
         end
 
         # guard against numerical instabilities in loss function
         check_finiteness(loss)
 
-        # recompute active gradient df[active] = (x[:,active]'*(logistic(Xb) - y)) / n + λ*b[active]
+        # recompute active gradient df[active] = (x[:,active]'*(logistic(Xb) - y)) / n + lambda*b[active]
         # arrange calculations differently if active set is entire support 1, 2, ..., p
 #        if lt == p
-#            logistic_grad!(df, lxb, x, y, b, Xb, λ, n=n, p=p)
+#            logistic_grad!(df, lxb, x, y, b, Xb, lambda, n=n, p=p)
 #        else
-#            logistic_grad!(df, lxb, x, y, b, Xb, active, lt, λ, n=n)
+#            logistic_grad!(df, lxb, x, y, b, Xb, active, lt, lambda, n=n)
 #        end
-        logistic!(lxb, Xb)
-        df = (x' * (lxb - y)) / n + λ*b
+        logistic!(v.lxb, v.xb)
+        v.df = (x' * (v.lxb - y)) / n + lambda*v.b
 
         # identify 2*k dominant directions in gradient
-        selectperm!(dfidxs, df, 1:num_df, by=abs, rev=true, initialized=true)
+        selectperm!(v.dfidxs, v.df, 1:num_df, by=abs, rev=true, initialized=true)
 
         # clean b and fill, b[active] = b0[active] - μ*df[active]
         # note that sparsity level is size(active) which is one of [k, k+1, ..., 3*k]
 #        update_x!(b, b0, df, active, μ)
-        b = b0 - μ*df
+        v.b = v.b0 - mu*v.df
 
         # now apply hard threshold on model to original desired sparsity k
-        project_k!(b,k)
-        selectperm!(bidxs, b, 1:k, by=abs, rev=true, initialized=true)
-        bk = b[bidxs[1:k]]
+        project_k!(v.b, k)
+        selectperm!(v.bidxs, v.b, 1:k, by=abs, rev=true, initialized=true)
+        v.bk = v.b[v.bidxs[1:k]]
 
         # refit nonzeroes in b?
         if refit
 
             # update boolean vector of nonzeroes
-            copy!(idxs0,idxs)
-            update_indices!(idxs, b, p=p)
+            copy!(v.idxs0, v.idxs)
+            update_indices!(v.idxs, v.b)
 
             # update active set of x, if necessary
 #            (iter == 1 || !isequal(idxs,idxs0)) && update_xk!(xk, x, idxs, k=k, n=n, p=p)
-            xk = x[:,idxs]
+            copy!(v.xk, view(x, :, v.idxs))
             #@show size(xk)
-            x2k = xk
+            copy!(v.xk2, v.xk)
 
             # attempt refit but guard against possible instabilities or singularities
-            # these are more frequent if λ is small
+            # these are more frequent if lambda is small
             # if refitting destabilizes, then leave b alone
             try
-#                bk2, nt_iter, bktrk = fit_logistic(xk, y, λ, n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
-                bk2, nt_iter, bktrk = fit_logistic(xk, y, λ, b=bk, tol=tolrefit, max_iter=max_step, quiet=quiet)
-                b[idxs] = bk2
+#                bk2, nt_iter, bktrk = fit_logistic(xk, y, lambda, n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
+                #bk2, nt_iter, bktrk = fit_logistic(xk, y, lambda, b=bk, tol=tolrefit, max_iter=max_step, quiet=quiet)
+                nt_iter, bktrk = fit_logistic!(v, y, lambda, tol=tolrefit, max_iter=max_step, quiet=true)
+                v.b[v.idxs] = v.bk
             catch e
 #                warn("in refitting, caught error: ", e)
 #                warn("skipping refit")
@@ -235,7 +493,7 @@ function L0_log{T <: Float, V <: DenseVector}(
         end # end refit
 
         # need norm of top 3*k components of gradient
-        normdf = df_norm(df, dfidxs, 1, num_df)
+        normdf = df_norm(v.df, v.dfidxs, 1, num_df)
 
         # guard against numerical instabilities in gradient
         check_finiteness(normdf)
@@ -256,18 +514,19 @@ function L0_log{T <: Float, V <: DenseVector}(
         if converged
 
             # send elements below tol to zero
-            threshold!(b, tol, n=p)
+            threshold!(v.b, tol)
 
             # if requested, apply final refit without regularization
             if refit
                 copy!(v.idxs0, v.idxs)
                 update_indices!(v.idxs, v.b)
 #                !isequal(idxs,idxs0) && update_xk!(xk, x, idxs, k=k, n=n, p=p)
-                copy!(xk, view(x, :,idxs))
+                copy!(v.xk, view(x, :, v.idxs))
                 try
 #                    bk2,nt_iter,bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, d2b=d2b, x2=xk2, b=bk, b0=bk0, ntb=ntb, db=db, Xb=Xb, lxb=lxb, l2xb=l2xb, tol=tolrefit, max_iter=max_step, quiet=true)
-                    bk2,nt_iter,bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, tol=tolrefit, max_iter=max_step, quiet=quiet)
-                    b[idxs] = bk2
+                    #bk2,nt_iter,bktrk = fit_logistic(xk, y, zero(T), n=n, p=k, tol=tolrefit, max_iter=max_step, quiet=quiet)
+                    nt_iter, bktrk = fit_logistic!(v, y, zero(T), tol=tolrefit, max_iter=max_step, quiet=true)
+                    v.b[v.idxs] = v.bk
                 catch e
 #                    warn("in final refitting, caught error: ", e)
 #                    warn("skipping final refit")
@@ -280,15 +539,15 @@ function L0_log{T <: Float, V <: DenseVector}(
             exec_time = toq()
 
             # announce convergence
-            !quiet && print_log_convergence(iter, next_loss, exec_time, norm_df)
+            !quiet && print_log_convergence(iter, loss, exec_time, normdf)
 
             # return output 
-            return IHTLogResults(exec_time, loss, iter, copy(v.b), copy(v.active))
+            return IHTLogResults(exec_time, iter, loss, copy(v.b), copy(v.active))
         end # end convergence check
     end # end main GraSP iterations
 
     # return null result
-    return IHTLogResults(zero(T), zero(T), 0, zeros(T, 1), zeros(Int, 1)) 
+    return IHTLogResults(zero(T), 0, zero(T), zeros(T, 1), zeros(Int, 1)) 
 end # end L0_log
 
 
