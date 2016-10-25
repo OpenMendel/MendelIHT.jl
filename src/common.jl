@@ -725,6 +725,25 @@ function IHTLogVariables{T <: Float}(
     IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
 end
 
+# function to modify fields of IHTVariables that depend on k
+function update_variables!{T <: Float}(
+    v :: IHTLogVariables{T},
+    x :: DenseMatrix{T},
+    k :: Int
+)
+    n     = size(x,1)
+    v.xk  = zeros(T, n, k)
+    v.bk  = zeros(T, k)
+    v.xk2 = zeros(T, n, k)
+    v.d2b = zeros(T, k, k)
+    v.bk0 = zeros(T, k)
+    v.bk2 = zeros(T, k)
+    v.ntb = zeros(T, k)
+    v.db  = zeros(T, k)
+    v.dfk = zeros(T, k)
+    return nothing
+end
+
 ###
 ### TODO: constructors for SharedArrays, BEDFiles!
 ###
