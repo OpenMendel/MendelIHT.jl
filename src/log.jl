@@ -1,5 +1,6 @@
 default_lambda{T <: Float}(x::DenseMatrix{T}, y::DenseVector{T}) = sqrt( log(size(x,2)) / length(y)) :: T
 default_lambda{T <: Float}(x::DenseMatrix{T}, y::DenseVector{T}, q::Int) = (ones(T, q) * sqrt( log(size(x,2)) / length(y))) :: Vector{T}
+default_lambda{T <: Float}(n::Int, p::Int, q::Int) = (ones(T, q) * sqrt( log(p / n)) :: Vector{T}
 
 
 """
@@ -485,9 +486,6 @@ function iht_path_log{T <: Float}(
         # current regularization parameter?
         λ = lambdas[i]
 
-        # these arrays change in size from iteration to iteration
-        # we must allocate them for every new model size
-
         # now compute current model
         output = L0_log(x, y, q, v=v, lambda=λ, mu=mu, tol=tol, tolG=tolG, tolrefit=tolrefit, max_iter=max_iter, max_step=max_step, refit=refit, quiet=quiet)
 
@@ -554,18 +552,10 @@ function one_fold_log{T <: Float}(
     # ensure that crossvalidation criterion is valid
     criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
 
-    # for deviance, will need an extra vector of "falses"
-    # this is used when computing deviances with logistic_loglik()
-    if criterion == "deviance"
-        notrues = falses(p)
-    end
-
     # make vector of indices for folds
     # train_idx is the vector that indexes the TRAINING set
     train_idx = folds .!= fold 
-
-    # convert test_idx to numeric
-    #test_idx = convert(Vector{Int}, test_idx)
+    test_size = sum(!train_idx)
 
     # allocate the arrays for the training set
     x_train = x[train_idx,:]
@@ -581,12 +571,16 @@ function one_fold_log{T <: Float}(
     lxb = zeros(T, size(xβ))
     logistic!(lxb, xβ)
     fill!(view(lxb, train_idx, :), zero(T)) 
+    ytest  = copy(y)
+    fill!(view(ytest, train_idx), zero(T))
 
     # compute the mean out-of-sample error for the TEST set
-    if criterion == "class"
-        errors = vec(sumabs(lxb .- y, 1))
-    else # else -> criterion == "deviance"
-        errors = - one(T) / (2*n) .* vec(sum(xβ .* y, 1) .- sum(log(one(T) .+ exp(xβ)), 1))
+    errors = zeros(T, nmodels)
+    if criterion == "class" # compute misclassification error
+        errors .= vec(sumabs(lxb .- ytest, 1)) ./ sum(!train_idx)
+    else # else -> criterion == "deviance" = 2*(neg logistic loss with no reg)
+        #errors .= - one(T) ./ n .* ( vec( sum(xβ .* y, 1) .- sum(log(one(T) .+ exp(xβ)), 1) ) )
+        errors .= - 2 ./ test_size .* ( vec( sum(xβ .* ytest, 1) .- sum(log(one(T) .+ exp(xβ)), 1) ) )
     end
     return errors :: Vector{T}
 end
@@ -639,7 +633,7 @@ function pfold_log{T <: Float}(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-    results = SharedArray(T, (length(path),q), pids=pids)
+    results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
@@ -768,7 +762,9 @@ function cv_log{T <: Float}(
     # with refit = true, L0_log will continuously refit predictors
     # no final refitting code necessary
     output = L0_log(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=true, lambda=zero(T))#lambda=λ)
-    bidx   = find(output.beta)
+
+    # which components of beta are nonzero?
+    bidx = find(output.beta)
 
     return IHTCrossvalidationResults(errors, sdata(path), output.beta[bidx], bidx, k)
 end

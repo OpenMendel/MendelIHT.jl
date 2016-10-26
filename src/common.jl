@@ -775,7 +775,7 @@ function Base.show(io::IO, x::IHTLogResults)
     println(io, "IHT results:")
     @printf(io, "\nCompute time (sec):   %3.4f\n", x.time)
     @printf(io, "Final loss:           %3.7f\n", x.loss)
-    @printf(io, "Iterations:           %3.7f\n", x.iter)
+    @printf(io, "Iterations:           %d\n", x.iter)
     println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
     print(io, DataFrame(Predictor=find(x.beta), Estimated_β=x.beta[find(x.beta)]))
     return nothing

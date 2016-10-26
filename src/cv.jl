@@ -88,9 +88,8 @@ function pfold{T <: Float}(
     i = 1
     nextidx() = (idx=i; i+=1; idx)
 
-    # preallocate cell array for results
-    #results = zeros(T, length(path), q)
-    results = SharedArray(T, (length(path),q), pids=pids)
+    # preallocate array for results
+    results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
@@ -191,7 +190,7 @@ function cv_iht{T <: Float}(
     n == length(y) || throw(DimensionMismatch("Row dimension of x ($n) must match number of rows in y ($(length(y)))"))
 
     # how many elements are in the path?
-    num_models = length(path)
+    nmodels = length(path)
 
     # want to compute a path for each fold
     # the folds are computed asynchronously over processes enumerated by pids
@@ -201,7 +200,7 @@ function cv_iht{T <: Float}(
     # what is the best model size?
     # if there are multiple model sizes of EXACTLY the same MSE,
     # then this chooses the smaller of the two
-    k = convert(Int, floor(path[indmin(mses)]))
+    k = path[indmin(errors)] :: Int
 
     # print results
     !quiet && print_cv_results(mses, path, k)

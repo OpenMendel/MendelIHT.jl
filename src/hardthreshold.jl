@@ -35,10 +35,13 @@ Output:
 - `μ` is the step size used to update `β`, after backtracking.`
 - `μ_step` is the number of backtracking steps used on `μ`.
 """
-function iht!{T <: Float}(
+#function iht!{T <: Float}(
+function iht!{T <: Float, V <: DenseVector}(
+    #v     :: IHTVariables{T, V},
     v     :: IHTVariables{T},
     x     :: DenseMatrix{T},
-    y     :: DenseVector{T},
+    #y     :: DenseVector{T}, 
+    y     :: V, 
     k     :: Int,
     iter  :: Int = 1,
     nstep :: Int = 50
