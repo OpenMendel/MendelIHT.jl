@@ -1,6 +1,7 @@
 default_lambda{T <: Float}(x::DenseMatrix{T}, y::DenseVector{T}) = sqrt( log(size(x,2)) / length(y)) :: T
-default_lambda{T <: Float}(x::DenseMatrix{T}, y::DenseVector{T}, q::Int) = (ones(T, q) * sqrt( log(size(x,2)) / length(y))) :: Vector{T}
-default_lambda{T <: Float}(n::Int, p::Int, q::Int) = (ones(T, q) * sqrt( log(p / n)) :: Vector{T}
+default_lambda{T <: Float}(x::DenseMatrix{T}, y::DenseVector{T}, q::Int) = (ones(T, q)) * sqrt( log(size(x,2)) / length(y)) :: Vector{T}
+default_lambda(T::Type, n::Int, p::Int, q::Int) = (ones(T, q)) * sqrt( log(p / n)) :: Vector{T}
+default_lambda(n::Int, p::Int, q::Int) = default_lambda(Float64, n, p, q) 
 
 
 """
@@ -190,7 +191,7 @@ function L0_log{T <: Float, V <: DenseVector}(
     x        :: DenseMatrix{T},
     y        :: V,
     k        :: Int;
-    v        :: IHTLogVariables{T, V} = IHTLogVariables(x, y, k),
+    v        :: IHTLogVariables{T, V} = IHTLogVariables(sdata(x), sdata(y), k),
     lambda   :: T    = default_lambda(x, y), 
     mu       :: T    = one(T),
     tol      :: T    = convert(T, 1e-6),
@@ -465,7 +466,7 @@ function iht_path_log{T <: Float}(
     num_models = length(path)
 
     # preallocate temporary arrays
-    v = IHTLogVariables(x, y, 1)
+    v = IHTLogVariables(sdata(x), sdata(y), 1)
 
     # betas will be a sparse matrix with models
     betas = spzeros(T, p, num_models)
@@ -548,6 +549,7 @@ function one_fold_log{T <: Float}(
 )
     # dimension of problem?
     n,p = size(x)
+    nmodels = length(path)
 
     # ensure that crossvalidation criterion is valid
     criterion in ["deviance", "class"] || throw(ArgumentError("Argument criterion must be 'deviance' or 'class'"))
@@ -761,7 +763,7 @@ function cv_log{T <: Float}(
     # use L0_log to extract model
     # with refit = true, L0_log will continuously refit predictors
     # no final refitting code necessary
-    output = L0_log(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=true, lambda=zero(T))#lambda=λ)
+    output = L0_log(x, sdata(y), k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, tolG=tolG, tolrefit=tolrefit, refit=true, lambda=zero(T))#lambda=λ)
 
     # which components of beta are nonzero?
     bidx = find(output.beta)

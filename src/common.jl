@@ -695,8 +695,8 @@ end
 
 # construct IHTLogVariables from data x, y, k
 function IHTLogVariables{T <: Float}(
-    x :: Matrix{T},
-    y :: Vector{T},
+    x :: DenseMatrix{T},
+    y :: DenseVector{T},
     k :: Int
 )
     (n,p)  = size(x)
@@ -724,6 +724,7 @@ function IHTLogVariables{T <: Float}(
 
     IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
 end
+
 
 # function to modify fields of IHTVariables that depend on k
 function update_variables!{T <: Float}(
