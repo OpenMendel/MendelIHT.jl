@@ -89,7 +89,7 @@ function pfold{T <: Float}(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-    results = zeros(T, length(path), q)
+#    results = zeros(T, length(path), q)
     results = SharedArray(T, (length(path),q), pids=pids)
 
     # master process will distribute tasks to workers
@@ -230,5 +230,5 @@ function cv_iht{T <: Float}(
         fill!(b, -Inf)
     end
 
-    return IHTCrossvalidationResults(mses, path, b, bidx, k)
+    return IHTCrossvalidationResults(mses, sdata(path), b, bidx, k)
 end

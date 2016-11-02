@@ -558,7 +558,7 @@ function cv_iht(
     end 
 
     bids = prednames(x)[bidx]
-    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+    return IHTCrossvalidationResults{T}(mses, sdata(path), b, bidx, k, bids)
 end
 
 # default type for cv_iht is Float64
@@ -755,7 +755,7 @@ function cv_iht(
     end 
 
     bids = prednames(x)[bidx]
-    return IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
+    return IHTCrossvalidationResults{T}(mses, sdata(path), b, bidx, k, bids)
 end
 
 # default type for cv_iht is Float64
