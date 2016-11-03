@@ -88,14 +88,10 @@ function pfold{T <: Float}(
     i = 1
     nextidx() = (idx=i; i+=1; idx)
 
-<<<<<<< HEAD
     # preallocate cell array for results
 #    results = zeros(T, length(path), q)
-    results = SharedArray(T, (length(path),q), pids=pids)
-=======
-    # preallocate array for results
+#    results = SharedArray(T, (length(path),q), pids=pids)
     results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
->>>>>>> 962306819f141138c4221a03ce6a6b012896323b
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
@@ -214,25 +210,22 @@ function cv_iht{T <: Float}(
     # refit the best model
     b, bidx = refit_iht(x, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
-<<<<<<< HEAD
-    # which components of beta are nonzero?
-    bidx = find(output.beta) :: Vector{Int}
-
-    # allocate the submatrix of x corresponding to the inferred model
-    x_inferred = x[:,bidx]
-
-    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-    xty = BLAS.gemv('T', one(T), x_inferred, y) :: Vector{T}
-    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred) :: Matrix{T}
-    b   = zeros(T, length(bidx))
-    try
-        b = (xtx \ xty) :: Vector{T}
-    catch e
-        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
-        fill!(b, -Inf)
-    end
-
-=======
->>>>>>> 962306819f141138c4221a03ce6a6b012896323b
+#    # which components of beta are nonzero?
+#    bidx = find(output.beta) :: Vector{Int}
+#
+#    # allocate the submatrix of x corresponding to the inferred model
+#    x_inferred = x[:,bidx]
+#
+#    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
+#    xty = BLAS.gemv('T', one(T), x_inferred, y) :: Vector{T}
+#    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred) :: Matrix{T}
+#    b   = zeros(T, length(bidx))
+#    try
+#        b = (xtx \ xty) :: Vector{T}
+#    catch e
+#        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
+#        fill!(b, -Inf)
+#    end
+#
     return IHTCrossvalidationResults(mses, sdata(path), b, bidx, k)
 end
