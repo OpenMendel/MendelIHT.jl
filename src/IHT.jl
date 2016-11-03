@@ -1,5 +1,6 @@
 module IHT
 
+
 using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK
 using RegressionTools
@@ -18,6 +19,16 @@ catch e
     warn("IHT.jl cannot find an OpenCL library and will not load GPU functions correctly.")
     global cl = nothing
 end
+
+# since PLINK module also loads OpenCL, the previous test can fail
+# check that PLINK actually loaded GPU code
+try
+    PLINK.PlinkGPUVariables
+catch e
+    warn("PLINK.jl could not find an OpenCL library, so IHT.jl will not load GPU functions correctly.")
+    global cl = nothing
+end
+
 
 # used for pretty printing of IHTResults, IHTCrossvalidationResults
 import Base.show

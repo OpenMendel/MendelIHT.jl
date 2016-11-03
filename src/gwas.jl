@@ -11,7 +11,7 @@ function iht!{T <: Float}(
     x     :: BEDFile{T},
     y     :: DenseVector{T},
     k     :: Int;
-    pids  :: DenseVector{Int} = procs(x),
+    pids  :: Vector{Int} = procs(x),
     iter  :: Int = 1,
     nstep :: Int = 50,
 )
@@ -92,10 +92,10 @@ function L0_reg{T <: Float, V <: DenseVector}(
     x        :: BEDFile{T},
     y        :: V, 
     k        :: Int;
-    pids     :: DenseVector{Int}   = procs(x),
+    pids     :: Vector{Int} = procs(x),
     v        :: IHTVariables{T, V} = IHTVariables(x, y, k),
-    mask_n   :: DenseVector{Int}   = ones(Int, size(y)),
-    tol      :: Float = convert(T, 1e-4),
+    mask_n   :: Vector{Int} = ones(Int, size(y)),
+    tol      :: T     = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
     quiet    :: Bool  = true
@@ -131,7 +131,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
     converged = false             # scaled_norm < tol?
 
     # update xb, r, and gradient
-#    initialize_xb_r_grad!(temp, x, y, k, pids=pids)
+#    initialize_xb_r_grad!(v, x, y, k, pids=pids)
     if sum(v.idx) == 0
         fill!(v.xb, zero(T))
         copy!(v.r, y)
@@ -245,9 +245,9 @@ function iht_path{T <: Float}(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int};
-    pids     :: DenseVector{Int} = procs(x),
-    mask_n   :: DenseVector{Int} = ones(Int, size(y)),
-    tol      :: Float = convert(T, 1e-4),
+    pids     :: Vector{Int} = procs(x),
+    mask_n   :: Vector{Int} = ones(Int, size(y)),
+    tol      :: T     = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
     quiet    :: Bool  = true
@@ -276,7 +276,7 @@ function iht_path{T <: Float}(
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
-        update_variables!(temp, x, q)
+        update_variables!(v, x, q)
 
         # store projection of beta onto largest k nonzeroes in magnitude
         project_k!(v.b, q)
@@ -310,11 +310,11 @@ function one_fold{T <: Float}(
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
     fold     :: Int;
-    pids     :: DenseVector{Int} = procs(x),
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    quiet    :: Bool  = true
+    pids     :: Vector{Int} = procs(x),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true
 )
     # dimensions of problem
     n,p = size(x)
@@ -386,7 +386,7 @@ function pfold(
     precfile   :: String,
     path       :: DenseVector{Int},
     folds      :: DenseVector{Int},
-    pids       :: DenseVector{Int},
+    pids       :: Vector{Int},
     q          :: Int;
     max_iter   :: Int  = 100,
     max_step   :: Int  = 50,
@@ -435,7 +435,7 @@ function pfold(
                         quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker.\n\n")
                         r = remotecall_fetch(worker) do
                             processes = [worker]
-                            x = BEDFile(T, xfile, x2file, pids=processes, header=header)
+                            x = BEDFile(T, xfile, x2file, meanfile, precfile, pids=processes, header=header)
                             y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=processes) :: SharedVector{T}
 
                             one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
@@ -452,7 +452,7 @@ function pfold(
 end
 
 # default type for pfold is Float64
-pfold(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, pids::DenseVector{Int}, q::Int; max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, pids::Vector{Int}, q::Int; max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 function pfold(
     T        :: Type,
@@ -461,7 +461,7 @@ function pfold(
     yfile    :: String,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
-    pids     :: DenseVector{Int},
+    pids     :: Vector{Int},
     q        :: Int;
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
@@ -533,7 +533,7 @@ function pfold(
 end
 
 # default for previous function is Float64
-pfold(xfile::String, x2file::String, yfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, pids::DenseVector{Int}, q::Int; max_iter::Int = 100, max_step::Int = 50, quiet::Bool = true, header::Bool = false) = pfold(Float64, xfile, x2file, yfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::String, x2file::String, yfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, pids::Vector{Int}, q::Int; max_iter::Int = 100, max_step::Int = 50, quiet::Bool = true, header::Bool = false) = pfold(Float64, xfile, x2file, yfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 
 
@@ -567,7 +567,7 @@ function cv_iht(
             n       = countlines(famfile)
             cv_get_folds(n, q)
             end,
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
@@ -642,7 +642,7 @@ function cv_iht(
             n       = countlines(famfile)
             cv_get_folds(n, q)
             end,
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
@@ -700,4 +700,4 @@ Important optional arguments and defaults include:
 - `folds`, an `Int` vector that specifies the fold structure. Defaults to `cv_get_folds(n,q)`, where `n` is the number of cases read from the PLINK FAM file.
 - `pids`, an `Int` vector of process IDs. Defaults to `procs()`.
 """
-cv_iht(xfile::String, x2file::String, yfile::String; q::Int = cv_get_num_folds(3,5), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+cv_iht(xfile::String, x2file::String, yfile::String; q::Int = cv_get_num_folds(3,5), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::Vector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)

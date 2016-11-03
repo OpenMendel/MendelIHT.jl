@@ -84,15 +84,15 @@ function IHTVariables{T <: Float}(
     pids = procs(x)
     V    = typeof(y)
     n, p = size(x)
-#    b    = SharedArray(T, (p,), pids=pids) :: V
-#    df   = SharedArray(T, (p,), pids=pids) :: V
-#    xb   = SharedArray(T, (n,), pids=pids) :: V
-#    r    = SharedArray(T, (n,), pids=pids) :: V
+    b    = SharedArray(T, (p,), pids=pids) :: V
+    df   = SharedArray(T, (p,), pids=pids) :: V
+    xb   = SharedArray(T, (n,), pids=pids) :: V
+    r    = SharedArray(T, (n,), pids=pids) :: V
+#    b    = convert(V, SharedArray(T, size(b0), pids=pids))
+#    df   = convert(V, SharedArray(T, size(b0), pids=pids))
+#    xb   = convert(V, SharedArray(T, size(y), pids=pids))
+#    r    = convert(V, SharedArray(T, size(y), pids=pids))
     b0   = zeros(T, p)
-    b    = convert(V, SharedArray(T, size(b0), pids=pids))
-    df   = convert(V, SharedArray(T, size(b0), pids=pids))
-    xb   = convert(V, SharedArray(T, size(y), pids=pids))
-    r    = convert(V, SharedArray(T, size(y), pids=pids))
     xb0  = zeros(T, n)
     xk   = zeros(T, n, k)
     xgk  = zeros(T, n)
