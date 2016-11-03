@@ -1,6 +1,6 @@
 julia 0.5
 PLINK 
-StatsFuns 0.7.4
+StatsFuns 0.3.1
 OpenCL 0.3.5
 RegressionTools 
 DataFrames 0.8.3
