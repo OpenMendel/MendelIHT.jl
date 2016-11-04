@@ -157,13 +157,14 @@ end # end function
 
 If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, then `iht_path` will attempt to accelerate the calculation of the dense gradient `x' * (y - x*b)` in `L0_reg` with a GPU device.
 """
-function iht_path{T <: Float}(
+function iht_path{T <: Float, V <: DenseVector}(
     x        :: BEDFile{T},
     y        :: DenseVector{T}, 
     path     :: DenseVector{Int},
     kernfile :: String;
-    pids     :: DenseVector{Int} = procs(x),
-    mask_n   :: Vector{Int}      = ones(Int,length(y)),
+    pids     :: DenseVector{Int}  = procs(x),
+    temp     :: IHTVariables{T,V} = IHTVariables(x, y, 1)
+    mask_n   :: Vector{Int}       = ones(Int,length(y)),
     v        :: PLINK.PlinkGPUVariables{T} = PLINK.PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
@@ -178,9 +179,6 @@ function iht_path{T <: Float}(
 
     # also preallocate matrix to store betas
     betas = spzeros(T,p,num_models) # a matrix to store calculated models
-
-    # initialize temporary arrays
-    temp = IHTVariables(x, y, 1)
 
     # compute the path
     @inbounds for i = 1:num_models
