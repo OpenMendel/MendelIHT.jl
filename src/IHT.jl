@@ -48,8 +48,11 @@ export cv_log
 typealias Float Union{Float64, Float32}
 
 include("common.jl")
-if cl != nothing 
+#if cl != nothing 
+try
     include("gpu.jl") # conditional load of GPU code
+catch e
+    warn("IHT.jl failed to load GPU functions!")
 end
 include("gwas.jl")
 include("cv.jl")

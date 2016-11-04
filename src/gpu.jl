@@ -1,9 +1,3 @@
-export L0_reg_gpu
-export iht_path
-
-#"A shortcut for `OpenCL` module name."
-#const cl = OpenCL
-
 """
     L0_reg(x::BEDFile, y, k, kernfile::String)
 
@@ -11,19 +5,19 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, t
 This variant introduces a host of extra arguments for the GPU encapsulated in an optional `PlinkGPUVariables` argument `v`.
 The optional argument `v` facilitates the calculation of a regularization path by `iht_path`.
 """
-function L0_reg{T <: Float}(
+function L0_reg{T <: Float, V <: DenseVector}(
     x        :: BEDFile{T},
-    y        :: DenseVector{T},
+    y        :: V, 
     k        :: Int,
     kernfile :: String;
-    pids     :: DenseVector{Int} = procs(),
-    temp     :: IHTVariables{T}  = IHTVariables(x, y, k),
-    mask_n   :: DenseVector{Int} = ones(Int, size(y)),
-    v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    quiet    :: Bool  = true
+    pids     :: Vector{Int}       = procs(x),
+    temp     :: IHTVariables{T,V} = IHTVariables(x, y, k),
+    mask_n   :: Vector{Int}       = ones(Int, size(y)),
+    v        :: PLINK.PlinkGPUVariables{T} = PLINK.PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true
 )
 
     # start timer
@@ -43,7 +37,7 @@ function L0_reg{T <: Float}(
     next_loss = zero(T) # loss function value
 
     # initialize floats
-    current_loss = oftype(tol,Inf)    # tracks previous objective function value
+    current_loss = convert(T, Inf)    # tracks previous objective function value
     the_norm     = zero(T)            # norm(b - b0)
     scaled_norm  = zero(T)            # the_norm / (norm(b0) + 1)
     mu           = zero(T)            # Landweber step size, 0 < tau < 2/rho_max^2
@@ -59,19 +53,19 @@ function L0_reg{T <: Float}(
     if sum(temp.idx) == 0
         fill!(temp.xb, zero(T))
         copy!(temp.r, y)
-        mask!(temp.r, mask_n, 0, zero(T), n=n)
+        mask!(temp.r, mask_n, 0, zero(T))
     else
         #A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n, pids=pids)
         A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n)
         difference!(temp.r, y, temp.xb)
-        mask!(temp.r, mask_n, 0, zero(T), n=n)
+        mask!(temp.r, mask_n, 0, zero(T))
     end
 
     # calculate the gradient using the GPU
     At_mul_B!(temp.df, x, temp.r, mask_n, v)
 
     # update loss
-    next_loss = oftype(zero(T),Inf)
+    next_loss = convert(T, Inf)
 
     # formatted output to monitor algorithm progress
     !quiet && print_header()
@@ -86,7 +80,7 @@ function L0_reg{T <: Float}(
             !quiet && print_maxiter(max_iter, loss)
 
             # send elements below tol to zero
-            threshold!(b, tol, n=p)
+            threshold!(b, tol)
 
             # stop timer
             mm_time = toq()
@@ -123,7 +117,7 @@ function L0_reg{T <: Float}(
 
         # track convergence
         the_norm    = chebyshev(temp.b, temp.b0)
-        scaled_norm = the_norm / ( norm(temp.b0,Inf) + 1)
+        scaled_norm = (the_norm / ( norm(temp.b0,Inf) + 1)) :: T
         converged   = scaled_norm < tol
 
         # output algorithm progress
@@ -165,17 +159,16 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, t
 """
 function iht_path{T <: Float}(
     x        :: BEDFile{T},
-    y        :: DenseVector{T},
+    y        :: DenseVector{T}, 
     path     :: DenseVector{Int},
     kernfile :: String;
-    pids     :: DenseVector{Int} = procs(),
-    mask_n   :: DenseVector{Int} = ones(Int,length(y)),
-    temp     :: IHTVariables{T}  = IHTVariables(x, y, 1),
-    v        :: PlinkGPUVariables{T} = PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    quiet    :: Bool  = true
+    pids     :: DenseVector{Int} = procs(x),
+    mask_n   :: Vector{Int}      = ones(Int,length(y)),
+    v        :: PLINK.PlinkGPUVariables{T} = PLINK.PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true
 )
     # size of problem?
     n,p = size(x)
@@ -185,6 +178,9 @@ function iht_path{T <: Float}(
 
     # also preallocate matrix to store betas
     betas = spzeros(T,p,num_models) # a matrix to store calculated models
+
+    # initialize temporary arrays
+    temp = IHTVariables(x, y, 1)
 
     # compute the path
     @inbounds for i = 1:num_models
@@ -229,12 +225,12 @@ function one_fold{T <: Float}(
     kernfile :: String,
     folds    :: DenseVector{Int},
     fold     :: Int;
-    pids     :: DenseVector{Int} = procs(),
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    header   :: Bool  = false,
-    quiet    :: Bool  = true
+    pids     :: Vector{Int} = procs(x),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    header   :: Bool = false,
+    quiet    :: Bool = true
 )
     # dimensions of problem
     n,p = size(x)
@@ -260,7 +256,7 @@ function one_fold{T <: Float}(
     betas = iht_path(x, y, path, kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, mask_n=train_idx, pids=pids, tol=tol)
 
     # tidy up
-    gc()
+    #gc()
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
@@ -269,9 +265,9 @@ function one_fold{T <: Float}(
     indices = falses(p)
 
     # allocate temporary arrays for the test set
-    xb = SharedArray(T, n, pids=pids)
-    b  = SharedArray(T, p, pids=pids)
-    r  = SharedArray(T, n, pids=pids)
+    xb = SharedArray(T, n, pids=pids) :: SharedVector{T}
+    b  = SharedArray(T, p, pids=pids) :: SharedVector{T}
+    r  = SharedArray(T, n, pids=pids) :: SharedVector{T}
 
     # compute the mean out-of-sample error for the TEST set
     # do this for every computed model in regularization path
@@ -381,8 +377,8 @@ function pfold(
     kernfile   :: String,
     folds      :: DenseVector{Int},
     q          :: Int;
-    devindices :: DenseVector{Int} = ones(Int,q),
-    pids       :: DenseVector{Int} = procs(),
+    devindices :: Vector{Int} = ones(Int,q),
+    pids       :: Vector{Int} = procs(),
     max_iter   :: Int  = 100,
     max_step   :: Int  = 50,
     quiet      :: Bool = true,
@@ -404,7 +400,7 @@ function pfold(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-    results = cell(q)
+    results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
@@ -434,13 +430,14 @@ function pfold(
 
                         # launch job on worker
                         # worker loads data from file paths and then computes the errors in one fold
-                        results[current_fold] = remotecall_fetch(worker) do
+                        r = remotecall_fetch(worker) do
                                 pids = [worker]
                                 x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
-                                y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+                                y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
                                 one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
                         end # end remotecall_fetch()
+                        setindex!(results, r, :, current_fold)
                     end # end while
                 end # end @async
             end # end if
@@ -448,12 +445,12 @@ function pfold(
     end # end @sync
 
     # return reduction (row-wise sum) over results
-    return (reduce(+, results[1], results) ./ q) :: Vector{T}
+    return (vec(sum(results, 2) ./ q)) :: Vector{T}
 end
 
 
 # default type for pfold is Float64
-pfold(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, path::DenseVector{Int}, kernfile::String, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, path::DenseVector{Int}, kernfile::String, folds::DenseVector{Int}, q::Int; devindices::Vector{Int}=ones(Int,q), pids::Vector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 """
     cv_iht(xfile, xtfile, x2file, yfile, meanfile, precfile, kernfile)
@@ -484,7 +481,7 @@ function cv_iht(
             n       = countlines(famfile)
             cv_get_folds(n, q)
             end,
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
@@ -528,14 +525,14 @@ function cv_iht(
     mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
 
     # what is the best model size?
-    k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
+    k = path[indmin(errors)] :: Int
 
     # print results
     !quiet && print_cv_results(mses, path, k)
 
     # load data on *all* processes
     x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
-    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use L0_reg to extract model
     output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
@@ -548,23 +545,15 @@ function cv_iht(
     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
     decompress_genotypes!(x_inferred, x, inferred_model)
 
-    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-    xty = BLAS.gemv('T', one(T), x_inferred, y)
-    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
-    b   = zeros(T, length(bidx))
-    try
-        b = (xtx \ xty) :: Vector{T}
-    catch e
-        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
-        fill!(b, -Inf)
-    end
+    # refit best model 
+    b, bidx = refit_iht(x_inferred, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
     bids = prednames(x)[bidx]
     return IHTCrossvalidationResults{T}(mses, sdata(path), b, bidx, k, bids)
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, kernfile::String; q::Int = cv_get_num_folds(3,5), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, meanfile, precfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+cv_iht(xfile::String, x2file::String, yfile::String, meanfile::String, precfile::String, kernfile::String; q::Int = cv_get_num_folds(3,5), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::Vector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, meanfile, precfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 
 
@@ -583,8 +572,8 @@ function pfold(
     kernfile   :: String,
     folds      :: DenseVector{Int},
     q          :: Int;
-    devindices :: DenseVector{Int} = ones(Int,q),
-    pids       :: DenseVector{Int} = procs(),
+    devindices :: Vector{Int} = ones(Int,q),
+    pids       :: Vector{Int} = procs(),
     max_iter   :: Int  = 100,
     max_step   :: Int  = 50,
     quiet      :: Bool = true,
@@ -606,7 +595,7 @@ function pfold(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-    results = cell(q)
+    results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
@@ -636,12 +625,13 @@ function pfold(
 
                         # launch job on worker
                         # worker loads data from file paths and then computes the errors in one fold
-                        results[current_fold] = remotecall_fetch(worker) do
+                        r = remotecall_fetch(worker) do
                                 pids = [worker]
                                 x = BEDFile(T, xfile, x2file, pids=pids, header=header)
-                                y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+                                y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
                                 one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
                         end # end remotecall_fetch()
+                        setindex!(results, r, :, current_fold)
                     end # end while
                 end # end @async
             end # end if
@@ -649,12 +639,12 @@ function pfold(
     end # end @sync
 
     # return reduction (row-wise sum) over results
-    return (reduce(+, results[1], results) ./ q) :: Vector{T}
+    return (vec(sum(results, 2) ./ q)) :: Vector{T}
 end
 
 
 # default type for pfold is Float64
-pfold(xfile::String, x2file::String, yfile::String, path::DenseVector{Int}, kernfile::String, folds::DenseVector{Int}, q::Int; devindices::DenseVector{Int}=ones(Int,q), pids::DenseVector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, x2file, yfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+pfold(xfile::String, x2file::String, yfile::String, path::DenseVector{Int}, kernfile::String, folds::DenseVector{Int}, q::Int; devindices::Vector{Int}=ones(Int,q), pids::Vector{Int}=procs(), max_iter::Int=100, max_step::Int =50, quiet::Bool=true, header::Bool=false) = pfold(Float64, xfile, x2file, yfile, path, kernfile, folds, q, devindices=devindices, pids=pids, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 """
     cv_iht(xfile,x2file,yfile,path,kernfile,folds,q [, pids=procs()])
@@ -724,7 +714,7 @@ function cv_iht(
     mses = pfold(T, xfile, x2file, yfile, path, kernfile, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
 
     # what is the best model size?
-    k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
+    k = path[indmin(errors)] :: Int
 
     # print results
     !quiet && print_cv_results(mses, path, k)
@@ -732,7 +722,7 @@ function cv_iht(
     # recompute ideal model
     # first load data on *all* processes
     x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
-    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use L0_reg to extract model
     output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
@@ -745,20 +735,12 @@ function cv_iht(
     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
     decompress_genotypes!(x_inferred, x, inferred_model)
 
-    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-    xty = BLAS.gemv('T', one(T), x_inferred, y)
-    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred)
-    b   = zeros(T, length(bidx))
-    try
-        b = (xtx \ xty) :: Vector{T}
-    catch e
-        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
-        fill!(b, -Inf)
-    end
+    # refit the best model
+    b, bidx = refit_iht(x_inferred, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
     bids = prednames(x)[bidx]
     return IHTCrossvalidationResults{T}(mses, sdata(path), b, bidx, k, bids)
 end
 
 # default type for cv_iht is Float64
-cv_iht(xfile::String, x2file::String, yfile::String, kernfile::String; q::Int = cv_get_num_folds(3,5), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+cv_iht(xfile::String, x2file::String, yfile::String, kernfile::String; q::Int = cv_get_num_folds(3,5), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::Vector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, kernfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)

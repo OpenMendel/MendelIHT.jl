@@ -117,10 +117,10 @@ function L0_reg{T <: Float, V <: DenseVector}(
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
     mm_time   = zero(T)           # compute time *within* L0_reg
-    next_loss = oftype(tol,Inf)   # loss function value
+    next_loss = convert(T, Inf)   # loss function value
 
     # initialize floats
-    loss = oftype(tol,Inf) # tracks previous objective function value
+    loss        = convert(T, Inf) # tracks previous objective function value
     the_norm    = zero(T)         # norm(b - b0)
     scaled_norm = zero(T)         # the_norm / (norm(b0) + 1)
     mu          = zero(T)         # Landweber step size, 0 < tau < 2/rho_max^2
@@ -198,7 +198,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
 
         # track convergence
         the_norm    = chebyshev(v.b, v.b0)
-        scaled_norm = the_norm / ( norm(v.b0,Inf) + 1)
+        scaled_norm = (the_norm / ( norm(v.b0,Inf) + 1)) :: T
         converged   = scaled_norm < tol
 
         # output algorithm progress
@@ -250,10 +250,10 @@ function iht_path{T <: Float}(
     path     :: DenseVector{Int};
     pids     :: Vector{Int} = procs(x),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
-    tol      :: T     = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
-    quiet    :: Bool  = true
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true
 )
 
     # size of problem?
@@ -589,7 +589,7 @@ function cv_iht(
     mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
     # what is the best model size?
-    k = convert(Int, floor(mean(path[mses .== minimum(mses)])))
+    k = path[indmin(errors)] :: Int
 
     # print results
     !quiet && print_cv_results(mses, path, k)
@@ -597,7 +597,7 @@ function cv_iht(
     # recompute ideal model
     # first load data on *all* processes
     x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
-    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use L0_reg to extract model
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
