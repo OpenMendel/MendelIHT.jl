@@ -61,7 +61,8 @@ function L0_reg{T <: Float}(
         copy!(temp.r, y)
         mask!(temp.r, mask_n, 0, zero(T), n=n)
     else
-        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n, pids=pids)
+        #A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n, pids=pids)
+        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n)
         difference!(temp.r, y, temp.xb)
         mask!(temp.r, mask_n, 0, zero(T), n=n)
     end
@@ -286,7 +287,8 @@ function one_fold{T <: Float}(
         update_indices!(indices, b)
 
         # compute estimated response Xb with $(path[i]) nonzeroes
-        A_mul_B!(xb, x, b, indices, path[i], test_idx, pids=pids)
+        #A_mul_B!(xb, x, b, indices, path[i], test_idx, pids=pids)
+        A_mul_B!(xb, x, b, indices, path[i], test_idx)
 
         # compute residuals
         difference!(r, y, xb)

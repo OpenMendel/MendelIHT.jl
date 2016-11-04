@@ -47,7 +47,8 @@ function iht!{T <: Float}(
     _iht_gradstep(v, mu, k)
 
     # update xb
-    PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
+    #PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
+    PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k)
 
     # calculate omega
     omega_top, omega_bot = _iht_omega(v)
@@ -67,7 +68,8 @@ function iht!{T <: Float}(
         _iht_gradstep(v, mu, k)
 
         # recompute xb
-        PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
+        #PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
+        PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k)
 
         # calculate omega
         omega_top, omega_bot = _iht_omega(v)
@@ -137,7 +139,8 @@ function L0_reg{T <: Float, V <: DenseVector}(
         copy!(v.r, y)
         mask!(v.r, mask_n, 0, zero(T))
     else
-        A_mul_B!(v.xb, x, v.b, v.idx, k, mask_n, pids=pids)
+        #A_mul_B!(v.xb, x, v.b, v.idx, k, mask_n, pids=pids)
+        A_mul_B!(v.xb, x, v.b, v.idx, k, mask_n)
         difference!(v.r, y, v.xb)
         mask!(v.r, mask_n, 0, zero(T))
     end
@@ -359,7 +362,8 @@ function one_fold{T <: Float}(
         update_indices!(indices, b)
 
         # compute estimated response Xb with $(path[i]) nonzeroes
-        A_mul_B!(xb, x, b, indices, path[i], mask_test, pids=pids)
+        #A_mul_B!(xb, x, b, indices, path[i], mask_test, pids=pids)
+        A_mul_B!(xb, x, b, indices, path[i], mask_test)
 
         # compute residuals
         difference!(r, y, xb)
