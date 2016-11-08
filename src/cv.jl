@@ -89,8 +89,6 @@ function pfold{T <: Float}(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-#    results = zeros(T, length(path), q)
-#    results = SharedArray(T, (length(path),q), pids=pids)
     results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
 
     # master process will distribute tasks to workers
@@ -118,7 +116,6 @@ function pfold{T <: Float}(
 
                         # launch job on worker
                         # worker loads data from file paths and then computes the errors in one fold
-#                        results[:, current_fold] = remotecall_fetch(worker) do
                         r = remotecall_fetch(worker) do
                                 one_fold(x, y, path, folds, current_fold, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
                         end # end remotecall_fetch()
@@ -176,7 +173,7 @@ function cv_iht{T <: Float}(
     q        :: Int   = cv_get_num_folds(3, 5),
     path     :: DenseVector{Int} = collect(1:min(size(x,2),20)),
     folds    :: DenseVector{Int} = cv_get_folds(sdata(y),q),
-    pids     :: Vector{Int} = procs(),
+    pids     :: Vector{Int}      = procs(),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
@@ -202,7 +199,7 @@ function cv_iht{T <: Float}(
     # what is the best model size?
     # if there are multiple model sizes of EXACTLY the same MSE,
     # then this chooses the smaller of the two
-    k = path[indmin(errors)] :: Int
+    k = path[indmin(mses)] :: Int
 
     # print results
     !quiet && print_cv_results(mses, path, k)
@@ -210,22 +207,5 @@ function cv_iht{T <: Float}(
     # refit the best model
     b, bidx = refit_iht(x, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
-#    # which components of beta are nonzero?
-#    bidx = find(output.beta) :: Vector{Int}
-#
-#    # allocate the submatrix of x corresponding to the inferred model
-#    x_inferred = x[:,bidx]
-#
-#    # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
-#    xty = BLAS.gemv('T', one(T), x_inferred, y) :: Vector{T}
-#    xtx = BLAS.gemm('T', 'N', one(T), x_inferred, x_inferred) :: Matrix{T}
-#    b   = zeros(T, length(bidx))
-#    try
-#        b = (xtx \ xty) :: Vector{T}
-#    catch e
-#        warn("in refit, caught error: ", e, "\nSetting returned values of b to -Inf")
-#        fill!(b, -Inf)
-#    end
-#
     return IHTCrossvalidationResults(mses, sdata(path), b, bidx, k)
 end

@@ -596,7 +596,7 @@ function cv_iht(
 
     # recompute ideal model
     # first load data on *all* processes
-    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
+    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids) :: BEDFile{T}
     y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use L0_reg to extract model
@@ -664,15 +664,15 @@ function cv_iht(
     mses = pfold(T, xfile, x2file, yfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
     # what is the best model size?
-    k = path[indmin(errors)] :: Int
+    k = path[indmin(mses)] :: Int
 
     # print results
     !quiet && print_cv_results(mses, path, k)
 
     # recompute ideal model
     # first load data on *all* processes
-    x = BEDFile(T, xfile, x2file, header=header, pids=pids)
-    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids)
+    x = BEDFile(T, xfile, x2file, header=header, pids=pids) :: BEDFile{T}
+    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use L0_reg to extract model
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
