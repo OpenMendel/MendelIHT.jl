@@ -52,10 +52,9 @@ function L0_reg{T <: Float, V <: DenseVector}(
     # update Xb, r, and gradient
     if sum(temp.idx) == 0
         fill!(temp.xb, zero(T))
-        copy!(temp.r, y)
+        copy!(sdata(temp.r), sdata(y))
         mask!(temp.r, mask_n, 0, zero(T))
     else
-        #A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n, pids=pids)
         A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n)
         difference!(temp.r, y, temp.xb)
         mask!(temp.r, mask_n, 0, zero(T))
@@ -93,8 +92,8 @@ function L0_reg{T <: Float, V <: DenseVector}(
         end
 
         # save values from previous iterate
-        copy!(temp.b0, temp.b)   # b0 = b
-        copy!(temp.xb0, temp.xb) # Xb0 = Xb
+        copy!(sdata(temp.b0), sdata(temp.b))   # b0 = b
+        copy!(sdata(temp.xb0), sdata(temp.xb)) # Xb0 = Xb
         loss = next_loss
 
         # now perform IHT step
@@ -430,7 +429,7 @@ function pfold(
                         # worker loads data from file paths and then computes the errors in one fold
                         r = remotecall_fetch(worker) do
                                 pids = [worker]
-                                x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
+                                x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header) :: BEDFile{T}
                                 y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
                                 one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
@@ -625,7 +624,7 @@ function pfold(
                         # worker loads data from file paths and then computes the errors in one fold
                         r = remotecall_fetch(worker) do
                                 pids = [worker]
-                                x = BEDFile(T, xfile, x2file, pids=pids, header=header)
+                                x = BEDFile(T, xfile, x2file, pids=pids, header=header) :: BEDFile{T}
                                 y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
                                 one_fold(x, y, path, kernfile, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
                         end # end remotecall_fetch()
@@ -668,7 +667,7 @@ function cv_iht(
             n       = countlines(famfile)
             cv_get_folds(n, q)
             end,
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
