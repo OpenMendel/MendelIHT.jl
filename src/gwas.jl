@@ -335,7 +335,7 @@ function one_fold{T <: Float}(
     betas = iht_path(x, y, path, mask_n=mask_n, max_iter=max_iter, quiet=quiet, max_step=max_step, pids=pids, tol=tol)
 
     # tidy up
-    gc()
+    #gc()
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))

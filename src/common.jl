@@ -194,7 +194,7 @@ function refit_iht{T <: Float}(
 
     # which components of β are nonzero?
     # cannot use binary indices here since we need to return Int indices
-    bidx = find(v.b) :: Vector{Int}
+    bidx = find(output.beta) :: Vector{Int}
     k2 = length(bidx)
 
     # allocate the submatrix of x corresponding to the inferred model
@@ -228,7 +228,7 @@ function refit_iht(
     meanfile :: String,
     precfile :: String,
     k        :: Int;
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-6),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
@@ -237,14 +237,14 @@ function refit_iht(
 )
 
     # initialize all variables
-    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
+    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header) :: BEDFile{T}
     y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # extract model with IHT
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
    
     # which components of β are nonzero?
-    inferred_model = v.b .!= zero(T)
+    inferred_model = output.beta .!= zero(T)
     bidx = find(inferred_model)
   
     # allocate the submatrix of x corresponding to the inferred model
@@ -277,7 +277,7 @@ function refit_iht(
     x2file   :: String,
     yfile    :: String,
     k        :: Int;
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-6),
     max_iter :: Int   = 100,
     quiet    :: Bool  = true,
@@ -285,14 +285,14 @@ function refit_iht(
 )
 
     # initialize all variables
-    x = BEDFile(T, xfile, x2file, pids=pids, header=header)
+    x = BEDFile(T, xfile, x2file, pids=pids, header=header) :: BEDFile{T}
     y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use exchange algorithm to extract model
-    L0_reg(x, y, k, max_iter=max_iter, quiet=quiet, tol=tol, window=k)
+    output = L0_reg(x, y, k, max_iter=max_iter, quiet=quiet, tol=tol, window=k)
 
     # which components of β are nonzero?
-    inferred_model = v.b .!= zero(T)
+    inferred_model = output.beta .!= zero(T)
     bidx = find(inferred_model)
   
     # allocate the submatrix of x corresponding to the inferred model

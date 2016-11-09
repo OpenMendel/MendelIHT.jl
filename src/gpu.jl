@@ -523,7 +523,7 @@ function cv_iht(
     mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, kernfile, folds, q, max_iter=max_iter, max_step=max_step, quiet=quiet, devindices=devindices, pids=pids, header=header)
 
     # what is the best model size?
-    k = path[indmin(errors)] :: Int
+    k = path[indmin(mses)] :: Int
 
     # print results
     !quiet && print_cv_results(mses, path, k)
