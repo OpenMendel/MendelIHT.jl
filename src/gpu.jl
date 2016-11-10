@@ -7,13 +7,13 @@ The optional argument `v` facilitates the calculation of a regularization path b
 """
 function L0_reg{T <: Float, V <: DenseVector}(
     x        :: BEDFile{T},
-    y        :: V, 
+    y        :: V,
     k        :: Int,
     kernfile :: String;
     pids     :: Vector{Int}       = procs(x),
-    temp     :: IHTVariables{T,V} = IHTVariables(x, y, k),
+    w     :: IHTVariables{T,V} = IHTVariables(x, y, k),
     mask_n   :: Vector{Int}       = ones(Int, size(y)),
-    v        :: PLINK.PlinkGPUVariables{T} = PLINK.PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
+    v        :: PLINK.PlinkGPUVariables{T} = PLINK.PlinkGPUVariables(w.df, x, y, kernfile, mask_n),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
@@ -50,18 +50,18 @@ function L0_reg{T <: Float, V <: DenseVector}(
     converged = false   # scaled_norm < tol?
 
     # update Xb, r, and gradient
-    if sum(temp.idx) == 0
-        fill!(temp.xb, zero(T))
-        copy!(sdata(temp.r), sdata(y))
-        mask!(temp.r, mask_n, 0, zero(T))
+    if sum(w.idx) == 0
+        fill!(w.xb, zero(T))
+        copy!(sdata(w.r), sdata(y))
+        mask!(w.r, mask_n, 0, zero(T))
     else
-        A_mul_B!(temp.xb, x, temp.b, temp.idx, k, mask_n)
-        difference!(temp.r, y, temp.xb)
-        mask!(temp.r, mask_n, 0, zero(T))
+        A_mul_B!(w.xb, x, w.b, w.idx, k, mask_n)
+        difference!(w.r, y, w.xb)
+        mask!(w.r, mask_n, 0, zero(T))
     end
 
     # calculate the gradient using the GPU
-    At_mul_B!(temp.df, x, temp.r, mask_n, v)
+    At_mul_B!(w.df, x, w.r, mask_n, v)
 
     # update loss
     next_loss = convert(T, Inf)
@@ -86,28 +86,28 @@ function L0_reg{T <: Float, V <: DenseVector}(
 
             # these are output variables for function
             # wrap them into a Dict and return
-            return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
+            return IHTResults(mm_time, next_loss, mm_iter, copy(w.b))
 
             return output
         end
 
         # save values from previous iterate
-        copy!(sdata(temp.b0), sdata(temp.b))   # b0 = b
-        copy!(sdata(temp.xb0), sdata(temp.xb)) # Xb0 = Xb
+        copy!(sdata(w.b0), sdata(w.b))   # b0 = b
+        copy!(sdata(w.xb0), sdata(w.xb)) # Xb0 = Xb
         loss = next_loss
 
         # now perform IHT step
-        (mu, mu_step) = iht!(temp, x, y, k, nstep=max_step, iter=mm_iter, pids=pids)
+        (mu, mu_step) = iht!(w, x, y, k, nstep=max_step, iter=mm_iter, pids=pids)
 
         # update residuals
-        difference!(temp.r, y, temp.xb)
-        mask!(temp.r, mask_n, 0, zero(T))
+        difference!(w.r, y, w.xb)
+        mask!(w.r, mask_n, 0, zero(T))
 
         # use updated residuals to recompute the gradient on the GPU
-        At_mul_B!(temp.df, x, temp.r, mask_n, v)
+        At_mul_B!(w.df, x, w.r, mask_n, v)
 
         # update objective
-        next_loss = sumabs2(sdata(temp.r)) / 2
+        next_loss = sumabs2(sdata(w.r)) / 2
 
         # guard against numerical instabilities
         # ensure that objective is finite
@@ -115,8 +115,8 @@ function L0_reg{T <: Float, V <: DenseVector}(
         check_finiteness(next_loss)
 
         # track convergence
-        the_norm    = chebyshev(temp.b, temp.b0)
-        scaled_norm = (the_norm / ( norm(temp.b0,Inf) + 1)) :: T
+        the_norm    = chebyshev(w.b, w.b0)
+        scaled_norm = (the_norm / ( norm(w.b0,Inf) + 1)) :: T
         converged   = scaled_norm < tol
 
         # output algorithm progress
@@ -128,7 +128,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
         if converged
 
             # send elements below tol to zero
-            threshold!(temp.b, tol)
+            threshold!(w.b, tol)
 
             # stop time
             mm_time = toq()
@@ -137,7 +137,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
             !quiet && print_convergence(mm_iter, next_loss, mm_time)
 
             # these are output variables for function
-            return IHTResults(mm_time, next_loss, mm_iter, copy(temp.b))
+            return IHTResults(mm_time, next_loss, mm_iter, copy(w.b))
         end
 
         # algorithm is unconverged at this point, so check descent property
@@ -158,13 +158,13 @@ If supplied a `BEDFile` `x` and an OpenCL kernel file `kernfile` as an String, t
 """
 function iht_path{T <: Float, V <: DenseVector}(
     x        :: BEDFile{T},
-    y        :: DenseVector{T}, 
+    y        :: DenseVector{T},
     path     :: DenseVector{Int},
     kernfile :: String;
     pids     :: DenseVector{Int}  = procs(x),
-    temp     :: IHTVariables{T,V} = IHTVariables(x, y, 1),
+    w        :: IHTVariables{T,V} = IHTVariables(x, y, 1),
     mask_n   :: Vector{Int}       = ones(Int,length(y)),
-    v        :: PLINK.PlinkGPUVariables{T} = PLINK.PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
+    v        :: PLINK.PlinkGPUVariables{T} = PLINK.PlinkGPUVariables(w.df, x, y, kernfile, mask_n),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
@@ -190,17 +190,17 @@ function iht_path{T <: Float, V <: DenseVector}(
 
         # these arrays change in size from iteration to iteration
         # we must allocate them for every new model size
-        update_variables!(temp, x, q)
+        update_variables!(w, x, q)
 
         # store projection of beta onto largest k nonzeroes in magnitude
-        project_k!(temp.b, q)
+        project_k!(w.b, q)
 
         # now compute current model
-        output = L0_reg(x, y, q, kernfile, temp=temp, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n)
+        output = L0_reg(x, y, q, kernfile, w=w, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n)
 
         # ensure that we correctly index the nonzeroes in b
-        update_indices!(temp.idx, output.beta)
-        fill!(temp.idx0, false)
+        update_indices!(w.idx, output.beta)
+        fill!(w.idx0, false)
 
         # put model into sparse matrix of betas
         betas[:,i] = sparsevec(output.beta)
@@ -246,8 +246,8 @@ function one_fold{T <: Float}(
     test_size = sum(test_idx)
 
     # GPU code requires Int variant of training indices, so do explicit conversion
-    train_idx = convert(Vector{Int}, train_idx)
-    test_idx  = convert(Vector{Int}, test_idx)
+    train_idx = convert(Vector{Int}, train_idx) :: Vector{Int}
+    test_idx  = convert(Vector{Int}, test_idx)  :: Vector{Int}
 
     # compute the regularization path on the training set
     betas = iht_path(x, y, path, kernfile, max_iter=max_iter, quiet=quiet, max_step=max_step, mask_n=train_idx, pids=pids, tol=tol)
@@ -465,7 +465,7 @@ function cv_iht(
     meanfile :: String,
     precfile :: String,
     kernfile :: String;
-    q        :: Int = cv_get_num_folds(3,5), 
+    q        :: Int = cv_get_num_folds(3,5),
     path     :: DenseVector{Int} = begin
            # find p from the corresponding BIM file, then make path
             bimfile = xfile[1:(endof(xfile)-3)] * "bim"
@@ -528,11 +528,14 @@ function cv_iht(
     !quiet && print_cv_results(mses, path, k)
 
     # load data on *all* processes
-    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
+    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids) :: BEDFile{T}
     y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
+    w = IHTVariables(x, y, k)
+    m = ones(Int, size(y))
+    v = PLINK.PlinkGPUVariables(w.df, x, y, kernfile, m)
 
     # first use L0_reg to extract model
-    output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
+    output = L0_reg(x, y, k, kernfile, w=w, mask_n=m, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
 
     # which components of beta are nonzero?
     inferred_model = output.beta .!= zero(T)
@@ -542,7 +545,7 @@ function cv_iht(
     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
     decompress_genotypes!(x_inferred, x, inferred_model)
 
-    # refit best model 
+    # refit best model
     b, bidx = refit_iht(x_inferred, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
     bids = prednames(x)[bidx]
@@ -654,7 +657,7 @@ function cv_iht(
     x2file   :: String,
     yfile    :: String,
     kernfile :: String;
-    q        :: Int = cv_get_num_folds(3,5), 
+    q        :: Int = cv_get_num_folds(3,5),
     path     :: DenseVector{Int} = begin
            # find p from the corresponding BIM file, then make path
             bimfile = xfile[1:(endof(xfile)-3)] * "bim"
@@ -718,11 +721,14 @@ function cv_iht(
 
     # recompute ideal model
     # first load data on *all* processes
-    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids)
+    x = BEDFile(T, xfile, xtfile, x2file, header=header, pids=pids) :: BEDFile{T}
     y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
+    w = IHTVariables(x, y, k)
+    m = ones(Int, size(y))
+    v = PLINK.PlinkGPUVariables(w.df, x, y, kernfile, m)
 
     # first use L0_reg to extract model
-    output = L0_reg(x, y, k, kernfile, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
+    output = L0_reg(x, y, k, kernfile, w=w, mask_n=m, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids)
 
     # which components of beta are nonzero?
     inferred_model = output.beta .!= zero(T)
