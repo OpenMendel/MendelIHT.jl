@@ -205,7 +205,10 @@ function cv_iht{T <: Float}(
     !quiet && print_cv_results(mses, path, k)
 
     # refit the best model
-    b, bidx = refit_iht(x, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+#    b, bidx = refit_iht(sdata(x), sdata(y), k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+    output = L0_reg(sdata(x), sdata(y), k, max_iter=max_iter, max_step = max_step, quiet=quiet, tol=tol)
+    bidx = find(output.beta)
+    b = output.beta[bidx]
 
     return IHTCrossvalidationResults(mses, sdata(path), b, bidx, k)
 end

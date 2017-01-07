@@ -187,10 +187,10 @@ function refit_iht{T <: Float}(
     quiet    :: Bool = true,
 )
     # initialize β vector and temporary arrays
-    v = IHTVariables(x, y, k)
+    v = IHTVariables(sdata(x), sdata(y), k)
 
     # first use exchange algorithm to extract model
-    output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
+    output = L0_reg(sdata(x), sdata(y), k, v=v, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
 
     # which components of β are nonzero?
     # cannot use binary indices here since we need to return Int indices
@@ -198,9 +198,10 @@ function refit_iht{T <: Float}(
     k2 = length(bidx)
 
     # allocate the submatrix of x corresponding to the inferred model
-    # cannot use SubArray since result is not StridedArray?
+    # cannot use SubArray with BLAS since result is not StridedArray
     # issue is that bidx is Vector{Int} and not a Range object
-    # use of SubArray is more memory efficient; a pity that it doesn't work!
+    # use of SubArray is more memory efficient, so use it with Julia general multiplications,
+    # e.g. At_mul_B and others
     x_inferred = view(sdata(x), :, bidx)
 
     # now estimate β with the ordinary least squares estimator β = inv(x'x)x'y
