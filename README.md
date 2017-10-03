@@ -3,6 +3,18 @@
 A Julia module that implements the (normalized) [iterative hard thresholding algorithm](http://eprints.soton.ac.uk/142499/1/BD_NIHT09.pdf)(IHT) of Blumensath and Davies.
 IHT performs [feature selection](https://en.wikipedia.org/wiki/Feature_selection) akin to [LASSO](https://en.wikipedia.org/wiki/Lasso_(statistics))- or [MCP](http://arxiv.org/pdf/1002.4734.pdf)-penalized regression using a greedy selection approach.
 
+## Installation
+
+IHT.jl is not registered in METADATA.
+It depends on two other unregistered packages, [PLINK.jl](https://github.com/klkeys/PLINK.jl) and [RegressionTools.jl](https://github.com/klkeys/RegressionTools.jl).
+At the Julia REPL, execute
+
+	Pkg.clone("https://github.com/klkeys/PLINK.jl.git")
+	Pkg.clone("https://github.com/klkeys/RegressionTools.jl.git")
+	Pkg.clone("https://github.com/klkeys/IHT.jl.git")
+
+The order of installation is important!
+
 ## Basic use
 
 Given a data matrix `x`, a continuous response `y`, and a number `k` of desired predictors, we run IHT with the simple command
