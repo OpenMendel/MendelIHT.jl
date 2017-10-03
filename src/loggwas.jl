@@ -258,6 +258,12 @@ function L0_log{T <: Float, V <: SharedVector}(
             logistic_grad!(v.df, v.lxb, x, y, v.b, v.xb, v.active, mask_n, lt, lambda)
         end
 
+        # need norm of largest 3*k components of gradient
+        normdf = df_norm(v.df, v.dfidxs, 1, num_df)
+
+        # guard against numerical instabilities in gradient
+        check_finiteness(normdf)
+
         # identify 3*k dominant directions in gradient
         selectperm!(dfidxs, df, 1:num_df, by=abs, rev=true, initialized=true)
 
@@ -268,8 +274,58 @@ function L0_log{T <: Float, V <: SharedVector}(
         v.b[v.active] = v.b0[v.active] .- mu.*v.df[v.active]
 
         # now apply hard threshold on model to enforce original desired sparsity k
-        project_k!(b,k)
+        project_k!(v.b,k)
+#        selectperm!(v.bidxs, v.b, 1:k, by=abs, rev=true, initialized=true)
+        v.bk = v.b[view(v.bidxs, 1:k)]
+        fill!(v.b, 0)
+        v.b[view(v.bidxs, 1:k)] = v.bk
 
+        # check for convergence
+        converged_obj  = abs(loss - loss0) < tol
+        converged_grad = normdf < tolG
+        converged      = converged_obj || converged_grad
+        stuck          = abs(loss - loss00) < tol
+
+        # output algorithm progress
+        quiet || @printf("%d\t%d\t%d\t%3.7f\t%3.7f\n",iter,nt_iter,bktrk,loss,normdf)
+
+        # check for convergence
+        # if converged and in feasible set, then algorithm converged before maximum iteration
+        # perform final computations and output return variables
+        if converged
+
+            # send elements below tol to zero
+            threshold!(v.b, tol)
+
+            # if requested, apply final refit without regularization
+            # note that regularization is NOT set exactly to zero!
+            # this aids numerical stability
+            if refit
+                copy!(v.idxs0, v.idxs)
+                update_indices!(v.idxs, v.b)
+                decompress_genotypes!(v.xk, x, v.idxs, mask_n) 
+                try
+                    nt_iter, bktrk = fit_logistic!(v, y, 2*eps(T), tol=tolrefit, max_iter=max_step, quiet=true)
+                    v.b[v.idxs] = v.bk
+                catch e
+                    nt_iter = 0
+                    bktrk   = 0
+                end
+            end
+
+            # stop time
+            exec_time = toq()
+
+            # announce convergence
+            !quiet && print_log_convergence(iter, loss, exec_time, normdf)
+
+            # these are output variables for function
+            # wrap them into a Dict and return
+            return IHTLogResults(exec_time, iter, loss, copy(v.b), copy(v.active))
+
+        end # end convergence check
+
+        # unconverged at this point
         # refit nonzeroes in b?
         if refit
 
@@ -293,55 +349,6 @@ function L0_log{T <: Float, V <: SharedVector}(
                 nt_iter = 0
             end # end try-catch for refit
         end # end if-else for refit
-
-        # need norm of largest 3*k components of gradient
-        normdf = df_norm(v.df, v.dfidxs, 1, num_df)
-
-        # guard against numerical instabilities in gradient
-        check_finiteness(normdf)
-
-        # check for convergence
-        converged_obj  = abs(loss - loss0) < tol
-        converged_grad = normdf < tolG
-        converged      = converged_obj || converged_grad
-        stuck          = abs(loss - loss00) < tol
-
-        # output algorithm progress
-        quiet || @printf("%d\t%d\t%d\t%3.7f\t%3.7f\n",iter,nt_iter,bktrk,loss,normdf)
-
-        # check for convergence
-        # if converged and in feasible set, then algorithm converged before maximum iteration
-        # perform final computations and output return variables
-        if converged
-
-            # send elements below tol to zero
-            threshold!(v.b, tol)
-
-            # if requested, apply final refit without regularization
-            if refit
-                copy!(v.idxs0, v.idxs)
-                update_indices!(v.idxs, v.b)
-                decompress_genotypes!(v.xk, x, v.idxs, mask_n) 
-                try
-                    nt_iter, bktrk = fit_logistic!(v, y, zero(T), tol=tolrefit, max_iter=max_step, quiet=true)
-                    v.b[v.idxs] = v.bk
-                catch e
-                    nt_iter = 0
-                    bktrk   = 0
-                end
-            end
-
-            # stop time
-            exec_time = toq()
-
-            # announce convergence
-            !quiet && print_log_convergence(iter, loss, exec_time, normdf)
-
-            # these are output variables for function
-            # wrap them into a Dict and return
-            return IHTLogResults(exec_time, iter, loss, copy(v.b), copy(v.active))
-
-        end # end convergence check
     end # end main GraSP iterations
 
     # return null result
