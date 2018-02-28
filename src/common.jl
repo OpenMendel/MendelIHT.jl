@@ -88,10 +88,6 @@ function IHTVariables{T <: Float}(
     df   = SharedArray(T, (p,), pids=pids) :: V
     xb   = SharedArray(T, (n,), pids=pids) :: V
     r    = SharedArray(T, (n,), pids=pids) :: V
-#    b    = convert(V, SharedArray(T, size(b0), pids=pids))
-#    df   = convert(V, SharedArray(T, size(b0), pids=pids))
-#    xb   = convert(V, SharedArray(T, size(y), pids=pids))
-#    r    = convert(V, SharedArray(T, size(y), pids=pids))
     b0   = zeros(T, p)
     xb0  = zeros(T, n)
     xk   = zeros(T, n, k)
@@ -187,20 +183,21 @@ function refit_iht{T <: Float}(
     quiet    :: Bool = true,
 )
     # initialize β vector and temporary arrays
-    v = IHTVariables(x, y, k)
+    v = IHTVariables(sdata(x), sdata(y), k)
 
     # first use exchange algorithm to extract model
-    output = L0_reg(x,y,k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
+    output = L0_reg(sdata(x), sdata(y), k, v=v, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
 
     # which components of β are nonzero?
     # cannot use binary indices here since we need to return Int indices
-    bidx = find(v.b) :: Vector{Int}
+    bidx = find(output.beta) :: Vector{Int}
     k2 = length(bidx)
 
     # allocate the submatrix of x corresponding to the inferred model
-    # cannot use SubArray since result is not StridedArray?
+    # cannot use SubArray with BLAS since result is not StridedArray
     # issue is that bidx is Vector{Int} and not a Range object
-    # use of SubArray is more memory efficient; a pity that it doesn't work!
+    # use of SubArray is more memory efficient, so use it with Julia general multiplications,
+    # e.g. At_mul_B and others
     x_inferred = view(sdata(x), :, bidx)
 
     # now estimate β with the ordinary least squares estimator β = inv(x'x)x'y
@@ -228,7 +225,7 @@ function refit_iht(
     meanfile :: String,
     precfile :: String,
     k        :: Int;
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-6),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
@@ -237,14 +234,14 @@ function refit_iht(
 )
 
     # initialize all variables
-    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header)
+    x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header) :: BEDFile{T}
     y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # extract model with IHT
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
    
     # which components of β are nonzero?
-    inferred_model = v.b .!= zero(T)
+    inferred_model = output.beta .!= zero(T)
     bidx = find(inferred_model)
   
     # allocate the submatrix of x corresponding to the inferred model
@@ -277,7 +274,7 @@ function refit_iht(
     x2file   :: String,
     yfile    :: String,
     k        :: Int;
-    pids     :: DenseVector{Int} = procs(),
+    pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-6),
     max_iter :: Int   = 100,
     quiet    :: Bool  = true,
@@ -285,14 +282,14 @@ function refit_iht(
 )
 
     # initialize all variables
-    x = BEDFile(T, xfile, x2file, pids=pids, header=header)
+    x = BEDFile(T, xfile, x2file, pids=pids, header=header) :: BEDFile{T}
     y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use exchange algorithm to extract model
-    L0_reg(x, y, k, max_iter=max_iter, quiet=quiet, tol=tol, window=k)
+    output = L0_reg(x, y, k, max_iter=max_iter, quiet=quiet, tol=tol, window=k)
 
     # which components of β are nonzero?
-    inferred_model = v.b .!= zero(T)
+    inferred_model = output.beta .!= zero(T)
     bidx = find(inferred_model)
   
     # allocate the submatrix of x corresponding to the inferred model
@@ -331,30 +328,6 @@ immutable IHTCrossvalidationResults{T <: Float}
 
     IHTCrossvalidationResults(mses::Vector{T}, path::Vector{Int}, b::Vector{T}, bidx::Vector{Int}, k::Int, bids::Vector{String}) = new(mses, path, b, bidx, k, bids)
 end
-
-## strongly typed constructor for IHT CVR object
-### 22 Sep 2016: no longer needed in Julia v0.5?
-#function IHTCrossvalidationResults{T <: Float}(
-#    mses :: Vector{T},
-#    path :: Vector{Int},
-#    b    :: Vector{T},
-#    bidx :: Vector{Int},
-#    k    :: Int,
-#    bids :: Vector{String}
-#)
-#    IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k, bids)
-#end
-
-## constructor for when b, bidx are not available
-#function IHTCrossvalidationResults{T <: Float}(
-#    mses :: Vector{T},
-#    path :: Vector{Int},
-#    k    :: Int
-#) 
-#    b    = zeros(T, 1)
-#    bidx = zeros(Int, 1)
-#    IHTCrossvalidationResults{T}(mses, path, b, bidx, k)
-#end
 
 # constructor for when bids are not available
 # simply makes vector of "V$i" where $i are drawn from bidx
@@ -412,8 +385,7 @@ function update_r_grad!{T}(
     x :: DenseMatrix{T},
     y :: DenseVector{T}
 )
-    #difference!(v.r, y, v.xb)
-    broadcast!(-, v.r, y, v.xb) # v.r = y - v.xb
+    v.r .= y .- v.xb
     At_mul_B!(v.df, x, v.r) # v.df = x' * v.r
     return nothing
 end
@@ -428,7 +400,8 @@ function initialize_xb_r_grad!{T <: Float}(
     if sum(v.idx) == 0
         fill!(v.xb, zero(T))
     else
-        update_indices!(v.idx, v.b)
+        #update_indices!(v.idx, v.b)
+        v.idx .= v.b .!= 0
         update_xb!(v.xb, x, v.b, v.idx, k)
         #A_mul_B!(v.xb, view(x :, v.idx), view(v.b, v.idx) )
     end
@@ -462,6 +435,7 @@ end
 #        At_mul_B!(v.df, x, v.r, pids=pids)
 #    else
 #        update_indices!(v.idx, v.b)
+#        v.idx .= v.b .!= 0
 #        A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
 #        update_r_grad!(v, x, y, pids=pids)
 #    end
@@ -478,7 +452,8 @@ function _iht_indices{T <: Float}(
     k :: Int;
 )
     # which components of beta are nonzero?
-    update_indices!(v.idx, v.b)
+    #update_indices!(v.idx, v.b)
+    v.idx .= v.b .!= 0
 
     # if current vector is 0,
     # then take largest elements of d as nonzero components for b
@@ -525,7 +500,8 @@ function _iht_gradstep{T <: Float}(
     project_k!(v.b, k)
 
     # which indices of new beta are nonzero?
-    update_indices!(v.idx, sdata(v.b))
+    #update_indices!(v.idx, sdata(v.b))
+    v.idx .= v.b .!= 0
 
     # must correct for equal entries at kth pivot of b
     # **note**: this uses Base.unsafe_setindex! to circumvent type stability issues

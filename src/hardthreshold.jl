@@ -35,12 +35,9 @@ Output:
 - `μ` is the step size used to update `β`, after backtracking.`
 - `μ_step` is the number of backtracking steps used on `μ`.
 """
-#function iht!{T <: Float}(
 function iht!{T <: Float, V <: DenseVector}(
-    #v     :: IHTVariables{T, V},
-    v     :: IHTVariables{T},
+    v     :: IHTVariables{T, V},
     x     :: DenseMatrix{T},
-    #y     :: DenseVector{T}, 
     y     :: V, 
     k     :: Int,
     iter  :: Int = 1,
@@ -165,7 +162,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
 
     # initialize return values
     iter   = 0                    # number of iterations of L0_reg
-    exec_time   = zero(T)           # compute time *within* L0_reg
+    exec_time = zero(T)           # compute time *within* L0_reg
     next_obj  = zero(T)           # objective value
     next_loss = zero(T)           # loss function value
 
@@ -261,7 +258,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
         # check descent property in that case
         # if rho is not changing but objective increases, then abort
         if next_obj > current_obj + tol
-            !quiet && print_descent_error(iter, loss, next_loss)
+            quiet || print_descent_error(iter, loss, next_loss)
             throw(ErrorException("Descent failure!"))
             #return IHTResults(-one(T), convert(T, -Inf), -1, [convert(T, -Inf)])
         end
