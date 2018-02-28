@@ -163,7 +163,7 @@ function iht_path{T <: Float, V <: DenseVector}(
     path     :: DenseVector{Int},
     kernfile :: String;
     pids     :: DenseVector{Int}  = procs(x),
-    temp     :: IHTVariables{T,V} = IHTVariables(x, y, 1)
+    temp     :: IHTVariables{T,V} = IHTVariables(x, y, 1),
     mask_n   :: Vector{Int}       = ones(Int,length(y)),
     v        :: PLINK.PlinkGPUVariables{T} = PLINK.PlinkGPUVariables(temp.df, x, y, kernfile, mask_n),
     tol      :: T    = convert(T, 1e-4),
