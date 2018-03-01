@@ -21,9 +21,9 @@ function tutorial_simulation()
 
     # simulate a noisy response variable
     # this makes response vector with noise level drawn from N(0,0.01)
-    y = x_temp*b + s*randn(n) 
+    y = x_temp*b + s*randn(n)
 
-    # add grand mean to data 
+    # add grand mean to data
     X = zeros(n,p+1)             # array to house x_temp + grand mean
     setindex!(X, x_temp, :, 1:p) # (efficiently) assign x_temp to correct location in x
     X[:,end] = 1.0               # rightmost column (24,000th one) now contains grand mean
@@ -35,22 +35,22 @@ function tutorial_simulation()
     # simulate (or recover from PLINK.jl) some GWAS data
     fpath  = expanduser("~/.julia/v0.4/PLINK/data/") # path to simulated data from PLINK module
     xpath  = fpath * "x_test.bed"                    # path to original BED file
-    xbed   = BEDFile(xpath)                          # load the data
+    xbed   = PLINK.BEDFile(xpath)                    # load the data
     n,p    = size(xbed)                              # dimensions of data
-    fill!(xbed.covar.x, 1.0)                         # this fills the grand mean with ones
-    fill!(xbed.covar.xt, 1.0)                        # this fills the *transposed* grand mean with ones; remember to always change both!
+    fill!(xbed.covar.x, 1)                           # this fills the grand mean with ones
+    fill!(xbed.covar.xt, 1)                          # this fills the *transposed* grand mean with ones; remember to always change both!
     mean!(xbed)                                      # compute means in-place
     prec!(xbed)                                      # compute precisions in-place
-    xbed.means[end] = 0.0                            # index "end" substitutes for position of grand mean in x.means! 
-    xbed.precs[end] = 1.0                            # same as above
+    xbed.means[end] = 0                              # index "end" substitutes for position of grand mean in x.means!
+    xbed.precs[end] = 1                              # same as above
 
     # now simulate model, response with GWAS data
-    bbed      = SharedArray(Float64, p, pids=procs(xbed))     # a model b to use with the BEDFile
+    bbed      = SharedArray{Float64}((p,), pids=procs(xbed))  # a model b to use with the BEDFile
     bbed[1:k] = randn(k)                                      # random coefficients
     shuffle!(bbed)                                            # random model
     bidxbed   = find(bbed)                                    # store locations of nonzero coefficients
-    idx       = bbed .!= 0.0                                  # need BitArray indices of nonzeroes in b for A_mul_B
-    xb        = A_mul_B(xbed, bbed, idx, k, pids=procs(xbed)) # compute x*b
+    idx       = bbed .!= 0                                    # need BitArray indices of nonzeroes in b for A_mul_B
+    xb        = A_mul_B(xbed, bbed, idx, k)                   # compute x*b
     ybed2     = xb + 0.1*randn(n)                             # yields a Vector, so we must convert it to SharedVector
     ybed      = convert(SharedVector{Float64}, ybed2)         # our response variable with the BEDFile
     ypath     = ENV["TMPDIR"] * "y.bin"                       # ybed uses path to Julia TMP directory
@@ -61,7 +61,7 @@ function tutorial_simulation()
     srand(2016)                            # reset seed before crossvalidation
     covpath = fpath * "covfile.txt"        # filepaths used in crossvalidation with BEDFiles
 
-    return X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath 
+    return X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath
 end
 
 X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath = tutorial_simulation()

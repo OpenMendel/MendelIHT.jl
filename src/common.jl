@@ -8,18 +8,12 @@ immutable IHTResults{T <: Float, V <: DenseVector}
     iter :: Int
     beta :: V
 
-    IHTResults(time::T, loss::T, iter::Int, beta::DenseVector{T}) = new(time, loss, iter, beta)
+    #IHTResults{T,V}(time::T, loss::T, iter::Int, beta::V) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta)
+    IHTResults{T,V}(time, loss, itert, beta) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta)
 end
 
 # strongly typed external constructor for IHTResults
-function IHTResults{T <: Float}(
-    time :: T,
-    loss :: T,
-    iter :: Int,
-    beta :: DenseVector{T}
-)
-    IHTResults{T, typeof(beta)}(time, loss, iter, beta)
-end
+IHTResults(time::T, loss::T, iter::Int, beta::V) where {T <: Float, V <: DenseVector{T}} = IHTResults{T, V}(time, loss, iter, beta)
 
 
 # function to display IHTResults object
@@ -50,27 +44,23 @@ type IHTVariables{T <: Float, V <: DenseVector}
     r    :: V
     df   :: V
 
-    IHTVariables(b::DenseVector{T}, b0::Vector{T}, xb::DenseVector{T}, xb0::Vector{T}, xk::Matrix{T},
-                 gk::Vector{T}, xgk::Vector{T}, idx::BitArray{1}, idx0::BitArray{1}, r::DenseVector{T},
-                 df::DenseVector{T}) = new(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    IHTVariables{T,V}(b::V, b0::Vector{T}, xb::V, xb0::Vector{T}, xk::Matrix{T}, gk::Vector{T}, xgk::Vector{T}, idx::BitArray{1}, idx0::BitArray{1}, r::V, df::V) where {T <: Float, V <: DenseVector{T}} = new{T,V}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
-# strong type construction of IHTVariables
-function IHTVariables{T <: Float}(
-    b    :: DenseVector{T},
-    b0   :: Vector{T},
-    xb   :: DenseVector{T},
-    xb0  :: Vector{T},
-    xk   :: Matrix{T},
-    gk   :: Vector{T},
-    xgk  :: Vector{T},
-    idx  :: BitArray{1},
-    idx0 :: BitArray{1},
-    r    :: DenseVector{T},
-    df   :: DenseVector{T}
-)
-    IHTVariables{T, typeof(b)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
-end
+## strong type construction of IHTVariables
+#IHTVariables{T <: Float}(
+#    b    :: DenseVector{T},
+#    b0   :: Vector{T},
+#    xb   :: DenseVector{T},
+#    xb0  :: Vector{T},
+#    xk   :: Matrix{T},
+#    gk   :: Vector{T},
+#    xgk  :: Vector{T},
+#    idx  :: BitArray{1},
+#    idx0 :: BitArray{1},
+#    r    :: DenseVector{T},
+#    df   :: DenseVector{T}
+#) where {T <: Float, V <: DenseVector{T}} = IHTVariables{T, V}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 
 
 # minor type instability with SharedArray constructors
@@ -326,7 +316,8 @@ immutable IHTCrossvalidationResults{T <: Float}
     k    :: Int
     bids :: Vector{String}
 
-    IHTCrossvalidationResults(mses::Vector{T}, path::Vector{Int}, b::Vector{T}, bidx::Vector{Int}, k::Int, bids::Vector{String}) = new(mses, path, b, bidx, k, bids)
+    #IHTCrossvalidationResults(mses::Vector{T}, path::Vector{Int}, b::Vector{T}, bidx::Vector{Int}, k::Int, bids::Vector{String}) where {T <: Float} = new(mses, path, b, bidx, k, bids)
+    IHTCrossvalidationResults(mses::Vector{T}, path::Vector{Int}, b::Vector{T}, bidx::Vector{Int}, k::Int, bids::Vector{String}) where {T <: Float} = new{T}(mses, path, b, bidx, k, bids)
 end
 
 # constructor for when bids are not available
@@ -639,7 +630,8 @@ type IHTLogVariables{T <: Float, V <: DenseVector}
     idxs2    :: BitArray{1}
     idxs0    :: BitArray{1}
 
-    IHTLogVariables(xk::Matrix{T}, xk2::Matrix{T}, d2b::Matrix{T}, b::DenseVector{T}, b0::Vector{T}, df::DenseVector{T}, xb::DenseVector{T}, lxb::DenseVector{T}, l2xb::Vector{T}, bk::Vector{T}, bk2::Vector{T}, bk0::Vector{T}, ntb::Vector{T}, db::Vector{T}, dfk::Vector{T}, active::Vector{Int}, bidxs::Vector{Int}, dfidxs::Vector{Int}, idxs::BitArray{1}, idxs2::BitArray{1}, idxs0::BitArray{1}) = new(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+    IHTLogVariables(xk::Matrix{T}, xk2::Matrix{T}, d2b::Matrix{T}, b::V, b0::Vector{T}, df::V, xb::V, lxb::V, l2xb::Vector{T}, bk::Vector{T}, bk2::Vector{T}, bk0::Vector{T}, ntb::Vector{T}, db::Vector{T}, dfk::Vector{T}, active::Vector{Int}, bidxs::Vector{Int}, dfidxs::Vector{Int}, idxs::BitArray{1}, idxs2::BitArray{1}, idxs0::BitArray{1}) where {T <: Float, V <: DenseVector{T}} = new{T,V}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+    #IHTLogVariables(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) where {T <: Float, V <: DenseVector{T}} = new{T,V}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
 end
 
 #strongly typed constructor of IHTLogVariables
@@ -733,19 +725,19 @@ immutable IHTLogResults{T <: Float, V <: DenseVector}
     beta   :: V 
     active :: Vector{Int}
 
-    IHTLogResults(time::T, iter::Int, loss::T, β::DenseVector{T}, active::Vector{Int}) = new(time, iter, loss, β, active)
+    IHTLogResults(time::T, iter::Int, loss::T, β::V, active::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, iter, loss, β, active)
 end
 
-# strongly typed external constructor for IHTLogResults
-function IHTLogResults{T <: Float}( 
-    time   :: T,
-    iter   :: Int,
-    loss   :: T,
-    β      :: DenseVector{T},
-    active :: Vector{Int}
-)
-    IHTLogResults{T, typeof(β)}(time::T, iter::Int, loss::T, β::DenseVector{T}, active::Vector{Int})
-end
+## strongly typed external constructor for IHTLogResults
+#function IHTLogResults{T <: Float}( 
+#    time   :: T,
+#    iter   :: Int,
+#    loss   :: T,
+#    β      :: DenseVector{T},
+#    active :: Vector{Int}
+#)
+#    IHTLogResults{T, typeof(β)}(time::T, iter::Int, loss::T, β::DenseVector{T}, active::Vector{Int})
+#end
 
 # function to display IHTLogResults object
 function Base.show(io::IO, x::IHTLogResults)
