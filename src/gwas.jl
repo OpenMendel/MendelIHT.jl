@@ -36,7 +36,7 @@ function iht!{T <: Float}(
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size
-    mu = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T
+    mu = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
 #    mu = _iht_stepsize(v, k) :: T
 
     # notify problems with step size
@@ -64,7 +64,7 @@ function iht!{T <: Float}(
         mu <= eps(typeof(mu)) && warn("Step size equals zero, algorithm may not converge correctly")
 
         # recompute gradient step
-        copy!(v.b, v.b0)
+        copy!(sdata(v.b), sdata(v.b0))
         _iht_gradstep(v, mu, k)
 
         # recompute xb
@@ -112,7 +112,8 @@ function L0_reg{T <: Float, V <: DenseVector}(
     max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
     tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
     n = length(y)
-    sum((mask_n .== 1) $ (mask_n .== 0)) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
+    sum(xor.((mask_n .== 1),(mask_n .== 0))) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
+    procs(x) == procs(y) == pids || throw(ArgumentError("Processes involved in arguments x, y must match those in keyword pids"))
 
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
@@ -126,7 +127,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
     mu          = zero(T)         # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    i       = 0                   # used for iterations in loops
+    #i       = 0                   # used for iterations in loops
     mu_step = 0                   # counts number of backtracking steps for mu
 
     # initialize booleans
@@ -136,7 +137,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
 #    initialize_xb_r_grad!(v, x, y, k, pids=pids)
     if sum(v.idx) == 0
         fill!(v.xb, zero(T))
-        copy!(v.r, y)
+        copy!(sdata(v.r), sdata(y))
         mask!(v.r, mask_n, 0, zero(T))
     else
         #A_mul_B!(v.xb, x, v.b, v.idx, k, mask_n, pids=pids)
@@ -146,7 +147,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
     end
 
     # calculate the gradient
-    At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
+    PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
 
     # formatted output to monitor algorithm progress
     !quiet && print_header()
@@ -172,8 +173,8 @@ function L0_reg{T <: Float, V <: DenseVector}(
         end
 
         # save values from previous iterate
-        copy!(v.b0, v.b)   # b0 = b
-        copy!(v.xb0, v.xb) # Xb0 = Xb
+        copy!(sdata(v.b0), sdata(v.b))   # b0 = b
+        copy!(sdata(v.xb0), sdata(v.xb)) # Xb0 = Xb
         loss = next_loss
 
         # now perform IHT step
@@ -186,10 +187,10 @@ function L0_reg{T <: Float, V <: DenseVector}(
         mask!(v.r, mask_n, 0, zero(T), n=n)
 
         # use updated residuals to recompute the gradient on the GPU
-        At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
+        PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
 
         # update loss, objective, and gradient
-        next_loss = sumabs2(sdata(v.r)) / 2
+        next_loss = sum(abs2, sdata(v.r)) / 2
 
         # guard against numerical instabilities
         # ensure that objective is finite
@@ -327,7 +328,7 @@ function one_fold{T <: Float}(
     test_size = sum(test_idx)
 
     # train_idx is the vector that indexes the TRAINING set
-    train_idx = !test_idx
+    train_idx = .!test_idx
     mask_n    = convert(Vector{Int}, train_idx)
     mask_test = convert(Vector{Int}, test_idx)
 
@@ -344,9 +345,9 @@ function one_fold{T <: Float}(
     indices = falses(p)
 
     # allocate the arrays for the test set
-    xb = SharedArray(T, (n,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
-    b  = SharedArray(T, (p,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
-    r  = SharedArray(T, (n,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
+    xb = SharedArray{T}((n,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
+    b  = SharedArray{T}((p,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
+    r  = SharedArray{T}((n,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
 
     # compute the mean out-of-sample error for the TEST set
     # do this for every computed model in regularization path
@@ -356,7 +357,7 @@ function one_fold{T <: Float}(
         b2 = full(vec(betas[:,i]))
 
         # copy it into SharedArray b
-        copy!(b,b2)
+        copy!(sdata(b),sdata(b2))
 
         # indices stores Boolean indexes of nonzeroes in b
         update_indices!(indices, b)
@@ -374,7 +375,7 @@ function one_fold{T <: Float}(
         mask!(r, mask_test, 0, zero(T))
 
         # compute out-of-sample error as squared residual averaged over size of test set
-        myerrors[i] = sumabs2(r) / test_size / 2
+        myerrors[i] = sum(abs2, r) / test_size / 2
     end
 
     return myerrors :: Vector{T}
@@ -413,7 +414,7 @@ function pfold(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-    results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
+    results = SharedArray{T}((length(path),q), pids=pids) :: SharedMatrix{T}
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
@@ -440,7 +441,7 @@ function pfold(
                         r = remotecall_fetch(worker) do
                             processes = [worker]
                             x = BEDFile(T, xfile, x2file, meanfile, precfile, pids=processes, header=header)
-                            y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=processes) :: SharedVector{T}
+                            y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=processes) :: SharedVector{T}
 
                             one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
                         end # end remotecall_fetch()
@@ -491,7 +492,7 @@ function pfold(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate array for results
-    results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
+    results = SharedArray{T}((length(path),q), pids=pids) :: SharedMatrix{T}
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
@@ -521,7 +522,7 @@ function pfold(
                         r = remotecall_fetch(worker) do
                             processes = [worker]
                             x = BEDFile(T, xfile, x2file, pids=processes, header=header)
-                            y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=processes) :: SharedVector{T}
+                            y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=processes) :: SharedVector{T}
 
                             one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
                         end # end remotecall_fetch()
@@ -597,7 +598,7 @@ function cv_iht(
     # recompute ideal model
     # first load data on *all* processes
     x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids) :: BEDFile{T}
-    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
+    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use L0_reg to extract model
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
@@ -672,13 +673,13 @@ function cv_iht(
     # recompute ideal model
     # first load data on *all* processes
     x = BEDFile(T, xfile, x2file, header=header, pids=pids) :: BEDFile{T}
-    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
+    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use L0_reg to extract model
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
 
     # which components of beta are nonzero?
-    inferred_model = output.beta .!= zero(T)
+    inferred_model = output.beta .!= 0 
     bidx = find(inferred_model)
 
     # allocate the submatrix of x corresponding to the inferred model

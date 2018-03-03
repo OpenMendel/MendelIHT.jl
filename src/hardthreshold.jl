@@ -16,7 +16,7 @@ The projection in question preserves the largest `k` components of `β` in magni
 Unlike the Landweber method, this function performs a line search on `μ` whenever the step size exceeds a specified
 threshold `ω` given by
 
-    ω = sumabs2(β - β0) / sumabs2(x*(β - β0))
+    ω = sum(abs2, β - β0) / sum(abs2, x*(β - β0))
 
 By backtracking on `μ`, this function guarantees a stable estimation of a sparse `β`.
 This function is based on the [HardLab](http://www.personal.soton.ac.uk/tb1m08/sparsify/sparsify.html/) demonstration code written in MATLAB by Thomas Blumensath.
@@ -66,7 +66,7 @@ function iht!{T <: Float, V <: DenseVector}(
 
     # compute step size
 #    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?!
-    μ = (sumabs2(v.gk) / sumabs2(v.xgk)) :: T
+    μ = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
 
     # check for finite stepsize
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
@@ -113,7 +113,7 @@ L0 PENALIZED LEAST SQUARES REGRESSION
 
 This routine minimizes the loss function
 
-    0.5*sumabs2( y - x*β )
+    0.5*sum(abs2, y - x*β )
 
 subject to `β` lying in the set S_k = { x in R^p : || x ||_0 <= k }.
 
@@ -161,7 +161,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
     tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
 
     # initialize return values
-    iter   = 0                    # number of iterations of L0_reg
+    iter = 0                      # number of iterations of L0_reg
     exec_time = zero(T)           # compute time *within* L0_reg
     next_obj  = zero(T)           # objective value
     next_loss = zero(T)           # loss function value
@@ -173,7 +173,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
     μ           = zero(T)          # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    i      = 0                    # used for iterations in loops
+    #i      = 0                    # used for iterations in loops
     μ_step = 0                    # counts number of backtracking steps for mu
 
     # initialize booleans
@@ -221,7 +221,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
         update_r_grad!(v, x, y)
 
         # update loss, objective, and gradient
-        next_loss = sumabs2(v.r) / 2
+        next_loss = sum(abs2, v.r) / 2
 
         # guard against numerical instabilities
         check_finiteness(next_loss)

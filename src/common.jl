@@ -9,7 +9,7 @@ immutable IHTResults{T <: Float, V <: DenseVector}
     beta :: V
 
     #IHTResults{T,V}(time::T, loss::T, iter::Int, beta::V) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta)
-    IHTResults{T,V}(time, loss, itert, beta) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta)
+    IHTResults{T,V}(time, loss, iter, beta) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta)
 end
 
 # strongly typed external constructor for IHTResults
@@ -74,10 +74,10 @@ function IHTVariables{T <: Float}(
     pids = procs(x)
     V    = typeof(y)
     n, p = size(x)
-    b    = SharedArray(T, (p,), pids=pids) :: V
-    df   = SharedArray(T, (p,), pids=pids) :: V
-    xb   = SharedArray(T, (n,), pids=pids) :: V
-    r    = SharedArray(T, (n,), pids=pids) :: V
+    b    = SharedArray{T}((p,), pids=pids) :: V
+    df   = SharedArray{T}((p,), pids=pids) :: V
+    xb   = SharedArray{T}((n,), pids=pids) :: V
+    r    = SharedArray{T}((n,), pids=pids) :: V
     b0   = zeros(T, p)
     xb0  = zeros(T, n)
     xk   = zeros(T, n, k)
@@ -118,10 +118,10 @@ function IHTVariables{T <: Float}(
     n, p = size(x)
     pids = procs(x)
     V    = typeof(y)
-    b    = SharedArray(T, (p,), pids=pids) :: V
-    df   = SharedArray(T, (p,), pids=pids) :: V
-    xb   = SharedArray(T, (n,), pids=pids) :: V
-    r    = SharedArray(T, (n,), pids=pids) :: V
+    b    = SharedArray{T}((p,), pids=pids) :: V
+    df   = SharedArray{T}((p,), pids=pids) :: V
+    xb   = SharedArray{T}((n,), pids=pids) :: V
+    r    = SharedArray{T}((n,), pids=pids) :: V
     b0   = zeros(T, p)
     xb0  = zeros(T, n)
     xk   = zeros(T, n, k)
@@ -225,7 +225,7 @@ function refit_iht(
 
     # initialize all variables
     x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, pids=pids, header=header) :: BEDFile{T}
-    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
+    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # extract model with IHT
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
@@ -273,7 +273,7 @@ function refit_iht(
 
     # initialize all variables
     x = BEDFile(T, xfile, x2file, pids=pids, header=header) :: BEDFile{T}
-    y = SharedArray(abspath(yfile), T, (x.geno.n,), pids=pids) :: SharedVector{T}
+    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=pids) :: SharedVector{T}
 
     # first use exchange algorithm to extract model
     output = L0_reg(x, y, k, max_iter=max_iter, quiet=quiet, tol=tol, window=k)
@@ -330,7 +330,7 @@ function IHTCrossvalidationResults{T <: Float}(
     k    :: Int
 ) 
     bids = convert(Vector{String}, ["V" * "$i" for i in bidx]) :: Vector{String}
-    IHTCrossvalidationResults{eltype(mses)}(mses, path, b, bidx, k, bids)
+    IHTCrossvalidationResults(mses, path, b, bidx, k, bids) :: IHTCrossvalidationResults{T}
 end
 
 # function to view an IHTCrossvalidationResults object
@@ -451,7 +451,7 @@ function _iht_indices{T <: Float}(
     if sum(v.idx) == 0
         a = select(v.df, k, by=abs, rev=true) :: T
 #        threshold!(IDX, g, abs(a), n=p)
-        v.idx[abs(v.df) .>= abs(a)-2*eps()] = true
+        v.idx[abs.(v.df) .>= abs(a)-2*eps()] = true
         v.gk = zeros(T, sum(v.idx))
     end
 
@@ -531,9 +531,9 @@ function _iht_backtrack{T <: Float}(
     mu_step :: Int,
     nstep   :: Int
 )
-    mu*ob > 0.99*ot          &&
-    sum(v.idx) != 0          &&
-    sum(v.idx $ v.idx0) != 0 &&
+    mu*ob > 0.99*ot              &&
+    sum(v.idx) != 0              &&
+    sum(xor.(v.idx,v.idx0)) != 0 &&
     mu_step < nstep
 end
 

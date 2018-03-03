@@ -40,7 +40,7 @@ function one_fold{T <: Float}(
     test_size = sum(test_idx)
 
     # train_idx is the vector that indexes the TRAINING set
-    train_idx = !test_idx
+    train_idx = .!test_idx
 
     # allocate the arrays for the training set
     x_train = x[train_idx,:]
@@ -53,7 +53,7 @@ function one_fold{T <: Float}(
     Xb = view(x, test_idx, :) * betas
 #    r  = broadcast(-, view(y, test_idx, 1), Xb)
     r  = broadcast(-, y[test_idx], Xb)
-    er = vec(sumabs2(r, 1)) ./ (2*test_size)
+    er = vec(sum(abs2, r, 1)) ./ (2*test_size)
 
     return er :: Vector{T}
 end
@@ -89,7 +89,7 @@ function pfold{T <: Float}(
     nextidx() = (idx=i; i+=1; idx)
 
     # preallocate cell array for results
-    results = SharedArray(T, (length(path),q), pids=pids) :: SharedMatrix{T}
+    results = SharedArray{T}((length(path),q), pids=pids) :: SharedMatrix{T}
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
