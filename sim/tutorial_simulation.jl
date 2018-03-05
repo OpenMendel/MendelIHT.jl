@@ -1,7 +1,7 @@
 using PLINK
 using IHT
 
-function tutorial_simulation()
+#function tutorial_simulation()
 
     # problem dimensions
     n = 5000  # number of cases
@@ -33,7 +33,7 @@ function tutorial_simulation()
     y2 = x_temp*b + s*randn(n) # y2 has noise distribution N(0,25), substantially noiser than y
 
     # simulate (or recover from PLINK.jl) some GWAS data
-    fpath  = expanduser("~/.julia/v0.4/PLINK/data/") # path to simulated data from PLINK module
+    fpath  = expanduser("~/.julia/v0.6/PLINK/data/") # path to simulated data from PLINK module
     xpath  = fpath * "x_test.bed"                    # path to original BED file
     xbed   = PLINK.BEDFile(xpath)                    # load the data
     n,p    = size(xbed)                              # dimensions of data
@@ -62,7 +62,7 @@ function tutorial_simulation()
     covpath = fpath * "covfile.txt"        # filepaths used in crossvalidation with BEDFiles
 
     return X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath
-end
+#end
 
-X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath = tutorial_simulation()
+#X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath = tutorial_simulation()
 println("Simulation complete.")
