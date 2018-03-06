@@ -192,8 +192,8 @@ function refit_iht{T <: Float}(
 
     # now estimate β with the ordinary least squares estimator β = inv(x'x)x'y
     # return it with the vector of MSEs
-    xty = At_mul_B(x_inferred, sdata(y)) :: Vector{T}
-    xtx = At_mul_B(x_inferred, x_inferred) :: Matrix{T}
+    xty = Base.At_mul_B(x_inferred, sdata(y)) :: Vector{T}
+    xtx = Base.At_mul_B(x_inferred, x_inferred) :: Matrix{T}
     b   = zeros(T, k2)
     try
         b = (xtx \ xty) :: Vector{T}
@@ -240,8 +240,8 @@ function refit_iht(
 
     # now estimate b with the ordinary least squares estimator b = inv(x'x)x'y
     # return it with the vector of MSEs
-    xty = At_mul_B(x_inferred, sdata(y))   :: Vector{T}
-    xtx = At_mul_B(x_inferred, x_inferred) :: Matrix{T}
+    xty = Base.At_mul_B(x_inferred, sdata(y))   :: Vector{T}
+    xtx = Base.At_mul_B(x_inferred, x_inferred) :: Matrix{T}
     b   = zeros(T, length(bidx))
     try
         b = (xtx \ xty) :: Vector{T}
@@ -288,8 +288,8 @@ function refit_iht(
 
     # now estimate β with the ordinary least squares estimator b = inv(x'x)x'y
     # return it with the vector of MSEs
-    xty = At_mul_B(x_inferred, sdata(y))   :: Vector{T}
-    xtx = At_mul_B(x_inferred, x_inferred) :: Matrix{T}
+    xty = Base.At_mul_B(x_inferred, sdata(y))   :: Vector{T}
+    xtx = Base.At_mul_B(x_inferred, x_inferred) :: Matrix{T}
     b   = zeros(T, length(bidx))
     try
         b = (xtx \ xty) :: Vector{T}
@@ -377,7 +377,7 @@ function update_r_grad!{T}(
     y :: DenseVector{T}
 )
     v.r .= y .- v.xb
-    At_mul_B!(v.df, x, v.r) # v.df = x' * v.r
+    Base.At_mul_B!(v.df, x, v.r) # v.df = x' * v.r
     return nothing
 end
 

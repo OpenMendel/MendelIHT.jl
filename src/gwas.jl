@@ -671,12 +671,13 @@ function cv_iht(
     !quiet && print_cv_results(mses, path, k)
 
     # recompute ideal model
-    # first load data on *all* processes
-    x = BEDFile(T, xfile, x2file, header=header, pids=pids) :: BEDFile{T}
-    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=pids) :: SharedVector{T}
+    ### first load data on *all* processes
+    # first load data on *master* processes
+    x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
+    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
 
     # first use L0_reg to extract model
-    output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
+    output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=[1])
 
     # which components of beta are nonzero?
     inferred_model = output.beta .!= 0 
@@ -690,7 +691,7 @@ function cv_iht(
     b, bidx = refit_iht(x_inferred, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
     bids = prednames(x)[bidx]
-    return IHTCrossvalidationResults{T}(mses, sdata(path), b, bidx, k, bids)
+    return IHTCrossvalidationResults(mses, sdata(path), b, bidx, k, bids)
 end
 
 """

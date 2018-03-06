@@ -4,10 +4,11 @@ using IHT
 #function tutorial_simulation()
 
     # problem dimensions
-    n = 5000  # number of cases
-    p = 23999 # number of predictors
-    k = 10    # number of true predictors
-    s = 0.1   # standard deviation of noise
+    n = 5000    # number of cases
+    p = 23999   # number of predictors
+    k = 10      # number of true predictors
+    s = 0.1     # standard deviation of noise
+    T = Float64 # bits type used for SharedArrays
 
     # make simulated float data
     srand(2016)         # fix random seed, reproducible x_temp
@@ -33,35 +34,38 @@ using IHT
     y2 = x_temp*b + s*randn(n) # y2 has noise distribution N(0,25), substantially noiser than y
 
     # simulate (or recover from PLINK.jl) some GWAS data
-    fpath  = expanduser("~/.julia/v0.6/PLINK/data/") # path to simulated data from PLINK module
-    xpath  = fpath * "x_test.bed"                    # path to original BED file
-    xbed   = PLINK.BEDFile(xpath)                    # load the data
-    n,p    = size(xbed)                              # dimensions of data
-    fill!(xbed.covar.x, 1)                           # this fills the grand mean with ones
-    fill!(xbed.covar.xt, 1)                          # this fills the *transposed* grand mean with ones; remember to always change both!
-    mean!(xbed)                                      # compute means in-place
-    prec!(xbed)                                      # compute precisions in-place
-    xbed.means[end] = 0                              # index "end" substitutes for position of grand mean in x.means!
-    xbed.precs[end] = 1                              # same as above
+    fpath = expanduser("~/.julia/v0.6/PLINK/data/")         # path to simulated data from PLINK module
+    genopath  = fpath * "x_test.bed"                        # path to original BED file
+    tgenopath = fpath * "xt_test.bed"                       # path to transposed BED file
+    covpath   = fpath * "covfile.txt"                       # path to covariate file
+    xbed  = BEDFile(genopath, tgenopath, covpath, pids=[1]) # load the data to master process
+
+    n,p    = size(xbed)        # dimensions of data
+    fill!(xbed.covar.x, 1)     # this fills the grand mean with ones
+    fill!(xbed.covar.xt, 1)    # this fills the *transposed* grand mean with ones; remember to always change both!
+    mean!(xbed)                # compute means in-place
+    prec!(xbed)                # compute precisions in-place
+    xbed.means[end] = 0        # index "end" substitutes for position of grand mean in x.means!
+    xbed.precs[end] = 1        # same as above
 
     # now simulate model, response with GWAS data
-    bbed      = SharedArray{Float64}((p,), pids=procs(xbed))  # a model b to use with the BEDFile
-    bbed[1:k] = randn(k)                                      # random coefficients
-    shuffle!(bbed)                                            # random model
-    bidxbed   = find(bbed)                                    # store locations of nonzero coefficients
-    idx       = bbed .!= 0                                    # need BitArray indices of nonzeroes in b for A_mul_B
-    xb        = A_mul_B(xbed, bbed, idx, k)                   # compute x*b
-    ybed2     = xb + 0.1*randn(n)                             # yields a Vector, so we must convert it to SharedVector
-    ybed      = convert(SharedVector{Float64}, ybed2)         # our response variable with the BEDFile
-    ypath     = ENV["TMPDIR"] * "y.bin"                       # ybed uses path to Julia TMP directory
-    write(open(ypath, "w"), ybed)                             # "w"rite ybed to file
+    bbed      = SharedArray{T}((p,), pids=[1])   # a model b to use with the BEDFile
+    bbed[1:k] = randn(k)                         # random coefficients
+    shuffle!(bbed)                               # random model
+    bidxbed   = find(bbed)                       # store locations of nonzero coefficients
+    idx       = bbed .!= 0                       # need BitArray indices of nonzeroes in b for A_mul_B
+    xb        = A_mul_B(xbed, bbed, idx, k)      # compute x*b
+    ybed2     = xb + 0.1*randn(n)                # yields a Vector, so we must convert it to SharedVector
+    ybed      = SharedVector{T}((n,), pids=[1])  # our response variable with the BEDFile
+    copy!(ybed, ybed2)
+    ypath     = ENV["TMPDIR"] * "y.bin"          # ybed uses path to Julia TMP directory
+    write(open(ypath, "w"), ybed)                # "w"rite ybed to file
 
     # crossvalidation parameters
-    nfolds  = 5                            # number of crossvalidation folds
-    srand(2016)                            # reset seed before crossvalidation
-    covpath = fpath * "covfile.txt"        # filepaths used in crossvalidation with BEDFiles
+    nfolds = 5     # number of crossvalidation folds
+    srand(2016)    # reset seed before crossvalidation
 
-    return X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath
+#    return X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath
 #end
 
 #X, y, k, b, bidx, y2, xbed, ybed, bbed, bidxbed, nfolds, xpath, ypath, covpath = tutorial_simulation()
