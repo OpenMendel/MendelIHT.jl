@@ -22,6 +22,7 @@ function iht!{T <: Float}(
     # then xk and gk are the same as well
     # avoid extracting and computing them if they have not changed
     # one exception: we should always extract columns on first iteration
+
     if !isequal(v.idx, v.idx0) || iter < 2
         decompress_genotypes!(v.xk, x, v.idx)
     end
@@ -91,7 +92,7 @@ The additional optional arguments are:
 - `mask_n`, an `Int` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of ones.
 """
 function L0_reg{T <: Float, V <: DenseVector}(
-    x        :: BEDFile{T},
+    x        :: BEDFile{T}, #x.covar.x is the last 2 column of the fam file
     y        :: V, 
     k        :: Int;
     pids     :: Vector{Int} = procs(x),
@@ -147,7 +148,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
     end
 
     # calculate the gradient
-    PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
+    PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)   
 
     # formatted output to monitor algorithm progress
     !quiet && print_header()
@@ -190,7 +191,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
         PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
 
         # update loss, objective, and gradient
-        next_loss = sum(abs2, sdata(v.r)) / 2
+        next_loss = sum(abs2, sdata(v.r)) / 2     
 
         # guard against numerical instabilities
         # ensure that objective is finite

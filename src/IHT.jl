@@ -43,6 +43,7 @@ export iht_path_log
 export cv_iht
 export cv_get_folds
 export cv_log
+export MendelIHT
 
 # IHT will only work on single/double precision floats!
 const Float = Union{Float64,Float32}
@@ -59,5 +60,6 @@ include("cv.jl")
 include("hardthreshold.jl")
 include("aiht.jl")
 include("log.jl")
+include("MendelIHT.jl")
 
 end # end module IHT

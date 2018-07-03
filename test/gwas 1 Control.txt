@@ -1,0 +1,11 @@
+#
+# Input and Output files.
+#
+plink_input_basename = gwas 1 data
+output_file = gwas 1 Output.txt
+manhattan_plot_file = gwas 1 Manhattan Plot Output.png
+#
+# Analysis parameters for IHT option.
+#
+data_type = genetic
+predictors = 10
