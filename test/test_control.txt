@@ -1,0 +1,10 @@
+#
+# Input and Output files.
+#
+plink_input_basename = test
+output_file = test_Output.txt
+#
+# Analysis parameters for IHT option.
+#
+data_type = genetic
+predictors = 2
