@@ -1,10 +1,3 @@
-using MendelBase
-using SnpArrays
-using IHT
-using DataFrames
-using Distances
-using StatsBase
-
 export MendelIHT
 
 include("MendelIHT_utilities.jl")
@@ -121,10 +114,11 @@ function L0_reg(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-    #convert bitarrays to Float64 genotype matrix, standardize each SNP, and add intercept
+    #convert bitarrays to Float64 genotype matrix, normalize each SNP, and add intercept
     snpmatrix = convert(Array{Float64,2}, x.snpmatrix)
-    # snpmatrix = use_A2_as_minor_allele(x.snpmatrix) #to compare results with using PLINK
-    snpmatrix = StatsBase.zscore(snpmatrix, 1) 
+    for i in 1:size(snpmatrix, 2)
+        snpmatrix[:, i] = (snpmatrix[:, i] .- mean(snpmatrix[:, i])) / std(snpmatrix[:, i])
+    end
     snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix] 
 
     #
@@ -157,7 +151,7 @@ function L0_reg(
         At_mul_B!(v.df, snpmatrix, v.r) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
-        next_loss = sum(abs2, v.r) / 2
+        next_loss = sum(abs2, v.r) / 2 
         !isnan(next_loss) || throw(error("Objective function is NaN, aborting..."))
         !isinf(next_loss) || throw(error("Objective function is Inf, aborting..."))
 
@@ -227,7 +221,7 @@ function iht!(
     μ_step = 0
     for i = 1:nstep
         #exit loop if μ < ω where c = 0.01 for now
-        if _iht_backtrack(v, ω, μ); break; end 
+        if _iht_backtrack(v, ω, μ); break; end  #consider using LineSearches.jl
 
         #if μ >= ω, step half and warn if μ falls below machine epsilon
         μ /= 2 

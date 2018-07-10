@@ -8,6 +8,8 @@ using RegressionTools
 using StatsFuns: logistic, logit, softplus
 using DataFrames
 using Gadfly
+using MendelBase
+using SnpArrays
 
 ### idea from Julia Hoffimann Mendes to conditionally load OpenCL module
 # only load if Julia can find OpenCL module
