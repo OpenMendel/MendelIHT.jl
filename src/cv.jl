@@ -186,7 +186,7 @@ function cv_iht{T <: Float}(
     n,p = size(x)
 
     # check for conformable arrays
-    n == length(y) || throw(DimensionMismatch("Row dimension of x ($n) must match number of rows in y ($(length(y)))"))
+    @assert n == length(y) "Row dimension of x ($n) must match number of rows in y ($(length(y)))"
 
     # how many elements are in the path?
     nmodels = length(path)

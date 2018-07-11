@@ -1,7 +1,3 @@
-export MendelIHT
-
-include("MendelIHT_utilities.jl")
-
 """
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel. 
 """
@@ -27,6 +23,7 @@ function MendelIHT(control_file = ""; args...)
     #
     keyword["data_type"] = ""
     keyword["predictors"] = ""
+    keyword["manhattan_plot_file"] = ""
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -36,10 +33,8 @@ function MendelIHT(control_file = ""; args...)
     # Check that the correct analysis option was specified.
     #
     lc_analysis_option = lowercase(keyword["analysis_option"])
-    if (lc_analysis_option != "" &&
-      lc_analysis_option != "iht")
-     throw(ArgumentError(
-       "An incorrect analysis option was specified.\n \n"))
+    if (lc_analysis_option != "" && lc_analysis_option != "iht")
+        throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
     end
     keyword["analysis_option"] = "Iterative Hard Thresholding"
     #
@@ -80,21 +75,22 @@ function L0_reg(
     x        :: SnpData,
     y        :: Vector{Float64}, 
     k        :: Int;
-    v        :: IHTVariable = IHTVariables(x, y, k),
+    #v        :: IHTVariable = IHTVariables(x, y, k),
+    v        :: IHTVariables = IHTVariables(x, y, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: Float64 = 1e-4,
-    max_iter :: Int     = 100,
-    max_step :: Int     = 50,
+    max_iter :: Int = 100,
+    max_step :: Int = 50,
 )
 
     # start timer
     tic()
 
     # first handle errors
-    k        >= 0            || throw(ArgumentError("Value of k must be nonnegative!\n"))
-    max_iter >= 0            || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-    max_step >= 0            || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol      >  eps(Float64) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+    @assert k >= 0        "Value of k must be nonnegative!\n"
+    @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
+    @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
+    @assert tol > eps(Float64) "Value of global tol must exceed machine precision!\n"
     
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
@@ -108,7 +104,6 @@ function L0_reg(
     μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    i       = 0                   # used for iterations in loops
     mu_step = 0                   # counts number of backtracking steps for mu
 
     # initialize booleans
@@ -142,7 +137,7 @@ function L0_reg(
         loss = next_loss
         
         #calculate the step size μ. Can we use v.xk instead of snpmatrix?
-        (μ, μ_step) = iht!(v, snpmatrix, y, k, nstep=max_step, iter=mm_iter)
+        (μ, μ_step) = iht!(v, snpmatrix, y, k, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb
@@ -178,66 +173,67 @@ function L0_reg(
     end
 end #function L0_reg
 
-"""
-Calculates the IHT step β+ = P_k(β - μ ∇f(β)). 
-Returns step size (μ), and number of times line search was done (μ_step). 
-
-This function updates: b, xb, xk, gk, xgk, idx
-"""
-function iht!(
-    v         :: IHTVariable,
-    snpmatrix :: Matrix{Float64},
-    y         :: Vector{Float64},
-    k         :: Int;
-    iter      :: Int = 1,
-    nstep     :: Int = 50,
-)
-    # compute indices of nonzeroes in beta and store them in v.idx (also sets size of v.gk)
-    _iht_indices(v, k)
-
-    # fill v.xk, which stores columns of snpmatrix corresponding to non-0's of b
-    v.xk[:, :] .= snpmatrix[:, v.idx]
-
-    # fill v.gk, which store only k largest components of gradient (v.df)
-    # fill_perm!(v.gk, v.df, v.idx)  # gk = g[v.idx]
-    v.gk .= v.df[v.idx]
-
-    # now compute X_k β_k and store result in v.xgk
-    A_mul_B!(v.xgk, v.xk, v.gk)
-
-    # warn if xgk only contains zeros
-    all(v.xgk .≈ 0.0) && warn("Entire active set has values equal to 0")
-
-    #compute step size and notify if step size too small
-    μ = norm(v.gk, 2)^2 / norm(v.xgk, 2)^2 
-    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
-    μ <= eps(typeof(μ)) && warn("Step size $(μ) is below machine precision, algorithm may not converge correctly")
-
-    #Take the gradient step and compute ω. Note in order to compute ω, need β^{m+1} and xβ^{m+1} (eq5)
-    _iht_gradstep(v, μ, k)
-    ω = compute_ω!(v, snpmatrix) #is snpmatrix required? Or can I just use v.x
-
-    #compute ω and check if μ < ω. If not, do line search by halving μ and checking again.
-    μ_step = 0
-    for i = 1:nstep
-        #exit loop if μ < ω where c = 0.01 for now
-        if _iht_backtrack(v, ω, μ); break; end  #consider using LineSearches.jl
-
-        #if μ >= ω, step half and warn if μ falls below machine epsilon
-        μ /= 2 
-        μ <= eps(typeof(μ)) && warn("Step size equals zero, algorithm may not converge correctly")
-
-        # recompute gradient step
-        copy!(v.b, v.b0)
-        _iht_gradstep(v, μ, k)
-
-        # re-compute ω based on xβ^{m+1}
-        A_mul_B!(v.xb, snpmatrix, v.b)
-        ω = sqeuclidean(v.b, v.b0) / sqeuclidean(v.xb, v.xb0)
-
-        μ_step += 1
-    end
-
-    return (μ, μ_step)
-end
-
+#"""
+#Calculates the IHT step β+ = P_k(β - μ ∇f(β)). 
+#Returns step size (μ), and number of times line search was done (μ_step). 
+#
+#This function updates: b, xb, xk, gk, xgk, idx
+#"""
+#function iht!(
+#    v         :: IHTVariable,
+#    snpmatrix :: Matrix{Float64},
+#    y         :: Vector{Float64},
+#    k         :: Int;
+#    iter      :: Int = 1,
+#    nstep     :: Int = 50,
+#)
+#    # compute indices of nonzeroes in beta and store them in v.idx (also sets size of v.gk)
+#    _iht_indices(v, k)
+#
+#    # fill v.xk, which stores columns of snpmatrix corresponding to non-0's of b
+#    v.xk[:, :] .= snpmatrix[:, v.idx]
+#
+#    # fill v.gk, which store only k largest components of gradient (v.df)
+#    # fill_perm!(v.gk, v.df, v.idx)  # gk = g[v.idx]
+#    v.gk .= v.df[v.idx]
+#
+#    # now compute X_k β_k and store result in v.xgk
+#    A_mul_B!(v.xgk, v.xk, v.gk)
+#
+#    # warn if xgk only contains zeros
+#    all(v.xgk .≈ 0.0) && warn("Entire active set has values equal to 0")
+#
+#    #compute step size and notify if step size too small
+#    #μ = norm(v.gk, 2)^2 / norm(v.xgk, 2)^2 
+#    μ = sum(abs2, v.gk) / sum(abs2, v.xgk)
+#    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+#    μ <= eps(typeof(μ)) && warn("Step size $(μ) is below machine precision, algorithm may not converge correctly")
+#
+#    #Take the gradient step and compute ω. Note in order to compute ω, need β^{m+1} and xβ^{m+1} (eq5)
+#    _iht_gradstep(v, μ, k)
+#    ω = compute_ω!(v, snpmatrix) #is snpmatrix required? Or can I just use v.x
+#
+#    #compute ω and check if μ < ω. If not, do line search by halving μ and checking again.
+#    μ_step = 0
+#    for i = 1:nstep
+#        #exit loop if μ < ω where c = 0.01 for now
+#        if _iht_backtrack(v, ω, μ); break; end 
+#
+#        #if μ >= ω, step half and warn if μ falls below machine epsilon
+#        μ /= 2 
+#        μ <= eps(typeof(μ)) && warn("Step size equals zero, algorithm may not converge correctly")
+#
+#        # recompute gradient step
+#        copy!(v.b, v.b0)
+#        _iht_gradstep(v, μ, k)
+#
+#        # re-compute ω based on xβ^{m+1}
+#        A_mul_B!(v.xb, snpmatrix, v.b)
+#        ω = sqeuclidean(v.b, v.b0) / sqeuclidean(v.xb, v.xb0)
+#
+#        μ_step += 1
+#    end
+#
+#    return (μ, μ_step)
+#end
+#

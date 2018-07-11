@@ -1,17 +1,13 @@
 module IHT
 
-
 using Distances: euclidean, chebyshev, sqeuclidean
 using PLINK
-using RegressionTools
-#using StatsBase
-using StatsFuns: logistic, logit, softplus
+#using StatsFuns: logistic, logit, softplus  ## only for logistic IHT, not working right no
 using DataFrames
 using Gadfly
 using MendelBase
-using SnpArrays
 
-### idea from Julia Hoffimann Mendes to conditionally load OpenCL module
+### idea from Julio Hoffimann Mendes to conditionally load OpenCL module
 # only load if Julia can find OpenCL module
 # otherwise warn and set "cl" variable to Void
 # will load GPU code based on value of "cl"
@@ -47,11 +43,13 @@ export cv_get_folds
 export cv_log
 export MendelIHT
 
+export IHTVariable, IHTVariables, use_A2_as_minor_allele, standardize_snpmatrix
+export use_A2_as_minor_allele, project_k!
+
 # IHT will only work on single/double precision floats!
 const Float = Union{Float64,Float32}
 
 include("common.jl")
-#if cl != nothing 
 try
     include("gpu.jl") # conditional load of GPU code
 catch e
@@ -60,8 +58,9 @@ end
 include("gwas.jl")
 include("cv.jl")
 include("hardthreshold.jl")
-include("aiht.jl")
-include("log.jl")
+#include("aiht.jl")
+#include("log.jl")
+include("MendelIHT_utilities.jl")
 include("MendelIHT.jl")
 
 end # end module IHT

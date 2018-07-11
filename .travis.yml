@@ -1,13 +1,32 @@
 language: julia
+
 os:
   - linux
   - osx
+
 julia:
-  - release
+  - 0.6 
   - nightly
+
+matrix:
+  allow_failures:
+    -julia: nightly
+
 notifications:
-  email: false
-# uncomment the following lines to override the default test script
-#script:
-#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("IHT"); Pkg.test("IHT"; coverage=true)'
+  email:
+    on_success: change
+    on_failure: always
+  recipients:
+    - klkeys@g.ucla.edu
+install:
+  - julia -e 'Pkg.clone("https://github.com/OpenMendel/SnpArrays.jl.git")'
+  - julia -e 'Pkg.clone("https://github.com/OpenMendel/Search.jl.git")'
+  - julia -e 'Pkg.clone("https://github.com/OpenMendel/MendelBase.jl.git")'
+  - julia -e 'Pkg.clone("https://github.com/klkeys/PLINK.jl.git")'
+
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("IHT"); Pkg.test("IHT"; coverage=true)'
+
+after_success:
+  - julia -e 'cd(Pkg.dir("IHT")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
