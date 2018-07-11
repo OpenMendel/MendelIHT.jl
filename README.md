@@ -6,11 +6,19 @@ IHT performs [feature selection](https://en.wikipedia.org/wiki/Feature_selection
 ## Installation
 
 IHT.jl is not registered in `METADATA`.
-It depends on two other unregistered packages, [PLINK.jl](https://github.com/klkeys/PLINK.jl) and [RegressionTools.jl](https://github.com/klkeys/RegressionTools.jl).
+It depends on other unregistered packages:
+
+1. [PLINK.jl](https://github.com/klkeys/PLINK.jl)
+2. [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl)
+3. [Search.jl](https://github.com/OpenMendel/Search.jl)
+4. [MendelBase.jl](https://github.com/OpenMendel/MendelBase.jl)
+
 At the Julia REPL, execute
 
 	Pkg.clone("https://github.com/klkeys/PLINK.jl.git")
-	Pkg.clone("https://github.com/klkeys/RegressionTools.jl.git")
+    Pkg.clone("https://github.com/OpenMendel/SnpArrays.jl.git")
+    Pkg.clone("https://github.com/OpenMendel/Search.jl.git")
+    Pkg.clone("https://github.com/OpenMendel/MendelBase.jl.git")
 	Pkg.clone("https://github.com/klkeys/IHT.jl.git")
 
 The order of installation is important!

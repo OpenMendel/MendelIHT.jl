@@ -6,7 +6,7 @@ The additional optional arguments are:
 
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
 """
-function iht!{T <: Float}(
+function iht!(
     v     :: IHTVariables{T},
     x     :: BEDFile{T},
     y     :: DenseVector{T},
@@ -14,7 +14,8 @@ function iht!{T <: Float}(
     pids  :: Vector{Int} = procs(x),
     iter  :: Int = 1,
     nstep :: Int = 50,
-)
+) where {T <: Float}
+
     # compute indices of nonzeroes in beta
     _iht_indices(v, k)
 
@@ -28,58 +29,56 @@ function iht!{T <: Float}(
     end
 
     # store relevant components of gradient
-    fill_perm!(v.gk, v.df, v.idx)  # gk = g[v.idx]
+    v.gk .= v.df[v.idx]
 
     # now compute subset of x*g
-    BLAS.gemv!('N', one(T), v.xk, v.gk, zero(T), v.xgk)
+    A_mul_B!(v.xgk, v.xk, v.gk)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size
-    mu = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
-#    mu = _iht_stepsize(v, k) :: T
+    μ = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
+#    μ = _iht_stepsize(v, k) :: T
 
     # notify problems with step size
-    isfinite(mu) || throw(error("Step size is not finite, is active set all zero?"))
-    mu <= eps(typeof(mu))  && warn("Step size $(mu) is below machine precision, algorithm may not converge correctly")
+    @assert isfinite(μ) "Step size is not finite, is active set all zero?"
+    @assert μ > eps(typeof(μ)) "Step size $(μ) is below machine precision, algorithm may not converge correctly"
 
     # compute gradient step
-    _iht_gradstep(v, mu, k)
+    _iht_gradstep(v, μ, k)
 
     # update xb
-    #PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
     PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k)
 
     # calculate omega
-    omega_top, omega_bot = _iht_omega(v)
+    ω_top, ω_bot = _iht_omega(v)
 
     # backtrack until mu sits below omega and support stabilizes
-    mu_step = 0
-    while _iht_backtrack(v, omega_top, omega_bot, mu, mu_step, nstep)
+    μ_step = 0
+    while _iht_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
 
         # stephalving
-        mu /= 2
+        μ /= 2
 
-        # warn if mu falls below machine epsilon
-        mu <= eps(typeof(mu)) && warn("Step size equals zero, algorithm may not converge correctly")
+        # stop if mu falls below machine epsilon
+        @assert μ > eps(typeof(μ)) "Step size $(μ) is below machine precision, algorithm may not converge correctly"
 
         # recompute gradient step
         copy!(sdata(v.b), sdata(v.b0))
-        _iht_gradstep(v, mu, k)
+        _iht_gradstep(v, μ, k)
 
         # recompute xb
-        #PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k, pids=pids)
         PLINK.A_mul_B!(v.xb, x, v.b, v.idx, k)
 
         # calculate omega
-        omega_top, omega_bot = _iht_omega(v)
+        ω_top, ω_bot = _iht_omega(v)
 
         # increment the counter
-        mu_step += 1
+        μ_step += 1
     end
 
-    return mu::T, mu_step::Int
+    return μ::T, μ_step::Int
 end
 
 """
@@ -91,8 +90,8 @@ The additional optional arguments are:
 - `pids`, a vector of process IDs. Defaults to `procs()`.
 - `mask_n`, an `Int` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of ones.
 """
-function L0_reg{T <: Float, V <: DenseVector}(
-    x        :: BEDFile{T}, #x.covar.x is the last 2 column of the fam file
+function L0_reg(
+    x        :: BEDFile{T}, # note: x.covar.x is the last 2 column of the fam file
     y        :: V, 
     k        :: Int;
     pids     :: Vector{Int} = procs(x),
@@ -102,19 +101,19 @@ function L0_reg{T <: Float, V <: DenseVector}(
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
     quiet    :: Bool  = true
-)
+) where {T <: Float, V <: DenseVector}
 
     # start timer
     tic()
 
     # first handle errors
-    k        >= 0      || throw(ArgumentError("Value of k must be nonnegative!\n"))
-    max_iter >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-    max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+    @assert k >= 0        "Value of k must be nonnegative!\n"
+    @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
+    @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
+    @assert tol >  eps(T) "Value of global tol must exceed machine precision!\n"
     n = length(y)
-    sum(xor.((mask_n .== 1),(mask_n .== 0))) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
-    procs(x) == procs(y) == pids || throw(ArgumentError("Processes involved in arguments x, y must match those in keyword pids"))
+    @assert sum(xor.((mask_n .== 1),(mask_n .== 0))) == n "Argument mask_n can only contain 1s and 0s"
+    @assert procs(x) == procs(y) == pids "Processes involved in arguments x, y must match those in keyword pids"
 
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
@@ -128,7 +127,6 @@ function L0_reg{T <: Float, V <: DenseVector}(
     mu          = zero(T)         # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    #i       = 0                   # used for iterations in loops
     mu_step = 0                   # counts number of backtracking steps for mu
 
     # initialize booleans
@@ -141,7 +139,6 @@ function L0_reg{T <: Float, V <: DenseVector}(
         copy!(sdata(v.r), sdata(y))
         mask!(v.r, mask_n, 0, zero(T))
     else
-        #A_mul_B!(v.xb, x, v.b, v.idx, k, mask_n, pids=pids)
         A_mul_B!(v.xb, x, v.b, v.idx, k, mask_n)
         difference!(v.r, y, v.xb)
         mask!(v.r, mask_n, 0, zero(T))
@@ -179,13 +176,13 @@ function L0_reg{T <: Float, V <: DenseVector}(
         loss = next_loss
 
         # now perform IHT step
-        (mu, mu_step) = iht!(v, x, y, k, nstep=max_step, iter=mm_iter, pids=pids)
+        (μ, μ_step) = iht!(v, x, y, k, nstep=max_step, iter=mm_iter, pids=pids)
 
         # the IHT kernel gives us an updated x*b
         # use it to recompute residuals and gradient
 #        update_r_grad!(v, x, y, pids=pids)
-        difference!(v.r, y, v.xb)
-        mask!(v.r, mask_n, 0, zero(T), n=n)
+        v.r .= y .- v.xb
+        mask!(v.r, mask_n, 0, zero(T))
 
         # use updated residuals to recompute the gradient on the GPU
         PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
@@ -200,11 +197,11 @@ function L0_reg{T <: Float, V <: DenseVector}(
 
         # track convergence
         the_norm    = chebyshev(v.b, v.b0)
-        scaled_norm = (the_norm / ( norm(v.b0,Inf) + 1)) :: T
+        scaled_norm = (the_norm / ( norm(v.b0,Inf) + one(T))) :: T
         converged   = scaled_norm < tol
 
         # output algorithm progress
-        quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, mu_step, mu, the_norm, next_loss)
+        quiet || @printf("%d\t%d\t%3.7f\t%3.7f\t%3.7f\n", mm_iter, μ_step, μ, the_norm, next_loss)
 
         # check for convergence
         # if converged and in feasible set, then algorithm converged before maximum iteration
@@ -246,7 +243,7 @@ The additional optional arguments are:
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
 - `mask_n`, an `Int` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of ones.
 """
-function iht_path{T <: Float}(
+function iht_path(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int};
@@ -256,7 +253,7 @@ function iht_path{T <: Float}(
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
     quiet    :: Bool = true
-)
+) where {T <: Float}
 
     # size of problem?
     n,p = size(x)
@@ -309,7 +306,7 @@ If used with a `BEDFile` object `x`, then the additional optional arguments are:
 
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
 """
-function one_fold{T <: Float}(
+function one_fold(
     x        :: BEDFile{T},
     y        :: DenseVector{T},
     path     :: DenseVector{Int},
@@ -320,7 +317,7 @@ function one_fold{T <: Float}(
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
     quiet    :: Bool = true
-)
+) where {T <: Float}
     # dimensions of problem
     n,p = size(x)
 
@@ -368,11 +365,11 @@ function one_fold{T <: Float}(
         A_mul_B!(xb, x, b, indices, path[i], mask_test)
 
         # compute residuals
-        difference!(r, y, xb)
+        r .= y .- xb
 
         # mask data from training set
         # training set consists of data NOT in fold:
-        # r[folds .!= fold] = zero(Float64)
+        # r[folds .!= fold] = zero(T)
         mask!(r, mask_test, 0, zero(T))
 
         # compute out-of-sample error as squared residual averaged over size of test set
@@ -401,7 +398,10 @@ function pfold(
 )
 
     # ensure correct type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    @assert T <: Float "Argument T must be either Float32 or Float64"
+
+    # do not allow crossvalidation with fewer than 3 folds
+    @assert q > 2 "Number of folds q = $q must be at least 3."
 
     # how many CPU processes can pfold use?
     np = length(pids)
@@ -476,10 +476,10 @@ function pfold(
 )
 
     # ensure correct type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    @assert T <: Float "Argument T must be either Float32 or Float64"
 
     # do not allow crossvalidation with fewer than 3 folds
-    q > 2 || throw(ArgumentError("Number of folds q = $q must be at least 3."))
+    @assert q > 2 "Number of folds q = $q must be at least 3."
 
     # how many CPU processes can pfold use?
     np = length(pids)
@@ -582,7 +582,7 @@ function cv_iht(
 )
 
     # enforce type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    @assert T <: Float "Argument T must be either Float32 or Float64"
 
     # how many elements are in the path?
     nmodels = length(path)
@@ -657,7 +657,7 @@ function cv_iht(
 )
 
     # enforce type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    @assert T <: Float "Argument T must be either Float32 or Float64"
 
     # how many elements are in the path?
     nmodels = length(path)

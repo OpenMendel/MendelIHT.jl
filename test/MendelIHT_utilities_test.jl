@@ -9,7 +9,7 @@ else
 end
 
 function test_data()
-	#dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
+	# dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
 	x = SnpData("test") 
 	y = CSV.read("test.fam", delim = ' ', header = false)
 	y = convert(Array{Float64,1}, y[:, 6])
@@ -19,7 +19,7 @@ function test_data()
 end
 
 function gwas1_data()
-	#dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10001 (with column of intercept)
+	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10001 (with column of intercept)
 	x = SnpData("gwas 1 data") 
 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
 	y = convert(Array{Float64,1}, y[:, 6])
@@ -41,7 +41,7 @@ end
 	@test_throws(MethodError, IHTVariables(x, y, Inf))
 
 	#Different types of inputs for IHTVariables(x, y, k) is 
-	@test typeof(v) == IHTVariable
+	@test typeof(v) == IHTVariables{eltype(y), typeof(y)}
 	@test typeof(x) == SnpData || typeof(x) <: SnpArray
 
 	@test size(v.b)    == (3,) 
@@ -104,9 +104,9 @@ end
 	@test all(x[last_k_index] .== 0.0)
 end
 
-@testset "compute_ω!" begin
-    
-end
+#@testset "compute_ω!" begin
+#    
+#end
 
 @testset "use_A2_as_minor_allele" begin
 	(x, y, k, v) = test_data()
@@ -116,36 +116,36 @@ end
     @test all(result .== answer)
 end
 
-@testset "_iht_backtrack" begin
-    (x, y, k, v) = gwas1_data()
-    μ, ω = 1.0, 1.0
-    @test IHT._iht_backtrack(v, ω, μ) == false
+#@testset "_iht_backtrack" begin
+#    (x, y, k, v) = gwas1_data()
+#    μ, ω = 1.0, 1.0
+#    @test IHT._iht_backtrack(v, ω, μ) == false
+#
+#    μ, ω = 0.2, 0.3
+#    @test IHT._iht_backtrack(v, ω, μ) == true
+#
+#    μ, ω = 0.8, 0.792
+#    @test IHT._iht_backtrack(v, ω, μ) == false
+#
+#    μ, ω = 0.5, 0.2
+#    @test IHT._iht_backtrack(v, ω, μ) == false
+#
+#    μ, ω = 0.98, 1.0
+#    @test IHT._iht_backtrack(v, ω, μ) == true
+#end
 
-    μ, ω = 0.2, 0.3
-    @test IHT._iht_backtrack(v, ω, μ) == true
-
-    μ, ω = 0.8, 0.792
-    @test IHT._iht_backtrack(v, ω, μ) == false
-
-    μ, ω = 0.5, 0.2
-    @test IHT._iht_backtrack(v, ω, μ) == false
-
-    μ, ω = 0.98, 1.0
-    @test IHT._iht_backtrack(v, ω, μ) == true
-end
-
-@testset "_iht_gradstep" begin
-    (x, y, k, v) = test_data()
-    v.b .= rand(3)
-    v.df .= rand(3)
-    b = copy(v.b)
-    df = copy(v.df)
-    k = 2
-    μ = 0.9
-
-    IHT._iht_gradstep(v, μ, k)
-    @test v.b[1] == 0.0 # because first entry is smallest, it should be set to 0
-    @test v.b[2] == (b + μ*df)[2]
-    @test v.b[3] == (b + μ*df)[3]
-end
+#@testset "_iht_gradstep" begin
+#    (x, y, k, v) = test_data()
+#    v.b .= rand(3)
+#    v.df .= rand(3)
+#    b = copy(v.b)
+#    df = copy(v.df)
+#    k = 2
+#    μ = 0.9
+#
+#    IHT._iht_gradstep(v, μ, k)
+#    @test v.b[1] == 0.0 # because first entry is smallest, it should be set to 0
+#    @test v.b[2] == (b + μ*df)[2]
+#    @test v.b[3] == (b + μ*df)[3]
+#end
 

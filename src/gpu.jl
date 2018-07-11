@@ -24,12 +24,13 @@ function L0_reg{T <: Float, V <: DenseVector}(
     tic()
 
     # first handle errors
-    k        >= 0      || throw(ArgumentError("Value of k must be nonnegative!\n"))
-    max_iter >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-    max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+    @assert k >= 0        "Value of k must be nonnegative!\n"
+    @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
+    @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
+    @assert tol >  eps(T) "Value of global tol must exceed machine precision!\n"
     n = length(y)
-    sum((mask_n .== 1) $ (mask_n .== 0)) == n || throw(ArgumentError("Argument mask_n can only contain 1s and 0s"))
+    @assert sum(xor.((mask_n .== 1),(mask_n .== 0))) == n "Argument mask_n can only contain 1s and 0s"
+    @assert procs(x) == procs(y) == pids "Processes involved in arguments x, y must match those in keyword pids"
 
     # initialize return values
     mm_iter   = 0       # number of iterations of L0_reg
@@ -43,7 +44,6 @@ function L0_reg{T <: Float, V <: DenseVector}(
     mu           = zero(T)            # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    i       = 0         # used for iterations in loops
     mu_step = 0         # counts number of backtracking steps for mu
 
     # initialize booleans
@@ -56,7 +56,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
         mask!(w.r, mask_n, 0, zero(T))
     else
         A_mul_B!(w.xb, x, w.b, w.idx, k, mask_n)
-        difference!(w.r, y, w.xb)
+        w.r .= y .- w.xb
         mask!(w.r, mask_n, 0, zero(T))
     end
 
@@ -100,7 +100,7 @@ function L0_reg{T <: Float, V <: DenseVector}(
         (mu, mu_step) = iht!(w, x, y, k, nstep=max_step, iter=mm_iter, pids=pids)
 
         # update residuals
-        difference!(w.r, y, w.xb)
+        w.r .= y .- w.xb
         mask!(w.r, mask_n, 0, zero(T))
 
         # use updated residuals to recompute the gradient on the GPU
@@ -284,7 +284,7 @@ function one_fold{T <: Float}(
         A_mul_B!(xb, x, b, indices, path[i], test_idx)
 
         # compute residuals
-        difference!(r, y, xb)
+        r .= y .- xb
 
         # mask data from training set
         # training set consists of data NOT in fold:
@@ -383,7 +383,7 @@ function pfold(
 )
 
     # ensure correct type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    @assert T <: Float "Argument T must be either Float32 or Float64"
 
     # how many CPU processes can pfold use?
     np = length(pids)
@@ -487,7 +487,7 @@ function cv_iht(
     header   :: Bool  = false
 )
     # enforce type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    @assert T <: Float "Argument T must be either Float32 or Float64"
 
     # how many elements are in the path?
     num_models = length(path)
@@ -581,7 +581,7 @@ function pfold(
 )
 
     # ensure correct type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    @assert T <: Float "Argument T must be either Float32 or Float64"
 
     # how many CPU processes can pfold use?
     np = length(pids)
@@ -679,7 +679,7 @@ function cv_iht(
     header   :: Bool  = false
 )
     # enforce type
-    T <: Float || throw(ArgumentError("Argument T must be either Float32 or Float64"))
+    @assert T <: Float "Argument T must be either Float32 or Float64"
 
     # how many elements are in the path?
     num_models = length(path)

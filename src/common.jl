@@ -350,25 +350,40 @@ end
 # ----------------------------------------- #
 # subroutines for L0_reg
 
-#function update_xb!{T <: Float}(
-#   v :: IHTVariables{T},
-#   x :: DenseMatrix{T},
-#   k :: Int
-#)
-#    sum(v.idx) <= k || throw(ArgumentError("Argument indices with $(sum(indices)) trues should have at most $k of them"))
-#    fill!(v.xb, zero(T))
-#    numtrue = 0
-#    @inbounds for j in eachindex(v.idx)
-#        if v.idx[j]
-#            numtrue += 1
-#            @inbounds for i in eachindex(v.xb)
-#                v.xb[i] += v.b[j]*x[i,j]
-#            end
-#        end
-#        numtrue >= k && break
-#    end
-#    return nothing
-#end
+"""
+    update_xb!(xβ, x, b, idx::BitArray{1}, k)
+
+This function efficiently performs the "sparse" matrix-vector product `x*β`, of an `n` x `p` matrix `x` and a `p`-vector `β` with `k` nonzeroes.
+The nonzeroes are encoded in the first `k` elements of the `Int vector `indices`.
+
+Arguments:
+- `xβ` is the array to overwrite with `x*β`.
+- `x` is the `n` x `p` design matrix.
+- `β` is the `p`-dimensional parameter vector.
+- `idx` is a `BitArray` that indexes `β`. It must have `k` instances of `true`. 
+- `k` is the number of nonzeroes in `β`.
+"""
+function update_xb!(
+    xβ  :: DenseVector{T},
+    x   :: DenseMatrix{T},
+    β   :: DenseVector{T},
+    idx :: BitArray{1},
+    k   :: Int;
+) where {T <: Float}
+    @assert sum(idx) <= k "Argument indices with $(sum(indices)) trues should have at most $k of them"
+    fill!(xβ, zero(T))
+    numtrue = 0
+    @inbounds for j in eachindex(idx) 
+        if idx[j]
+            numtrue += 1
+            @inbounds for i in eachindex(xβ) 
+                xβ[i] += β[j]*x[i,j]
+            end
+        end
+        numtrue >= k && break
+    end
+    return nothing
+end
 
 # subroutine to update residuals and gradient from data
 function update_r_grad!{T}(
@@ -433,6 +448,100 @@ end
 #    return nothing
 #end
 
+"""
+    threshold!(x, ε[, α = 0])
+
+Efficiently computes `x[abs.(x) < ε] .= α`. By default `α = 0`, so `threshold!` will set to zero any elements smaller than `ε`.
+"""
+function threshold!(x::DenseVecOrMat{T}, ε::T, α::T = zero(T)) where {T <: AbstractFloat}
+    @assert ε >= α >= 0 "Arguments must satisfy ε > α >= 0"
+    for i in eachindex(x)
+        if abs(x[i]) < ε
+            x[i] = α
+        end
+    end
+    return x
+end
+
+"""
+    project_k!(x, k)
+
+This function projects a vector `x` onto the set S_k = { y in R^p : || y ||_0 <= k }.
+It does so by first finding the pivot `a` of the `k` largest components of `x` in magnitude.
+`project_k!` then applies `x[abs.(x) < a] = 0 
+
+Arguments:
+- `b` is the vector to project.
+- `k` is the number of components of `b` to preserve.
+"""
+function project_k!(x::DenseVector{T}, k::Int) where {T <: AbstractFloat}
+    a = select(x, k, by = abs, rev = true) :: T
+    threshold!(x,abs(a)) 
+end
+
+"""
+    update_indices!(idx, x)
+
+Update a `BitArray` vector `idx` with indicators for the nonzero entries of `x`.
+
+Arguments:
+- `idx` is a `BitArray` vector of length `p`. It contains `true` for each nonzero component of `x` and `false` otherwise.
+- `x` is the `p`-vector to index.
+"""
+function update_indices!(idx::BitArray{1}, x::AbstractVector{T}) where {T <: AbstractFloat}
+    @assert length(idx) == length(x)
+    @inbounds for i in eachindex(x) 
+        idx[i] = x[i] != zero(T)# ? true : false
+    end
+    return idx 
+end
+
+"""
+    mask!(x, v, val, mask_val)
+
+A subroutine to mask entries of a vector `x` with a bitmasking vector `v`. This is an efficient implementation of `x[v .== val] = mask_val`.
+
+Arguments:
+- `x` is the vector to mask.
+- `v` is the `Int` vector used in masking.
+- `val` is the value of `v` to use in masking.
+- `mask_val` is the actual value of the mask, i.e. if `v[i] = val` then `x[i] = mask_val`.
+"""
+function mask!{T <: Float}(
+    x        :: DenseVector{T},
+    v        :: DenseVector{Int},
+    val      :: Int,
+    mask_val :: T
+)
+	n = length(x)
+    @assert n == length(v) "Vector x and its mask must have same length"
+    @inbounds for i = 1:n
+        if v[i] == val
+            x[i] = mask_val
+        end
+    end
+    return nothing
+end
+
+"Can also be called with an `Int` argument `n` indicating the length of the data vector `y`."
+function cv_get_folds(n::Int, q::Int)
+    m, r = divrem(n, q)
+    shuffle!([repmat(1:q, m); 1:r])
+end
+
+"""
+    cv_get_folds(y,q) -> Vector{Int}
+
+This function will partition the `n` components of `y` into `q` disjoint sets for unstratified `q`-fold crossvalidation.
+
+Arguments:
+- `y` is the `n`-vector to partition.
+- `q` is the number of disjoint sets in the partition.
+"""
+function cv_get_folds(y::DenseVector, q::Int)
+    n, r = divrem(length(y), q)
+    shuffle!([repmat(1:q, n); 1:r])
+end
 
 # ----------------------------------------- #
 # common subroutines for IHT stepping

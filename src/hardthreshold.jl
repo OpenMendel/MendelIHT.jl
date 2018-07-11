@@ -56,7 +56,7 @@ function iht!{T <: Float, V <: DenseVector}(
     end
 
     # store relevant components of gradient
-    fill_perm!(v.gk, v.df, v.idx)    # gk = g[v.idx]
+    v.gk .= v.df[v.idx]
 
     # now compute subset of x*g
     A_mul_B!(v.xgk, v.xk, v.gk)
@@ -140,7 +140,7 @@ Outputs are wrapped into an `IHTResults` structure with the following fields:
 - 'loss' is the optimal loss (half of residual sum of squares) at convergence.
 - 'beta' is the final estimate of `b`.
 """
-function L0_reg{T <: Float, V <: DenseVector}(
+function L0_reg(
     x        :: DenseMatrix{T},
     y        :: V,
     k        :: Int;
@@ -149,16 +149,16 @@ function L0_reg{T <: Float, V <: DenseVector}(
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
     quiet    :: Bool = true
-)
+) where {T <: Float, V <: DenseVector}
 
     # start timer
     tic()
 
     # first handle errors
-    k        >= 0      || throw(ArgumentError("Value of k must be nonnegative!\n"))
-    max_iter >= 0      || throw(ArgumentError("Value of max_iter must be nonnegative!\n"))
-    max_step >= 0      || throw(ArgumentError("Value of max_step must be nonnegative!\n"))
-    tol      >  eps(T) || throw(ArgumentError("Value of global tol must exceed machine precision!\n"))
+    @assert k >= 0        "Value of k must be nonnegative!\n"
+    @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
+    @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
+    @assert tol >  eps(T) "Value of global tol must exceed machine precision!\n"
 
     # initialize return values
     iter = 0                      # number of iterations of L0_reg
@@ -173,7 +173,6 @@ function L0_reg{T <: Float, V <: DenseVector}(
     μ           = zero(T)          # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
-    #i      = 0                    # used for iterations in loops
     μ_step = 0                    # counts number of backtracking steps for mu
 
     # initialize booleans
