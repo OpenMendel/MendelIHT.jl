@@ -158,10 +158,6 @@ function L0_reg(
         if converged
             mm_time = toq()   # stop time
 
-            println("IHT converged in " * string(mm_iter) * " iterations")
-            println("It took " * string(mm_time) * " seconds to converge")
-            println("The estimated model is stored in 'beta'")
-            println("There are " * string(countnz(v.b)) * " non-zero entries of β")
             return IHTResults(mm_time, next_loss, mm_iter, copy(v.b))
         end
 
