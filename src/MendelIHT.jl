@@ -40,9 +40,8 @@ function MendelIHT(control_file = ""; args...)
     #
     # Read the genetic data from the external files named in the keywords.
     #
-    (pedigree, person, nuclear_family, locus, snpdata,
-    locus_frame, phenotype_frame, pedigree_frame, snp_definition_frame) =
-    read_external_data_files(keyword)
+    (pedigree, person, nuclear_family, locus, snpdata, locus_frame, phenotype_frame, 
+        pedigree_frame, snp_definition_frame) = read_external_data_files(keyword)
     #
     # Execute the specified analysis.
     #
@@ -108,13 +107,13 @@ function L0_reg(
 
     # initialize booleans
     converged = false             # scaled_norm < tol?
-
-    #convert bitarrays to Float64 genotype matrix, normalize each SNP, and add intercept
-    snpmatrix = convert(Array{Float64,2}, x.snpmatrix)
-    for i in 1:size(snpmatrix, 2)
-        snpmatrix[:, i] = (snpmatrix[:, i] .- mean(snpmatrix[:, i])) / std(snpmatrix[:, i])
-    end
-    snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix] 
+    
+    #convert bitarrays to Float64 genotype matrix, normalize each SNP, and add intercept 
+    # snpmatrix = convert(Array{Float64,2}, x.snpmatrix) 
+    # for i in 1:size(snpmatrix, 2) 
+    #     snpmatrix[:, i] = (snpmatrix[:, i] .- mean(snpmatrix[:, i])) / std(snpmatrix[:, i]) 
+    # end 
+    # snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix]
 
     #
     # Begin IHT calculations
@@ -123,12 +122,33 @@ function L0_reg(
     copy!(v.r, y)    #redisual = y-Xβ = y  CONSIDER BLASCOPY!
     v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
 
-    # calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). Future gradient 
+    #precompute mean and standard deviations for each snp
+    mean_vec = 2.0x.maf #multiply by 2 because mean of each snp = 2.0*maf
+    std_vec = zeros(x.snps)
+    storage = zeros(x.snps)
+    for i in 1:x.snps
+        storage = convert(Vector{Float64}, view(x.snpmatrix, :, i))
+        std_vec[i] .= 1.0 ./ std(storage)
+    end
+
+    # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). This should be the only 
+    # place using the full snpmatrix in multiplication, and all future gradient 
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
     # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
 
-    # Can we use v.xk instead of snpmatrix?
+    # println("reached here!")
+
     At_mul_B!(v.df, snpmatrix, v.r) 
+    println(v.df)
+    return v.df
+
+
+    # temp_storage = zeros(x.snps)
+    # At_mul_B!(temp_storage, x.snpmatrix, v.r, mean_vec, std_vec)
+
+    # println("didn't reach here!")
+    # println(temp_storage)
+    # return temp_storage
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
