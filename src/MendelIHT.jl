@@ -110,7 +110,11 @@ function L0_reg(
     
     #convert bitarrays to Float64 genotype matrix, normalize each SNP, and add intercept 
     # snpmatrix = convert(Array{Float64,2}, x.snpmatrix) 
+    # old_mean = zeros(size(snpmatrix, 2))
+    # old_std = zeros(size(snpmatrix, 2))
     # for i in 1:size(snpmatrix, 2) 
+    #     old_mean[i] = mean(snpmatrix[:, i])
+    #     old_std[i] = 1 / std(snpmatrix[:, i]) 
     #     snpmatrix[:, i] = (snpmatrix[:, i] .- mean(snpmatrix[:, i])) / std(snpmatrix[:, i]) 
     # end 
     # snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix]
@@ -135,20 +139,11 @@ function L0_reg(
     # place using the full snpmatrix in multiplication, and all future gradient 
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
     # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
+    # At_mul_B!(v.df, snpmatrix, v.r) 
 
-    # println("reached here!")
-
-    At_mul_B!(v.df, snpmatrix, v.r) 
+    At_mul_B_ben!(v.df, x.snpmatrix, v.r, mean_vec, std_vec, similar(v.df))
     println(v.df)
     return v.df
-
-
-    # temp_storage = zeros(x.snps)
-    # At_mul_B!(temp_storage, x.snpmatrix, v.r, mean_vec, std_vec)
-
-    # println("didn't reach here!")
-    # println(temp_storage)
-    # return temp_storage
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
