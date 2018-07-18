@@ -97,12 +97,10 @@ function iht!(
 
     # store relevant components of gradient
     v.gk .= v.df[v.idx]
-    new_mean_vec = mean_vec[v.idx]
-    new_std_vec = std_vec[v.idx]
 
     # now compute subset of x*g
     # A_mul_B!(v.xgk, v.xk, v.gk)
-    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec, std_vec) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec[v.idx], std_vec[v.idx]) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
@@ -118,8 +116,10 @@ function iht!(
     _iht_gradstep(v, μ, k)
 
     # update xb
-    update_xb!(v.xb, x, v.b, v.idx, k)
+    # update_xb!(v.xb, x, v.b, v.idx, k)
     #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
+    v.xk .= view(x, :, v.idx) 
+    SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
 
     # calculate omega
     ω_top, ω_bot = _iht_omega(v)
@@ -136,8 +136,9 @@ function iht!(
         _iht_gradstep(v, μ, k)
 
         # recompute xb
-        update_xb!(v.xb, x, v.b, v.idx, k)
-        #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
+        # update_xb!(v.xb, x, v.b, v.idx, k) 
+        v.xk .= view(x, :, v.idx) 
+        SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
 
         # calculate omega
         ω_top, ω_bot = _iht_omega(v)

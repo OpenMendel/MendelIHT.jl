@@ -40,31 +40,6 @@ function IHTVariables{T <: Float}(
     return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
-# function IHTVariables(
-#     x :: SnpData,
-#     y :: Vector{T},
-#     k :: Int64
-# ) where {T <: Float}
-#     n, p = x.people, x.snps #adding 1 for p because we need an intercept
-
-#     #check if k is sensible
-#     if k > p;  throw(ArgumentError("k cannot exceed the number of SNPs")); end
-#     if k <= 0; throw(ArgumentError("k must be positive integer")); end
-
-#     b    = zeros(T, p)
-#     b0   = zeros(T, p)
-#     xb   = zeros(T, n)
-#     xb0  = zeros(T, n)
-#     xk   = zeros(T, n, k)
-#     gk   = zeros(T, k)
-#     xgk  = zeros(T, n)
-#     idx  = falses(p) 
-#     idx0 = falses(p)
-#     r    = zeros(T, n)
-#     df   = zeros(T, p)
-#     return IHTVariables{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
-# end
-#
 #immutable IHTResult
 #    time :: Float64
 #    loss :: Float64
@@ -114,37 +89,23 @@ function use_A2_as_minor_allele(snpmatrix :: SnpArray)
     return matrix
 end
 
-#"""
-#A function for determining whether or not to backtrack. If all conditions are satisfied,
-#then we DONT do line search, which means _iht_backtrack need to return TRUE.
-#"""
-#function _iht_backtrack(
-#    v :: IHTVariable,
-#    ω :: Float64,
-#    μ :: Float64
-#)
-#    μ < 0.99*ω 
-#    #&& sum(v.idx) != 0 &&
-#    #sum(xor.(v.idx,v.idx0)) != 0 
-#end
-#
-#"""
-#This function computes the gradient step v.b = P_k(β + μ∇f(β)), and updates v.idx. 
-#Recall calling axpy! implies v.b = v.b + μ*v.df, but v.df stores an extra negative sign.
-#"""
-#function _iht_gradstep(
-#    v  :: IHTVariable,
-#    μ  :: Float64,
-#    k  :: Int;
-#)
-#    BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is a plus since df stores X(-1*(Y-Xb)))
-#    project_k!(v.b, k)       # P_k( β - μ∇f(β) ): preserve top k components of b
-#    _iht_indices(v, k)       # Update idx. (find indices of new beta that are nonzero)
-#
-#    # If the k'th largest component is not unique, warn the user. 
-#    sum(v.idx) <= k || warn("More than k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
-#end
-#
+"""
+This function computes the gradient step v.b = P_k(β + μ∇f(β)), and updates v.idx. 
+Recall calling axpy! implies v.b = v.b + μ*v.df, but v.df stores an extra negative sign.
+"""
+function _iht_gradstep{T <: Float}(
+   v  :: IHTVariable{T},
+   μ  :: Float64,
+   k  :: Int;
+)
+   BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is a plus since df stores X(-1*(Y-Xb)))
+   project_k!(v.b, k)       # P_k( β - μ∇f(β) ): preserve top k components of b
+   _iht_indices(v, k)       # Update idx. (find indices of new beta that are nonzero)
+
+   # If the k'th largest component is not unique, warn the user. 
+   sum(v.idx) <= k || warn("More than k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
+end
+
 """
 this function updates finds the non-zero index of b, and set v.idx = 1 for those indices. 
 """
@@ -164,4 +125,29 @@ function _iht_indices{T <: Float}(
    end
 
    return nothing
+end
+
+# this function calculates the omega (here a / b) used for determining backtracking
+function _iht_omega{T <: Float}(
+    v :: IHTVariable{T}
+)
+    a = sqeuclidean(v.b, v.b0::Vector{T}) :: T
+    b = sqeuclidean(v.xb, v.xb0::Vector{T}) :: T
+    return a, b
+end
+
+
+# a function for determining whether or not to backtrack
+function _iht_backtrack{T <: Float}(
+    v       :: IHTVariable{T},
+    ot      :: T,
+    ob      :: T,
+    mu      :: T,
+    mu_step :: Int,
+    nstep   :: Int
+)
+    mu*ob > 0.99*ot              &&
+    sum(v.idx) != 0              &&
+    sum(xor.(v.idx,v.idx0)) != 0 &&
+    mu_step < nstep
 end
