@@ -1,26 +1,26 @@
-#"""
-#Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
-#"""
-#struct IHTVariable
-#    b    :: Vector{Float64}     # the statistical model, most will be 0
-#    b0   :: Vector{Float64}     # previous estimated model in the mm step
-#    xb   :: Vector{Float64}     # vector that holds x*b 
-#    xb0  :: Vector{Float64}     # previous xb in the mm step
-#    xk   :: Matrix{Float64}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
-#    gk   :: Vector{Float64}     # Numerator of step size μ.   gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
-#    xgk  :: Vector{Float64}     # Demonimator of step size μ. x * gk also part of the gradient calculation 
-#    idx  :: BitArray{1}         # BitArray indices of nonzeroes in b for A_mul_B
-#    idx0 :: BitArray{1}         # previous iterate of idx
-#    r    :: Vector{Float64}     # n-vector of residuals
-#    df   :: Vector{Float64}     # the gradient: df = -x' * (y - xb)
-#end
-#
+"""
+Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
+"""
+mutable struct IHTVariable{T <: Float}
+   b    :: Vector{T}     # the statistical model, most will be 0
+   b0   :: Vector{T}     # previous estimated model in the mm step
+   xb   :: Vector{T}     # vector that holds x*b 
+   xb0  :: Vector{T}     # previous xb in the mm step
+   xk   :: SnpArray{2}   # the n by k subset of the design matrix x corresponding to non-0 elements of b
+   gk   :: Vector{T}     # Numerator of step size μ.   gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
+   xgk  :: Vector{T}     # Demonimator of step size μ. x * gk also part of the gradient calculation 
+   idx  :: BitArray{1}   # BitArray indices of nonzeroes in b for A_mul_B
+   idx0 :: BitArray{1}   # previous iterate of idx
+   r    :: Vector{T}     # n-vector of residuals
+   df   :: Vector{T}     # the gradient: df = -x' * (y - xb)
+end
+
 function IHTVariables(
     x :: SnpData,
     y :: Vector{T},
     k :: Int64
 ) where {T <: Float}
-    n, p = x.people, x.snps + 1 #adding 1 for p because we need an intercept
+    n, p = x.people, x.snps #adding 1 for p because we need an intercept
 
     #check if k is sensible
     if k > p;  throw(ArgumentError("k cannot exceed the number of SNPs")); end
@@ -30,15 +30,43 @@ function IHTVariables(
     b0   = zeros(T, p)
     xb   = zeros(T, n)
     xb0  = zeros(T, n)
-    xk   = zeros(T, n, k)
+    xk   = SnpArray(n, k)
     gk   = zeros(T, k)
     xgk  = zeros(T, n)
     idx  = falses(p) 
     idx0 = falses(p)
     r    = zeros(T, n)
     df   = zeros(T, p)
-    return IHTVariables{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+
+    println("Reached here!!")
+
+    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
+
+# function IHTVariables(
+#     x :: SnpData,
+#     y :: Vector{T},
+#     k :: Int64
+# ) where {T <: Float}
+#     n, p = x.people, x.snps #adding 1 for p because we need an intercept
+
+#     #check if k is sensible
+#     if k > p;  throw(ArgumentError("k cannot exceed the number of SNPs")); end
+#     if k <= 0; throw(ArgumentError("k must be positive integer")); end
+
+#     b    = zeros(T, p)
+#     b0   = zeros(T, p)
+#     xb   = zeros(T, n)
+#     xb0  = zeros(T, n)
+#     xk   = zeros(T, n, k)
+#     gk   = zeros(T, k)
+#     xgk  = zeros(T, n)
+#     idx  = falses(p) 
+#     idx0 = falses(p)
+#     r    = zeros(T, n)
+#     df   = zeros(T, p)
+#     return IHTVariables{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+# end
 #
 #immutable IHTResult
 #    time :: Float64

@@ -74,8 +74,8 @@ function L0_reg(
     x        :: SnpData,
     y        :: Vector{Float64}, 
     k        :: Int;
-    #v        :: IHTVariable = IHTVariables(x, y, k),
-    v        :: IHTVariables = IHTVariables(x, y, k),
+    v        :: IHTVariable = IHTVariables(x, y, k),
+    # v        :: IHTVariables = IHTVariables(x, y, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: Float64 = 1e-4,
     max_iter :: Int = 100,
@@ -135,15 +135,12 @@ function L0_reg(
         std_vec[i] .= 1.0 ./ std(storage)
     end
 
-    # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). This should be the only 
-    # place using the full snpmatrix in multiplication, and all future gradient 
+    # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). All future gradient 
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
     # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
-    # At_mul_B!(v.df, snpmatrix, v.r) 
+    # Base.At_mul_B!(v.df, snpmatrix, v.r) 
 
-    At_mul_B_ben!(v.df, x.snpmatrix, v.r, mean_vec, std_vec, similar(v.df))
-    println(v.df)
-    return v.df
+    SnpArrays.At_mul_B!(v.df, x.snpmatrix, v.r, mean_vec, std_vec, similar(v.df))
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
@@ -152,13 +149,13 @@ function L0_reg(
         loss = next_loss
         
         #calculate the step size μ. Can we use v.xk instead of snpmatrix?
-        (μ, μ_step) = iht!(v, snpmatrix, y, k, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x.snpmatrix, y, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb
         v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet 
 
-        At_mul_B!(v.df, snpmatrix, v.r) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
+        SnpArrays.At_mul_B!(v.df, x.snpmatrix, v.r, mean_vec, std_vec, similar(v.df)) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2 
@@ -248,3 +245,77 @@ end #function L0_reg
 #    return (μ, μ_step)
 #end
 #
+function iht!{T <: Float, V <: DenseVector}(
+    v        :: IHTVariables{T, V},
+    x        :: SnpArray,
+    y        :: V, 
+    k        :: Int,
+    mean_vec :: Vector{T},
+    std_vec  :: Vector{T},
+    iter     :: Int = 1,
+    nstep    :: Int = 50,
+)
+    # compute indices of nonzeroes in beta
+    _iht_indices(v, k)
+
+    # store relevant columns of x
+    # need to do this on 1st iteration
+    # afterwards, only do if support changes
+    if !isequal(v.idx, v.idx0) || iter < 2
+        #update_xk!(v.xk, x, v.idx)   # xk = x[:,v.idx]
+        copy!(v.xk, view(x, :, v.idx))
+    end
+
+    # store relevant components of gradient
+    v.gk .= v.df[v.idx]
+    new_mean_vec = mean_vec[v.idx]
+    new_std_vec = std_vec[v.idx]
+
+    # now compute subset of x*g
+    # A_mul_B!(v.xgk, v.xk, v.gk)
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec, std_vec) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
+
+    # warn if xgk only contains zeros
+    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+
+    # compute step size
+#    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?!
+    μ = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
+
+    # check for finite stepsize
+    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+
+    # compute gradient step
+    _iht_gradstep(v, μ, k)
+
+    # update xb
+    update_xb!(v.xb, x, v.b, v.idx, k)
+    #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
+
+    # calculate omega
+    ω_top, ω_bot = _iht_omega(v)
+
+    # backtrack until mu < omega and until support stabilizes
+    μ_step = 0
+    while _iht_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
+
+        # stephalving
+        μ /= 2
+
+        # recompute gradient step
+        copy!(v.b,v.b0)
+        _iht_gradstep(v, μ, k)
+
+        # recompute xb
+        update_xb!(v.xb, x, v.b, v.idx, k)
+        #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
+
+        # calculate omega
+        ω_top, ω_bot = _iht_omega(v)
+
+        # increment the counter
+        μ_step += 1
+    end
+
+    return μ::T, μ_step::Int
+end
