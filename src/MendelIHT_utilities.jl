@@ -1,7 +1,7 @@
 """
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
-mutable struct IHTVariable{T <: Float}
+mutable struct IHTVariable{T <: Float, V <: DenseVector}
    b    :: Vector{T}     # the statistical model, most will be 0
    b0   :: Vector{T}     # previous estimated model in the mm step
    xb   :: Vector{T}     # vector that holds x*b 
@@ -11,15 +11,15 @@ mutable struct IHTVariable{T <: Float}
    xgk  :: Vector{T}     # Demonimator of step size μ. x * gk also part of the gradient calculation 
    idx  :: BitArray{1}   # BitArray indices of nonzeroes in b for A_mul_B
    idx0 :: BitArray{1}   # previous iterate of idx
-   r    :: Vector{T}     # n-vector of residuals
-   df   :: Vector{T}     # the gradient: df = -x' * (y - xb)
+   r    :: V             # n-vector of residuals
+   df   :: V             # the gradient: df = -x' * (y - xb)
 end
 
-function IHTVariables(
+function IHTVariables{T <: Float}(
     x :: SnpData,
     y :: Vector{T},
     k :: Int64
-) where {T <: Float}
+) 
     n, p = x.people, x.snps #adding 1 for p because we need an intercept
 
     #check if k is sensible
@@ -37,10 +37,7 @@ function IHTVariables(
     idx0 = falses(p)
     r    = zeros(T, n)
     df   = zeros(T, p)
-
-    println("Reached here!!")
-
-    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 # function IHTVariables(
@@ -148,23 +145,23 @@ end
 #    sum(v.idx) <= k || warn("More than k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 #end
 #
-#"""
-#this function updates finds the non-zero index of b, and set v.idx = 1 for those indices. 
-#"""
-#function _iht_indices(
-#    v :: IHTVariable,
-#    k :: Int
-#)
-#    # set v.idx[i] = 1 if v.b[i] != 0 (i.e. find components of beta that are non-zero)
-#    v.idx .= v.b .!= 0
-#
-#    # if idx is the 0 vector, v.idx[i] = 1 if i is one of the k largest components
-#    # of the gradient (stored in v.df), and set other components of idx to 0. 
-#    if sum(v.idx) == 0
-#        a = select(v.df, k, by=abs, rev=true) 
-#        v.idx[abs.(v.df) .>= abs(a)-2*eps()] .= true
-#        v.gk .= zeros(sum(v.idx))
-#    end
-#
-#    return nothing
-#end
+"""
+this function updates finds the non-zero index of b, and set v.idx = 1 for those indices. 
+"""
+function _iht_indices{T <: Float}(
+   v :: IHTVariable{T},
+   k :: Int
+)
+   # set v.idx[i] = 1 if v.b[i] != 0 (i.e. find components of beta that are non-zero)
+   v.idx .= v.b .!= 0
+
+   # if idx is the 0 vector, v.idx[i] = 1 if i is one of the k largest components
+   # of the gradient (stored in v.df), and set other components of idx to 0. 
+   if sum(v.idx) == 0
+       a = select(v.df, k, by=abs, rev=true) 
+       v.idx[abs.(v.df) .>= abs(a)-2*eps()] .= true
+       v.gk .= zeros(sum(v.idx))
+   end
+
+   return nothing
+end

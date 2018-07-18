@@ -68,19 +68,102 @@ function MendelIHT(control_file = ""; args...)
 end #function IterHardThreshold
 
 """
+Calculates the IHT step β+ = P_k(β - μ ∇f(β)). 
+Returns step size (μ), and number of times line search was done (μ_step). 
+
+This function updates: b, xb, xk, gk, xgk, idx
+"""
+function iht!(
+    v        :: IHTVariable{T},
+    x        :: SnpArray{2},
+    y        :: Vector{T}, 
+    k        :: Int,
+    mean_vec :: Vector{T},
+    std_vec  :: Vector{T},
+    iter     :: Int = 1,
+    nstep    :: Int = 50,
+) where {T <: Float}
+
+    # compute indices of nonzeroes in beta
+    _iht_indices(v, k)
+
+    # store relevant columns of x
+    # need to do this on 1st iteration
+    # afterwards, only do if support changes
+    if !isequal(v.idx, v.idx0) || iter < 2
+        #update_xk!(v.xk, x, v.idx)   # xk = x[:,v.idx]
+        copy!(v.xk, view(x, :, v.idx))
+    end
+
+    # store relevant components of gradient
+    v.gk .= v.df[v.idx]
+    new_mean_vec = mean_vec[v.idx]
+    new_std_vec = std_vec[v.idx]
+
+    # now compute subset of x*g
+    # A_mul_B!(v.xgk, v.xk, v.gk)
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec, std_vec) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
+
+    # warn if xgk only contains zeros
+    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+
+    # compute step size
+#    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?!
+    μ = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
+
+    # check for finite stepsize
+    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+
+    # compute gradient step
+    _iht_gradstep(v, μ, k)
+
+    # update xb
+    update_xb!(v.xb, x, v.b, v.idx, k)
+    #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
+
+    # calculate omega
+    ω_top, ω_bot = _iht_omega(v)
+
+    # backtrack until mu < omega and until support stabilizes
+    μ_step = 0
+    while _iht_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
+
+        # stephalving
+        μ /= 2
+
+        # recompute gradient step
+        copy!(v.b,v.b0)
+        _iht_gradstep(v, μ, k)
+
+        # recompute xb
+        update_xb!(v.xb, x, v.b, v.idx, k)
+        #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
+
+        # calculate omega
+        ω_top, ω_bot = _iht_omega(v)
+
+        # increment the counter
+        μ_step += 1
+    end
+
+    return μ::T, μ_step::Int
+end
+
+
+"""
 This function performs IHT on GWAS data. 
 """
 function L0_reg(
     x        :: SnpData,
-    y        :: Vector{Float64}, 
+    y        :: Vector{T}, 
     k        :: Int;
     v        :: IHTVariable = IHTVariables(x, y, k),
     # v        :: IHTVariables = IHTVariables(x, y, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
-    tol      :: Float64 = 1e-4,
+    tol      :: T = 1e-4,
     max_iter :: Int = 100,
     max_step :: Int = 50,
-)
+) where {T <: Float}
 
     # start timer
     tic()
@@ -245,77 +328,3 @@ end #function L0_reg
 #    return (μ, μ_step)
 #end
 #
-function iht!{T <: Float, V <: DenseVector}(
-    v        :: IHTVariables{T, V},
-    x        :: SnpArray,
-    y        :: V, 
-    k        :: Int,
-    mean_vec :: Vector{T},
-    std_vec  :: Vector{T},
-    iter     :: Int = 1,
-    nstep    :: Int = 50,
-)
-    # compute indices of nonzeroes in beta
-    _iht_indices(v, k)
-
-    # store relevant columns of x
-    # need to do this on 1st iteration
-    # afterwards, only do if support changes
-    if !isequal(v.idx, v.idx0) || iter < 2
-        #update_xk!(v.xk, x, v.idx)   # xk = x[:,v.idx]
-        copy!(v.xk, view(x, :, v.idx))
-    end
-
-    # store relevant components of gradient
-    v.gk .= v.df[v.idx]
-    new_mean_vec = mean_vec[v.idx]
-    new_std_vec = std_vec[v.idx]
-
-    # now compute subset of x*g
-    # A_mul_B!(v.xgk, v.xk, v.gk)
-    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec, std_vec) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
-
-    # warn if xgk only contains zeros
-    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
-
-    # compute step size
-#    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?!
-    μ = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
-
-    # check for finite stepsize
-    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
-
-    # compute gradient step
-    _iht_gradstep(v, μ, k)
-
-    # update xb
-    update_xb!(v.xb, x, v.b, v.idx, k)
-    #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
-
-    # calculate omega
-    ω_top, ω_bot = _iht_omega(v)
-
-    # backtrack until mu < omega and until support stabilizes
-    μ_step = 0
-    while _iht_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
-
-        # stephalving
-        μ /= 2
-
-        # recompute gradient step
-        copy!(v.b,v.b0)
-        _iht_gradstep(v, μ, k)
-
-        # recompute xb
-        update_xb!(v.xb, x, v.b, v.idx, k)
-        #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
-
-        # calculate omega
-        ω_top, ω_bot = _iht_omega(v)
-
-        # increment the counter
-        μ_step += 1
-    end
-
-    return μ::T, μ_step::Int
-end
