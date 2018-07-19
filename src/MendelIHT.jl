@@ -213,9 +213,9 @@ function L0_reg(
     #precompute mean and standard deviations for each snp
     mean_vec = 2.0x.maf #multiply by 2 because mean of each snp = 2.0*maf
     std_vec = zeros(x.snps)
-    storage = zeros(x.snps)
+    storage = zeros(x.people)
     for i in 1:x.snps
-        storage = convert(Vector{Float64}, view(x.snpmatrix, :, i))
+        copy!(storage, x.snpmatrix[:, i]) #in place version of convert
         std_vec[i] .= 1.0 ./ std(storage)
     end
 
