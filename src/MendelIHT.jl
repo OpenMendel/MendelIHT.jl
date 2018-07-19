@@ -191,17 +191,15 @@ function L0_reg(
 
     # initialize booleans
     converged = false             # scaled_norm < tol?
-    
-    #convert bitarrays to Float64 genotype matrix, normalize each SNP, and add intercept 
-    # snpmatrix = convert(Array{Float64,2}, x.snpmatrix) 
-    # old_mean = zeros(size(snpmatrix, 2))
-    # old_std = zeros(size(snpmatrix, 2))
-    # for i in 1:size(snpmatrix, 2) 
-    #     old_mean[i] = mean(snpmatrix[:, i])
-    #     old_std[i] = 1 / std(snpmatrix[:, i]) 
-    #     snpmatrix[:, i] = (snpmatrix[:, i] .- mean(snpmatrix[:, i])) / std(snpmatrix[:, i]) 
-    # end 
-    # snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix]
+
+    #convert bitarrays to Float64 genotype matrix, normalize each SNP, and add intercept
+    snpmatrix = convert(Array{Float64,2}, x.snpmatrix)
+    std_old = zeros(size(snpmatrix, 2))
+    for i in 1:size(snpmatrix, 2)
+        std_old[i] = std(snpmatrix[:, i])
+        snpmatrix[:, i] = (snpmatrix[:, i] .- mean(snpmatrix[:, i])) / std(snpmatrix[:, i])
+    end
+    snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix]
 
     #
     # Begin IHT calculations
@@ -213,9 +211,9 @@ function L0_reg(
     #precompute mean and standard deviations for each snp
     mean_vec = 2.0x.maf #multiply by 2 because mean of each snp = 2.0*maf
     std_vec = zeros(x.snps)
-    storage = zeros(x.snps)
+    temp_storage = zeros(x.people)
     for i in 1:x.snps
-        storage = convert(Vector{Float64}, view(x.snpmatrix, :, i))
+        copy!(temp_storage, x.snpmatrix[:, i]) #in place version of convert
         std_vec[i] .= 1.0 ./ std(storage)
     end
 
@@ -225,6 +223,12 @@ function L0_reg(
     # Base.At_mul_B!(v.df, snpmatrix, v.r) 
 
     SnpArrays.At_mul_B!(v.df, x.snpmatrix, v.r, mean_vec, std_vec, similar(v.df))
+
+    println(std_vec)
+    println(std_old)
+
+    println(v.df)
+    println(v.r)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
