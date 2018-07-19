@@ -212,19 +212,31 @@ function L0_reg(
 
     #precompute mean and standard deviations for each snp
     mean_vec = 2.0x.maf #multiply by 2 because mean of each snp = 2.0*maf
+    for i in 1:length(mean_vec)
+        if x.minor_allele[i]
+            mean_vec[i] = 2.0 - mean_vec[i]
+        end
+    end
     std_vec = zeros(x.snps)
     storage = zeros(x.people)
     for i in 1:x.snps
-        copy!(storage, x.snpmatrix[:, i]) #in place version of convert
+        copy!(storage, x.snpmatrix[:, i]) #convert a column of snpmatrix to floats in place 
         std_vec[i] .= 1.0 ./ std(storage)
     end
+
+    println(x.snpmatrix)
+    println(mean_vec)
+    println(std_vec)
 
     # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). All future gradient 
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
     # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
     # Base.At_mul_B!(v.df, snpmatrix, v.r) 
 
-    SnpArrays.At_mul_B!(v.df, x.snpmatrix, v.r, mean_vec, std_vec, similar(v.df))
+    SnpArrays.At_mul_B!(v.df, x.snpmatrix, v.r, mean_vec, std_vec)
+
+    println(v.df)
+    println(v.r)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
