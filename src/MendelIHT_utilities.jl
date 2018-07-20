@@ -16,11 +16,11 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
 end
 
 function IHTVariables{T <: Float}(
-    x :: SnpData,
+    x :: SnpArray{2},
     y :: Vector{T},
     k :: Int64
 ) 
-    n, p = x.people, x.snps #adding 1 for p because we need an intercept
+    n, p = size(x)
 
     #check if k is sensible
     if k > p;  throw(ArgumentError("k cannot exceed the number of SNPs")); end
@@ -110,21 +110,23 @@ end
 this function updates finds the non-zero index of b, and set v.idx = 1 for those indices. 
 """
 function _iht_indices{T <: Float}(
-   v :: IHTVariable{T},
-   k :: Int
+    v :: IHTVariable{T},
+    k :: Int;
 )
-   # set v.idx[i] = 1 if v.b[i] != 0 (i.e. find components of beta that are non-zero)
-   v.idx .= v.b .!= 0
+    # which components of beta are nonzero?
+    #update_indices!(v.idx, v.b)
+    v.idx .= v.b .!= 0
 
-   # if idx is the 0 vector, v.idx[i] = 1 if i is one of the k largest components
-   # of the gradient (stored in v.df), and set other components of idx to 0. 
-   if sum(v.idx) == 0
-       a = select(v.df, k, by=abs, rev=true) 
-       v.idx[abs.(v.df) .>= abs(a)-2*eps()] .= true
-       v.gk .= zeros(sum(v.idx))
-   end
+    # if current vector is 0,
+    # then take largest elements of d as nonzero components for b
+    if sum(v.idx) == 0
+        a = select(v.df, k, by=abs, rev=true) :: T
+#        threshold!(IDX, g, abs(a), n=p)
+        v.idx[abs.(v.df) .>= abs(a)-2*eps()] = true
+        v.gk = zeros(T, sum(v.idx))
+    end
 
-   return nothing
+    return nothing
 end
 
 # this function calculates the omega (here a / b) used for determining backtracking

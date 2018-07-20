@@ -1,8 +1,8 @@
 """
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel. 
 """
-function MendelIHT(control_file = ""; args...)
-    const MENDEL_IHT_VERSION :: VersionNumber = v"0.1.0"
+function MendelIHT(bed_file::String, fam_file::String, k::Int64)
+    const MENDEL_IHT_VERSION :: VersionNumber = v"0.2.0"
     #
     # Print the logo. Store the initial directory.
     #
@@ -11,61 +11,80 @@ function MendelIHT(control_file = ""; args...)
     println("      IHT analysis option")
     println("        version ", MENDEL_IHT_VERSION)
     print(" \n \n")
-    println("Reading the data.\n")
-    initial_directory = pwd()
-    #
-    # The user specifies the analysis to perform via a set of keywords.
-    # Start the keywords at their default values.
-    #
-    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
-    #
-    # Define some keywords unique to this analysis option. 
-    #
-    keyword["data_type"] = ""
-    keyword["predictors"] = ""
-    keyword["manhattan_plot_file"] = ""
-    #
-    # Process the run-time user-specified keywords that will control the analysis.
-    # This will also initialize the random number generator.
-    #
-    process_keywords!(keyword, control_file, args)
-    #
-    # Check that the correct analysis option was specified.
-    #
-    lc_analysis_option = lowercase(keyword["analysis_option"])
-    if (lc_analysis_option != "" && lc_analysis_option != "iht")
-        throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
-    end
-    keyword["analysis_option"] = "Iterative Hard Thresholding"
-    #
-    # Read the genetic data from the external files named in the keywords.
-    #
-    (pedigree, person, nuclear_family, locus, snpdata, locus_frame, phenotype_frame, 
-        pedigree_frame, snp_definition_frame) = read_external_data_files(keyword)
-    #
-    # Execute the specified analysis.
-    #
-    println(" \nAnalyzing the data.\n")
-##
-    phenotype = convert(Array{Float64,1}, pedigree_frame[:Trait])
-    k = keyword["predictors"]   
-    result = L0_reg(snpdata, phenotype, k)
-    return result
-##
-    # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
-    # if execution_error
-    #   println(" \n \nERROR: Mendel terminated prematurely!\n")
-    # else
-    #   println(" \n \nMendel's analysis is finished.\n")
-    # end
-    # #
-    # # Finish up by closing, and thus flushing, any output files.
-    # # Return to the initial directory.
-    # #
-    # close(keyword["output_unit"])
-    # cd(initial_directory)
-    # return nothing
-end #function IterHardThreshold
+
+    snpmatrix = SnpArray(bed_file)
+    phenotype = readdlm(fam_file, header = false)[:, 6]
+    # phenotype = randn(959) #testing GAW data since it has no phenotype
+
+    return L0_reg(snpmatrix, phenotype, k)
+end #function MendelIHT
+
+
+# function MendelIHT(control_file = ""; args...)
+#     const MENDEL_IHT_VERSION :: VersionNumber = v"0.1.0"
+#     #
+#     # Print the logo. Store the initial directory.
+#     #
+#     print(" \n \n")
+#     println("     Welcome to OpenMendel's")
+#     println("      IHT analysis option")
+#     println("        version ", MENDEL_IHT_VERSION)
+#     print(" \n \n")
+#     println("Reading the data.\n")
+#     initial_directory = pwd()
+#     #
+#     # The user specifies the analysis to perform via a set of keywords.
+#     # Start the keywords at their default values.
+#     #
+#     keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+#     #
+#     # Define some keywords unique to this analysis option. 
+#     #
+#     keyword["data_type"] = ""
+#     keyword["predictors"] = ""
+#     keyword["manhattan_plot_file"] = ""
+#     #
+#     # Process the run-time user-specified keywords that will control the analysis.
+#     # This will also initialize the random number generator.
+#     #
+#     process_keywords!(keyword, control_file, args)
+#     #
+#     # Check that the correct analysis option was specified.
+#     #
+#     lc_analysis_option = lowercase(keyword["analysis_option"])
+#     if (lc_analysis_option != "" && lc_analysis_option != "iht")
+#         throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
+#     end
+#     keyword["analysis_option"] = "Iterative Hard Thresholding"
+#     #
+#     # Read the genetic data from the external files named in the keywords.
+#     #
+#     (pedigree, person, nuclear_family, locus, snpdata, locus_frame, phenotype_frame, 
+#         pedigree_frame, snp_definition_frame) = read_external_data_files(keyword)
+#     #
+#     # Execute the specified analysis.
+#     #
+#     println(" \nAnalyzing the data.\n")
+# ##
+#     phenotype = convert(Array{Float64,1}, pedigree_frame[:Trait])
+#     k = keyword["predictors"]   
+#     result = L0_reg(snpdata, phenotype, k)
+#     return result
+# ##
+#     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
+#     # if execution_error
+#     #   println(" \n \nERROR: Mendel terminated prematurely!\n")
+#     # else
+#     #   println(" \n \nMendel's analysis is finished.\n")
+#     # end
+#     # #
+#     # # Finish up by closing, and thus flushing, any output files.
+#     # # Return to the initial directory.
+#     # #
+#     # close(keyword["output_unit"])
+#     # cd(initial_directory)
+#     # return nothing
+# end #function MendelIHT
 
 """
 Calculates the IHT step β+ = P_k(β - μ ∇f(β)). 
@@ -155,7 +174,7 @@ end
 This function performs IHT on GWAS data. 
 """
 function L0_reg(
-    x        :: SnpData,
+    x        :: SnpArray{2},
     y        :: Vector{T}, 
     k        :: Int;
     v        :: IHTVariable = IHTVariables(x, y, k),
@@ -203,6 +222,23 @@ function L0_reg(
     # end 
     # snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix]
 
+    # compute some summary statistics for our snpmatrix
+    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
+    people, snps = size(x)
+
+    #precompute mean and standard deviations for each snp
+    mean_vec = 2.0maf #multiply by 2 because mean of each snp = 2.0*maf
+    std_vec = zeros(snps)
+    storage = zeros(people)
+    @inbounds for i in 1:snps
+        if minor_allele[i]
+            mean_vec[i] = 2.0 - mean_vec[i] #center using correct maf
+        end 
+        copy!(storage, view(x, :, i)) #convert a column of snpmatrix to floats in place 
+        std_vec[i] = std(storage)
+    end
+    std_vec .= 1.0 ./ std_vec 
+
     #
     # Begin IHT calculations
     #
@@ -210,23 +246,10 @@ function L0_reg(
     copy!(v.r, y)    #redisual = y-Xβ = y  CONSIDER BLASCOPY!
     v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
 
-    #precompute mean and standard deviations for each snp
-    mean_vec = 2.0x.maf #multiply by 2 because mean of each snp = 2.0*maf
-    std_vec = zeros(x.snps)
-    storage = zeros(x.people)
-    @inbounds for i in 1:x.snps
-        if x.minor_allele[i]
-            mean_vec[i] = 2.0 - mean_vec[i] #center using correct maf
-        end 
-        copy!(storage, view(x.snpmatrix, :, i)) #convert a column of snpmatrix to floats in place 
-        std_vec[i] = std(storage)
-    end
-    std_vec .= 1.0 ./ std_vec 
-
     # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). All future gradient 
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
     # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
-    SnpArrays.At_mul_B!(v.df, x.snpmatrix, v.r, mean_vec, std_vec)
+    SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
@@ -235,13 +258,13 @@ function L0_reg(
         loss = next_loss
         
         #calculate the step size μ. Can we use v.xk instead of snpmatrix?
-        (μ, μ_step) = iht!(v, x.snpmatrix, y, k, mean_vec, std_vec, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, y, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb
         v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet 
 
-        SnpArrays.At_mul_B!(v.df, x.snpmatrix, v.r, mean_vec, std_vec, similar(v.df)) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
+        SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, similar(v.df)) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2 
