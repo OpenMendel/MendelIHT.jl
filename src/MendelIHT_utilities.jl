@@ -153,3 +153,24 @@ function _iht_backtrack{T <: Float}(
     sum(xor.(v.idx,v.idx0)) != 0 &&
     mu_step < nstep
 end
+
+"""
+Compute the standard deviation of a SnpArray in place
+"""
+function std_reciprocal(A::SnpArray{2}, mean_vec::Vector{Float64})
+    m, n = size(A)
+    @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
+    std_vector = zeros(Float64, n) 
+
+    for j in 1:n
+        for i in 1:m
+            (a1, a2) = A[i, j]
+            if isnan(a1, a2); continue; end #data missing
+            std_vector[j] += (convert(Float64, a1 + a2) - mean_vec[j])^2
+        end
+        std_vector[j] = 1 / sqrt(std_vector[j] / (m - 1))
+    end
+    return std_vector
+end
+
+

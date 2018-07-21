@@ -226,18 +226,14 @@ function L0_reg(
     maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
     people, snps = size(x)
 
-    #precompute mean and standard deviations for each snp
-    mean_vec = 2.0maf #multiply by 2 because mean of each snp = 2.0*maf
-    std_vec = zeros(snps)
-    storage = zeros(people)
-    @inbounds for i in 1:snps
-        if minor_allele[i]
-            mean_vec[i] = 2.0 - mean_vec[i] #center using correct maf
-        end 
-        copy!(storage, view(x, :, i)) #convert a column of snpmatrix to floats in place 
-        std_vec[i] = std(storage)
+    #precompute mean and standard deviations for each snp. Note that (1) the mean is 
+    #given by 2 * maf, and (2) based on which is the minor allele, might need to do 
+    #2.0 - the maf for the mean vector.
+    mean_vec = zeros(snps) 
+    for i in 1:snps
+        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i] 
     end
-    std_vec .= 1.0 ./ std_vec 
+    std_vec = std_reciprocal(x, mean_vec)
 
     #
     # Begin IHT calculations
