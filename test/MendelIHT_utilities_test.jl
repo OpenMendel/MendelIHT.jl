@@ -10,7 +10,7 @@ end
 
 function test_data()
 	# dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
-	x = SnpData("test") 
+	x = SnpArray("test") 
 	y = CSV.read("test.fam", delim = ' ', header = false)
 	y = convert(Array{Float64,1}, y[:, 6])
 	k = 2
@@ -20,7 +20,7 @@ end
 
 function gwas1_data()
 	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10001 (with column of intercept)
-	x = SnpData("gwas 1 data") 
+	x = SnpArray("gwas 1 data") 
 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
 	y = convert(Array{Float64,1}, y[:, 6])
 	k = 10
@@ -32,16 +32,16 @@ end
 @testset "initilize IHTVariables" begin
 	(x, y, k, v) = test_data()
 
-	#k must be an integer, but could be larger than 
-	@test_throws(ArgumentError, IHTVariables(x, y, 0))
-	@test_throws(ArgumentError, IHTVariables(x, y, -1))
+	#k must be a positive integer
+	@test_throws(AssertionError, IHTVariables(x, y, 0))
+	@test_throws(AssertionError, IHTVariables(x, y, -1))
 	@test_throws(MethodError, IHTVariables(x, y, 1.1))
 	@test_throws(MethodError, IHTVariables(x, y, NaN))
 	@test_throws(MethodError, IHTVariables(x, y, missing))
 	@test_throws(MethodError, IHTVariables(x, y, Inf))
 
 	#Different types of inputs for IHTVariables(x, y, k) is 
-	@test typeof(v) == IHTVariables{eltype(y), typeof(y)}
+	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
 	@test typeof(x) == SnpData || typeof(x) <: SnpArray
 
 	@test size(v.b)    == (3,) 
@@ -60,7 +60,7 @@ end
 	@test typeof(v.b0)   == Array{Float64, 1}
 	@test typeof(v.xb)   == Array{Float64, 1}
 	@test typeof(v.xb0)  == Array{Float64, 1}
-	@test typeof(v.xk)   == Array{Float64, 2}
+	@test typeof(v.xk)   == SnpArray{2}
 	@test typeof(v.gk)   == Array{Float64, 1}
 	@test typeof(v.xgk)  == Array{Float64, 1}
 	@test typeof(v.idx)  == BitArray{1}
@@ -104,17 +104,17 @@ end
 	@test all(x[last_k_index] .== 0.0)
 end
 
-#@testset "compute_ω!" begin
-#    
-#end
-
 @testset "use_A2_as_minor_allele" begin
 	(x, y, k, v) = test_data()
-    result = use_A2_as_minor_allele(x.snpmatrix)
+    result = use_A2_as_minor_allele(x)
     answer = [[0.0 1.0]; [1.0 1.0]; [2.0 0.0]; [1.0 2.0]; [2.0 1.0]; [2.0 2.0]]
 
     @test all(result .== answer)
 end
+
+#@testset "compute_ω!" begin
+#    
+#end
 
 #@testset "_iht_backtrack" begin
 #    (x, y, k, v) = gwas1_data()

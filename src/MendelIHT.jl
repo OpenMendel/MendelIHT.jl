@@ -1,7 +1,7 @@
 """
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel. 
 """
-function MendelIHT(bed_file::String, fam_file::String, k::Int64)
+function MendelIHT(file_name::String, k::Int64)
     const MENDEL_IHT_VERSION :: VersionNumber = v"0.2.0"
     #
     # Print the logo. Store the initial directory.
@@ -12,8 +12,8 @@ function MendelIHT(bed_file::String, fam_file::String, k::Int64)
     println("        version ", MENDEL_IHT_VERSION)
     print(" \n \n")
 
-    snpmatrix = SnpArray(bed_file)
-    phenotype = readdlm(fam_file, header = false)[:, 6]
+    snpmatrix = SnpArray(file_name)
+    phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
     # phenotype = randn(959) #testing GAW data since it has no phenotype
 
     return L0_reg(snpmatrix, phenotype, k)
@@ -169,7 +169,6 @@ function iht!(
     return μ::T, μ_step::Int
 end
 
-
 """
 This function performs IHT on GWAS data. 
 """
@@ -192,7 +191,7 @@ function L0_reg(
     @assert k >= 0        "Value of k must be nonnegative!\n"
     @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
-    @assert tol > eps(Float64) "Value of global tol must exceed machine precision!\n"
+    @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
@@ -227,13 +226,18 @@ function L0_reg(
     people, snps = size(x)
 
     #precompute mean and standard deviations for each snp. Note that (1) the mean is 
-    #given by 2 * maf, and (2) based on which is the minor allele, might need to do 
+    #given by 2 * maf, and (2) based on which allele is the minor allele, might need to do 
     #2.0 - the maf for the mean vector.
     mean_vec = zeros(snps) 
     for i in 1:snps
         minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i] 
     end
     std_vec = std_reciprocal(x, mean_vec)
+
+    #add intercept (at the end)
+    x        = [x SnpArray(ones(people))]
+    mean_vec = [mean_vec; zero(T)]
+    std_vec  = [std_vec; one(T)]
 
     #
     # Begin IHT calculations

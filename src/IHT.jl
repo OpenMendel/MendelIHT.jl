@@ -45,7 +45,7 @@ export cv_log
 export MendelIHT
 
 export IHTVariable, IHTVariables, use_A2_as_minor_allele, standardize_snpmatrix
-export use_A2_as_minor_allele, project_k!
+export project_k!, std_reciprocal
 
 # IHT will only work on single/double precision floats!
 const Float = Union{Float64,Float32}

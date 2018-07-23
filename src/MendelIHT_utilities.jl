@@ -20,11 +20,12 @@ function IHTVariables{T <: Float}(
     y :: Vector{T},
     k :: Int64
 ) 
-    n, p = size(x)
+    n, p = size(x) 
 
     #check if k is sensible
-    if k > p;  throw(ArgumentError("k cannot exceed the number of SNPs")); end
-    if k <= 0; throw(ArgumentError("k must be positive integer")); end
+    @assert k <= p "k cannot exceed the number of SNPs"
+    @assert k > 0  "k must be positive integer"
+    p += 1 # add 1 for the intercept
 
     b    = zeros(T, p)
     b0   = zeros(T, p)
@@ -128,8 +129,9 @@ function _iht_indices{T <: Float}(
 
     return nothing
 end
-
-# this function calculates the omega (here a / b) used for determining backtracking
+"""
+this function calculates the omega (here a / b) used for determining backtracking
+"""
 function _iht_omega{T <: Float}(
     v :: IHTVariable{T}
 )
@@ -138,8 +140,9 @@ function _iht_omega{T <: Float}(
     return a, b
 end
 
-
-# a function for determining whether or not to backtrack
+"""
+this function for determining whether or not to backtrack. True = backtrack
+"""
 function _iht_backtrack{T <: Float}(
     v       :: IHTVariable{T},
     ot      :: T,
@@ -157,18 +160,19 @@ end
 """
 Compute the standard deviation of a SnpArray in place
 """
-function std_reciprocal(A::SnpArray{2}, mean_vec::Vector{Float64})
+function std_reciprocal(A::SnpArray, mean_vec::Vector{Float64})
     m, n = size(A)
     @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
     std_vector = zeros(Float64, n) 
 
-    for j in 1:n
-        for i in 1:m
+    @inbounds for j in 1:n
+        @simd for i in 1:m
             (a1, a2) = A[i, j]
-            if isnan(a1, a2); continue; end #data missing
-            std_vector[j] += (convert(Float64, a1 + a2) - mean_vec[j])^2
+            if !isnan(a1, a2) #only add if data not missing
+                std_vector[j] += (convert(Float64, a1 + a2) - mean_vec[j])^2
+            end 
         end
-        std_vector[j] = 1 / sqrt(std_vector[j] / (m - 1))
+        std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
     end
     return std_vector
 end
