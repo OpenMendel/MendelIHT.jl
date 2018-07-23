@@ -44,7 +44,7 @@ export cv_get_folds
 export cv_log
 export MendelIHT
 
-export IHTVariable, IHTVariables, use_A2_as_minor_allele, standardize_snpmatrix
+export IHTVariable, IHTVariables, use_A2_as_minor_allele
 export project_k!, std_reciprocal
 
 # IHT will only work on single/double precision floats!

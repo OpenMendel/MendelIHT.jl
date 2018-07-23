@@ -1,7 +1,28 @@
+# """
+# This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel. 
+# """
+# function MendelIHT(file_name::String, k::Int64)
+#     const MENDEL_IHT_VERSION :: VersionNumber = v"0.2.0"
+#     #
+#     # Print the logo. Store the initial directory.
+#     #
+#     print(" \n \n")
+#     println("     Welcome to OpenMendel's")
+#     println("      IHT analysis option")
+#     println("        version ", MENDEL_IHT_VERSION)
+#     print(" \n \n")
+
+#     snpmatrix = SnpArray(file_name)
+#     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
+#     # phenotype = randn(959) #testing GAW data since it has no phenotype
+
+#     return L0_reg(snpmatrix, phenotype, k)
+# end #function MendelIHT
+
 """
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel. 
 """
-function MendelIHT(file_name::String, k::Int64)
+function MendelIHT(control_file = ""; args...)
     const MENDEL_IHT_VERSION :: VersionNumber = v"0.2.0"
     #
     # Print the logo. Store the initial directory.
@@ -11,80 +32,62 @@ function MendelIHT(file_name::String, k::Int64)
     println("      IHT analysis option")
     println("        version ", MENDEL_IHT_VERSION)
     print(" \n \n")
-
+    println("Reading the data.\n")
+    initial_directory = pwd()
+    #
+    # The user specifies the analysis to perform via a set of keywords.
+    # Start the keywords at their default values.
+    #
+    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+    #
+    # Define some keywords unique to this analysis option. 
+    #
+    keyword["data_type"] = ""
+    keyword["predictors"] = ""
+    keyword["manhattan_plot_file"] = ""
+    #
+    # Process the run-time user-specified keywords that will control the analysis.
+    # This will also initialize the random number generator.
+    #
+    process_keywords!(keyword, control_file, args)
+    #
+    # Check that the correct analysis option was specified.
+    #
+    lc_analysis_option = lowercase(keyword["analysis_option"])
+    if (lc_analysis_option != "" && lc_analysis_option != "iht")
+        throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
+    end
+    keyword["analysis_option"] = "Iterative Hard Thresholding"
+    #
+    # Read the genetic data from the external files named in the keywords.
+    #
+    # (pedigree, person, nuclear_family, locus, snpdata, locus_frame, phenotype_frame, 
+    #     pedigree_frame, snp_definition_frame) = read_external_data_files(keyword)
+    #
+    # Execute the specified analysis.
+    #
+    println(" \nAnalyzing the data.\n")
+##
+    file_name = keyword["plink_input_basename"]
     snpmatrix = SnpArray(file_name)
     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
-    # phenotype = randn(959) #testing GAW data since it has no phenotype
-
+    k = keyword["predictors"]   
     return L0_reg(snpmatrix, phenotype, k)
+##
+    # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
+    # if execution_error
+    #   println(" \n \nERROR: Mendel terminated prematurely!\n")
+    # else
+    #   println(" \n \nMendel's analysis is finished.\n")
+    # end
+    # #
+    # # Finish up by closing, and thus flushing, any output files.
+    # # Return to the initial directory.
+    # #
+    # close(keyword["output_unit"])
+    # cd(initial_directory)
+    # return nothing
 end #function MendelIHT
-
-
-# function MendelIHT(control_file = ""; args...)
-#     const MENDEL_IHT_VERSION :: VersionNumber = v"0.1.0"
-#     #
-#     # Print the logo. Store the initial directory.
-#     #
-#     print(" \n \n")
-#     println("     Welcome to OpenMendel's")
-#     println("      IHT analysis option")
-#     println("        version ", MENDEL_IHT_VERSION)
-#     print(" \n \n")
-#     println("Reading the data.\n")
-#     initial_directory = pwd()
-#     #
-#     # The user specifies the analysis to perform via a set of keywords.
-#     # Start the keywords at their default values.
-#     #
-#     keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
-#     #
-#     # Define some keywords unique to this analysis option. 
-#     #
-#     keyword["data_type"] = ""
-#     keyword["predictors"] = ""
-#     keyword["manhattan_plot_file"] = ""
-#     #
-#     # Process the run-time user-specified keywords that will control the analysis.
-#     # This will also initialize the random number generator.
-#     #
-#     process_keywords!(keyword, control_file, args)
-#     #
-#     # Check that the correct analysis option was specified.
-#     #
-#     lc_analysis_option = lowercase(keyword["analysis_option"])
-#     if (lc_analysis_option != "" && lc_analysis_option != "iht")
-#         throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
-#     end
-#     keyword["analysis_option"] = "Iterative Hard Thresholding"
-#     #
-#     # Read the genetic data from the external files named in the keywords.
-#     #
-#     (pedigree, person, nuclear_family, locus, snpdata, locus_frame, phenotype_frame, 
-#         pedigree_frame, snp_definition_frame) = read_external_data_files(keyword)
-#     #
-#     # Execute the specified analysis.
-#     #
-#     println(" \nAnalyzing the data.\n")
-# ##
-#     phenotype = convert(Array{Float64,1}, pedigree_frame[:Trait])
-#     k = keyword["predictors"]   
-#     result = L0_reg(snpdata, phenotype, k)
-#     return result
-# ##
-#     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
-#     # if execution_error
-#     #   println(" \n \nERROR: Mendel terminated prematurely!\n")
-#     # else
-#     #   println(" \n \nMendel's analysis is finished.\n")
-#     # end
-#     # #
-#     # # Finish up by closing, and thus flushing, any output files.
-#     # # Return to the initial directory.
-#     # #
-#     # close(keyword["output_unit"])
-#     # cd(initial_directory)
-#     # return nothing
-# end #function MendelIHT
 
 """
 Calculates the IHT step β+ = P_k(β - μ ∇f(β)). 
