@@ -88,6 +88,8 @@ IHT.jl also runs GWAS using `control file` as inputs, similar to all other Open 
     using IHT
     result = MendelIHT("gwas 1 Control.txt")
 
+**VERY IMPORTANT:** The current implementation of MendelIHT assumes *there are no missing genotypes* since it uses linear algebra functions defined in [`SnpArrays.jl`](https://openmendel.github.io/SnpArrays.jl/latest/man/snparray/#linear-algebra-with-snparray). Therefore, you must first impute missing genotypes *before* you use MendelIHT. `SnpArrays.jl` offer some naive imputation strategy, but otherwise, we recommend using [Option 23 of Mendel](http://www.genetics.ucla.edu/software/mendel). 
+
 ### Input files for MendelIHT
 The MendelIHT analysis package uses the following input files. Example input files can be found in the [test](https://github.com/klkeys/IHT.jl/tree/master/test) subfolder.
 
@@ -95,8 +97,6 @@ The MendelIHT analysis package uses the following input files. Example input fil
 + [Pedigree File](https://openmendel.github.io/MendelBase.jl/#pedigree-file): Gives information about your individuals, such as name, parental information, and sex.
 + [SNP Definition File](https://openmendel.github.io/MendelBase.jl/#snp-definition-file): Defines your SNPs with information such as SNP name, chromosome, position, and allele names.
 + [SNP Data File](https://openmendel.github.io/MendelBase.jl/#snp-data-file): Holds the genotypes for your data set and must be a standard binary PLINK BED file in SNP major format. If you have a SNP data file, you must also have a SNP definition file.
-
-**VERY IMPORTANT:** The current implementation of MendelIHT uses linear algebra functions defined in [`SnpArrays.jl`](https://openmendel.github.io/SnpArrays.jl/latest/man/snparray/#linear-algebra-with-snparray), which assumes there are no missing genotype. Therefore, you must first impute missing genotypes *before* you use MendelIHT. `SnpArrays.jl` offer some naive imputation strategy, but otherwise, we recommend using [Option 23 of Mendel](http://www.genetics.ucla.edu/software/mendel). 
 
 ## GPU acceleration
 
