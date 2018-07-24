@@ -6,17 +6,17 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
    b0   :: Vector{T}     # previous estimated model in the mm step
    xb   :: Vector{T}     # vector that holds x*b 
    xb0  :: Vector{T}     # previous xb in the mm step
-   xk   :: SnpArray{2}   # the n by k subset of the design matrix x corresponding to non-0 elements of b
+   xk   :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
    gk   :: Vector{T}     # Numerator of step size μ.   gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
    xgk  :: Vector{T}     # Demonimator of step size μ. x * gk also part of the gradient calculation 
-   idx  :: BitArray{1}   # BitArray indices of nonzeroes in b for A_mul_B
-   idx0 :: BitArray{1}   # previous iterate of idx
+   idx  :: BitVector     # BitArray indices of nonzeroes in b for A_mul_B
+   idx0 :: BitVector     # previous iterate of idx
    r    :: V             # n-vector of residuals
    df   :: V             # the gradient: df = -x' * (y - xb)
 end
 
 function IHTVariables{T <: Float}(
-    x :: SnpArray{2},
+    x :: SnpLike{2},
     y :: Vector{T},
     k :: Int64
 ) 

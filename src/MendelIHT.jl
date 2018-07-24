@@ -97,7 +97,7 @@ This function updates: b, xb, xk, gk, xgk, idx
 """
 function iht!(
     v        :: IHTVariable{T},
-    x        :: SnpArray{2},
+    x        :: SnpLike{2},
     y        :: Vector{T}, 
     k        :: Int,
     mean_vec :: Vector{T},
@@ -176,7 +176,7 @@ end
 This function performs IHT on GWAS data. 
 """
 function L0_reg(
-    x        :: SnpArray{2},
+    x        :: SnpLike{2},
     y        :: Vector{T}, 
     k        :: Int;
     v        :: IHTVariable = IHTVariables(x, y, k),
@@ -238,7 +238,7 @@ function L0_reg(
     std_vec = std_reciprocal(x, mean_vec)
 
     #add intercept (at the end)
-    x        = [x SnpArray(ones(people))]
+    x        = [x SnpArray(ones(people))] #NOTE this creates A LOT of extra memory!!!!
     mean_vec = [mean_vec; zero(T)]
     std_vec  = [std_vec; one(T)]
 
