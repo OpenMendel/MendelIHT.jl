@@ -212,17 +212,6 @@ function L0_reg(
 
     # initialize booleans
     converged = false             # scaled_norm < tol?
-    
-    #convert bitarrays to Float64 genotype matrix, normalize each SNP, and add intercept 
-    # snpmatrix = convert(Array{Float64,2}, x.snpmatrix) 
-    # old_mean = zeros(size(snpmatrix, 2))
-    # old_std = zeros(size(snpmatrix, 2))
-    # for i in 1:size(snpmatrix, 2) 
-    #     old_mean[i] = mean(snpmatrix[:, i])
-    #     old_std[i] = 1 / std(snpmatrix[:, i]) 
-    #     snpmatrix[:, i] = (snpmatrix[:, i] .- mean(snpmatrix[:, i])) / std(snpmatrix[:, i]) 
-    # end 
-    # snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix]
 
     # compute some summary statistics for our snpmatrix
     maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
@@ -245,14 +234,14 @@ function L0_reg(
     #
     # Begin IHT calculations
     #
-    fill!(v.xb, 0.0) #initialize β = 0 vector, so Xβ = 0
-    copy!(v.r, y)    #redisual = y-Xβ = y  CONSIDER BLASCOPY!
+    fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
+    copy!(v.r, y)          #redisual = y-Xβ = y  CONSIDER BLASCOPY!
     v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
 
     # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). All future gradient 
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
     # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
-    SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec)
+    SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec) 
 
     for mm_iter = 1:max_iter
         # save values from previous iterate

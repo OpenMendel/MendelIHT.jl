@@ -2,6 +2,9 @@
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
 mutable struct IHTVariable{T <: Float, V <: DenseVector}
+
+   #TODO: Consider changing b and b0 to SparseVector
+
    b    :: Vector{T}     # the statistical model, most will be 0
    b0   :: Vector{T}     # previous estimated model in the mm step
    xb   :: Vector{T}     # vector that holds x*b 
@@ -25,7 +28,7 @@ function IHTVariables{T <: Float}(
     #check if k is sensible
     @assert k <= p "k cannot exceed the number of SNPs"
     @assert k > 0  "k must be positive integer"
-    p += 1 # add 1 for the intercept
+    p += 1 # add 1 for the intercept, need to fix this later
 
     b    = zeros(T, p)
     b0   = zeros(T, p)
@@ -41,22 +44,6 @@ function IHTVariables{T <: Float}(
     return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
-#immutable IHTResult
-#    time :: Float64
-#    loss :: Float64
-#    iter :: Int64
-#    beta :: Vector{Float64}
-#end
-#
-#function IHTResults(
-#    time :: Float64, 
-#    loss :: Float64, 
-#    iter :: Int64,
-#    beta :: Vector{Float64})
-#    return IHTResult(time, loss, iter, beta)
-#end
-#
-#
 #"""
 #Returns ω, a constant we need to bound the step size μ to guarantee convergence. 
 #"""
@@ -108,7 +95,7 @@ function _iht_gradstep{T <: Float}(
 end
 
 """
-this function updates finds the non-zero index of b, and set v.idx = 1 for those indices. 
+this function updates the non-zero index of b, and set v.idx = 1 for those indices. 
 """
 function _iht_indices{T <: Float}(
     v :: IHTVariable{T},
