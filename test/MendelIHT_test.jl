@@ -13,7 +13,7 @@ end
 @testset "Do MendelIHT and IHT output the same result?" begin
     
     #test on small data set
-    mendel_result = MendelIHT("test", 2)
+    mendel_result = MendelIHT("test_control.txt")
     (xbed, ybed) = PLINK.read_plink_data("test")
 	iht_result = L0_reg(xbed, ybed, 2)
 	non_zero_mendel = find(mendel_result.beta)
@@ -32,7 +32,7 @@ end
 
 
     #test on bigger dataset
-    mendel_result = MendelIHT(Pkg.dir() * "/IHT/test/gwas 1 data", 10)
+    mendel_result = MendelIHT(Pkg.dir() * "/IHT/test/gwas 1 Control.txt")
     (xbed, ybed) = PLINK.read_plink_data(Pkg.dir() * "/IHT/test/gwas 1 data_kevin", delim=',', header=false)
 	iht_result = L0_reg(xbed, ybed, 10)
 	non_zero_mendel = find(mendel_result.beta)

@@ -112,27 +112,50 @@ end
     @test all(result .== answer)
 end
 
-#@testset "compute_ω!" begin
-#    
-#end
+@testset "std_reciprocal" begin
+	# first compute the correct answer by converting each column to floats and call std() directly
+	x       = SnpArray("gwas 1 data")
+	n, p    = size(x)
+	storage = zeros(n)
+	answer  = zeros(p)
+    for i in 1:p
+    	copy!(storage, view(x, :, i))
+        answer[i] = std(storage)
+    end
+    answer .= 1.0 ./ answer
 
-#@testset "_iht_backtrack" begin
+    # next compute the mean of snps since we need it for std_reciprocal()
+    mean_vec = zeros(p) 
+    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
+    for i in 1:p
+        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i] 
+    end
+    std_vector = std_reciprocal(x, mean_vec)
+
+    @test all(std_vector .≈ answer)
+end
+
+# @testset "_iht_backtrack" begin
 #    (x, y, k, v) = gwas1_data()
 #    μ, ω = 1.0, 1.0
 #    @test IHT._iht_backtrack(v, ω, μ) == false
-#
+
 #    μ, ω = 0.2, 0.3
 #    @test IHT._iht_backtrack(v, ω, μ) == true
-#
+
 #    μ, ω = 0.8, 0.792
 #    @test IHT._iht_backtrack(v, ω, μ) == false
-#
+
 #    μ, ω = 0.5, 0.2
 #    @test IHT._iht_backtrack(v, ω, μ) == false
-#
+
 #    μ, ω = 0.98, 1.0
 #    @test IHT._iht_backtrack(v, ω, μ) == true
-#end
+# end
+
+# @testset "_iht_omega" begin
+# 
+# end
 
 #@testset "_iht_gradstep" begin
 #    (x, y, k, v) = test_data()
