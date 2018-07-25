@@ -7,6 +7,7 @@ using DataFrames
 using Gadfly
 using MendelBase
 using SnpArrays
+using StatsBase
 
 ### idea from Julio Hoffimann Mendes to conditionally load OpenCL module
 # only load if Julia can find OpenCL module

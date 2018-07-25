@@ -113,7 +113,6 @@ function iht!(
     # need to do this on 1st iteration
     # afterwards, only do if support changes
     if !isequal(v.idx, v.idx0) || iter < 2
-        #update_xk!(v.xk, x, v.idx)   # xk = x[:,v.idx]
         copy!(v.xk, view(x, :, v.idx))
     end
 
@@ -122,7 +121,7 @@ function iht!(
 
     # now compute subset of x*g
     # A_mul_B!(v.xgk, v.xk, v.gk)
-    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec[v.idx], std_vec[v.idx]) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec[v.idx], std_vec[v.idx]) # v.df = X'(y - Xβ)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
@@ -155,10 +154,10 @@ function iht!(
 
         # recompute gradient step
         copy!(v.b,v.b0)
+        # v.itc = v.itc0
         _iht_gradstep(v, μ, k)
 
         # recompute xb
-        # update_xb!(v.xb, x, v.b, v.idx, k) 
         v.xk .= view(x, :, v.idx) 
         SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
 
@@ -235,7 +234,7 @@ function L0_reg(
     # Begin IHT calculations
     #
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    copy!(v.r, y)          #redisual = y-Xβ = y  CONSIDER BLASCOPY!
+    copy!(v.r, y)          #redisual = y-Xβ-intercept = y  CONSIDER BLASCOPY!
     v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
 
     # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). All future gradient 
@@ -245,14 +244,16 @@ function L0_reg(
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
-        copy!(v.b0, v.b)   # b0 = b   CONSIDER BLASCOPY!
+        copy!(v.b0, v.b)   # b0 = b    CONSIDER BLASCOPY!
         copy!(v.xb0, v.xb) # Xb0 = Xb  CONSIDER BLASCOPY!
+        # v.itc0 = v.itc     # update intercept as well
         loss = next_loss
         
-        #calculate the step size μ. Can we use v.xk instead of snpmatrix?
+        #calculate the step size μ. TODO: check how adding intercept affects this
         (μ, μ_step) = iht!(v, x, y, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
+        # v.r .= y .- v.xb .- itc
         v.r .= y .- v.xb
         v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet 
 

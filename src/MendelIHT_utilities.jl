@@ -4,18 +4,20 @@ Object to contain intermediate variables and temporary arrays. Used for cleaner 
 mutable struct IHTVariable{T <: Float, V <: DenseVector}
 
    #TODO: Consider changing b and b0 to SparseVector
-
+   #TODO: Add in itc
+   # itc  :: T             # the intercept
+   # itc0 :: T             # old intercept
    b    :: Vector{T}     # the statistical model, most will be 0
    b0   :: Vector{T}     # previous estimated model in the mm step
    xb   :: Vector{T}     # vector that holds x*b 
    xb0  :: Vector{T}     # previous xb in the mm step
    xk   :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-   gk   :: Vector{T}     # Numerator of step size μ.   gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
-   xgk  :: Vector{T}     # Demonimator of step size μ. x * gk also part of the gradient calculation 
+   gk   :: Vector{T}     # gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
+   xgk  :: Vector{T}     # x * gk also part of the gradient calculation 
    idx  :: BitVector     # BitArray indices of nonzeroes in b for A_mul_B
    idx0 :: BitVector     # previous iterate of idx
    r    :: V             # n-vector of residuals
-   df   :: V             # the gradient: df = -x' * (y - xb)
+   df   :: V             # the gradient: df = -x' * (y - xb - intercept)
 end
 
 function IHTVariables{T <: Float}(
@@ -28,8 +30,10 @@ function IHTVariables{T <: Float}(
     #check if k is sensible
     @assert k <= p "k cannot exceed the number of SNPs"
     @assert k > 0  "k must be positive integer"
-    p += 1 # add 1 for the intercept, need to fix this later
+    p += 1 # add 1 for the intercept, need to change this to use itc later
 
+    # itc  = zero(T)
+    # itc0 = zero(T)
     b    = zeros(T, p)
     b0   = zeros(T, p)
     xb   = zeros(T, n)
@@ -86,7 +90,7 @@ function _iht_gradstep{T <: Float}(
    μ  :: Float64,
    k  :: Int;
 )
-   BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is a plus since df stores X(-1*(Y-Xb)))
+   BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is an addition since df stores X(-1*(Y-Xb)))
    project_k!(v.b, k)       # P_k( β - μ∇f(β) ): preserve top k components of b
    _iht_indices(v, k)       # Update idx. (find indices of new beta that are nonzero)
 

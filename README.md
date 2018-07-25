@@ -5,13 +5,20 @@ IHT performs [feature selection](https://en.wikipedia.org/wiki/Feature_selection
 
 ## Installation
 
-IHT.jl is not registered in `METADATA`.
+IHT.jl is not registered in `METADATA`. It depends on other unregistered packages:
 
-At the Julia REPL, execute
+1. [PLINK.jl](https://github.com/klkeys/PLINK.jl)
+2. [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl)
+3. [Search.jl](https://github.com/OpenMendel/Search.jl)
+4. [MendelBase.jl](https://github.com/OpenMendel/MendelBase.jl)
 
-	Pkg.clone("https://github.com/klkeys/PLINK.jl.git")
+At the Julia REPL, execute 
+
+    Pkg.clone("https://github.com/klkeys/PLINK.jl.git")
     Pkg.clone("https://github.com/OpenMendel/SnpArrays.jl.git")
-	Pkg.clone("https://github.com/klkeys/IHT.jl.git")
+    Pkg.clone("https://github.com/OpenMendel/Search.jl.git")
+    Pkg.clone("https://github.com/OpenMendel/MendelBase.jl.git")
+    Pkg.clone("https://github.com/klkeys/IHT.jl.git")
 
 The order of installation is important!
 
@@ -64,7 +71,7 @@ IHT.jl can perform simple random assignment of folds using a subroutine from Reg
     folds = RegressionTools.cv_get_folds(y, q) # use the phenotype vector...
     folds = Regressiontools.cv_get_folds(n, q) # ...or use the length of that vector
 
-## GWAS 
+## GWAS
 
 IHT.jl interfaces with [PLINK.jl](https://github.com/klkeys/PLINK.jl) to enable feature selection over [GWAS](https://en.wikipedia.org/wiki/Genome-wide_association_study) data in [PLINK binary format](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#bed).
 The interface to `L0_reg` is unchanged:
@@ -83,7 +90,7 @@ Here `xfile` points to the genotype data, `covfile` points to the covariates, an
 See the documentation of PLINK.jl for details about the `BEDFile` object.
 
 ## Open Mendel users
-IHT.jl also runs GWAS using `control file` as inputs, similar to all other Open Mendel packages. Run MendelIHT using the following command:
+IHT.jl also runs GWAS using `control file` as inputs, similar to all other [Open Mendel](https://openmendel.github.io/) packages. Run MendelIHT using the following command:
 
     using IHT
     result = MendelIHT("gwas 1 Control.txt")
