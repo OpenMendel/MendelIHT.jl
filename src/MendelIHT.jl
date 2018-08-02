@@ -43,7 +43,7 @@ function MendelIHT(control_file = ""; args...)
     # Define some keywords unique to this analysis option. 
     #
     keyword["data_type"] = ""
-    keyword["predictors"] = ""
+    keyword["predictors_per_group"] = ""
     keyword["manhattan_plot_file"] = ""
     keyword["max_groups"] = ""
     keyword["group_membership"] = ""
@@ -60,8 +60,8 @@ function MendelIHT(control_file = ""; args...)
         throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
     end
     keyword["analysis_option"] = "Iterative Hard Thresholding"
-    @assert (keyword["max_groups"] != "")     "Need number of groups. Choose 1 to run normal IHT"
-    @assert (keyword["predictors"] != "") "Need number of predictors per group"
+    @assert (keyword["max_groups"] != "")           "Need number of groups. Choose 1 to run normal IHT"
+    @assert (keyword["predictors_per_group"] != "") "Need number of predictors per group"
 
     #
     # Read the genetic data from the external files named in the keywords.
@@ -76,10 +76,11 @@ function MendelIHT(control_file = ""; args...)
     file_name = keyword["plink_input_basename"]
     snpmatrix = SnpArray(file_name)
     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
-    group_membership = rand(1:100, 10001) #extra 1 for intercept, for now
+    # group_membership = rand(1:100, 10001) #extra 1 for intercept, for now
+    group_membership = ones(Int64, 10001) #extra 1 for intercept, for now
     # y_copy = copy(phenotype)
     # y_copy .-= mean(y_copy)
-    k = keyword["predictors"]
+    k = keyword["predictors_per_group"]
     J = keyword["max_groups"]
     return L0_reg(snpmatrix, phenotype, J, k, group_membership)
 ##
@@ -286,7 +287,7 @@ function L0_reg(
 
         if converged
             mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), group)
+            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group)
         end
 
         if mm_iter == max_iter

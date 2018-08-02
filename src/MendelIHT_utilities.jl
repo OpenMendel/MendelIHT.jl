@@ -212,23 +212,27 @@ immutable gIHTResults{T <: Float, V <: DenseVector}
     loss  :: T
     iter  :: Int
     beta  :: V
+    J     :: Int
+    k     :: Int
     group :: Vector{Int64}
 
     #gIHTResults{T,V}(time::T, loss::T, iter::Int, beta::V) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta)
-    gIHTResults{T,V}(time, loss, iter, beta, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta, group)
+    gIHTResults{T,V}(time, loss, iter, beta, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta, J, k, group)
 end
 
 # strongly typed external constructor for gIHTResults
-gIHTResults(time::T, loss::T, iter::Int, beta::V, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = gIHTResults{T, V}(time, loss, iter, beta, group)
+gIHTResults(time::T, loss::T, iter::Int, beta::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = gIHTResults{T, V}(time, loss, iter, beta, J, k, group)
 
 """
 a function to display gIHTResults object
 """
 function Base.show(io::IO, x::gIHTResults)
     println(io, "IHT results:")
-    println(io, "\nCompute time (sec):   ", x.time)
-    println(io, "Final loss:           ", x.loss)
-    println(io, "Iterations:           ", x.iter)
+    println(io, "\nCompute time (sec):     ", x.time)
+    println(io, "Final loss:             ", x.loss)
+    println(io, "Iterations:             ", x.iter)
+    println(io, "Max groups:             ", x.J)
+    println(io, "Max predictors/group:   ", x.k)
     println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
     non_zero = find(x.beta)
     print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
