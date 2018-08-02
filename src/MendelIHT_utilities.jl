@@ -7,17 +7,18 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
    #TODO: Add in itc
    # itc  :: T             # the intercept
    # itc0 :: T             # old intercept
-   b    :: Vector{T}     # the statistical model, most will be 0
-   b0   :: Vector{T}     # previous estimated model in the mm step
-   xb   :: Vector{T}     # vector that holds x*b 
-   xb0  :: Vector{T}     # previous xb in the mm step
-   xk   :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-   gk   :: Vector{T}     # gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
-   xgk  :: Vector{T}     # x * gk also part of the gradient calculation 
-   idx  :: BitVector     # BitArray indices of nonzeroes in b for A_mul_B
-   idx0 :: BitVector     # previous iterate of idx
-   r    :: V             # n-vector of residuals
-   df   :: V             # the gradient: df = -x' * (y - xb - intercept)
+   b     :: Vector{T}     # the statistical model, most will be 0
+   b0    :: Vector{T}     # previous estimated model in the mm step
+   xb    :: Vector{T}     # vector that holds x*b 
+   xb0   :: Vector{T}     # previous xb in the mm step
+   xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
+   gk    :: Vector{T}     # gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
+   xgk   :: Vector{T}     # x * gk also part of the gradient calculation 
+   idx   :: BitVector     # BitArray indices of nonzeroes in b for A_mul_B
+   idx0  :: BitVector     # previous iterate of idx
+   r     :: V             # n-vector of residuals
+   df    :: V             # the gradient: df = -x' * (y - xb - intercept)
+   group :: Vector{Int64} # vector denoting group membership
 end
 
 function IHTVariables{T <: Float}(
@@ -34,18 +35,19 @@ function IHTVariables{T <: Float}(
 
     # itc  = zero(T)
     # itc0 = zero(T)
-    b    = zeros(T, p)
-    b0   = zeros(T, p)
-    xb   = zeros(T, n)
-    xb0  = zeros(T, n)
-    xk   = SnpArray(n, k)
-    gk   = zeros(T, k)
-    xgk  = zeros(T, n)
-    idx  = falses(p) 
-    idx0 = falses(p)
-    r    = zeros(T, n)
-    df   = zeros(T, p)
-    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    b     = zeros(T, p)
+    b0    = zeros(T, p)
+    xb    = zeros(T, n)
+    xb0   = zeros(T, n)
+    xk    = SnpArray(n, k)
+    gk    = zeros(T, k)
+    xgk   = zeros(T, n)
+    idx   = falses(p) 
+    idx0  = falses(p)
+    r     = zeros(T, n)
+    df    = zeros(T, p)
+    group = ones(Int64, p)
+    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, group)
     # return IHTVariable{T, typeof(y)}(itc, itc0, b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
@@ -89,29 +91,18 @@ Recall calling axpy! implies v.b = v.b + μ*v.df, but v.df stores an extra negat
 function _iht_gradstep{T <: Float}(
    v  :: IHTVariable{T},
    μ  :: Float64,
+   J  :: Int,
    k  :: Int;
 )
    # n = length(v.xb)
    # v.itc = v.itc0 + μ*(n*μ - sum(v.r) + n*v.itc0)
    BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is an addition since df stores X(-1*(Y-Xb)))
-   project_k!(v.b, k)       # P_k( β - μ∇f(β) ): preserve top k components of b
+   v.b = doubly_sparse_projection(v.b, v.group, J, k) # project to doubly sparse vector 
    _iht_indices(v, k)       # Update idx. (find indices of new beta that are nonzero)
 
    # If the k'th largest component is not unique, warn the user. 
    sum(v.idx) <= k || warn("More than k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
-
-# function project_k!{T<: Float}(v::IHTVariable{T}, k::Int)
-#     a = select(v.b, k, by = abs, rev = true) :: T
-
-#     println(typeof(v))
-#     if abs(v.itc) > abs(a)
-#         a = select(v.b, k-1, by = abs, rev = true)
-#     else:
-#        v.itc = zero(T)
-#     end
-#     threshold!(v.b,abs(a)) 
-# end
 
 """
 this function updates the non-zero index of b, and set v.idx = 1 for those indices. 
@@ -194,7 +185,7 @@ function doubly_sparse_projection(y::Vector{Float64}, group::Vector{Int64}, m::I
     perm = sortperm(x, by = abs, rev = true) 
 
     #calculate the magnitude of each group, where only top predictors contribute
-    for i = 1:length(x)
+    for i in eachindex(x)
         j = perm[i] 
         k = group[j]
         if group_count[k] < n
@@ -207,10 +198,10 @@ function doubly_sparse_projection(y::Vector{Float64}, group::Vector{Int64}, m::I
     group_rank = sortperm(z, rev = true)
     group_rank = invperm(group_rank)
     fill!(group_count, 1) 
-    for i = 1:length(x)
+    for i in eachindex(x)
         j = perm[i]
         k = group[j]
-        if (group_rank[k] > m) | (group_count[k] > n)
+        if (group_rank[k] > m) || (group_count[k] > n)
             x[j] = 0.0
         else
             group_count[k] = group_count[k] + 1

@@ -45,6 +45,8 @@ function MendelIHT(control_file = ""; args...)
     keyword["data_type"] = ""
     keyword["predictors"] = ""
     keyword["manhattan_plot_file"] = ""
+    keyword["max_groups"] = ""
+    keyword["group_membership"] = ""
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -58,6 +60,9 @@ function MendelIHT(control_file = ""; args...)
         throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
     end
     keyword["analysis_option"] = "Iterative Hard Thresholding"
+    @assert (keyword["max_groups"] != "")     "Need number of groups. Choose 1 to run normal IHT"
+    @assert (keyword["predictors"] != "") "Need number of predictors per group"
+
     #
     # Read the genetic data from the external files named in the keywords.
     #
@@ -71,10 +76,12 @@ function MendelIHT(control_file = ""; args...)
     file_name = keyword["plink_input_basename"]
     snpmatrix = SnpArray(file_name)
     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
+    group_membership = ones(Int64, 10001) #extra 1 for intercept, for now
     # y_copy = copy(phenotype)
     # y_copy .-= mean(y_copy)
     k = keyword["predictors"]
-    return L0_reg(snpmatrix, phenotype, k)
+    J = keyword["max_groups"]
+    return L0_reg(snpmatrix, phenotype, J, k, group_membership)
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
     # if execution_error
@@ -101,6 +108,7 @@ function iht!(
     v        :: IHTVariable{T},
     x        :: SnpLike{2},
     y        :: Vector{T}, 
+    J        :: Int,
     k        :: Int,
     mean_vec :: Vector{T},
     std_vec  :: Vector{T},
@@ -136,7 +144,7 @@ function iht!(
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
 
     # compute gradient step
-    _iht_gradstep(v, μ, k)
+    _iht_gradstep(v, μ, J, k)
 
     # update xb
     # update_xb!(v.xb, x, v.b, v.idx, k)
@@ -157,7 +165,7 @@ function iht!(
         # recompute gradient step
         copy!(v.b,v.b0)
         # v.itc = v.itc0
-        _iht_gradstep(v, μ, k)
+        _iht_gradstep(v, μ, J, k)
 
         # recompute xb
         v.xk .= view(x, :, v.idx) 
@@ -179,7 +187,9 @@ This function performs IHT on GWAS data.
 function L0_reg(
     x        :: SnpLike{2},
     y        :: Vector{T}, 
-    k        :: Int;
+    J        :: Int,
+    k        :: Int,
+    group    :: Vector{Int};
     v        :: IHTVariable = IHTVariables(x, y, k),
     # v        :: IHTVariables = IHTVariables(x, y, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
@@ -192,7 +202,8 @@ function L0_reg(
     tic()
 
     # first handle errors
-    @assert k >= 0        "Value of k must be nonnegative!\n"
+    @assert J >= 0        "Value of J (max number of groups) must be nonnegative!\n"
+    @assert k >= 0        "Value of k (max predictors per group) must be nonnegative!\n"
     @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
@@ -238,6 +249,7 @@ function L0_reg(
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
     copy!(v.r, y)          #redisual = y-Xβ-intercept = y  CONSIDER BLASCOPY!
     v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
+    v.group .= group       #assign the groups in the beginning
 
     # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). All future gradient 
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
@@ -252,7 +264,7 @@ function L0_reg(
         loss = next_loss
         
         #calculate the step size μ. TODO: check how adding intercept affects this
-        (μ, μ_step) = iht!(v, x, y, k, mean_vec, std_vec, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, y, J, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         # v.r .= y .- v.xb - v.itc

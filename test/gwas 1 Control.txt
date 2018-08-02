@@ -9,3 +9,4 @@ manhattan_plot_file = gwas 1 Manhattan Plot Output.png
 #
 data_type = genetic
 predictors = 10
+max_groups = 1
