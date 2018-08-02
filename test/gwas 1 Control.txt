@@ -8,5 +8,5 @@ manhattan_plot_file = gwas 1 Manhattan Plot Output.png
 # Analysis parameters for IHT option.
 #
 data_type = genetic
-predictors = 10
-max_groups = 1
+predictors = 2
+max_groups = 5

@@ -76,7 +76,7 @@ function MendelIHT(control_file = ""; args...)
     file_name = keyword["plink_input_basename"]
     snpmatrix = SnpArray(file_name)
     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
-    group_membership = ones(Int64, 10001) #extra 1 for intercept, for now
+    group_membership = rand(1:100, 10001) #extra 1 for intercept, for now
     # y_copy = copy(phenotype)
     # y_copy .-= mean(y_copy)
     k = keyword["predictors"]
@@ -108,6 +108,7 @@ function iht!(
     v        :: IHTVariable{T},
     x        :: SnpLike{2},
     y        :: Vector{T}, 
+    group    :: Vector{Int},
     J        :: Int,
     k        :: Int,
     mean_vec :: Vector{T},
@@ -117,10 +118,12 @@ function iht!(
 ) where {T <: Float}
 
     # compute indices of nonzeroes in beta
-    _iht_indices(v, k)
+    v.idx .= v.b .!= 0
+    if sum(v.idx) == 0
+        _init_iht_indices(v, group, J, k)
+    end
 
-    # store relevant columns of x
-    # need to do this on 1st iteration
+    # store relevant columns of x. Need to do this on 1st iteration.
     # afterwards, only do if support changes
     if !isequal(v.idx, v.idx0) || iter < 2
         copy!(v.xk, view(x, :, v.idx))
@@ -130,7 +133,6 @@ function iht!(
     v.gk .= v.df[v.idx]
 
     # now compute subset of x*g
-    # A_mul_B!(v.xgk, v.xk, v.gk)
     SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec[v.idx], std_vec[v.idx]) # v.df = X'(y - Xβ)
 
     # warn if xgk only contains zeros
@@ -147,8 +149,6 @@ function iht!(
     _iht_gradstep(v, μ, J, k)
 
     # update xb
-    # update_xb!(v.xb, x, v.b, v.idx, k)
-    #A_mul_B!(v.xb, view(x, :, v.idx), view(v.b, v.idx) )
     v.xk .= view(x, :, v.idx) 
     SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
 
@@ -190,8 +190,8 @@ function L0_reg(
     J        :: Int,
     k        :: Int,
     group    :: Vector{Int};
-    v        :: IHTVariable = IHTVariables(x, y, k),
-    # v        :: IHTVariables = IHTVariables(x, y, k),
+    v        :: IHTVariable = IHTVariables(x, y, J, k),
+    # v        :: IHTVariables = IHTVariables(x, y, J, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 100,
@@ -264,7 +264,7 @@ function L0_reg(
         loss = next_loss
         
         #calculate the step size μ. TODO: check how adding intercept affects this
-        (μ, μ_step) = iht!(v, x, y, J, k, mean_vec, std_vec, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, y, group, J, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         # v.r .= y .- v.xb - v.itc

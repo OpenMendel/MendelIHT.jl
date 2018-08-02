@@ -24,13 +24,10 @@ end
 function IHTVariables{T <: Float}(
     x :: SnpLike{2},
     y :: Vector{T},
+    J :: Int64,
     k :: Int64
 ) 
     n, p = size(x) 
-
-    #check if k is sensible
-    @assert k <= p "k cannot exceed the number of SNPs"
-    @assert k > 0  "k must be positive integer"
     p += 1 # add 1 for the intercept, need to change this to use itc later
 
     # itc  = zero(T)
@@ -39,14 +36,15 @@ function IHTVariables{T <: Float}(
     b0    = zeros(T, p)
     xb    = zeros(T, n)
     xb0   = zeros(T, n)
-    xk    = SnpArray(n, k)
-    gk    = zeros(T, k)
+    xk    = SnpArray(n, J*k)
+    gk    = zeros(T, J*k)
     xgk   = zeros(T, n)
     idx   = falses(p) 
     idx0  = falses(p)
     r     = zeros(T, n)
     df    = zeros(T, p)
     group = ones(Int64, p)
+
     return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, group)
     # return IHTVariable{T, typeof(y)}(itc, itc0, b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
@@ -98,34 +96,30 @@ function _iht_gradstep{T <: Float}(
    # v.itc = v.itc0 + μ*(n*μ - sum(v.r) + n*v.itc0)
    BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is an addition since df stores X(-1*(Y-Xb)))
    v.b = doubly_sparse_projection(v.b, v.group, J, k) # project to doubly sparse vector 
-   _iht_indices(v, k)       # Update idx. (find indices of new beta that are nonzero)
+   v.idx .= v.b .!= 0       # Update idx. (find indices of new beta that are nonzero)
 
    # If the k'th largest component is not unique, warn the user. 
-   sum(v.idx) <= k || warn("More than k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
+   sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
 
 """
-this function updates the non-zero index of b, and set v.idx = 1 for those indices. 
+When initializing the IHT algorithm, take largest elements of each group of df as nonzero 
+components of b. This function set v.idx = 1 for those indices. 
 """
-function _iht_indices{T <: Float}(
-    v :: IHTVariable{T},
-    k :: Int;
-)
-    # which components of beta are nonzero?
-    #update_indices!(v.idx, v.b)
-    v.idx .= v.b .!= 0
-
-    # if current vector is 0,
-    # then take largest elements of d as nonzero components for b
-    if sum(v.idx) == 0
-        a = select(v.df, k, by=abs, rev=true) :: T
-#        threshold!(IDX, g, abs(a), n=p)
-        v.idx[abs.(v.df) .>= abs(a)-2*eps()] = true
-        v.gk = zeros(T, sum(v.idx))
-    end
+function _init_iht_indices{T <: Float}(
+    v     :: IHTVariable{T},
+    group :: Vector{Int},
+    J     :: Int,
+    k     :: Int
+)    
+    perm = sortperm(v.df, by = abs, rev = true) 
+    temp_vector = doubly_sparse_projection(v.df, group, J, k)
+    v.idx[find(temp_vector)] = true
+    v.gk = zeros(T, sum(v.idx))
 
     return nothing
 end
+
 """
 this function calculates the omega (here a / b) used for determining backtracking
 """
