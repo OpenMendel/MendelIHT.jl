@@ -46,6 +46,7 @@ function IHTVariables{T <: Float}(
     r    = zeros(T, n)
     df   = zeros(T, p)
     return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    # return IHTVariable{T, typeof(y)}(itc, itc0, b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
 
 #"""
@@ -90,6 +91,8 @@ function _iht_gradstep{T <: Float}(
    μ  :: Float64,
    k  :: Int;
 )
+   # n = length(v.xb)
+   # v.itc = v.itc0 + μ*(n*μ - sum(v.r) + n*v.itc0)
    BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is an addition since df stores X(-1*(Y-Xb)))
    project_k!(v.b, k)       # P_k( β - μ∇f(β) ): preserve top k components of b
    _iht_indices(v, k)       # Update idx. (find indices of new beta that are nonzero)
@@ -97,6 +100,18 @@ function _iht_gradstep{T <: Float}(
    # If the k'th largest component is not unique, warn the user. 
    sum(v.idx) <= k || warn("More than k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
+
+# function project_k!{T<: Float}(v::IHTVariable{T}, k::Int)
+#     a = select(v.b, k, by = abs, rev = true) :: T
+
+#     println(typeof(v))
+#     if abs(v.itc) > abs(a)
+#         a = select(v.b, k-1, by = abs, rev = true)
+#     else:
+#        v.itc = zero(T)
+#     end
+#     threshold!(v.b,abs(a)) 
+# end
 
 """
 this function updates the non-zero index of b, and set v.idx = 1 for those indices. 
@@ -166,6 +181,42 @@ function std_reciprocal(A::SnpArray, mean_vec::Vector{Float64})
         std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
     end
     return std_vector
+end
+
+""" Projects the point y onto the set with at most m active groups and at most 
+n active predictors per group. The variable group encodes group membership, where
+unknown group membership are denoted by 0. """
+function doubly_sparse_projection(y::Vector{Float64}, group::Vector{Int64}, m::Int64, n::Int64)
+    x = copy(y)
+    groups = maximum(group)
+    group_count = zeros(Int, groups)         #counts number of predictors in each group
+    z = zeros(groups)                        #l2 norm of each group
+    perm = sortperm(x, by = abs, rev = true) 
+
+    #calculate the magnitude of each group, where only top predictors contribute
+    for i = 1:length(x)
+        j = perm[i] 
+        k = group[j]
+        if group_count[k] < n
+            z[k] = z[k] + x[j]^2
+            group_count[k] = group_count[k] + 1
+        end
+    end
+
+    #go through the top predictors in order. Set predictor to 0 if criteria not met
+    group_rank = sortperm(z, rev = true)
+    group_rank = invperm(group_rank)
+    fill!(group_count, 1) 
+    for i = 1:length(x)
+        j = perm[i]
+        k = group[j]
+        if (group_rank[k] > m) | (group_count[k] > n)
+            x[j] = 0.0
+        else
+            group_count[k] = group_count[k] + 1
+        end
+    end
+    return x
 end
 
 

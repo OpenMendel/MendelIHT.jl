@@ -71,7 +71,9 @@ function MendelIHT(control_file = ""; args...)
     file_name = keyword["plink_input_basename"]
     snpmatrix = SnpArray(file_name)
     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
-    k = keyword["predictors"]   
+    # y_copy = copy(phenotype)
+    # y_copy .-= mean(y_copy)
+    k = keyword["predictors"]
     return L0_reg(snpmatrix, phenotype, k)
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
@@ -253,11 +255,12 @@ function L0_reg(
         (μ, μ_step) = iht!(v, x, y, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
-        # v.r .= y .- v.xb .- itc
+        # v.r .= y .- v.xb - v.itc
         v.r .= y .- v.xb
         v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet 
 
-        SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, similar(v.df)) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
+        # v.df = X'(y - Xβ - intercept)
+        SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, similar(v.df))  
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2 
