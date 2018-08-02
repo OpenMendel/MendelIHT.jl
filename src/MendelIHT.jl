@@ -286,8 +286,7 @@ function L0_reg(
 
         if converged
             mm_time = toq()   # stop time
-
-            return IHTResults(mm_time, next_loss, mm_iter, copy(v.b))
+            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), group)
         end
 
         if mm_iter == max_iter
