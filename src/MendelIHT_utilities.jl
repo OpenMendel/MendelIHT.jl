@@ -184,8 +184,8 @@ function std_reciprocal(A::SnpArray, mean_vec::Vector{Float64})
 end
 
 """ Projects the point y onto the set with at most m active groups and at most 
-n active predictors per group. The variable group encodes group membership, where
-unknown group membership are denoted by 0. """
+n active predictors per group. The variable group encodes group membership. Currently
+assumes there are no unknown group membership."""
 function doubly_sparse_projection(y::Vector{Float64}, group::Vector{Int64}, m::Int64, n::Int64)
     x = copy(y)
     groups = maximum(group)

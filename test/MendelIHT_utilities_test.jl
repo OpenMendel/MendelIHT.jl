@@ -135,6 +135,26 @@ end
     @test all(std_vector .≈ answer)
 end
 
+@testset "double_sparse_projection" begin
+    m, n, k = 2, 3, 20
+	y = randn(k);
+	group = rand(1:5, k);
+	x = doubly_sparse_projection(y, group, m, n);
+
+	# view result easily:
+	# for i = 1:length(x)
+	#     println(i,"  ",group[i],"  ",y[i],"  ",x[i])
+	# end
+
+	non_zero_position = find(x)
+	non_zero_entries = x[non_zero_position]
+	@test all(non_zero_entries .== y[non_zero_position]) 
+	@test all(non_zero_position .== [3; 5; 9; 10; 13; 19])
+	@test all(non_zero_entries .≈ [1.4112006668065633; 0.43107790792018497; 
+								   1.6657853439113885; 2.164461443215743;
+								   2.1341501862143644; 1.7651975436622682])
+end
+
 # @testset "_iht_backtrack" begin
 #    (x, y, k, v) = gwas1_data()
 #    μ, ω = 1.0, 1.0
