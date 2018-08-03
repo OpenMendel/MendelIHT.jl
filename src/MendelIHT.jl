@@ -76,13 +76,12 @@ function MendelIHT(control_file = ""; args...)
     file_name = keyword["plink_input_basename"]
     snpmatrix = SnpArray(file_name)
     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
-    # group_membership = rand(1:100, 10001) #extra 1 for intercept, for now
-    group_membership = ones(Int64, 10001) #extra 1 for intercept, for now
     # y_copy = copy(phenotype)
     # y_copy .-= mean(y_copy)
+    groups = vec(readdlm(keyword["group_membership"], Int64))
     k = keyword["predictors_per_group"]
     J = keyword["max_groups"]
-    return L0_reg(snpmatrix, phenotype, J, k, group_membership)
+    return L0_reg(snpmatrix, phenotype, J, k, groups)
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
     # if execution_error
@@ -109,7 +108,6 @@ function iht!(
     v        :: IHTVariable{T},
     x        :: SnpLike{2},
     y        :: Vector{T}, 
-    group    :: Vector{Int},
     J        :: Int,
     k        :: Int,
     mean_vec :: Vector{T},
@@ -121,7 +119,7 @@ function iht!(
     # compute indices of nonzeroes in beta
     v.idx .= v.b .!= 0
     if sum(v.idx) == 0
-        _init_iht_indices(v, group, J, k)
+        _init_iht_indices(v, J, k)
     end
 
     # store relevant columns of x. Need to do this on 1st iteration.
@@ -265,7 +263,7 @@ function L0_reg(
         loss = next_loss
         
         #calculate the step size μ. TODO: check how adding intercept affects this
-        (μ, μ_step) = iht!(v, x, y, group, J, k, mean_vec, std_vec, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, y, J, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         # v.r .= y .- v.xb - v.itc

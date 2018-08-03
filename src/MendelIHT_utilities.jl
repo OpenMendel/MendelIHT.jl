@@ -108,12 +108,11 @@ components of b. This function set v.idx = 1 for those indices.
 """
 function _init_iht_indices{T <: Float}(
     v     :: IHTVariable{T},
-    group :: Vector{Int},
     J     :: Int,
     k     :: Int
 )    
     perm = sortperm(v.df, by = abs, rev = true) 
-    temp_vector = doubly_sparse_projection(v.df, group, J, k)
+    temp_vector = doubly_sparse_projection(v.df, v.group, J, k)
     v.idx[find(temp_vector)] = true
     v.gk = zeros(T, sum(v.idx))
 
@@ -231,7 +230,7 @@ function Base.show(io::IO, x::gIHTResults)
     println(io, "\nCompute time (sec):     ", x.time)
     println(io, "Final loss:             ", x.loss)
     println(io, "Iterations:             ", x.iter)
-    println(io, "Max groups:             ", x.J)
+    println(io, "Max number of groups:   ", x.J)
     println(io, "Max predictors/group:   ", x.k)
     println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
     non_zero = find(x.beta)
