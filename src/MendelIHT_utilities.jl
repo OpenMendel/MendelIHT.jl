@@ -88,14 +88,14 @@ Recall calling axpy! implies v.b = v.b + μ*v.df, but v.df stores an extra negat
 """
 function _iht_gradstep{T <: Float}(
    v  :: IHTVariable{T},
-   μ  :: Float64,
+   μ  :: T,
    J  :: Int,
    k  :: Int;
 )
    # n = length(v.xb)
    # v.itc = v.itc0 + μ*(n*μ - sum(v.r) + n*v.itc0)
    BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is an addition since df stores X(-1*(Y-Xb)))
-   v.b = doubly_sparse_projection(v.b, v.group, J, k) # project to doubly sparse vector 
+   v.b = project_group_sparse(v.b, v.group, J, k) # project to doubly sparse vector 
    v.idx .= v.b .!= 0       # Update idx. (find indices of new beta that are nonzero)
 
    # If the k'th largest component is not unique, warn the user. 
@@ -112,7 +112,7 @@ function _init_iht_indices{T <: Float}(
     k     :: Int
 )    
     perm = sortperm(v.df, by = abs, rev = true) 
-    temp_vector = doubly_sparse_projection(v.df, v.group, J, k)
+    temp_vector = project_group_sparse(v.df, v.group, J, k)
     v.idx[find(temp_vector)] = true
     v.gk = zeros(T, sum(v.idx))
 
@@ -150,16 +150,16 @@ end
 """
 Compute the standard deviation of a SnpArray in place
 """
-function std_reciprocal(A::SnpArray, mean_vec::Vector{Float64})
+function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
     m, n = size(A)
     @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
-    std_vector = zeros(Float64, n) 
+    std_vector = zeros(T, n) 
 
     @inbounds for j in 1:n
         @simd for i in 1:m
             (a1, a2) = A[i, j]
             if !isnan(a1, a2) #only add if data not missing
-                std_vector[j] += (convert(Float64, a1 + a2) - mean_vec[j])^2
+                std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
             end 
         end
         std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
@@ -169,13 +169,18 @@ end
 
 """ Projects the point y onto the set with at most m active groups and at most 
 n active predictors per group. The variable group encodes group membership. Currently
-assumes there are no unknown group membership."""
-function doubly_sparse_projection(y::Vector{Float64}, group::Vector{Int64}, m::Int64, n::Int64)
+assumes there are no unknown group membership.
+
+TODO: 1)separate the group magnitude computation from this function
+      2)make this function operate in-place 
+"""
+function project_group_sparse{T <: Float}(y::Vector{T}, group::Vector{Int64}, 
+  m::Int64, n::Int64)
     x = copy(y)
     groups = maximum(group)
     group_count = zeros(Int, groups)         #counts number of predictors in each group
     z = zeros(groups)                        #l2 norm of each group
-    perm = sortperm(x, by = abs, rev = true) 
+    perm = sortperm(x, by = abs, rev = true)
 
     #calculate the magnitude of each group, where only top predictors contribute
     for i in eachindex(x)

@@ -133,12 +133,12 @@ end
     @test all(std_vector .≈ answer)
 end
 
-@testset "double_sparse_projection" begin
+@testset "project_group_sparse" begin
 	srand(1914) 
     m, n, k = 2, 3, 20
 	y = randn(k);
 	group = rand(1:5, k);
-	x = doubly_sparse_projection(y, group, m, n);
+	x = project_group_sparse(y, group, m, n);
 
 	# view result easily:
 	# for i = 1:length(x)
