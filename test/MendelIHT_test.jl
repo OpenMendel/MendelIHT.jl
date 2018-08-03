@@ -10,7 +10,7 @@ else
     using Test
 end
 
-@testset "Do MendelIHT and IHT output the same result?" begin
+@testset "Do MendelIHT and IHT output the same result when group = 1?" begin
     
     #test on small data set
     mendel_result = MendelIHT("test_control.txt")

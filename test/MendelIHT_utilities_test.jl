@@ -13,9 +13,10 @@ function test_data()
 	x = SnpArray("test") 
 	y = CSV.read("test.fam", delim = ' ', header = false)
 	y = convert(Array{Float64,1}, y[:, 6])
+	J = 1
 	k = 2
-	v = IHTVariables(x, y, k)
-	return (x, y, k, v)
+	v = IHTVariables(x, y, J, k)
+	return (x, y, J, k, v)
 end
 
 function gwas1_data()
@@ -23,24 +24,29 @@ function gwas1_data()
 	x = SnpArray("gwas 1 data") 
 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
 	y = convert(Array{Float64,1}, y[:, 6])
+	J = 1
 	k = 10
-	v = IHTVariables(x, y, k)
-	return (x, y, k, v)
+	v = IHTVariables(x, y, J, k)
+	return (x, y, J, k, v)
 end
 
 
 @testset "initilize IHTVariables" begin
-	(x, y, k, v) = test_data()
+	(x, y, J, k, v) = test_data()
 
-	#k must be a positive integer
-	@test_throws(AssertionError, IHTVariables(x, y, 0))
-	@test_throws(AssertionError, IHTVariables(x, y, -1))
-	@test_throws(MethodError, IHTVariables(x, y, 1.1))
-	@test_throws(MethodError, IHTVariables(x, y, NaN))
-	@test_throws(MethodError, IHTVariables(x, y, missing))
-	@test_throws(MethodError, IHTVariables(x, y, Inf))
+	#J, k must be a non-zero integer
+	@test_throws(ArgumentError, IHTVariables(x, y, -1, 2))
+	@test_throws(MethodError, IHTVariables(x, y, 1.1, 2))
+	@test_throws(MethodError, IHTVariables(x, y, NaN, 2))
+	@test_throws(MethodError, IHTVariables(x, y, missing, 2))
+	@test_throws(MethodError, IHTVariables(x, y, Inf, 2))
+	@test_throws(ArgumentError, IHTVariables(x, y, 1, -1))
+	@test_throws(MethodError, IHTVariables(x, y, 1, 1.1))
+	@test_throws(MethodError, IHTVariables(x, y, 1, NaN))
+	@test_throws(MethodError, IHTVariables(x, y, 1, missing))
+	@test_throws(MethodError, IHTVariables(x, y, 1, Inf))
 
-	#Different types of inputs for IHTVariables(x, y, k) is 
+	#Different types of inputs for IHTVariables(x, y, J, k) is 
 	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
 	@test typeof(x) == SnpData || typeof(x) <: SnpArray
 
@@ -55,6 +61,7 @@ end
 	@test size(v.idx0) == (3,)
 	@test size(v.r)	   == (6,)
 	@test size(v.df)   == (3,)
+	@test size(v.group)== (3,)
 
 	@test typeof(v.b)    == Array{Float64, 1}
 	@test typeof(v.b0)   == Array{Float64, 1}
@@ -67,27 +74,18 @@ end
 	@test typeof(v.idx0) == BitArray{1}
 	@test typeof(v.r)	 == Array{Float64, 1}
 	@test typeof(v.df)   == Array{Float64, 1}
+	@test typeof(v.group)== Array{Int64, 1}
 end
 
-@testset "_iht_indices" begin
-	(x, y, k, v) = gwas1_data()
+@testset "_init_iht_indices" begin
+	(x, y, J, k, v) = gwas1_data()
 
 	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
 	# set v.idx = 1 for the k largest terms in v.df 
 	v.df[1:10001] .= rand(10001)
 	p = sortperm(v.df, rev = true)
 	top_k_index = p[1:10]
-	IHT._iht_indices(v, k)
-
-	@test all(v.idx[top_k_index] .== 1)
-
-	# if v.idx is not zero vector, then _iht_indices should find non-0 entries of b and 
-	# set v.idx = 1 for those entries 
-	v.b[1:k] .= rand(10)
-	shuffle!(v.b)
-	p = sortperm(v.b, rev = true)
-	top_k_index = p[1:10]
-	IHT._iht_indices(v, k)
+	IHT._init_iht_indices(v, J, k)
 
 	@test all(v.idx[top_k_index] .== 1)
 end
@@ -105,7 +103,7 @@ end
 end
 
 @testset "use_A2_as_minor_allele" begin
-	(x, y, k, v) = test_data()
+	(x, y, J, k, v) = test_data()
     result = use_A2_as_minor_allele(x)
     answer = [[0.0 1.0]; [1.0 1.0]; [2.0 0.0]; [1.0 2.0]; [2.0 1.0]; [2.0 2.0]]
 
@@ -136,6 +134,7 @@ end
 end
 
 @testset "double_sparse_projection" begin
+	srand(1914) 
     m, n, k = 2, 3, 20
 	y = randn(k);
 	group = rand(1:5, k);
@@ -149,10 +148,10 @@ end
 	non_zero_position = find(x)
 	non_zero_entries = x[non_zero_position]
 	@test all(non_zero_entries .== y[non_zero_position]) 
-	@test all(non_zero_position .== [3; 5; 9; 10; 13; 19])
-	@test all(non_zero_entries .≈ [1.4112006668065633; 0.43107790792018497; 
-								   1.6657853439113885; 2.164461443215743;
-								   2.1341501862143644; 1.7651975436622682])
+	@test all(non_zero_position .== [10; 12; 13; 14; 15; 18])
+	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621; 
+								   -0.5746320293057241; 0.9225538732662374;
+								   2.4060215839929158; 2.9499620312194383])
 end
 
 # @testset "_iht_backtrack" begin
