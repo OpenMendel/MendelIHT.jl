@@ -7,4 +7,6 @@ output_file = test_Output.txt
 # Analysis parameters for IHT option.
 #
 data_type = genetic
-predictors = 2
+predictors_per_group = 2
+max_groups = 1
+group_membership = 1_group_test.dat

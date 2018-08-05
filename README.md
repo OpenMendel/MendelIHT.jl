@@ -5,7 +5,7 @@ IHT performs [feature selection](https://en.wikipedia.org/wiki/Feature_selection
 
 ## Installation
 
-IHT.jl is not registered in `METADATA`.
+IHT.jl is not registered in `METADATA`. 
 It depends on other unregistered packages:
 
 1. [PLINK.jl](https://github.com/klkeys/PLINK.jl)
@@ -15,11 +15,11 @@ It depends on other unregistered packages:
 
 At the Julia REPL, execute
 
-	Pkg.clone("https://github.com/klkeys/PLINK.jl.git")
+    Pkg.clone("https://github.com/klkeys/PLINK.jl.git")
     Pkg.clone("https://github.com/OpenMendel/SnpArrays.jl.git")
     Pkg.clone("https://github.com/OpenMendel/Search.jl.git")
     Pkg.clone("https://github.com/OpenMendel/MendelBase.jl.git")
-	Pkg.clone("https://github.com/klkeys/IHT.jl.git")
+    Pkg.clone("https://github.com/klkeys/IHT.jl.git")
 
 The order of installation is important!
 
@@ -89,6 +89,22 @@ Instead of using variables from the Julia REPL, `cv_iht` uses file paths to the 
 
 Here `xfile` points to the genotype data, `covfile` points to the covariates, and `yfile` points to the response vector. Note the file extensions! They are important for correct initialization of the data.
 See the documentation of PLINK.jl for details about the `BEDFile` object.
+
+## Open Mendel users
+IHT.jl also runs GWAS using `control file` as inputs, similar to all other [Open Mendel](https://openmendel.github.io/) packages. Run MendelIHT using the following command:
+
+    using IHT
+    result = MendelIHT("gwas 1 Control.txt")
+
+**VERY IMPORTANT:** The current implementation of MendelIHT assumes *there are no missing genotypes* since it uses linear algebra functions defined in [`SnpArrays.jl`](https://openmendel.github.io/SnpArrays.jl/latest/man/snparray/#linear-algebra-with-snparray). Therefore, you must first impute missing genotypes *before* you use MendelIHT. `SnpArrays.jl` offer some naive imputation strategy, but otherwise, we recommend using [Option 23 of Mendel](http://www.genetics.ucla.edu/software/mendel). 
+
+### Input files for MendelIHT
+The MendelIHT analysis package uses the following input files. Example input files can be found in the [test](https://github.com/klkeys/IHT.jl/tree/master/test) subfolder.
+
++ [Control File](https://openmendel.github.io/MendelBase.jl/#control-file): Specifies the names of your data input and output files and any optional parameters (keywords) for the analysis. 
++ [Pedigree File](https://openmendel.github.io/MendelBase.jl/#pedigree-file): Gives information about your individuals, such as name, parental information, and sex.
++ [SNP Definition File](https://openmendel.github.io/MendelBase.jl/#snp-definition-file): Defines your SNPs with information such as SNP name, chromosome, position, and allele names.
++ [SNP Data File](https://openmendel.github.io/MendelBase.jl/#snp-data-file): Holds the genotypes for your data set and must be a standard binary PLINK BED file in SNP major format. If you have a SNP data file, you must also have a SNP definition file.
 
 ## GPU acceleration
 

@@ -1,8 +1,29 @@
+# """
+# This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel. 
+# """
+# function MendelIHT(file_name::String, k::Int64)
+#     const MENDEL_IHT_VERSION :: VersionNumber = v"0.2.0"
+#     #
+#     # Print the logo. Store the initial directory.
+#     #
+#     print(" \n \n")
+#     println("     Welcome to OpenMendel's")
+#     println("      IHT analysis option")
+#     println("        version ", MENDEL_IHT_VERSION)
+#     print(" \n \n")
+
+#     snpmatrix = SnpArray(file_name)
+#     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
+#     # phenotype = randn(959) #testing GAW data since it has no phenotype
+
+#     return L0_reg(snpmatrix, phenotype, k)
+# end #function MendelIHT
+
 """
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel. 
 """
 function MendelIHT(control_file = ""; args...)
-    const MENDEL_IHT_VERSION :: VersionNumber = v"0.1.0"
+    const MENDEL_IHT_VERSION :: VersionNumber = v"0.2.0"
     #
     # Print the logo. Store the initial directory.
     #
@@ -22,8 +43,10 @@ function MendelIHT(control_file = ""; args...)
     # Define some keywords unique to this analysis option. 
     #
     keyword["data_type"] = ""
-    keyword["predictors"] = ""
+    keyword["predictors_per_group"] = ""
     keyword["manhattan_plot_file"] = ""
+    keyword["max_groups"] = ""
+    keyword["group_membership"] = ""
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -37,21 +60,28 @@ function MendelIHT(control_file = ""; args...)
         throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
     end
     keyword["analysis_option"] = "Iterative Hard Thresholding"
+    @assert (keyword["max_groups"] != "")           "Need number of groups. Choose 1 to run normal IHT"
+    @assert (keyword["predictors_per_group"] != "") "Need number of predictors per group"
+
     #
     # Read the genetic data from the external files named in the keywords.
     #
-    (pedigree, person, nuclear_family, locus, snpdata,
-    locus_frame, phenotype_frame, pedigree_frame, snp_definition_frame) =
-    read_external_data_files(keyword)
+    # (pedigree, person, nuclear_family, locus, snpdata, locus_frame, phenotype_frame, 
+    #     pedigree_frame, snp_definition_frame) = read_external_data_files(keyword)
     #
     # Execute the specified analysis.
     #
     println(" \nAnalyzing the data.\n")
 ##
-    phenotype = convert(Array{Float64,1}, pedigree_frame[:Trait])
-    k = keyword["predictors"]   
-    result = L0_reg(snpdata, phenotype, k)
-    return result
+    file_name = keyword["plink_input_basename"]
+    snpmatrix = SnpArray(file_name)
+    phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
+    # y_copy = copy(phenotype)
+    # y_copy .-= mean(y_copy)
+    groups = vec(readdlm(keyword["group_membership"], Int64))
+    k = keyword["predictors_per_group"]
+    J = keyword["max_groups"]
+    return L0_reg(snpmatrix, phenotype, J, k, groups)
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
     # if execution_error
@@ -66,31 +96,116 @@ function MendelIHT(control_file = ""; args...)
     # close(keyword["output_unit"])
     # cd(initial_directory)
     # return nothing
-end #function IterHardThreshold
+end #function MendelIHT
+
+"""
+Calculates the IHT step β+ = P_k(β - μ ∇f(β)). 
+Returns step size (μ), and number of times line search was done (μ_step). 
+
+This function updates: b, xb, xk, gk, xgk, idx
+"""
+function iht!(
+    v        :: IHTVariable{T},
+    x        :: SnpLike{2},
+    y        :: Vector{T}, 
+    J        :: Int,
+    k        :: Int,
+    mean_vec :: Vector{T},
+    std_vec  :: Vector{T},
+    iter     :: Int = 1,
+    nstep    :: Int = 50,
+) where {T <: Float}
+
+    # compute indices of nonzeroes in beta
+    v.idx .= v.b .!= 0
+    if sum(v.idx) == 0
+        _init_iht_indices(v, J, k)
+    end
+
+    # store relevant columns of x. Need to do this on 1st iteration.
+    # afterwards, only do if support changes
+    if !isequal(v.idx, v.idx0) || iter < 2
+        copy!(v.xk, view(x, :, v.idx))
+    end
+
+    # store relevant components of gradient
+    v.gk .= v.df[v.idx]
+
+    # now compute subset of x*g
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec[v.idx], std_vec[v.idx]) # v.df = X'(y - Xβ)
+
+    # warn if xgk only contains zeros
+    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+
+    # compute step size
+#    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?!
+    μ = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
+
+    # check for finite stepsize
+    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+
+    # compute gradient step
+    _iht_gradstep(v, μ, J, k)
+
+    # update xb
+    v.xk .= view(x, :, v.idx) 
+    SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
+
+    # calculate omega
+    ω_top, ω_bot = _iht_omega(v)
+
+    # backtrack until mu < omega and until support stabilizes
+    μ_step = 0
+    while _iht_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
+
+        # stephalving
+        μ /= 2
+
+        # recompute gradient step
+        copy!(v.b,v.b0)
+        # v.itc = v.itc0
+        _iht_gradstep(v, μ, J, k)
+
+        # recompute xb
+        v.xk .= view(x, :, v.idx) 
+        SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
+
+        # calculate omega
+        ω_top, ω_bot = _iht_omega(v)
+
+        # increment the counter
+        μ_step += 1
+    end
+
+    return μ::T, μ_step::Int
+end
 
 """
 This function performs IHT on GWAS data. 
 """
 function L0_reg(
-    x        :: SnpData,
-    y        :: Vector{Float64}, 
-    k        :: Int;
-    #v        :: IHTVariable = IHTVariables(x, y, k),
-    v        :: IHTVariables = IHTVariables(x, y, k),
+    x        :: SnpLike{2},
+    y        :: Vector{T}, 
+    J        :: Int,
+    k        :: Int,
+    group    :: Vector{Int};
+    v        :: IHTVariable = IHTVariables(x, y, J, k),
+    # v        :: IHTVariables = IHTVariables(x, y, J, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
-    tol      :: Float64 = 1e-4,
+    tol      :: T = 1e-4,
     max_iter :: Int = 100,
     max_step :: Int = 50,
-)
+) where {T <: Float}
 
     # start timer
     tic()
 
     # first handle errors
-    @assert k >= 0        "Value of k must be nonnegative!\n"
+    @assert J >= 0        "Value of J (max number of groups) must be nonnegative!\n"
+    @assert k >= 0        "Value of k (max predictors per group) must be nonnegative!\n"
     @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
-    @assert tol > eps(Float64) "Value of global tol must exceed machine precision!\n"
+    @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
@@ -109,43 +224,57 @@ function L0_reg(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-    #convert bitarrays to Float64 genotype matrix, standardize each SNP, and add intercept
-    snpmatrix = convert(Array{Float64,2}, x.snpmatrix)
-    # snpmatrix = use_A2_as_minor_allele(x.snpmatrix) #to compare results with using PLINK
-    snpmatrix = StatsBase.zscore(snpmatrix, 1) 
-    snpmatrix = [ones(size(snpmatrix, 1)) snpmatrix] 
+    # compute some summary statistics for our snpmatrix
+    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
+    people, snps = size(x)
+
+    #precompute mean and standard deviations for each snp. Note that (1) the mean is 
+    #given by 2 * maf, and (2) based on which allele is the minor allele, might need to do 
+    #2.0 - the maf for the mean vector.
+    mean_vec = zeros(snps) 
+    for i in 1:snps
+        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i] 
+    end
+    std_vec = std_reciprocal(x, mean_vec)
+
+    #add intercept (at the end)
+    x        = [x SnpArray(ones(people))] #NOTE this creates A LOT of extra memory!!!!
+    mean_vec = [mean_vec; zero(T)]
+    std_vec  = [std_vec; one(T)]
 
     #
     # Begin IHT calculations
     #
-    fill!(v.xb, 0.0) #initialize β = 0 vector, so Xβ = 0
-    copy!(v.r, y)    #redisual = y-Xβ = y  CONSIDER BLASCOPY!
+    fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
+    copy!(v.r, y)          #redisual = y-Xβ-intercept = y  CONSIDER BLASCOPY!
     v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
+    v.group .= group       #assign the groups in the beginning
 
-    # calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). Future gradient 
+    # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). All future gradient 
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
     # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
-
-    # Can we use v.xk instead of snpmatrix?
-    At_mul_B!(v.df, snpmatrix, v.r) 
+    SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec) 
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
-        copy!(v.b0, v.b)   # b0 = b   CONSIDER BLASCOPY!
+        copy!(v.b0, v.b)   # b0 = b    CONSIDER BLASCOPY!
         copy!(v.xb0, v.xb) # Xb0 = Xb  CONSIDER BLASCOPY!
+        # v.itc0 = v.itc     # update intercept as well
         loss = next_loss
         
-        #calculate the step size μ. Can we use v.xk instead of snpmatrix?
-        (μ, μ_step) = iht!(v, snpmatrix, y, k, max_step, mm_iter)
+        #calculate the step size μ. TODO: check how adding intercept affects this
+        (μ, μ_step) = iht!(v, x, y, J, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
+        # v.r .= y .- v.xb - v.itc
         v.r .= y .- v.xb
         v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet 
 
-        At_mul_B!(v.df, snpmatrix, v.r) # v.df = X'(y - Xβ) Can we use v.xk instead of snpmatrix?
+        # v.df = X'(y - Xβ - intercept)
+        SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, similar(v.df))  
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
-        next_loss = sum(abs2, v.r) / 2
+        next_loss = sum(abs2, v.r) / 2 
         !isnan(next_loss) || throw(error("Objective function is NaN, aborting..."))
         !isinf(next_loss) || throw(error("Objective function is Inf, aborting..."))
 
@@ -156,12 +285,7 @@ function L0_reg(
 
         if converged
             mm_time = toq()   # stop time
-
-            println("IHT converged in " * string(mm_iter) * " iterations")
-            println("It took " * string(mm_time) * " seconds to converge")
-            println("The estimated model is stored in 'beta'")
-            println("There are " * string(countnz(v.b)) * " non-zero entries of β")
-            return IHTResults(mm_time, next_loss, mm_iter, copy(v.b))
+            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group)
         end
 
         if mm_iter == max_iter
