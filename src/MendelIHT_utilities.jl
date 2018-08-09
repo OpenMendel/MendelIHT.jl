@@ -9,11 +9,11 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
    # itc0 :: T             # old intercept
    b     :: Vector{T}     # the statistical model, most will be 0
    b0    :: Vector{T}     # previous estimated model in the mm step
-   xb    :: Vector{T}     # vector that holds x*b 
+   xb    :: Vector{T}     # vector that holds x*b
    xb0   :: Vector{T}     # previous xb in the mm step
    xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-   gk    :: Vector{T}     # gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
-   xgk   :: Vector{T}     # x * gk also part of the gradient calculation 
+   gk    :: Vector{T}     # gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero.
+   xgk   :: Vector{T}     # x * gk also part of the gradient calculation
    idx   :: BitVector     # BitArray indices of nonzeroes in b for A_mul_B
    idx0  :: BitVector     # previous iterate of idx
    r     :: V             # n-vector of residuals
@@ -26,8 +26,8 @@ function IHTVariables{T <: Float}(
     y :: Vector{T},
     J :: Int64,
     k :: Int64
-) 
-    n, p = size(x) 
+)
+    n, p = size(x)
     p += 1 # add 1 for the intercept, need to change this to use itc later
 
     # itc  = zero(T)
@@ -39,7 +39,7 @@ function IHTVariables{T <: Float}(
     xk    = SnpArray(n, J*k)
     gk    = zeros(T, J*k)
     xgk   = zeros(T, n)
-    idx   = falses(p) 
+    idx   = falses(p)
     idx0  = falses(p)
     r     = zeros(T, n)
     df    = zeros(T, p)
@@ -50,7 +50,7 @@ function IHTVariables{T <: Float}(
 end
 
 #"""
-#Returns ω, a constant we need to bound the step size μ to guarantee convergence. 
+#Returns ω, a constant we need to bound the step size μ to guarantee convergence.
 #"""
 #
 #function compute_ω!(v::IHTVariable, snpmatrix::Matrix{Float64})
@@ -62,11 +62,11 @@ end
 #end
 
 """
-This function is needed for testing purposes only. 
+This function is needed for testing purposes only.
 
-Converts a SnpArray to a matrix of float64 using A2 as the minor allele. We want this function 
-because SnpArrays.jl uses the less frequent allele in each SNP as the minor allele, while PLINK.jl 
-always uses A2 as the minor allele, and it's nice if we could cross-compare the results. 
+Converts a SnpArray to a matrix of float64 using A2 as the minor allele. We want this function
+because SnpArrays.jl uses the less frequent allele in each SNP as the minor allele, while PLINK.jl
+always uses A2 as the minor allele, and it's nice if we could cross-compare the results.
 """
 function use_A2_as_minor_allele(snpmatrix :: SnpArray)
     n, p = size(snpmatrix)
@@ -83,7 +83,7 @@ function use_A2_as_minor_allele(snpmatrix :: SnpArray)
 end
 
 """
-This function computes the gradient step v.b = P_k(β + μ∇f(β)), and updates v.idx. 
+This function computes the gradient step v.b = P_k(β + μ∇f(β)), and updates v.idx.
 Recall calling axpy! implies v.b = v.b + μ*v.df, but v.df stores an extra negative sign.
 """
 function _iht_gradstep{T <: Float}(
@@ -95,23 +95,23 @@ function _iht_gradstep{T <: Float}(
    # n = length(v.xb)
    # v.itc = v.itc0 + μ*(n*μ - sum(v.r) + n*v.itc0)
    BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is an addition since df stores X(-1*(Y-Xb)))
-   v.b = project_group_sparse(v.b, v.group, J, k) # project to doubly sparse vector 
+   v.b = project_group_sparse(v.b, v.group, J, k) # project to doubly sparse vector
    v.idx .= v.b .!= 0       # Update idx. (find indices of new beta that are nonzero)
 
-   # If the k'th largest component is not unique, warn the user. 
+   # If the k'th largest component is not unique, warn the user.
    sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
 
 """
-When initializing the IHT algorithm, take largest elements of each group of df as nonzero 
-components of b. This function set v.idx = 1 for those indices. 
+When initializing the IHT algorithm, take largest elements of each group of df as nonzero
+components of b. This function set v.idx = 1 for those indices.
 """
 function _init_iht_indices{T <: Float}(
     v     :: IHTVariable{T},
     J     :: Int,
     k     :: Int
-)    
-    perm = sortperm(v.df, by = abs, rev = true) 
+)
+    perm = sortperm(v.df, by = abs, rev = true)
     temp_vector = project_group_sparse(v.df, v.group, J, k)
     v.idx[find(temp_vector)] = true
     v.gk = zeros(T, sum(v.idx))
@@ -150,31 +150,31 @@ end
 """
 Compute the standard deviation of a SnpArray in place
 """
-function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
+function std_reciprocal2{T <: Float}(A::SnpArray, mean_vec::Vector{T})
     m, n = size(A)
     @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
-    std_vector = zeros(T, n) 
+    std_vector = zeros(T, n)
 
     @inbounds for j in 1:n
         @simd for i in 1:m
             (a1, a2) = A[i, j]
             if !isnan(a1, a2) #only add if data not missing
                 std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
-            end 
+            end
         end
         std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
     end
     return std_vector
 end
 
-""" Projects the point y onto the set with at most m active groups and at most 
+""" Projects the point y onto the set with at most m active groups and at most
 n active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown group membership.
 
 TODO: 1)separate the group magnitude computation from this function
-      2)make this function operate in-place 
+      2)make this function operate in-place
 """
-function project_group_sparse{T <: Float}(y::Vector{T}, group::Vector{Int64}, 
+function project_group_sparse{T <: Float}(y::Vector{T}, group::Vector{Int64},
   m::Int64, n::Int64)
     x = copy(y)
     groups = maximum(group)
@@ -184,7 +184,7 @@ function project_group_sparse{T <: Float}(y::Vector{T}, group::Vector{Int64},
 
     #calculate the magnitude of each group, where only top predictors contribute
     for i in eachindex(x)
-        j = perm[i] 
+        j = perm[i]
         k = group[j]
         if group_count[k] < n
             z[k] = z[k] + x[j]^2
@@ -195,7 +195,7 @@ function project_group_sparse{T <: Float}(y::Vector{T}, group::Vector{Int64},
     #go through the top predictors in order. Set predictor to 0 if criteria not met
     group_rank = sortperm(z, rev = true)
     group_rank = invperm(group_rank)
-    fill!(group_count, 1) 
+    fill!(group_count, 1)
     for i in eachindex(x)
         j = perm[i]
         k = group[j]
