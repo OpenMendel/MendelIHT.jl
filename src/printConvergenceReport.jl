@@ -9,10 +9,10 @@ Returns nothing
 This function updates: hopefully nothing???
 """
 function printConvergenceReport(
-    result          :: IHTResult,
+    result          :: gIHTResults,
     my_snpMAF       :: Array{Float64,2},
     my_snpweights   :: Array{Float64,2},
-    snpmatrix       :: Array{Float64,2},
+    snpmatrix       :: SnpLike{2},
     y               :: Vector{Float64},              # phenotype in L0_reg
     v               :: IHTVariable,
     snp_definition_frame )
@@ -45,7 +45,7 @@ function printConvergenceReport(
 
     println(BLUE*"THE SUMMARY STATS FOR THE Betas ARE PLOTTED IN bar_b.png"*DEFAULT)
     StatPlots.bar(v.b)
-    Plots.savefig("GordonsOutput/bar_b1.png")
+    Plots.savefig("ZZZ_bar_b1.png")
 
     println()
     if USE_INTERCEPT # && false
@@ -78,7 +78,7 @@ function printConvergenceReport(
     describe(y)
     println(BLUE*"THE Phenotype for 2200 people are plotted IN bar_phenotype.png"*DEFAULT)
     StatPlots.bar(y)
-    Plots.savefig("GordonsOutput/bar_phenotype.png")
+    Plots.savefig("ZZZ_bar_phenotype.png")
 
 
     println()
@@ -115,11 +115,11 @@ function printConvergenceReport(
     #println(v.r[found])
     println(BLUE*"THE SUMMARY STATS FOR THE Residuals ARE PLOTTED IN bar_r1.png"*DEFAULT)
     StatPlots.bar(v.r)
-    Plots.savefig("GordonsOutput/bar_r1.png")
+    Plots.savefig("ZZZ_bar_r1.png")
 
     println("THE REGRESSION RESULTS ARE SAVED IN bar_b.png")
     StatPlots.bar(found,v.b[found])
-    Plots.savefig("GordonsOutput/bar_b2.png")
+    Plots.savefig("ZZZ_bar_b2.png")
 
     println("===============================================================")
     println("============= MORE INFORMATION ABOUT SELECTED BETAS ===========")

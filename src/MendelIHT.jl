@@ -27,11 +27,14 @@ using Gadfly
 using MendelBase
 using SnpArrays
 using StatsBase
+include("MendelIHT_utilities.jl")
+println("include(\"MendelIHT_utilities.jl\")")
 include("calculatePriorWeightsforIHT.jl")
 println("include(\"calculatePriorWeightsforIHT.jl\")")
-#sleep(2)
-include("MendelIHT_utilities.jl")
-println("include(\"calculatePriorWeightsforIHT.jl\")")
+include("printConvergenceReport.jl")
+println("include(\"printConvergenceReport.jl\")")
+
+
 """
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel.
 """
@@ -100,7 +103,11 @@ function MendelIHT2(control_file = ""; args...)
     groups = vec(readdlm(keyword["group_membership"], Int64))
     k = keyword["predictors_per_group"]
     J = keyword["max_groups"]
-    return L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups)
+    #return L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups)
+    #k = 9 # DEBUG NO Intercept
+    result, my_snpMAF, my_snpweights, snpmatrix, y, v  = L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups)
+    printConvergenceReport(result, my_snpMAF, my_snpweights, snpmatrix, y, v, snp_definition_frame)
+    return result
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
     # if execution_error
@@ -336,7 +343,10 @@ function L0_reg2(
 
         if converged
             mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group)
+            #return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group)
+            # additional return variables are only used in printConvergenceReport()
+            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group), my_snpMAF, my_snpweights, snpmatrix, y, v
+
         end
 
         if mm_iter == max_iter
