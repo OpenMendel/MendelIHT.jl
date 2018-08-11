@@ -48,14 +48,15 @@ function printConvergenceReport(
     Plots.savefig("ZZZ_bar_b1.png")
 
     println()
-    if USE_INTERCEPT # && false
-        my_snpweights_intercept = [ones(size(my_snpweights, 1)) my_snpweights]
+    if USE_INTERCEPT # && false # currently the intercept is at the end
+        #my_snpweights_intercept = [ones(size(my_snpweights, 1)) my_snpweights]
+        my_snpweights_intercept = my_snpweights
         println("my_snpweights_intercept for found:")
         println(size(my_snpweights_intercept))
         println(my_snpweights_intercept[1,found])
 
         println()
-        my_snpMAF_intercept = [ones(size(my_snpMAF, 1)) my_snpMAF]
+        my_snpMAF_intercept = [my_snpMAF ones(size(my_snpMAF, 1))]
         println("my_snpMAF_intercept for found:")
         println(size(my_snpMAF_intercept))
         println(my_snpMAF_intercept[1,found])

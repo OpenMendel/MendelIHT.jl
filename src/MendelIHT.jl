@@ -63,6 +63,34 @@ function MendelIHT2(control_file = ""; args...)
     keyword["manhattan_plot_file"] = ""
     keyword["max_groups"] = ""
     keyword["group_membership"] = ""
+
+    keyword["experiment_description"] = ""
+    keyword["experiment_id"] = ""
+    keyword["experiment_folder"] = ""
+    keyword["mendeliht_version"] = ""
+
+    keyword["plotfilename_prefix"] = ""
+    keyword["datafilename_prefix"] = ""
+    keyword["use_intercept"] = ""
+    keyword["snps_first_in_model"] = ""
+    keyword["use_weights"] = ""
+    keyword["pw_algorithm"] = ""
+    keyword["pw_algorithm_value"] = 1.0
+
+    keyword["null_weight"] = 1.0
+    keyword["cut_off"] = 0.001
+    keyword["trim_top"] = 0.0
+
+    keyword["pw_pathway1"] = ""
+    keyword["pw_pathway1_constantvalue"] = ""
+    keyword["pw_pathway1_factorvalue"] = ""
+    keyword["pw_pathway2"] = ""
+    keyword["pw_pathway2_constantvalue"] = ""
+    keyword["pw_pathway2_factorvalue"] = ""
+    keyword["pw_pathway3"] = ""
+    keyword["pw_pathway3_constantvalue"] = ""
+    keyword["pw_pathway3_factorvalue"] = ""
+
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -105,7 +133,7 @@ function MendelIHT2(control_file = ""; args...)
     J = keyword["max_groups"]
     #return L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups)
     #k = 9 # DEBUG NO Intercept
-    result, my_snpMAF, my_snpweights, snpmatrix, y, v  = L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups)
+    result, my_snpMAF, my_snpweights, snpmatrix, y, v  = L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups, keyword)
     printConvergenceReport(result, my_snpMAF, my_snpweights, snpmatrix, y, v, snp_definition_frame)
     return result
 ##
@@ -215,7 +243,8 @@ function L0_reg2(
     y        :: Vector{T},
     J        :: Int,
     k        :: Int,
-    group    :: Vector{Int};
+    group    :: Vector{Int},
+    keyword  :: Dict{AbstractString, Any};
     v        :: IHTVariable = IHTVariables(x, y, J, k),
     # v        :: IHTVariables = IHTVariables(x, y, J, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
@@ -275,7 +304,8 @@ function L0_reg2(
     #USE_WEIGHTS = false
     if USE_WEIGHTS
         hold_snpmatrix = deepcopy(x)
-        my_snpMAF, my_snpweights, snpmatrix = calculatePriorWeightsforIHT(snpdata,y,k,v)
+        my_snpMAF, my_snpweights, snpmatrix = calculatePriorWeightsforIHT(snpdata,y,k,v,keyword)
+        # NOTICE - WE ARE NOT USING MY snpmatrix, just my_snpweights and my_snpMAF
         snpmatrix = deepcopy(hold_snpmatrix) # cancel snpweighting here, but keep my_snpweights for later
     end
     if USE_INTERCEPT # && false
@@ -293,7 +323,8 @@ function L0_reg2(
     hold_snpmatrix = deepcopy(x)
     hold_std_vec = deepcopy(std_vec)
     #A_mul_B!(x, hold_snpmatrix, my_diagm_snpweights)
-    my_snpweights = [ones(size(my_snpweights, 1)) my_snpweights]   # done later
+    #my_snpweights = [ones(size(my_snpweights, 1)) my_snpweights]   # done later
+    my_snpweights  = [my_snpweights ones(size(my_snpweights, 1))]
 #    x = std_reciprocal(hold_snpmatrix, vec(my_snpweights))
     println("sizeof(std_vec) = $(sizeof(std_vec))")
     println("sizeof(my_snpweights) = $(sizeof(my_snpweights))")

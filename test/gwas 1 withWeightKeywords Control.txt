@@ -1,0 +1,103 @@
+#
+# Input and Output files.
+#
+plink_input_basename = gwas 1 data
+output_file = gwas 1 Output.txt
+manhattan_plot_file = gwas 1 Manhattan Plot Output.png
+#
+# Analysis parameters for IHT option.
+#
+data_type = genetic
+#
+# Analysis parameters (for Ben)
+#
+predictors_per_group = 10
+max_groups = 1
+group_membership = 1_group_gwas1.dat
+#group_membership = 100_rand_groups_gwas1.dat
+#
+# Analysis parameters (for Gordon)
+#
+control_file = gwas 1 withWeightKeywords Control.txt
+experiment_description = "gwas 1 data, genetic, k=10, hua.zhou.maf, pathway1" # never mind, this should be made automatically, as a Dict
+experiment_id = date + time
+experiment_folder = folder
+MendelIHT_version = 1
+
+plotfilename_prefix = ZZZ_
+datafilename_prefix = ZZZ_
+
+
+use_intercept = false
+use_intercept = true
+
+#snps_first_in_model means same as put intercept_at_the_end
+snps_first_in_model = true
+snps_first_in_model = false
+
+use_weights = false
+use_weights = true
+
+# APPLY BASIC WEIGHTS TO ALL SNPs
+pw_algorithm_value = 1.0
+pw_algorithm = hua.zhou.maf
+
+# Data cleaning
+null_weight = 1.0
+cut_off = 0.01
+trim_top = 0.0
+
+
+# AFTER BASIC WEIGHTS ARE APPLIED:
+# PATHWAY WEIGHTS ARE FOR APPLYING WEIGHTS BASED ON A PRIORI KNOWLEDGE ABOUT CERTAIN SNPs
+# They can be weighted up, down, or some up and some down
+# They can be weighted to a constantValue or a factorValue relative to their current weight, or both
+#		but set values not use to -1
+
+# DO USE THESE - These are SNP names without the "rs" prefix
+pw_pathway1 = [11895528, 3796226, 1935681, 6974676, 2048741, 7130524, 506233, 2256412, 1741280]
+# DON'T USE - THESE ARE SNP LOCATIONS (BUT THIS IS THE ONLY WAY IT WORKS RIGHT NOW)
+pw_pathway1 = [898, 1880, 2111, 3774, 3981, 4398, 5793, 6611, 6627, 7023]
+pw_pathway1 = ""
+pw_pathway1_constantValue = 0.8
+pw_pathway1_factorValue = -1.0
+
+pw_pathway2 = [100:500...]
+pw_pathway2 = ""
+pw_pathway2_constantValue = 1.4
+pw_pathway2_factorValue = -1.0
+
+pw_pathway3 = [1100:1500...]
+pw_pathway3 = ""
+pw_pathway3_constantValue = 1.6
+pw_pathway3_factorValue = -1.0
+
+#
+# keywords for Results
+# anything we might EVER want to verify, compare or report
+# much of this will come from L0_reg
+# consider printCovergenceReport() function
+#
+
+#	r_time
+#	r_loss
+#	r_iter
+#	r_beta 	# array of all coefficients, includes zeros
+#	r_maf  	# all MAF vector
+#	r_w    	# all weights vector
+#	r_matrix# the entire matrix as run
+#	r_snps 	# all
+#		SNP
+#		Chromosome
+#		BasePairs
+#		Allele1
+#		Allele2
+#
+#	r_index	# just the selected
+#	r.b    	# just the selected coefficients
+#	r_snp	# just the selected
+#		SNP
+#		Chromosome
+#		BasePairs
+#		Allele1
+#		Allele2

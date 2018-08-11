@@ -46,7 +46,8 @@ function calculatePriorWeightsforIHT(
     x        :: SnpData,
     y        :: Vector{Float64},
     k        :: Int,
-    v        :: IHTVariable
+    v        :: IHTVariable,
+    keyword  :: Dict{AbstractString, Any}
 )
     #convert bitarrays to Float64 genotype matrix, standardize each SNP, and add intercept
     snpmatrix = convert(Array{Float64,2}, x.snpmatrix)
@@ -139,15 +140,27 @@ function calculatePriorWeightsforIHT(
     println(size(my_snpMAF))
     print("Gordon - my_snpMAF = ")
     println(my_snpMAF[1,1:10])
-    print("Gordon - max(my_snpMAF) = ")
-    println(maximum(my_snpMAF))
+    println("Gordon - max(my_snpMAF) = $(maximum(my_snpMAF))")
+    println("my_snpMAF[1,7022] = $(my_snpMAF[1,7022])")
+    println("my_snpMAF[1,7023] = $(my_snpMAF[1,7023])")
+    println("my_snpMAF[1,7024] = $(my_snpMAF[1,7024])")
     describe(my_snpMAF[1,:])
 
 
     # GORDON - CALCUATE CONSTANT WEIGHTS - another weighting option
     my_snpweights_const = copy(my_snpMAF) # only to allocate my_snpweights_const
+    #=
+    pw_algorithm_value = 1.0
+    if !isnull(tryparse(Float64,keyword["pw_algorithm"])) == true
+        pw_algorithm = parse(Float64,keyword["pw_algorithm"])
+        if pw_algorithm > 0.0
+            pw_algorithm_value = pw_algorithm
+        end
+    end
+    =#
+    # need to test for bad user input !!!
     for i = 1:size(my_snpweights_const,2)
-        my_snpweights_const[1,i] = 1.0   # was 0.5
+        my_snpweights_const[1,i] = keyword["pw_algorithm_value"]
     end
     println(my_snpweights_const[1,1:10])
     println("\ndescribe(my_snpweights_const)")
@@ -204,15 +217,14 @@ function calculatePriorWeightsforIHT(
     print(DEFAULT)
     # DECIDE NOW WHICH WEIGHTS TO APPLY !!!
 
-    if true
+    if true # to ensure an algorithm, do this regardless
         my_snpweights = copy(my_snpweights_const)    # Ben/Kevin this is currently at 1.0 for testing null effect
         println("Selected my_snpweights_const")
     end
-    if true
+    if keyword["pw_algorithm"] == "hua.zhou.maf"
         my_snpweights = copy(my_snpweights_huazhou_reciprocal)
         println("Selected my_snpweights_huazhou_reciprocal")
     end
-
     #my_snpweights = copy(my_snpMAF)
     println(RED*"SELECT WEIGHT FUNCTION HERE !!!"*DEFAULT)
     println("\ndescribe(my_snpweights)")
@@ -224,8 +236,11 @@ function calculatePriorWeightsforIHT(
     println("===============================================================")
     #   DO I REALLY WANT TO KILL OUTLIERS HERE - I LIKE THEM, MUST BE A BETTER WAY TO KEEP THEM
     NULLweight = 1 # was 0 or 1 (Ben says don't weight to zero, one is good enough)
+    NULLweight = keyword["null_weight"]
     cutoff = 0.025
+    cutoff = 0.01
     cutoff = 0.001
+    cutoff = keyword["cut_off"]
     #cutoff = 0.025
     found = find(my_snpMAF .< cutoff)    # below 2.5% causes me problems with convergence
     println(found)
@@ -243,6 +258,7 @@ function calculatePriorWeightsforIHT(
     # trim the top too ???
     TRIM_TOP = 0.1
     TRIM_TOP = 0.0
+    TRIM_TOP = keyword["trim_top"]
     if TRIM_TOP > 0.0
         cutoff_top = TRIM_TOP
         found_top = find(my_snpMAF .> cutoff_top)    # below 2.5% causes me problems with convergence
@@ -262,32 +278,43 @@ function calculatePriorWeightsforIHT(
     # DEVELOPERS NOTE: TO REALLY SEE THE EFFECT OF Weighting
     #   TURN APRIORI ON AND SET WEIGHT ALGO TO CONSTANT = 1.0
     # [899, 1881, 3775, 3982, 4210, 4399, 5794, 6612, 6628, 7024] # 10 here, 12 below
-    if 99 in [98]
+    if keyword["pw_pathway1"] > ""
         #for m2 in [899, 1881, 3775, 3982, 4210, 4399, 5794, 6612, 6628, 7024, 8960, 9468]
-        for m2 in [898, 1880, 2111, 3774, 3981, 4398, 5793, 6611, 6627, 7023] # [898, 1880, 2111, 3774, 3981, 4398, 6611, 6627, 7023]
-            m1 = 0.8
+        #for m2 in [898, 1880, 2111, 3774, 3981, 4398, 5793, 6611, 6627, 7023] # [898, 1880, 2111, 3774, 3981, 4398, 6611, 6627, 7023]
+        pw_tmp = eval(parse(keyword["pw_pathway1"]))
+        for m2 in pw_tmp
+            m1 = keyword["pw_pathway1_constantvalue"]
             println("Apply adjustment for APRIORI weight at m2 = $(m2), m1 = $(m1)")
-            print("Before = $(my_snpweights[m2-1])")
-            my_snpweights[m2-1] = m1
-            println(", after = $(my_snpweights[m2-1])")
+            print("Before = $(my_snpweights[m2])")
+            my_snpweights[m2] = m1
+            println(", after = $(my_snpweights[m2])")
         end
-        for m2 in [100:500...] # [898, 1880, 2111, 3774, 3981, 4398, 6611, 6627, 7023]
-            m1 = 1.59
+    end
+    if keyword["pw_pathway2"] > ""
+        pw_tmp = eval(parse(keyword["pw_pathway2"]))
+        for m2 in pw_tmp
+            m1 = keyword["pw_pathway2_constantvalue"]
             println("Apply adjustment for APRIORI weight at m2 = $(m2), m1 = $(m1)")
-            print("Before = $(my_snpweights[m2-1])")
-            my_snpweights[m2-1] = m1
-            println(", after = $(my_snpweights[m2-1])")
+            print("Before = $(my_snpweights[m2])")
+            my_snpweights[m2] = m1
+            println(", after = $(my_snpweights[m2])")
         end
-        for m2 in [1100:1500...] # [898, 1880, 2111, 3774, 3981, 4398, 6611, 6627, 7023]
-            m1 = 1.61
+    end
+    if keyword["pw_pathway3"] > ""
+        pw_tmp = eval(parse(keyword["pw_pathway3"]))
+        for m2 in pw_tmp
+            m1 = keyword["pw_pathway3_constantvalue"]
             println("Apply adjustment for APRIORI weight at m2 = $(m2), m1 = $(m1)")
-            print("Before = $(my_snpweights[m2-1])")
-            my_snpweights[m2-1] = m1
-            println(", after = $(my_snpweights[m2-1])")
+            print("Before = $(my_snpweights[m2])")
+            my_snpweights[m2] = m1
+            println(", after = $(my_snpweights[m2])")
         end
+    end
+    #=
     else
         println("None")
     end
+    =#
     #    my_diagm_snpweights[7024-1,7024-1] = 2.0 # BEN'S IDEA FOR LOWEST LOSS
 
     println("===============================================================")
