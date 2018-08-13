@@ -180,19 +180,18 @@ function project_group_sparse!{T <: Float}(
     m     :: Int64, 
     n     :: Int64
 )
-    x = copy(y)
     groups = maximum(group)
     group_count = zeros(Int, groups)         #counts number of predictors in each group
     z = zeros(groups)                        #l2 norm of each group
-    perm = zeros(Int64, length(x))           #vector holding the permuation vector after sorting
-    sortperm!(perm, x, by = abs, rev = true)
+    perm = zeros(Int64, length(y))           #vector holding the permuation vector after sorting
+    sortperm!(perm, y, by = abs, rev = true)
 
     #calculate the magnitude of each group, where only top predictors contribute
-    for i in eachindex(x)
+    for i in eachindex(y)
         j = perm[i] 
         k = group[j]
         if group_count[k] < n
-            z[k] = z[k] + x[j]^2
+            z[k] = z[k] + y[j]^2
             group_count[k] = group_count[k] + 1
         end
     end
@@ -202,7 +201,7 @@ function project_group_sparse!{T <: Float}(
     sortperm!(group_rank, z, rev = true)
     group_rank = invperm(group_rank)
     fill!(group_count, 1) 
-    for i in eachindex(x)
+    for i in eachindex(y)
         j = perm[i]
         k = group[j]
         if (group_rank[k] > m) || (group_count[k] > n)
