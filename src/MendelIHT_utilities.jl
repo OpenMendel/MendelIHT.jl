@@ -3,22 +3,22 @@ Object to contain intermediate variables and temporary arrays. Used for cleaner 
 """
 mutable struct IHTVariable{T <: Float, V <: DenseVector}
 
-   #TODO: Consider changing b and b0 to SparseVector
-   #TODO: Add in itc
-   # itc  :: T             # the intercept
-   # itc0 :: T             # old intercept
-   b     :: Vector{T}     # the statistical model, most will be 0
-   b0    :: Vector{T}     # previous estimated model in the mm step
-   xb    :: Vector{T}     # vector that holds x*b 
-   xb0   :: Vector{T}     # previous xb in the mm step
-   xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-   gk    :: Vector{T}     # gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
-   xgk   :: Vector{T}     # x * gk also part of the gradient calculation 
-   idx   :: BitVector     # BitArray indices of nonzeroes in b for A_mul_B
-   idx0  :: BitVector     # previous iterate of idx
-   r     :: V             # n-vector of residuals
-   df    :: V             # the gradient: df = -x' * (y - xb - intercept)
-   group :: Vector{Int64} # vector denoting group membership
+    #TODO: Consider changing b and b0 to SparseVector
+    #TODO: Add in itc
+    # itc  :: T             # the intercept
+    # itc0 :: T             # old intercept
+    b     :: Vector{T}     # the statistical model, most will be 0
+    b0    :: Vector{T}     # previous estimated model in the mm step
+    xb    :: Vector{T}     # vector that holds x*b 
+    xb0   :: Vector{T}     # previous xb in the mm step
+    xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    gk    :: Vector{T}     # gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
+    xgk   :: Vector{T}     # x * gk also part of the gradient calculation 
+    idx   :: BitVector     # BitArray indices of nonzeroes in b for A_mul_B
+    idx0  :: BitVector     # previous iterate of idx
+    r     :: V             # n-vector of residuals
+    df    :: V             # the gradient: df = -x' * (y - xb - intercept)
+    group :: Vector{Int64} # vector denoting group membership
 end
 
 function IHTVariables{T <: Float}(
@@ -87,15 +87,15 @@ This function computes the gradient step v.b = P_k(β + μ∇f(β)), and updates
 Recall calling axpy! implies v.b = v.b + μ*v.df, but v.df stores an extra negative sign.
 """
 function _iht_gradstep{T <: Float}(
-   v  :: IHTVariable{T},
-   μ  :: T,
-   J  :: Int,
-   k  :: Int;
+    v  :: IHTVariable{T},
+    μ  :: T,
+    J  :: Int,
+    k  :: Int;
 )
    # n = length(v.xb)
    # v.itc = v.itc0 + μ*(n*μ - sum(v.r) + n*v.itc0)
    BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is an addition since df stores X(-1*(Y-Xb)))
-   v.b = project_group_sparse(v.b, v.group, J, k) # project to doubly sparse vector 
+   project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector 
    v.idx .= v.b .!= 0       # Update idx. (find indices of new beta that are nonzero)
 
    # If the k'th largest component is not unique, warn the user. 
@@ -112,8 +112,8 @@ function _init_iht_indices{T <: Float}(
     k     :: Int
 )    
     perm = sortperm(v.df, by = abs, rev = true) 
-    temp_vector = project_group_sparse(v.df, v.group, J, k)
-    v.idx[find(temp_vector)] = true
+    project_group_sparse!(v.df, v.group, J, k)
+    v.idx[find(v.df)] = true
     v.gk = zeros(T, sum(v.idx))
 
     return nothing
@@ -171,16 +171,21 @@ end
 n active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown group membership.
 
-TODO: 1)separate the group magnitude computation from this function
-      2)make this function operate in-place 
+TODO: 1)make this function operate in-place 
+      2)check if sortperm can be replaced by something that doesn't sort the whole array
 """
-function project_group_sparse{T <: Float}(y::Vector{T}, group::Vector{Int64}, 
-  m::Int64, n::Int64)
+function project_group_sparse!{T <: Float}(
+    y     :: Vector{T}, 
+    group :: Vector{Int64}, 
+    m     :: Int64, 
+    n     :: Int64
+)
     x = copy(y)
     groups = maximum(group)
     group_count = zeros(Int, groups)         #counts number of predictors in each group
     z = zeros(groups)                        #l2 norm of each group
-    perm = sortperm(x, by = abs, rev = true)
+    perm = zeros(Int64, length(x))           #vector holding the permuation vector after sorting
+    sortperm!(perm, x, by = abs, rev = true)
 
     #calculate the magnitude of each group, where only top predictors contribute
     for i in eachindex(x)
@@ -193,19 +198,19 @@ function project_group_sparse{T <: Float}(y::Vector{T}, group::Vector{Int64},
     end
 
     #go through the top predictors in order. Set predictor to 0 if criteria not met
-    group_rank = sortperm(z, rev = true)
+    group_rank = zeros(Int64, length(z)) 
+    sortperm!(group_rank, z, rev = true)
     group_rank = invperm(group_rank)
     fill!(group_count, 1) 
     for i in eachindex(x)
         j = perm[i]
         k = group[j]
         if (group_rank[k] > m) || (group_count[k] > n)
-            x[j] = 0.0
+            y[j] = 0.0
         else
             group_count[k] = group_count[k] + 1
         end
     end
-    return x
 end
 
 """
@@ -216,8 +221,8 @@ immutable gIHTResults{T <: Float, V <: DenseVector}
     loss  :: T
     iter  :: Int
     beta  :: V
-    J     :: Int
-    k     :: Int
+    J     :: Int64
+    k     :: Int64
     group :: Vector{Int64}
 
     #gIHTResults{T,V}(time::T, loss::T, iter::Int, beta::V) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta)
