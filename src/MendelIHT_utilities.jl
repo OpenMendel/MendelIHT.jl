@@ -5,33 +5,33 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
 
     #TODO: Consider changing b and b0 to SparseVector
     #TODO: Add in itc
-    # itc  :: T             # the intercept
-    # itc0 :: T             # old intercept
+    itc   :: T             # estimate for the intercept
+    itc0  :: T             # estimated intercept in the previous iteration
     b     :: Vector{T}     # the statistical model, most will be 0
-    b0    :: Vector{T}     # previous estimated model in the mm step
+    b0    :: Vector{T}     # estimated model in the previous iteration
     xb    :: Vector{T}     # vector that holds x*b 
-    xb0   :: Vector{T}     # previous xb in the mm step
+    xb0   :: Vector{T}     # xb in the previous iteration
     xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: Vector{T}     # gk = df[idx] is a temporary array of length `k` that arises as part of the gradient calculations. I avoid doing full gradient calculations since most of `b` is zero. 
-    xgk   :: Vector{T}     # x * gk also part of the gradient calculation 
-    idx   :: BitVector     # BitArray indices of nonzeroes in b for A_mul_B
+    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of b
+    xgk   :: Vector{T}     # xk * gk 
+    idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
     idx0  :: BitVector     # previous iterate of idx
     r     :: V             # n-vector of residuals
-    df    :: V             # the gradient: df = -x' * (y - xb - intercept)
+    df    :: V             # the gradient: df = x' * (y - xb - intercept)
     group :: Vector{Int64} # vector denoting group membership
 end
 
 function IHTVariables{T <: Float}(
     x :: SnpLike{2},
     y :: Vector{T},
-    J :: Int64,
+    J :: Int64,   # decide whether to use just Int for J, k everywhere
     k :: Int64
 ) 
     n, p = size(x) 
-    p += 1 # add 1 for the intercept, need to change this to use itc later
+    # p += 1 # add 1 for the intercept, need to change this to use itc later
 
-    # itc  = zero(T)
-    # itc0 = zero(T)
+    itc   = zero(T)
+    itc0  = zero(T)
     b     = zeros(T, p)
     b0    = zeros(T, p)
     xb    = zeros(T, n)
@@ -45,21 +45,8 @@ function IHTVariables{T <: Float}(
     df    = zeros(T, p)
     group = ones(Int64, p)
 
-    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, group)
-    # return IHTVariable{T, typeof(y)}(itc, itc0, b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
+    return IHTVariable{T, typeof(y)}(itc, itc0, b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, group)
 end
-
-#"""
-#Returns ω, a constant we need to bound the step size μ to guarantee convergence. 
-#"""
-#
-#function compute_ω!(v::IHTVariable, snpmatrix::Matrix{Float64})
-#    #update v.xb
-#    A_mul_B!(v.xb, snpmatrix, v.b)
-#
-#    #calculate ω efficiently (old b0 and xb0 have been copied before calling iht!)
-#    return sqeuclidean(v.b, v.b0) / sqeuclidean(v.xb, v.xb0)
-#end
 
 """
 This function is needed for testing purposes only. 
@@ -87,16 +74,15 @@ This function computes the gradient step v.b = P_k(β + μ∇f(β)), and updates
 Recall calling axpy! implies v.b = v.b + μ*v.df, but v.df stores an extra negative sign.
 """
 function _iht_gradstep{T <: Float}(
-    v  :: IHTVariable{T},
-    μ  :: T,
-    J  :: Int,
-    k  :: Int;
+    v :: IHTVariable{T},
+    μ :: T,
+    J :: Int,
+    k :: Int
 )
-   # n = length(v.xb)
-   # v.itc = v.itc0 + μ*(n*μ - sum(v.r) + n*v.itc0)
-   BLAS.axpy!(μ, v.df, v.b) # take the gradient step: v.b = b + μ∇f(b) (which is an addition since df stores X(-1*(Y-Xb)))
+   v.itc = v.itc0 - μ * sum(v.r)             # update intercept
+   BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: v.b = b + μ∇f(b)
    project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector 
-   v.idx .= v.b .!= 0       # Update idx. (find indices of new beta that are nonzero)
+   v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
 
    # If the k'th largest component is not unique, warn the user. 
    sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
@@ -111,7 +97,6 @@ function _init_iht_indices{T <: Float}(
     J     :: Int,
     k     :: Int
 )    
-    perm = sortperm(v.df, by = abs, rev = true) 
     project_group_sparse!(v.df, v.group, J, k)
     v.idx[find(v.df)] = true
     v.gk = zeros(T, sum(v.idx))
