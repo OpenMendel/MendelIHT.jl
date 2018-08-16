@@ -71,9 +71,9 @@ function MendelIHT2(control_file = ""; args...)
 
     keyword["plotfilename_prefix"] = ""
     keyword["datafilename_prefix"] = ""
-    keyword["use_intercept"] = ""
+    keyword["use_intercept"] = "keyword not used"
     keyword["snps_first_in_model"] = ""
-    keyword["use_weights"] = ""
+    keyword["use_weights"] = "true"
     keyword["pw_algorithm"] = ""
     keyword["pw_algorithm_value"] = 1.0
 
@@ -133,8 +133,8 @@ function MendelIHT2(control_file = ""; args...)
     J = keyword["max_groups"]
     #return L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups)
     #k = 9 # DEBUG NO Intercept
-    result, my_snpMAF, my_snpweights, snpmatrix, y, v  = L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups, keyword)
-    printConvergenceReport(result, my_snpMAF, my_snpweights, snpmatrix, y, v, snp_definition_frame)
+    result, my_snpMAF, my_snpweights, x, y, v  = L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups, keyword)
+    printConvergenceReport(result, my_snpMAF, my_snpweights, x, y, v, snp_definition_frame)
     return result
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
@@ -298,38 +298,16 @@ function L0_reg2(
     mean_vec = [mean_vec; zero(T)]
     std_vec  = [std_vec; one(T)]
 
-    # Note: INTERCEPT is probably already in snpmatrix at this point
-    println("Note: Set USE_WEIGHTS = true to use weights.")
-    USE_WEIGHTS = true
-    #USE_WEIGHTS = false
-    if USE_WEIGHTS
-        hold_snpmatrix = deepcopy(x)
-        my_snpMAF, my_snpweights, snpmatrix = calculatePriorWeightsforIHT(snpdata,y,k,v,keyword)
+    println("Note: Set keyword[\"use_weights\"] = true to use weights.")
+    if keyword["use_weights"] == true
+        my_snpMAF, my_snpweights, notused_snpmatrix = calculatePriorWeightsforIHT(snpdata,y,k,v,keyword)
         # NOTICE - WE ARE NOT USING MY snpmatrix, just my_snpweights and my_snpMAF
-        snpmatrix = deepcopy(hold_snpmatrix) # cancel snpweighting here, but keep my_snpweights for later
+        hold_std_vec = deepcopy(std_vec)
+        my_snpweights  = [my_snpweights ones(size(my_snpweights, 1))]
+        println("sizeof(std_vec) = $(sizeof(std_vec))")
+        println("sizeof(my_snpweights) = $(sizeof(my_snpweights))")
+        Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
     end
-    if USE_INTERCEPT # && false
-        # this puts the intercept on the end at 10,001 - I like it there better anyway
-        hold_my_snpweights = deepcopy(my_snpweights)
-        my_snpweights = [ones(size(my_snpweights, 1)) my_snpweights]   # done later
-        my_diagm_snpweights = diagm(my_snpweights[1,:]) # Diagonal(my_snpweights)
-        my_snpweights = deepcopy(hold_my_snpweights) # no one else wants to see an intercept in the snpweights
-    else
-        my_diagm_snpweights = diagm(my_snpweights[1,:]) # Diagonal(my_snpweights)
-    end
-    # Use the next 2 lines to put the weights back in here if needed
-    println("sizeof(x) = $(sizeof(x))")
-#    println(x)
-    hold_snpmatrix = deepcopy(x)
-    hold_std_vec = deepcopy(std_vec)
-    #A_mul_B!(x, hold_snpmatrix, my_diagm_snpweights)
-    #my_snpweights = [ones(size(my_snpweights, 1)) my_snpweights]   # done later
-    my_snpweights  = [my_snpweights ones(size(my_snpweights, 1))]
-#    x = std_reciprocal(hold_snpmatrix, vec(my_snpweights))
-    println("sizeof(std_vec) = $(sizeof(std_vec))")
-    println("sizeof(my_snpweights) = $(sizeof(my_snpweights))")
-    Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
-    println("sizeof(x) = $(sizeof(x))")
 
     #
     # Begin IHT calculations
@@ -376,7 +354,7 @@ function L0_reg2(
             mm_time = toq()   # stop time
             #return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group)
             # additional return variables are only used in printConvergenceReport()
-            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group), my_snpMAF, my_snpweights, snpmatrix, y, v
+            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group), my_snpMAF, my_snpweights, x, y, v
 
         end
 

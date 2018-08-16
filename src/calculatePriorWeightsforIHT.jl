@@ -32,7 +32,7 @@ if !isdefined(:RED)
     \e[47m	White
     =#
 end
-USE_INTERCEPT = true
+#USE_INTERCEPT = true
 #USE_INTERCEPT = false    # has not been used/tested for quite some time
 
 """
@@ -60,11 +60,9 @@ function calculatePriorWeightsforIHT(
 
     println(BLUE*"Gordon 124: new code for Prior Weights work"*DEFAULT)
     println("Note: numbers after my name should be close to line numbers in original code.")
-    USE_WEIGHTS = true
-    println("Note: Set USE_WEIGHTS = true to use weights.")
     #USE_INTERCEPT = true  # its global now
-    println("Note: Set USE_INTERCEPT = false to drop intercept column.")
-    println("Note:      must adjust intercept in MendelIHT_utilities.jl ALSO!")
+    #println("Note: Set USE_INTERCEPT = false to drop intercept column.")
+    #println("Note:      must adjust intercept in MendelIHT_utilities.jl ALSO!")
 
     xxx = SnpArray("gwas 1 data")
     xxx = convert(Array{Float64,2}, xxx)
@@ -502,6 +500,7 @@ function calculatePriorWeightsforIHT(
     println("Gordon testing 130: describe(my_snpmatrix[:,2]) after zscore() and after the weights")
     describe(my_snpmatrix[:,2])
 
+    #=
     println("===============================================================")
     println("========== CONSIDER DROPPING THE INTERCEPT ====================")
     println("========== TO KEEP THE MATRIX SPARSER =========================")
@@ -512,7 +511,7 @@ function calculatePriorWeightsforIHT(
     end
     println()
     println("Gordon testing 130: size(my_snpmatrix) = $(size(my_snpmatrix)) after adding the column of ones for Intercept.")
-
+    =#
     println("===============================================================")
     println("========== SETUP TEST DATA HERE ===============================")
     println("===============================================================")
@@ -548,7 +547,7 @@ function calculatePriorWeightsforIHT(
 
         println(find(my_snpweights .== maximum(my_snpweights)))  # 10.012523
         my_snpweights[7265] = 0
-        my_snpmatrix[:,7265+1] = 0
+        my_snpmatrix[:,7265+1] = 0 # +1 isn't needed anymore, intercept is not in front
         println(find(my_snpweights .== maximum(my_snpweights)))  #
         my_snpweights[6603] = 0
         my_snpmatrix[:,6603+1] = 0

@@ -12,8 +12,8 @@ function printConvergenceReport(
     result          :: gIHTResults,
     my_snpMAF       :: Array{Float64,2},
     my_snpweights   :: Array{Float64,2},
-    snpmatrix       :: SnpLike{2},
-    y               :: Vector{Float64},              # phenotype in L0_reg
+    snpmatrix       :: SnpLike{2},                  # x in L0_reg
+    y               :: Vector{Float64},             # phenotype in L0_reg
     v               :: IHTVariable,
     snp_definition_frame )
     # locals
@@ -40,7 +40,7 @@ function printConvergenceReport(
     print("v.b[found]: ")
     println(v.b[found])
     println("v.b[1:10] $(size(v.b)) = $(v.b[1:10])")
-    describe(mm_beta)
+    #describe(mm_beta) # same as v.b
     describe(v.b)
 
     println(BLUE*"THE SUMMARY STATS FOR THE Betas ARE PLOTTED IN bar_b.png"*DEFAULT)
@@ -48,7 +48,8 @@ function printConvergenceReport(
     Plots.savefig("ZZZ_bar_b1.png")
 
     println()
-    if USE_INTERCEPT # && false # currently the intercept is at the end
+    #USE_INTERCEPT = true
+    if true # && false # currently the intercept is at the end
         #my_snpweights_intercept = [ones(size(my_snpweights, 1)) my_snpweights]
         my_snpweights_intercept = my_snpweights
         println("my_snpweights_intercept for found:")
@@ -145,18 +146,18 @@ function printConvergenceReport(
 if true        # NO NEED FOR SNP NAMES SINCE THEY ARE FAKE? or are they BMI related
     #run(`powershell pwd`)   # works !!!
     rs = Nullable{Int64}[]
-    for snp_index in found
-        if USE_INTERCEPT && false # intercept is at the end now
-            if snp_index == 1
+    for snp in found
+#        if USE_INTERCEPT && false # intercept is at the end now
+#            if snp_index == 1
+#                continue
+#            end
+#            snp = snp_index - 1 # adjust for intercept
+#        else
+            if snp == 10001
                 continue
             end
-            snp = snp_index - 1 # adjust for intercept
-        else
-            if snp_index == 10001
-                continue
-            end
-            snp = snp_index
-        end
+            #snp = snp_index
+#        end
 
         #aaaa=readstring(`bash -c 'curl -X GET --header "Accept: application/json" "https://api.ncbi.nlm.nih.gov/variation/v0/beta/refsnp/268"'`);
         #println("back from readstring()")

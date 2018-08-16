@@ -30,6 +30,7 @@ datafilename_prefix = ZZZ_
 
 use_intercept = false
 use_intercept = true
+use_intercept = keyword not used
 
 #snps_first_in_model means same as put intercept_at_the_end
 snps_first_in_model = true
@@ -58,6 +59,7 @@ trim_top = 0.0
 pw_pathway1 = [11895528, 3796226, 1935681, 6974676, 2048741, 7130524, 506233, 2256412, 1741280]
 # DON'T USE - THESE ARE SNP LOCATIONS (BUT THIS IS THE ONLY WAY IT WORKS RIGHT NOW)
 pw_pathway1 = [898, 1880, 2111, 3774, 3981, 4398, 5793, 6611, 6627, 7023]
+pw_pathway1 = [4746, 5973] # keep for one LD test for Gordon
 pw_pathway1 = ""
 pw_pathway1_constantValue = 0.8
 pw_pathway1_factorValue = -1.0
