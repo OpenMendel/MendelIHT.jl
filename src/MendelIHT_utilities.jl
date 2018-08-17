@@ -4,7 +4,6 @@ Object to contain intermediate variables and temporary arrays. Used for cleaner 
 mutable struct IHTVariable{T <: Float, V <: DenseVector}
 
     #TODO: Consider changing b and b0 to SparseVector
-    #TODO: Add in itc
     itc   :: T             # estimate for the intercept
     itc0  :: T             # estimated intercept in the previous iteration
     b     :: Vector{T}     # the statistical model, most will be 0
@@ -12,8 +11,8 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     xb    :: Vector{T}     # vector that holds x*b 
     xb0   :: Vector{T}     # xb in the previous iteration
     xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of b
-    xgk   :: Vector{T}     # xk * gk 
+    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of df
+    xgk   :: Vector{T}     # xk * gk, denominator of step size
     idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
     idx0  :: BitVector     # previous iterate of idx
     r     :: V             # n-vector of residuals
@@ -27,9 +26,7 @@ function IHTVariables{T <: Float}(
     J :: Int64,   # decide whether to use just Int for J, k everywhere
     k :: Int64
 ) 
-    n, p = size(x) 
-    # p += 1 # add 1 for the intercept, need to change this to use itc later
-
+    n, p  = size(x) 
     itc   = zero(T)
     itc0  = zero(T)
     b     = zeros(T, p)
@@ -70,8 +67,8 @@ function use_A2_as_minor_allele(snpmatrix :: SnpArray)
 end
 
 """
-This function computes the gradient step v.b = P_k(β + μ∇f(β)), and updates v.idx. 
-Recall calling axpy! implies v.b = v.b + μ*v.df, but v.df stores an extra negative sign.
+This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates v.idx. It is an 
+addition here because recall that v.df stores an extra negative sign.
 """
 function _iht_gradstep{T <: Float}(
     v :: IHTVariable{T},
@@ -79,8 +76,8 @@ function _iht_gradstep{T <: Float}(
     J :: Int,
     k :: Int
 )
-   v.itc = v.itc0 - μ * sum(v.r)             # update intercept
    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: v.b = b + μ∇f(b)
+   v.itc = v.itc0 + μ * sum(v.r)             # update intercept too
    project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector 
    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
 
@@ -93,9 +90,9 @@ When initializing the IHT algorithm, take largest elements of each group of df a
 components of b. This function set v.idx = 1 for those indices. 
 """
 function _init_iht_indices{T <: Float}(
-    v     :: IHTVariable{T},
-    J     :: Int,
-    k     :: Int
+    v :: IHTVariable{T},
+    J :: Int,
+    k :: Int
 )    
     project_group_sparse!(v.df, v.group, J, k)
     v.idx[find(v.df)] = true
@@ -110,7 +107,7 @@ this function calculates the omega (here a / b) used for determining backtrackin
 function _iht_omega{T <: Float}(
     v :: IHTVariable{T}
 )
-    a = sqeuclidean(v.b, v.b0::Vector{T}) :: T
+    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.itc, v.itc0)  :: T
     b = sqeuclidean(v.xb, v.xb0::Vector{T}) :: T
     return a, b
 end
@@ -205,16 +202,16 @@ immutable gIHTResults{T <: Float, V <: DenseVector}
     loss  :: T
     iter  :: Int
     beta  :: V
+    itc   :: T
     J     :: Int64
     k     :: Int64
     group :: Vector{Int64}
 
-    #gIHTResults{T,V}(time::T, loss::T, iter::Int, beta::V) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta)
-    gIHTResults{T,V}(time, loss, iter, beta, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta, J, k, group)
+    gIHTResults{T,V}(time, loss, iter, beta, itc, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta, itc, J, k, group)
 end
 
 # strongly typed external constructor for gIHTResults
-gIHTResults(time::T, loss::T, iter::Int, beta::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = gIHTResults{T, V}(time, loss, iter, beta, J, k, group)
+gIHTResults(time::T, loss::T, iter::Int, beta::V, itc::T, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = gIHTResults{T, V}(time, loss, iter, beta, itc, J, k, group)
 
 """
 a function to display gIHTResults object
@@ -229,5 +226,7 @@ function Base.show(io::IO, x::gIHTResults)
     println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
     non_zero = find(x.beta)
     print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
+    println(io, "\n\nIntercept of model = ", x.itc)   
+
     return nothing
 end

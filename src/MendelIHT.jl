@@ -132,14 +132,14 @@ function iht!(
     v.gk .= v.df[v.idx]
 
     # now compute subset of x*g
-    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec[v.idx], std_vec[v.idx]) # v.df = X'(y - Xβ)
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec[v.idx], std_vec[v.idx])
+    v.xgk .+= sum(v.r)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
-    # compute step size
-#    mu = _iht_stepsize(v, k) :: T # does not yield conformable arrays?!
-    μ = (sum(abs2, v.gk) / sum(abs2, v.xgk)) :: T
+    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    μ = ((sum(abs2, v.gk) + sum(v.r)^2) / sum(abs2, v.xgk)) :: T
 
     # check for finite stepsize
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
@@ -150,6 +150,7 @@ function iht!(
     # update xb
     v.xk .= view(x, :, v.idx) 
     SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
+    v.xb .+= v.itc
 
     # calculate omega
     ω_top, ω_bot = _iht_omega(v)
@@ -169,6 +170,7 @@ function iht!(
         # recompute xb
         v.xk .= view(x, :, v.idx) 
         SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
+        v.xb .+= v.itc
 
         # calculate omega
         ω_top, ω_bot = _iht_omega(v)
@@ -225,22 +227,16 @@ function L0_reg(
     converged = false             # scaled_norm < tol?
 
     # compute some summary statistics for our snpmatrix
-    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
+    mean_vec, minor_allele, missings_per_snp, missings_per_person = summarize(x)
     people, snps = size(x)
 
     #precompute mean and standard deviations for each snp. Note that (1) the mean is 
     #given by 2 * maf, and (2) based on which allele is the minor allele, might need to do 
     #2.0 - the maf for the mean vector.
-    mean_vec = zeros(snps) 
     for i in 1:snps
-        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i] 
+        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i] 
     end
     std_vec = std_reciprocal(x, mean_vec)
-
-    #add intercept (at the end)
-    # x        = [x SnpArray(ones(people))] #NOTE this creates A LOT of extra memory!!!!
-    # mean_vec = [mean_vec; zero(T)]
-    # std_vec  = [std_vec; one(T)]
 
     #
     # Begin IHT calculations
@@ -261,12 +257,12 @@ function L0_reg(
         copy!(v.xb0, v.xb) # Xb0 = Xb  CONSIDER BLASCOPY!
         v.itc0 = v.itc     # update intercept as well
         loss = next_loss
-        
-        #calculate the step size μ. TODO: check how adding intercept affects this
+
+        #calculate the step size μ.
         (μ, μ_step) = iht!(v, x, y, J, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
-        v.r .= y .- v.xb .- v.itc
+        v.r .= y .- v.xb # v.r = (y - Xβ - intercept)
         v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet
 
         # v.df = X'(y - Xβ - intercept)
@@ -278,13 +274,13 @@ function L0_reg(
         !isinf(next_loss) || throw(error("Objective function is Inf, aborting..."))
 
         # track convergence
-        the_norm    = chebyshev(v.b, v.b0) #max(abs(x - y))
-        scaled_norm = the_norm / (norm(v.b0, Inf) + 1)
+        the_norm    = max(chebyshev(v.b, v.b0), abs(v.itc - v.itc0)) #max(abs(x - y))
+        scaled_norm = the_norm / (max(norm(v.b0, Inf), v.itc0) + 1.0)
         converged   = scaled_norm < tol
 
         if converged
             mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_loss, mm_iter, copy(v.b), J, k, group)
+            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.itc, J, k, group)
         end
 
         if mm_iter == max_iter
