@@ -14,13 +14,13 @@ function test_data()
 	y = CSV.read("test.fam", delim = ' ', header = false)
 	y = convert(Array{Float64,1}, y[:, 6])
 	J = 1
-	k = 2
+	k = 1
 	v = IHTVariables(x, y, J, k)
 	return (x, y, J, k, v)
 end
 
 function gwas1_data()
-	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10001 (with column of intercept)
+	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10000
 	x = SnpArray("gwas 1 data") 
 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
 	y = convert(Array{Float64,1}, y[:, 6])
@@ -50,18 +50,18 @@ end
 	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
 	@test typeof(x) == SnpData || typeof(x) <: SnpArray
 
-	@test size(v.b)    == (3,) 
-	@test size(v.b0)   == (3,)
+	@test size(v.b)    == (2,) 
+	@test size(v.b0)   == (2,)
 	@test size(v.xb)   == (6,)
 	@test size(v.xb0)  == (6,)
-	@test size(v.xk)   == (6, 2)
-	@test size(v.gk)   == (2,)
+	@test size(v.xk)   == (6, 1)
+	@test size(v.gk)   == (1,)
 	@test size(v.xgk)  == (6,)
-	@test size(v.idx)  == (3,)
-	@test size(v.idx0) == (3,)
+	@test size(v.idx)  == (2,)
+	@test size(v.idx0) == (2,)
 	@test size(v.r)	   == (6,)
-	@test size(v.df)   == (3,)
-	@test size(v.group)== (3,)
+	@test size(v.df)   == (2,)
+	@test size(v.group)== (2,)
 
 	@test typeof(v.b)    == Array{Float64, 1}
 	@test typeof(v.b0)   == Array{Float64, 1}
@@ -82,7 +82,7 @@ end
 
 	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
 	# set v.idx = 1 for the k largest terms in v.df 
-	v.df[1:10001] .= rand(10001)
+	v.df[1:10000] .= rand(10000)
 	p = sortperm(v.df, rev = true)
 	top_k_index = p[1:10]
 	IHT._init_iht_indices(v, J, k)
@@ -155,6 +155,21 @@ end
 								   2.4060215839929158; 2.9499620312194383])
 end
 
+@testset "_iht_omega" begin
+	(x, y, J, k, v) = test_data()
+	v.b    = [0.0, 0.334712]
+	v.b0   = [0.0, 0.0]
+	v.itc  = 1.51177394
+	v.itc0 = 0.0
+	v.xb   = [1.43767, 1.43767, 0.993028, 1.88231, 1.43767, 1.88231]
+	v.xb0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+	ω_top, ω_bot = IHT._iht_omega(v)
+
+	@test round(ω_top, 4) == 2.3975
+	@test round(ω_bot, 4) == 14.273
+end
+
 # @testset "_iht_backtrack" begin
 #    (x, y, k, v) = gwas1_data()
 #    μ, ω = 1.0, 1.0
@@ -171,10 +186,6 @@ end
 
 #    μ, ω = 0.98, 1.0
 #    @test IHT._iht_backtrack(v, ω, μ) == true
-# end
-
-# @testset "_iht_omega" begin
-# 
 # end
 
 #@testset "_iht_gradstep" begin

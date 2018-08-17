@@ -19,17 +19,22 @@ end
 	non_zero_mendel = find(mendel_result.beta)
 	non_zero_iht = find(iht_result.beta) 
 	mendel_beta_val = mendel_result.beta[non_zero_mendel]
+	mendel_intercept = mendel_result.itc
 	iht_beta_val = iht_result.beta[non_zero_iht]
 
+	#test overall loss and number of iterations agree
 	@test mendel_result.loss ≈ iht_result.loss
 	@test mendel_result.iter == iht_result.iter
 
+	#same number of variables were selected
+	@test length(mendel_beta_val) + 1 == length(iht_beta_val)
+
 	#test non-zero entries of beta are equal in value
-	@test all(mendel_beta_val .≈ mendel_beta_val)
+	@test mendel_beta_val[1] ≈ iht_beta_val[1]
+	@test mendel_intercept ≈ iht_beta_val[2]
 
 	#test non-zero entries of beta are at the correct places
-	@test all(non_zero_mendel .== non_zero_iht) 
-
+	@test non_zero_mendel[1] == non_zero_iht[1]
 
     #test on bigger dataset
     mendel_result = MendelIHT(Pkg.dir() * "/IHT/test/gwas 1 Control.txt")
@@ -38,14 +43,19 @@ end
 	non_zero_mendel = find(mendel_result.beta)
 	non_zero_iht = find(iht_result.beta) 
 	mendel_beta_val = mendel_result.beta[non_zero_mendel]
+	mendel_intercept = mendel_result.itc
 	iht_beta_val = iht_result.beta[non_zero_iht]
 
 	@test round(mendel_result.loss, 3) == round(iht_result.loss, 3)
 	@test mendel_result.iter == iht_result.iter
 
+	#same number of variables were selected
+	@test length(mendel_beta_val) + 1 == length(iht_beta_val)
+
 	#test non-zero entries of beta are equal in absolute value
-	@test all(mendel_beta_val .≈ mendel_beta_val)
+	@test all(isapprox.(mendel_beta_val, iht_beta_val[1:end-1], atol=0.0000001))
+	@test isapprox(mendel_result.itc, iht_beta_val[end], atol=0.0000001)
 
 	#test non-zero entries of beta are at the correct places
-	@test all(non_zero_mendel .== non_zero_iht) 
+	@test all(non_zero_mendel .== non_zero_iht[1:end-1]) 
 end
