@@ -118,12 +118,6 @@ function MendelIHT2(control_file = ""; args...)
     println(" \nAnalyzing the data.\n")
 ##
     file_name = keyword["plink_input_basename"]
-
-# get snpdata for Gordon
-    (pedigree, person, nuclear_family, locus, snpdata,
-    locus_frame, phenotype_frame, pedigree_frame, snp_definition_frame) =
-    read_external_data_files(keyword)
-
     snpmatrix = SnpArray(file_name)
     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
     # y_copy = copy(phenotype)
@@ -133,8 +127,9 @@ function MendelIHT2(control_file = ""; args...)
     J = keyword["max_groups"]
     #return L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups)
     #k = 9 # DEBUG NO Intercept
-    result, my_snpMAF, my_snpweights, x, y, v  = L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups, keyword)
-    printConvergenceReport(result, my_snpMAF, my_snpweights, x, y, v, snp_definition_frame)
+#    result, my_snpMAF, my_snpweights, x, y, v  = L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups, keyword)
+    result, my_snpMAF, my_snpweights, x, y, v  = L0_reg2(snpmatrix, phenotype, J, k, groups, keyword)
+    printConvergenceReport(result, my_snpMAF, my_snpweights, x, y, v, keyword)
     return result
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
@@ -239,7 +234,6 @@ This function performs IHT on GWAS data.
 """
 function L0_reg2(
     x        :: SnpLike{2},
-    snpdata :: SnpData,
     y        :: Vector{T},
     J        :: Int,
     k        :: Int,
@@ -300,12 +294,12 @@ function L0_reg2(
 
     println("Note: Set keyword[\"use_weights\"] = true to use weights.")
     if keyword["use_weights"] == true
-        my_snpMAF, my_snpweights, notused_snpmatrix = calculatePriorWeightsforIHT(snpdata,y,k,v,keyword)
+        my_snpMAF, my_snpweights = calculatePriorWeightsforIHT(x,y,k,v,keyword)
         # NOTICE - WE ARE NOT USING MY snpmatrix, just my_snpweights and my_snpMAF
         hold_std_vec = deepcopy(std_vec)
         my_snpweights  = [my_snpweights ones(size(my_snpweights, 1))]
-        println("sizeof(std_vec) = $(sizeof(std_vec))")
-        println("sizeof(my_snpweights) = $(sizeof(my_snpweights))")
+        println("size(std_vec) = $(size(std_vec))")
+        println("size(my_snpweights) = $(size(my_snpweights))")
         Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
     end
 

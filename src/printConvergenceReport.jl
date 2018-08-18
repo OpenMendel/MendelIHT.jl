@@ -15,7 +15,15 @@ function printConvergenceReport(
     snpmatrix       :: SnpLike{2},                  # x in L0_reg
     y               :: Vector{Float64},             # phenotype in L0_reg
     v               :: IHTVariable,
-    snp_definition_frame )
+    keyword  :: Dict{AbstractString, Any}
+#    snp_definition_frame
+    )
+    # get snpdata for Gordon, this was working in MendelIHT.jl
+    # get snp_definition_frame for Gordon, has SNP rs-names and bp-addresses
+    (pedigree, person, nuclear_family, locus, snpdata,
+    locus_frame, phenotype_frame, pedigree_frame, snp_definition_frame) =
+    read_external_data_files(keyword)
+
     # locals
     mm_time = result.time
     mm_loss = result.loss
