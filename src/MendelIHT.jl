@@ -16,29 +16,13 @@
 #     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
 #     # phenotype = randn(959) #testing GAW data since it has no phenotype
 
-#     return L0_reg2(snpmatrix, phenotype, k)
+#     return L0_reg(snpmatrix, phenotype, k)
 # end #function MendelIHT
-const Float = Union{Float64,Float32}
-using Distances: euclidean, chebyshev, sqeuclidean
-using PLINK
-#using StatsFuns: logistic, logit, softplus  ## only for logistic IHT, not working right no
-using DataFrames
-using Gadfly
-using MendelBase
-using SnpArrays
-using StatsBase
-include("MendelIHT_utilities.jl")
-println("include(\"MendelIHT_utilities.jl\")")
-include("calculatePriorWeightsforIHT.jl")
-println("include(\"calculatePriorWeightsforIHT.jl\")")
-include("printConvergenceReport.jl")
-println("include(\"printConvergenceReport.jl\")")
-
 
 """
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel.
 """
-function MendelIHT2(control_file = ""; args...)
+function MendelIHT(control_file = ""; args...)
     const MENDEL_IHT_VERSION :: VersionNumber = v"0.2.0"
     #
     # Print the logo. Store the initial directory.
@@ -125,14 +109,7 @@ function MendelIHT2(control_file = ""; args...)
     groups = vec(readdlm(keyword["group_membership"], Int64))
     k = keyword["predictors_per_group"]
     J = keyword["max_groups"]
-    #return L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups)
-    #k = 9 # DEBUG NO Intercept
-#    result, my_snpMAF, my_snpweights, x, y, v  = L0_reg2(snpmatrix, snpdata, phenotype, J, k, groups, keyword)
-    println("on line 131")
-    result, my_snpMAF, my_snpweights, x, y, v  = L0_reg2(snpmatrix, phenotype, J, k, groups, keyword)
-    println("on line 133")
-    printConvergenceReport(result, my_snpMAF, my_snpweights, x, y, v, keyword)
-    return result
+    return L0_reg(snpmatrix, phenotype, J, k, groups)
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
     # if execution_error
@@ -155,7 +132,7 @@ Returns step size (μ), and number of times line search was done (μ_step).
 
 This function updates: b, xb, xk, gk, xgk, idx
 """
-function iht2!(
+function iht!(
     v        :: IHTVariable{T},
     x        :: SnpLike{2},
     y        :: Vector{T},
@@ -236,7 +213,7 @@ end
 """
 This function performs IHT on GWAS data.
 """
-function L0_reg2(
+function L0_reg(
     x        :: SnpLike{2},
     y        :: Vector{T},
     J        :: Int,
@@ -329,7 +306,7 @@ function L0_reg2(
         loss = next_loss
 
         #calculate the step size μ.
-        (μ, μ_step) = iht2!(v, x, y, J, k, mean_vec, std_vec, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, y, J, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb # v.r = (y - Xβ - intercept)
@@ -350,10 +327,7 @@ function L0_reg2(
 
         if converged
             mm_time = toq()   # stop time
-            println("converged")
-            #return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.itc, J, k, group)
-            # additional return variables are only used in printConvergenceReport()
-            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.itc, J, k, group), my_snpMAF, my_snpweights, x, y, v
+            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.itc, J, k, group)
         end
 
         if mm_iter == max_iter

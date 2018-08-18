@@ -63,6 +63,7 @@ include("hardthreshold.jl")
 #include("aiht.jl")
 #include("log.jl")
 include("MendelIHT_utilities.jl")
+include("calculatePriorWeightsforIHT.jl")
 include("MendelIHT.jl")
 
 end # end module IHT
