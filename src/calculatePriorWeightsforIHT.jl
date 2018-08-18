@@ -125,7 +125,7 @@ function calculatePriorWeightsforIHT(
 #    println("typeof(my_snpMAF) = $(typeof(my_snpMAF))")
     my_snpMAF = maf' # crashes line 308 npzwrite
     my_snpMAF = convert(Matrix{Float64},my_snpMAF)
-    my_snpMAF = my_snpMAF[:,1:end-1]
+#    my_snpMAF = my_snpMAF[:,1:end-1]
     println("typeof(my_snpMAF) = $(typeof(my_snpMAF))")
 
     print("Gordon - size(my_snpMAF) = ")

@@ -11,7 +11,7 @@ data_type = genetic
 #
 # Analysis parameters (for Ben)
 #
-predictors_per_group = 10
+predictors_per_group = 9
 max_groups = 1
 group_membership = 1_group_gwas1.dat
 #group_membership = 100_rand_groups_gwas1.dat
@@ -33,19 +33,20 @@ use_intercept = true
 use_intercept = keyword not used
 
 #snps_first_in_model means same as put intercept_at_the_end
-snps_first_in_model = true
 snps_first_in_model = false
+snps_first_in_model = true
 
 use_weights = false
 use_weights = true
 
 # APPLY BASIC WEIGHTS TO ALL SNPs
 pw_algorithm_value = 1.0
-pw_algorithm = hua.zhou.maf
+#pw_algorithm = hua.zhou.maf
 
 # Data cleaning
 null_weight = 1.0
 cut_off = 0.01
+cut_off = 0.001 # same as 0.0 for this dataset
 trim_top = 0.0
 
 
