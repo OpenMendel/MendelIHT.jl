@@ -10,18 +10,18 @@ end
 
 function test_data()
 	# dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
-	x = SnpArray("test") 
+	x = SnpArray("test")
 	y = CSV.read("test.fam", delim = ' ', header = false)
 	y = convert(Array{Float64,1}, y[:, 6])
 	J = 1
-	k = 2
+	k = 1
 	v = IHTVariables(x, y, J, k)
 	return (x, y, J, k, v)
 end
 
 function gwas1_data()
-	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10001 (with column of intercept)
-	x = SnpArray("gwas 1 data") 
+	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10000
+	x = SnpArray("gwas 1 data")
 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
 	y = convert(Array{Float64,1}, y[:, 6])
 	J = 1
@@ -46,22 +46,22 @@ end
 	@test_throws(MethodError, IHTVariables(x, y, 1, missing))
 	@test_throws(MethodError, IHTVariables(x, y, 1, Inf))
 
-	#Different types of inputs for IHTVariables(x, y, J, k) is 
+	#Different types of inputs for IHTVariables(x, y, J, k) is
 	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
 	@test typeof(x) == SnpData || typeof(x) <: SnpArray
 
-	@test size(v.b)    == (3,) 
-	@test size(v.b0)   == (3,)
+	@test size(v.b)    == (2,)
+	@test size(v.b0)   == (2,)
 	@test size(v.xb)   == (6,)
 	@test size(v.xb0)  == (6,)
-	@test size(v.xk)   == (6, 2)
-	@test size(v.gk)   == (2,)
+	@test size(v.xk)   == (6, 1)
+	@test size(v.gk)   == (1,)
 	@test size(v.xgk)  == (6,)
-	@test size(v.idx)  == (3,)
-	@test size(v.idx0) == (3,)
+	@test size(v.idx)  == (2,)
+	@test size(v.idx0) == (2,)
 	@test size(v.r)	   == (6,)
-	@test size(v.df)   == (3,)
-	@test size(v.group)== (3,)
+	@test size(v.df)   == (2,)
+	@test size(v.group)== (2,)
 
 	@test typeof(v.b)    == Array{Float64, 1}
 	@test typeof(v.b0)   == Array{Float64, 1}
@@ -80,9 +80,9 @@ end
 @testset "_init_iht_indices" begin
 	(x, y, J, k, v) = gwas1_data()
 
-	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
-	# set v.idx = 1 for the k largest terms in v.df 
-	v.df[1:10001] .= rand(10001)
+	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should
+	# set v.idx = 1 for the k largest terms in v.df
+	v.df[1:10000] .= rand(10000)
 	p = sortperm(v.df, rev = true)
 	top_k_index = p[1:10]
 	IHT._init_iht_indices(v, J, k)
@@ -123,22 +123,23 @@ end
     answer .= 1.0 ./ answer
 
     # next compute the mean of snps since we need it for std_reciprocal()
-    mean_vec = zeros(p) 
+    mean_vec = zeros(p)
     maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
     for i in 1:p
-        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i] 
+        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i]
     end
     std_vector = std_reciprocal(x, mean_vec)
 
     @test all(std_vector .≈ answer)
 end
 
-@testset "project_group_sparse" begin
-	srand(1914) 
+@testset "project_group_sparse!" begin
+	srand(1914)
     m, n, k = 2, 3, 20
 	y = randn(k);
 	group = rand(1:5, k);
-	x = project_group_sparse(y, group, m, n);
+	x = copy(y)
+	project_group_sparse!(x, group, m, n);
 
 	# view result easily:
 	# for i = 1:length(x)
@@ -147,11 +148,26 @@ end
 
 	non_zero_position = find(x)
 	non_zero_entries = x[non_zero_position]
-	@test all(non_zero_entries .== y[non_zero_position]) 
+	@test all(non_zero_entries .== y[non_zero_position])
 	@test all(non_zero_position .== [10; 12; 13; 14; 15; 18])
-	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621; 
+	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621;
 								   -0.5746320293057241; 0.9225538732662374;
 								   2.4060215839929158; 2.9499620312194383])
+end
+
+@testset "_iht_omega" begin
+	(x, y, J, k, v) = test_data()
+	v.b    = [0.0, 0.334712]
+	v.b0   = [0.0, 0.0]
+	v.itc  = 1.51177394
+	v.itc0 = 0.0
+	v.xb   = [1.43767, 1.43767, 0.993028, 1.88231, 1.43767, 1.88231]
+	v.xb0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+	ω_top, ω_bot = IHT._iht_omega(v)
+
+	@test round(ω_top, 4) == 2.3975
+	@test round(ω_bot, 4) == 14.273
 end
 
 # @testset "_iht_backtrack" begin
@@ -172,10 +188,6 @@ end
 #    @test IHT._iht_backtrack(v, ω, μ) == true
 # end
 
-# @testset "_iht_omega" begin
-# 
-# end
-
 #@testset "_iht_gradstep" begin
 #    (x, y, k, v) = test_data()
 #    v.b .= rand(3)
@@ -190,4 +202,3 @@ end
 #    @test v.b[2] == (b + μ*df)[2]
 #    @test v.b[3] == (b + μ*df)[3]
 #end
-
