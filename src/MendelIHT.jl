@@ -267,14 +267,9 @@ function L0_reg(
     end
     std_vec = std_reciprocal(x, mean_vec)
 
-    println("Note: Set keyword[\"use_weights\"] = true to use weights.")
     if keyword["use_weights"] == true
-        my_snpMAF, my_snpweights = calculatePriorWeightsforIHT(x,y,k,v,keyword)
-        # NOTICE - WE ARE NOT USING MY snpmatrix, just my_snpweights and my_snpMAF
+        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,maf,keyword)
         hold_std_vec = deepcopy(std_vec)
-        #my_snpweights  = [my_snpweights ones(size(my_snpweights, 1))]
-        println("size(std_vec) = $(size(std_vec))")
-        println("size(my_snpweights) = $(size(my_snpweights))")
         Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
     else
         # need dummies for my_snpMAF and my_snpweights for Gordon's reports

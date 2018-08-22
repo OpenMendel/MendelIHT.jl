@@ -230,3 +230,48 @@ function Base.show(io::IO, x::gIHTResults)
 
     return nothing
 end
+"""
+Calculates the Prior Weighting for IHT.
+Returns a weight array (my_snpweights) (1,10000)
+    and a MAF array (my_snpMAF ) (1,10000).
+
+This function updates: hopefully nothing
+"""
+function calculate_snp_weights(
+#    xxx        :: SnpData,
+    x        :: SnpLike{2},
+    y        :: Vector{Float64},
+    k        :: Int,
+    v        :: IHTVariable,
+    keyword  :: Dict{AbstractString, Any}
+)
+    # get my_snpMAF from x
+    ALLELE_MAX = 2 * size(x,1)
+    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
+    people, snps = size(x)
+    my_snpMAF = maf' # crashes line 308 npzwrite
+    my_snpMAF = convert(Matrix{Float64},my_snpMAF)
+
+    # GORDON - CALCUATE CONSTANT WEIGHTS - another weighting option
+    my_snpweights_const = copy(my_snpMAF) # only to allocate my_snpweights_const
+    # need to test for bad user input !!!
+    for i = 1:size(my_snpweights_const,2)
+        my_snpweights_const[1,i] = keyword["pw_algorithm_value"]
+    end
+
+    # GORDON - CALCULATE WEIGHTS BASED ON p=MAF, 1/(2√pq) SUGGESTED BY BEN AND HUA ZHOU
+    my_snpweights_p = my_snpMAF      # p_hat
+    my_snpweights = 2 * sqrt(my_snpweights_p .* (1 - my_snpweights_p))   # just verifying 2 * sqrtm(p .* q) == 1.0 OK!
+    my_snpweights_huazhou = my_snpweights
+    my_snpweights = my_snpweights .\ 1      # this works! to get reciprocal of each element
+    my_snpweights_huazhou_reciprocal = my_snpweights
+
+    # DECIDE NOW WHICH WEIGHTS TO APPLY !!!
+    if true # to ensure an algorithm, do this regardless
+        my_snpweights = copy(my_snpweights_const)    # Ben/Kevin this is currently at 1.0 for testing null effect
+    end
+    if keyword["pw_algorithm"] == "hua.zhou.maf"
+        my_snpweights = copy(my_snpweights_huazhou_reciprocal)
+    end
+    return my_snpMAF, my_snpweights
+end
