@@ -244,11 +244,10 @@ function calculate_snp_weights(
     k        :: Int,
     v        :: IHTVariable,
     keyword  :: Dict{AbstractString, Any}
+    maf      :: Array{Float64,1},
 )
     # get my_snpMAF from x
     ALLELE_MAX = 2 * size(x,1)
-    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
-    people, snps = size(x)
     my_snpMAF = maf' # crashes line 308 npzwrite
     my_snpMAF = convert(Matrix{Float64},my_snpMAF)
 
@@ -270,7 +269,7 @@ function calculate_snp_weights(
     if true # to ensure an algorithm, do this regardless
         my_snpweights = copy(my_snpweights_const)    # Ben/Kevin this is currently at 1.0 for testing null effect
     end
-    if keyword["pw_algorithm"] == "hua.zhou.maf"
+    if keyword["prior_weights"] == "maf"
         my_snpweights = copy(my_snpweights_huazhou_reciprocal)
     end
     return my_snpMAF, my_snpweights

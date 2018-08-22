@@ -48,32 +48,7 @@ function MendelIHT(control_file = ""; args...)
     keyword["max_groups"] = ""
     keyword["group_membership"] = ""
 
-    keyword["experiment_description"] = ""
-    keyword["experiment_id"] = ""
-    keyword["experiment_folder"] = ""
-    keyword["mendeliht_version"] = ""
-
-    keyword["plotfilename_prefix"] = ""
-    keyword["datafilename_prefix"] = ""
-    keyword["use_intercept"] = "keyword not used"
-    keyword["snps_first_in_model"] = ""
-    keyword["use_weights"] = "true"
-    keyword["pw_algorithm"] = ""
-    keyword["pw_algorithm_value"] = 1.0
-
-    keyword["null_weight"] = 1.0
-    keyword["cut_off"] = 0.001
-    keyword["trim_top"] = 0.0
-
-    keyword["pw_pathway1"] = ""
-    keyword["pw_pathway1_constantvalue"] = ""
-    keyword["pw_pathway1_factorvalue"] = ""
-    keyword["pw_pathway2"] = ""
-    keyword["pw_pathway2_constantvalue"] = ""
-    keyword["pw_pathway2_factorvalue"] = ""
-    keyword["pw_pathway3"] = ""
-    keyword["pw_pathway3_constantvalue"] = ""
-    keyword["pw_pathway3_factorvalue"] = ""
+    keyword["prior_weights"] = ""
 
     #
     # Process the run-time user-specified keywords that will control the analysis.
@@ -267,8 +242,8 @@ function L0_reg(
     end
     std_vec = std_reciprocal(x, mean_vec)
 
-    if keyword["use_weights"] == true
-        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,maf,keyword)
+    if keyword["prior_weights"] == "maf"
+        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,keyword,maf)
         hold_std_vec = deepcopy(std_vec)
         Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
     else
