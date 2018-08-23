@@ -251,7 +251,7 @@ function calculate_snp_weights(
     my_snpMAF = maf' # crashes line 308 npzwrite
     my_snpMAF = convert(Matrix{Float64},my_snpMAF)
 
-    # GORDON - CALCUATE CONSTANT WEIGHTS - another weighting option
+    # GORDON - CALCULATE CONSTANT WEIGHTS - another weighting option
     my_snpweights_const = copy(my_snpMAF) # only to allocate my_snpweights_const
     # need to test for bad user input !!!
     for i = 1:size(my_snpweights_const,2)
