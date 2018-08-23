@@ -10,7 +10,7 @@ end
 
 function test_data()
 	# dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
-	x = SnpArray("test") 
+	x = SnpArray("test")
 	y = CSV.read("test.fam", delim = ' ', header = false)
 	y = convert(Array{Float64,1}, y[:, 6])
 	J = 1
@@ -46,11 +46,11 @@ end
 	@test_throws(MethodError, IHTVariables(x, y, 1, missing))
 	@test_throws(MethodError, IHTVariables(x, y, 1, Inf))
 
-	#Different types of inputs for IHTVariables(x, y, J, k) is 
+	#Different types of inputs for IHTVariables(x, y, J, k) is
 	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
 	@test typeof(x) == SnpData || typeof(x) <: SnpArray
 
-	@test size(v.b)    == (2,) 
+	@test size(v.b)    == (2,)
 	@test size(v.b0)   == (2,)
 	@test size(v.xb)   == (6,)
 	@test size(v.xb0)  == (6,)
@@ -123,10 +123,10 @@ end
     answer .= 1.0 ./ answer
 
     # next compute the mean of snps since we need it for std_reciprocal()
-    mean_vec = zeros(p) 
+    mean_vec = zeros(p)
     maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
     for i in 1:p
-        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i] 
+        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i]
     end
     std_vector = std_reciprocal(x, mean_vec)
 
@@ -148,9 +148,9 @@ end
 
 	non_zero_position = find(x)
 	non_zero_entries = x[non_zero_position]
-	@test all(non_zero_entries .== y[non_zero_position]) 
+	@test all(non_zero_entries .== y[non_zero_position])
 	@test all(non_zero_position .== [10; 12; 13; 14; 15; 18])
-	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621; 
+	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621;
 								   -0.5746320293057241; 0.9225538732662374;
 								   2.4060215839929158; 2.9499620312194383])
 end
@@ -202,4 +202,3 @@ end
 #    @test v.b[2] == (b + μ*df)[2]
 #    @test v.b[3] == (b + μ*df)[3]
 #end
-
