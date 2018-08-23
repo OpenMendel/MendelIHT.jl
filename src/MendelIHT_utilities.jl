@@ -8,7 +8,7 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     itc0  :: T             # estimated intercept in the previous iteration
     b     :: Vector{T}     # the statistical model, most will be 0
     b0    :: Vector{T}     # estimated model in the previous iteration
-    xb    :: Vector{T}     # vector that holds x*b 
+    xb    :: Vector{T}     # vector that holds x*b
     xb0   :: Vector{T}     # xb in the previous iteration
     xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
     gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of df
@@ -25,8 +25,8 @@ function IHTVariables{T <: Float}(
     y :: Vector{T},
     J :: Int64,   # decide whether to use just Int for J, k everywhere
     k :: Int64
-) 
-    n, p  = size(x) 
+)
+    n, p  = size(x)
     itc   = zero(T)
     itc0  = zero(T)
     b     = zeros(T, p)
@@ -67,7 +67,7 @@ function use_A2_as_minor_allele(snpmatrix :: SnpArray)
 end
 
 """
-This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates v.idx. It is an 
+This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates v.idx. It is an
 addition here because recall that v.df stores an extra negative sign.
 """
 function _iht_gradstep{T <: Float}(
@@ -78,7 +78,7 @@ function _iht_gradstep{T <: Float}(
 )
    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: v.b = b + μ∇f(b)
    v.itc = v.itc0 + μ * sum(v.r)             # update intercept too
-   project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector 
+   project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector
    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
 
    # If the k'th largest component is not unique, warn the user.
@@ -93,7 +93,7 @@ function _init_iht_indices{T <: Float}(
     v :: IHTVariable{T},
     J :: Int,
     k :: Int
-)    
+)
     project_group_sparse!(v.df, v.group, J, k)
     v.idx[find(v.df)] = true
     v.gk = zeros(T, sum(v.idx))
@@ -153,13 +153,13 @@ end
 n active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown group membership.
 
-TODO: 1)make this function operate in-place 
+TODO: 1)make this function operate in-place
       2)check if sortperm can be replaced by something that doesn't sort the whole array
 """
 function project_group_sparse!{T <: Float}(
-    y     :: Vector{T}, 
-    group :: Vector{Int64}, 
-    m     :: Int64, 
+    y     :: Vector{T},
+    group :: Vector{Int64},
+    m     :: Int64,
     n     :: Int64
 )
     groups = maximum(group)
@@ -170,7 +170,7 @@ function project_group_sparse!{T <: Float}(
 
     #calculate the magnitude of each group, where only top predictors contribute
     for i in eachindex(y)
-        j = perm[i] 
+        j = perm[i]
         k = group[j]
         if group_count[k] < n
             z[k] = z[k] + y[j]^2
@@ -179,10 +179,10 @@ function project_group_sparse!{T <: Float}(
     end
 
     #go through the top predictors in order. Set predictor to 0 if criteria not met
-    group_rank = zeros(Int64, length(z)) 
+    group_rank = zeros(Int64, length(z))
     sortperm!(group_rank, z, rev = true)
     group_rank = invperm(group_rank)
-    fill!(group_count, 1) 
+    fill!(group_count, 1)
     for i in eachindex(y)
         j = perm[i]
         k = group[j]
@@ -226,7 +226,7 @@ function Base.show(io::IO, x::gIHTResults)
     println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
     non_zero = find(x.beta)
     print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
-    println(io, "\n\nIntercept of model = ", x.itc) e
+    println(io, "\n\nIntercept of model = ", x.itc)
 
     return nothing
 end
@@ -243,8 +243,8 @@ function calculate_snp_weights(
     y        :: Vector{Float64},
     k        :: Int,
     v        :: IHTVariable,
-    keyword  :: Dict{AbstractString, Any}
-    maf      :: Array{Float64,1},
+    keyword  :: Dict{AbstractString, Any},
+    maf      :: Array{Float64,1}
 )
     # get my_snpMAF from x
     ALLELE_MAX = 2 * size(x,1)

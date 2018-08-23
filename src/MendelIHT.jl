@@ -84,7 +84,7 @@ function MendelIHT(control_file = ""; args...)
     groups = vec(readdlm(keyword["group_membership"], Int64))
     k = keyword["predictors_per_group"]
     J = keyword["max_groups"]
-    return L0_reg(snpmatrix, phenotype, J, k, groups)
+    return L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
 ##
     # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
     # if execution_error
@@ -231,16 +231,26 @@ function L0_reg(
     converged = false             # scaled_norm < tol?
 
     # compute some summary statistics for our snpmatrix
-    mean_vec, minor_allele, missings_per_snp, missings_per_person = summarize(x)
+    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
     people, snps = size(x)
     mean_vec = deepcopy(maf) # Gordon wants maf below
     #precompute mean and standard deviations for each snp. Note that (1) the mean is
     #given by 2 * maf, and (2) based on which allele is the minor allele, might need to do
     #2.0 - the maf for the mean vector.
     for i in 1:snps
-        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i] 
+        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
     end
     std_vec = std_reciprocal(x, mean_vec)
+
+    if keyword["prior_weights"] == "maf"
+        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,keyword,maf)
+        hold_std_vec = deepcopy(std_vec)
+        Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
+    else
+        # need dummies for my_snpMAF and my_snpweights for Gordon's reports
+        my_snpMAF = convert(Matrix{Float64},maf')
+        my_snpweights = ones(my_snpMAF)
+    end
 
     #
     # Begin IHT calculations
