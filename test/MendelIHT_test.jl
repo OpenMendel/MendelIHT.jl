@@ -57,5 +57,5 @@ end
 	@test isapprox(mendel_result.itc, iht_beta_val[end], atol=0.0000001)
 
 	#test non-zero entries of beta are at the correct places
-	@test all(non_zero_mendel .== non_zero_iht[1:end-1])
+	@test all(non_zero_mendel .== non_zero_iht[1:end-1]) 
 end

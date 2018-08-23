@@ -21,7 +21,7 @@ end
 
 function gwas1_data()
 	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10000
-	x = SnpArray("gwas 1 data")
+	x = SnpArray("gwas 1 data") 
 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
 	y = convert(Array{Float64,1}, y[:, 6])
 	J = 1
@@ -80,8 +80,8 @@ end
 @testset "_init_iht_indices" begin
 	(x, y, J, k, v) = gwas1_data()
 
-	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should
-	# set v.idx = 1 for the k largest terms in v.df
+	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
+	# set v.idx = 1 for the k largest terms in v.df 
 	v.df[1:10000] .= rand(10000)
 	p = sortperm(v.df, rev = true)
 	top_k_index = p[1:10]
@@ -134,7 +134,7 @@ end
 end
 
 @testset "project_group_sparse!" begin
-	srand(1914)
+	srand(1914) 
     m, n, k = 2, 3, 20
 	y = randn(k);
 	group = rand(1:5, k);
