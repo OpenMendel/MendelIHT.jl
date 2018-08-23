@@ -260,7 +260,7 @@ function calculate_snp_weights(
 
     # GORDON - CALCULATE WEIGHTS BASED ON p=MAF, 1/(2√pq) SUGGESTED BY BEN AND HUA ZHOU
     my_snpweights_p = my_snpMAF      # p_hat
-    my_snpweights = 2 * sqrt(my_snpweights_p .* (1 - my_snpweights_p))   # just verifying 2 * sqrtm(p .* q) == 1.0 OK!
+    my_snpweights = 2 * sqrt.(my_snpweights_p .* (1 - my_snpweights_p))   # just verifying 2 * sqrtm(p .* q) == 1.0 OK!
     my_snpweights_huazhou = my_snpweights
     my_snpweights = my_snpweights .\ 1      # this works! to get reciprocal of each element
     my_snpweights_huazhou_reciprocal = my_snpweights

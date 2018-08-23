@@ -49,6 +49,7 @@ function MendelIHT(control_file = ""; args...)
     keyword["group_membership"] = ""
 
     keyword["prior_weights"] = ""
+    keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
 
     #
     # Process the run-time user-specified keywords that will control the analysis.
