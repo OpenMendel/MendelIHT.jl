@@ -8,7 +8,7 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     itc0  :: T             # estimated intercept in the previous iteration
     b     :: Vector{T}     # the statistical model, most will be 0
     b0    :: Vector{T}     # estimated model in the previous iteration
-    xb    :: Vector{T}     # vector that holds x*b 
+    xb    :: Vector{T}     # vector that holds x*b
     xb0   :: Vector{T}     # xb in the previous iteration
     xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
     gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of df
@@ -25,8 +25,8 @@ function IHTVariables{T <: Float}(
     y :: Vector{T},
     J :: Int64,   # decide whether to use just Int for J, k everywhere
     k :: Int64
-) 
-    n, p  = size(x) 
+)
+    n, p  = size(x)
     itc   = zero(T)
     itc0  = zero(T)
     b     = zeros(T, p)
@@ -36,7 +36,7 @@ function IHTVariables{T <: Float}(
     xk    = SnpArray(n, J*k)
     gk    = zeros(T, J*k)
     xgk   = zeros(T, n)
-    idx   = falses(p) 
+    idx   = falses(p)
     idx0  = falses(p)
     r     = zeros(T, n)
     df    = zeros(T, p)
@@ -46,11 +46,11 @@ function IHTVariables{T <: Float}(
 end
 
 """
-This function is needed for testing purposes only. 
+This function is needed for testing purposes only.
 
-Converts a SnpArray to a matrix of float64 using A2 as the minor allele. We want this function 
-because SnpArrays.jl uses the less frequent allele in each SNP as the minor allele, while PLINK.jl 
-always uses A2 as the minor allele, and it's nice if we could cross-compare the results. 
+Converts a SnpArray to a matrix of float64 using A2 as the minor allele. We want this function
+because SnpArrays.jl uses the less frequent allele in each SNP as the minor allele, while PLINK.jl
+always uses A2 as the minor allele, and it's nice if we could cross-compare the results.
 """
 function use_A2_as_minor_allele(snpmatrix :: SnpArray)
     n, p = size(snpmatrix)
@@ -67,7 +67,7 @@ function use_A2_as_minor_allele(snpmatrix :: SnpArray)
 end
 
 """
-This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates v.idx. It is an 
+This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates v.idx. It is an
 addition here because recall that v.df stores an extra negative sign.
 """
 function _iht_gradstep{T <: Float}(
@@ -78,22 +78,22 @@ function _iht_gradstep{T <: Float}(
 )
    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: v.b = b + μ∇f(b)
    v.itc = v.itc0 + μ * sum(v.r)             # update intercept too
-   project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector 
+   project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector
    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
 
-   # If the k'th largest component is not unique, warn the user. 
+   # If the k'th largest component is not unique, warn the user.
    sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
 
 """
-When initializing the IHT algorithm, take largest elements of each group of df as nonzero 
-components of b. This function set v.idx = 1 for those indices. 
+When initializing the IHT algorithm, take largest elements of each group of df as nonzero
+components of b. This function set v.idx = 1 for those indices.
 """
 function _init_iht_indices{T <: Float}(
     v :: IHTVariable{T},
     J :: Int,
     k :: Int
-)    
+)
     project_group_sparse!(v.df, v.group, J, k)
     v.idx[find(v.df)] = true
     v.gk = zeros(T, sum(v.idx))
@@ -135,31 +135,31 @@ Compute the standard deviation of a SnpArray in place
 function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
     m, n = size(A)
     @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
-    std_vector = zeros(T, n) 
+    std_vector = zeros(T, n)
 
     @inbounds for j in 1:n
         @simd for i in 1:m
             (a1, a2) = A[i, j]
             if !isnan(a1, a2) #only add if data not missing
                 std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
-            end 
+            end
         end
         std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
     end
     return std_vector
 end
 
-""" Projects the point y onto the set with at most m active groups and at most 
+""" Projects the point y onto the set with at most m active groups and at most
 n active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown group membership.
 
-TODO: 1)make this function operate in-place 
+TODO: 1)make this function operate in-place
       2)check if sortperm can be replaced by something that doesn't sort the whole array
 """
 function project_group_sparse!{T <: Float}(
-    y     :: Vector{T}, 
-    group :: Vector{Int64}, 
-    m     :: Int64, 
+    y     :: Vector{T},
+    group :: Vector{Int64},
+    m     :: Int64,
     n     :: Int64
 )
     groups = maximum(group)
@@ -170,7 +170,7 @@ function project_group_sparse!{T <: Float}(
 
     #calculate the magnitude of each group, where only top predictors contribute
     for i in eachindex(y)
-        j = perm[i] 
+        j = perm[i]
         k = group[j]
         if group_count[k] < n
             z[k] = z[k] + y[j]^2
@@ -179,10 +179,10 @@ function project_group_sparse!{T <: Float}(
     end
 
     #go through the top predictors in order. Set predictor to 0 if criteria not met
-    group_rank = zeros(Int64, length(z)) 
+    group_rank = zeros(Int64, length(z))
     sortperm!(group_rank, z, rev = true)
     group_rank = invperm(group_rank)
-    fill!(group_count, 1) 
+    fill!(group_count, 1)
     for i in eachindex(y)
         j = perm[i]
         k = group[j]
@@ -226,7 +226,51 @@ function Base.show(io::IO, x::gIHTResults)
     println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
     non_zero = find(x.beta)
     print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
-    println(io, "\n\nIntercept of model = ", x.itc)   
+    println(io, "\n\nIntercept of model = ", x.itc)
 
     return nothing
+end
+"""
+Calculates the Prior Weighting for IHT.
+Returns a weight array (my_snpweights) (1,10000)
+    and a MAF array (my_snpMAF ) (1,10000).
+
+This function updates: hopefully nothing
+"""
+function calculate_snp_weights(
+#    xxx        :: SnpData,
+    x        :: SnpLike{2},
+    y        :: Vector{Float64},
+    k        :: Int,
+    v        :: IHTVariable,
+    keyword  :: Dict{AbstractString, Any},
+    maf      :: Array{Float64,1}
+)
+    # get my_snpMAF from x
+    ALLELE_MAX = 2 * size(x,1)
+    my_snpMAF = maf' # crashes line 308 npzwrite
+    my_snpMAF = convert(Matrix{Float64},my_snpMAF)
+
+    # GORDON - CALCULATE CONSTANT WEIGHTS - another weighting option
+    my_snpweights_const = copy(my_snpMAF) # only to allocate my_snpweights_const
+    # need to test for bad user input !!!
+    for i = 1:size(my_snpweights_const,2)
+        my_snpweights_const[1,i] = keyword["pw_algorithm_value"]
+    end
+
+    # GORDON - CALCULATE WEIGHTS BASED ON p=MAF, 1/(2√pq) SUGGESTED BY BEN AND HUA ZHOU
+    my_snpweights_p = my_snpMAF      # p_hat
+    my_snpweights = 2 * sqrt.(my_snpweights_p .* (1 - my_snpweights_p))   # just verifying 2 * sqrtm(p .* q) == 1.0 OK!
+    my_snpweights_huazhou = my_snpweights
+    my_snpweights = my_snpweights .\ 1      # this works! to get reciprocal of each element
+    my_snpweights_huazhou_reciprocal = my_snpweights
+
+    # DECIDE NOW WHICH WEIGHTS TO APPLY !!!
+    if true # to ensure an algorithm, do this regardless
+        my_snpweights = copy(my_snpweights_const)    # Ben/Kevin this is currently at 1.0 for testing null effect
+    end
+    if keyword["prior_weights"] == "maf"
+        my_snpweights = copy(my_snpweights_huazhou_reciprocal)
+    end
+    return my_snpMAF, my_snpweights
 end
