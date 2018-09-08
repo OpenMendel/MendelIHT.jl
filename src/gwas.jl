@@ -1038,7 +1038,7 @@ print_with_color(:red, "gwas#666, Starting cv_iht().\n")
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=[1])
 
     # which components of beta are nonzero?
-    inferred_model = output.beta .!= 0
+    inferred_model = outputg.beta .!= 0
     bidx = find(inferred_model)
     #Gordon
     println("betas found in bidx = $(bidx)")
