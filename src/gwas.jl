@@ -28,9 +28,23 @@ function iht!(
         decompress_genotypes!(v.xk, x, v.idx)
     end
 
+#GORDON
+#
+if iter <= 2
+    print_with_color(:red, "gwas#31, Starting iht!().\n")
+        print_with_color(:red, "\tsize(v.gk) = $(size(v.gk))")
+        print_with_color(:red, "\tsize(v.df) = $(size(v.df))")
+        print_with_color(:red, "\tsize(v.xk) = $(size(v.xk))")
+        print_with_color(:red, "\tsize(v.df[v.idx]) = $(size(v.df[v.idx]))\n")
+end
+#
+
+    #v.idx .= v.b .!= 0  # idea for Gordon
+
     # store relevant components of gradient
     v.gk .= v.df[v.idx]
-
+    #GORDON
+    #println("After v.gk .= v.df[v.idx]")
     # now compute subset of x*g
     A_mul_B!(v.xgk, v.xk, v.gk)
 
@@ -92,7 +106,7 @@ The additional optional arguments are:
 """
 function L0_reg(
     x        :: BEDFile{T}, # note: x.covar.x is the last 2 column of the fam file
-    y        :: V, 
+    y        :: V,
     k        :: Int;
     pids     :: Vector{Int} = procs(x),
     v        :: IHTVariables{T, V} = IHTVariables(x, y, k),
@@ -102,7 +116,10 @@ function L0_reg(
     max_step :: Int   = 50,
     quiet    :: Bool  = true
 ) where {T <: Float, V <: DenseVector}
-
+    print_with_color(:red, "gwas#112, Starting L0_reg().\n")
+    println("size(x) = $(size(x))")
+    println("size(y) = $(size(y))")
+    println("sum(mask_n) = $(sum(mask_n))")
     # start timer
     tic()
 
@@ -141,16 +158,24 @@ function L0_reg(
     else
         A_mul_B!(v.xb, x, v.b, v.idx, k, mask_n)
         difference!(v.r, y, v.xb)
+        #v.r .= y .- v.xb # v.r = (y - Xβ - intercept)
+        #v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet
         mask!(v.r, mask_n, 0, zero(T))
     end
 
     # calculate the gradient
-    PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)   
+    PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
 
     # formatted output to monitor algorithm progress
     !quiet && print_header()
 
     # main loop
+    print_with_color(:green, "gwas#171, Starting max_iter loop in L0_reg().\n")
+        print_with_color(:green, "\tsize(v.gk) = $(size(v.gk))")
+        print_with_color(:green, "\tsize(v.df) = $(size(v.df))")
+        print_with_color(:green, "\tsize(v.xk) = $(size(v.xk))")
+        print_with_color(:green, "\tsize(v.df[v.idx]) = $(size(v.df[v.idx]))\n")
+
     for mm_iter = 1:max_iter
 
         # notify and break if maximum iterations are reached.
@@ -188,7 +213,7 @@ function L0_reg(
         PLINK.At_mul_B!(v.df, x, v.r, mask_n, pids=pids)
 
         # update loss, objective, and gradient
-        next_loss = sum(abs2, sdata(v.r)) / 2     
+        next_loss = sum(abs2, sdata(v.r)) / 2
 
         # guard against numerical instabilities
         # ensure that objective is finite
@@ -254,7 +279,7 @@ function iht_path(
     max_step :: Int  = 50,
     quiet    :: Bool = true
 ) where {T <: Float}
-
+    print_with_color(:red, "gwas266, Starting iht_path().\n")
     # size of problem?
     n,p = size(x)
 
@@ -298,6 +323,107 @@ function iht_path(
     return betas
 end
 
+"""
+    iht_path(x::BEDFile, y, path)
+
+If used with a `BEDFile` object `x`, then the temporary arrays are all initialized as `SharedArray`s of the proper dimensions.
+The additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs(x)`.
+- `mask_n`, an `Int` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of ones.
+"""
+function iht_path(
+    x        :: SnpLike{2},
+    y        :: Array{T,1},
+    path     :: DenseVector{Int};
+    pids     :: Vector{Int} = procs(x),
+    mask_n   :: Vector{Int} = ones(Int, size(y)),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true
+) where {T <: Float}
+    print_with_color(:red, "gwas266, Starting iht_path().\n")
+    # size of problem?
+    n,p = size(x)
+
+    # how many models will we compute?
+    nmodels = length(path)
+
+    # also preallocate matrix to store betas
+    betas = spzeros(T,p,nmodels)  # a matrix to store calculated models
+
+    # preallocate temporary arrays
+    J = 1
+    v = IHTVariables(x, y, J, 1) # call Ben's code here, returns a different v
+
+    # compute the path
+    @inbounds for i = 1:nmodels
+
+        # model size?
+        q = path[i]
+
+        # monitor progress
+        quiet || print_with_color(:blue, "Computing model size $q.\n\n")
+
+        # these arrays change in size from iteration to iteration
+        # we must allocate them for every new model size
+        update_variables!(v, x, J*q)
+
+        # store projection of beta onto largest k nonzeroes in magnitude
+        project_k!(v.b, q)
+
+        # now compute current model
+        #output = L0_reg(x, y, q, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n)
+        #Gordon
+        keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+        keyword["data_type"] = ""
+        keyword["predictors_per_group"] = ""
+        keyword["manhattan_plot_file"] = ""
+        keyword["max_groups"] = ""
+        keyword["group_membership"] = ""
+
+        keyword["prior_weights"] = ""
+        keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
+
+#        file_name = xfile[1:end-4]
+    # try xt_test
+#        snpmatrix = SnpArray("xt_test")
+        # HERE I READ THE PHENOTYPE FROM THE BEDFILE TO MATCH THE TUTORIAL RESULTS
+        # I'M SURE THERE IS A BETTER WAY TO GET IT
+        #phenotype is already set in tutorial_simulation.jl above  DIDN'T WORK - SAYS IT'S NOT DEFINED HERE
+        #phenotype = readdlm(file_name * ".fam", header = false)[:, 6] # NO GOOD, THE PHENOTYPE HERE IS ALL ONES
+#=
+        x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
+        y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
+        phenotype = convert(Array{T,1}, y)
+=#
+        #println("phenotype = $(phenotype)")
+        # y_copy = copy(phenotype)
+        # y_copy .-= mean(y_copy)
+        groups = fill(1,24000)
+        k = 10
+        J = 1
+        snpmatrix = x
+        phenotype = y
+        outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
+        #println("outputg.beta = $(outputg.beta)")
+        found = find(outputg.beta .!= 0.0)
+        println("betas found in xt_test = $(found)")
+
+
+        # ensure that we correctly index the nonzeroes in b
+        update_indices!(v.idx, outputg.beta)
+        fill!(v.idx0, false)
+
+        # put model into sparse matrix of betas
+        betas[:,i] = sparsevec(outputg.beta)
+    end
+
+    # return a sparsified copy of the models
+    return betas
+end
+
 
 """
     one_fold(x::BEDFile, y, path, folds, fold)
@@ -320,6 +446,7 @@ function one_fold(
 ) where {T <: Float}
     # dimensions of problem
     n,p = size(x)
+    print_with_color(:red, "gwas332, Starting one_fold().\n")
 
     # make vector of indices for folds
     test_idx = folds .== fold
@@ -329,6 +456,12 @@ function one_fold(
     train_idx = .!test_idx
     mask_n    = convert(Vector{Int}, train_idx)
     mask_test = convert(Vector{Int}, test_idx)
+    #Gordon
+    println("test_size = $(test_size)")
+    #println("train_idx = $(train_idx)")
+    println()
+    println()
+    #println("test_idx = $(test_idx)")
 
     # compute the regularization path on the training set
     betas = iht_path(x, y, path, mask_n=mask_n, max_iter=max_iter, quiet=quiet, max_step=max_step, pids=pids, tol=tol)
@@ -379,6 +512,96 @@ function one_fold(
     return myerrors :: Vector{T}
 end
 
+"""
+    one_fold(x::BEDFile, y, path, folds, fold)
+
+If used with a `BEDFile` object `x`, then the additional optional arguments are:
+
+- `pids`, a vector of process IDs. Defaults to `procs(x)`.
+"""
+function one_fold(
+    x        :: SnpLike{2},
+    y        :: Array{T,1},
+    path     :: DenseVector{Int},
+    folds    :: DenseVector{Int},
+    fold     :: Int;
+    pids     :: Vector{Int} = procs(x),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    quiet    :: Bool = true
+) where {T <: Float}
+    # dimensions of problem
+    n,p = size(x)
+    print_with_color(:red, "gwas332, Starting one_fold().\n")
+
+    # make vector of indices for folds
+    test_idx = folds .== fold
+    test_size = sum(test_idx)
+
+    # train_idx is the vector that indexes the TRAINING set
+    train_idx = .!test_idx
+    mask_n    = convert(Vector{Int}, train_idx)
+    mask_test = convert(Vector{Int}, test_idx)
+    #Gordon
+    println("test_size = $(test_size)")
+    #println("train_idx = $(train_idx)")
+    println()
+    println()
+    #println("test_idx = $(test_idx)")
+
+    # compute the regularization path on the training set
+    betas = iht_path(x, y, path, mask_n=mask_n, max_iter=max_iter, quiet=quiet, max_step=max_step, pids=pids, tol=tol)
+
+    # tidy up
+    #gc()
+
+    # preallocate vector for output
+    myerrors = zeros(T, length(path))
+
+    # allocate an index vector for b
+    indices = falses(p)
+
+    # allocate the arrays for the test set
+    xb = SharedArray{T}((n,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
+    b  = SharedArray{T}((p,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
+    r  = SharedArray{T}((n,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
+
+    # compute the mean out-of-sample error for the TEST set
+    # do this for every computed model in regularization path
+    for i = 1:size(betas,2)
+
+        # pull ith model in dense vector format
+        b2 = full(vec(betas[:,i]))
+
+        # copy it into SharedArray b
+        copy!(sdata(b),sdata(b2))
+
+        # indices stores Boolean indexes of nonzeroes in b
+        update_indices!(indices, b)
+
+        # compute estimated response Xb with $(path[i]) nonzeroes
+        #A_mul_B!(xb, x, b, indices, path[i], mask_test, pids=pids)
+
+#        p_tmp = convert(Array{T,1}, path[i]) # Gordon - didn't help
+        #A_mul_B!(xb, x, b, indices, path[i], mask_test)
+
+        # compute residuals
+        r .= y .- xb
+
+        # mask data from training set
+        # training set consists of data NOT in fold:
+        # r[folds .!= fold] = zero(T)
+        mask!(r, mask_test, 0, zero(T))
+
+        # compute out-of-sample error as squared residual averaged over size of test set
+        myerrors[i] = sum(abs2, r) / test_size / 2
+        #myerrors[i] -= size(betas,2) # Gordon force more Betas lower becuase A_mul_B!() is needed above
+    end
+
+    return myerrors :: Vector{T}
+end
+
 function pfold(
     T          :: Type,
     xfile      :: String,
@@ -396,6 +619,8 @@ function pfold(
     quiet      :: Bool = true,
     header     :: Bool = false
 )
+println("gwas409, Starting pfold(..xt..). I'm killing it here with x=xx.")
+x=xx
 
     # ensure correct type
     @assert T <: Float "Argument T must be either Float32 or Float64"
@@ -474,6 +699,7 @@ function pfold(
     quiet    :: Bool = true,
     header   :: Bool = false
 )
+print_with_color(:red, "gwas488, Starting pfold(..NOT xt..).\n")
 
     # ensure correct type
     @assert T <: Float "Argument T must be either Float32 or Float64"
@@ -497,6 +723,51 @@ function pfold(
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
+#=
+    println("here 500, yfile = $(yfile)")
+    #Gordon - THIS CODE IS NOT NEEDED HERE
+    # I WAS JUST USING IT TO CHECK RESULTS MATCH BETWEEN BEN AND KEVIN'S L0_reg() CALLS BEFORE LAUNCHING THE FOLDS
+    # THIS CODE IS DUPLICATED BELOW, WHERE IT IS ACUTALLY NEEDED
+#
+    println("here 500, xfile = $(xfile)")
+
+    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+    keyword["data_type"] = ""
+    keyword["predictors_per_group"] = ""
+    keyword["manhattan_plot_file"] = ""
+    keyword["max_groups"] = ""
+    keyword["group_membership"] = ""
+
+    keyword["prior_weights"] = ""
+    keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
+
+    file_name = xfile[1:end-4]
+# try xt_test
+    snpmatrix = SnpArray("xt_test")
+    # HERE I READ THE PHENOTYPE FROM THE BEDFILE TO MATCH THE TUTORIAL RESULTS
+    # I'M SURE THERE IS A BETTER WAY TO GET IT
+    #phenotype is already set in tutorial_simulation.jl above  DIDN'T WORK - SAYS IT'S NOT DEFINED HERE
+    #phenotype = readdlm(file_name * ".fam", header = false)[:, 6] # NO GOOD, THE PHENOTYPE HERE IS ALL ONES
+    x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
+    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
+    phenotype = convert(Array{T,1}, y)
+    #println("phenotype = $(phenotype)")
+    # y_copy = copy(phenotype)
+    # y_copy .-= mean(y_copy)
+    groups = fill(1,24000)
+    k = 10
+    J = 1
+    outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
+    #println("outputg.beta = $(outputg.beta)")
+    found = find(outputg.beta .!= 0.0)
+    println("betas found in xt_test = $(found)")
+# try x_test
+    snpmatrix = SnpArray("x_test")
+    outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
+    found = find(outputg.beta .!= 0.0)
+    println("betas found in x_test = $(found)")
+
+=#
     @sync begin
 
         # loop over all workers
@@ -520,13 +791,55 @@ function pfold(
 
                         # launch job on worker
                         # worker loads data from file paths and then computes the errors in one fold
+                        println("here 524, abspath(yfile) = $(abspath(yfile))")
                         r = remotecall_fetch(worker) do
                             processes = [worker]
+                            println("xfile = $(xfile)")
+                            println("x2file = $(x2file)")
+
+                            println("here 530, abspath(yfile) = $(abspath(yfile))")
+
+                            keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+                            keyword["data_type"] = ""
+                            keyword["predictors_per_group"] = ""
+                            keyword["manhattan_plot_file"] = ""
+                            keyword["max_groups"] = ""
+                            keyword["group_membership"] = ""
+
+                            keyword["prior_weights"] = ""
+                            keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
+
+                            file_name = xfile[1:end-4]
+                        # try xt_test
+                            snpmatrix = SnpArray("x_test")
+                            # HERE I READ THE PHENOTYPE FROM THE BEDFILE TO MATCH THE TUTORIAL RESULTS
+                            # I'M SURE THERE IS A BETTER WAY TO GET IT
+                            #phenotype is already set in tutorial_simulation.jl above  DIDN'T WORK - SAYS IT'S NOT DEFINED HERE
+                            #phenotype = readdlm(file_name * ".fam", header = false)[:, 6] # NO GOOD, THE PHENOTYPE HERE IS ALL ONES
+                            x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
+                            y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
+                            phenotype = convert(Array{T,1}, y)
+                            #println("phenotype = $(phenotype)")
+                            # y_copy = copy(phenotype)
+                            # y_copy .-= mean(y_copy)
+                            groups = fill(1,24000)
+                            k = 10
+                            J = 1
+                            outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
+                            #println("outputg.beta = $(outputg.beta)")
+                            found = find(outputg.beta .!= 0.0)
+                            println("betas found in x_test = $(found)")
+
                             x = BEDFile(T, xfile, x2file, pids=processes, header=header)
                             y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=processes) :: SharedVector{T}
+                            println("here 533, abspath(yfile) = $(abspath(yfile))")
+                            #y = SharedArray{T}(yfile, (x.geno.n,), pids=processes) :: SharedVector{T}
 
-                            one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
+                            one_fold(snpmatrix, phenotype, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
+                            #one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
+                            # !!! don't put any code here, return from one_fold() is return for remotecall_fetch() !!!
                         end # end remotecall_fetch()
+                        println("First test done.")
                         setindex!(results, r, :, current_fold)
                     end # end while
                 end # end @async
@@ -560,7 +873,7 @@ function cv_iht(
     yfile    :: String,
     meanfile :: String,
     precfile :: String;
-    q        :: Int = cv_get_num_folds(3,5), 
+    q        :: Int = cv_get_num_folds(3,5),
     path     :: DenseVector{Int} = begin
            # find p from the corresponding BIM file, then make path
             bimfile = xfile[1:(endof(xfile)-3)] * "bim"
@@ -583,7 +896,8 @@ function cv_iht(
 
     # enforce type
     @assert T <: Float "Argument T must be either Float32 or Float64"
-
+    println("gwas#666, Starting cv_iht(). I'm killing it here with x=xx.")
+x=xx
     # how many elements are in the path?
     nmodels = length(path)
 
@@ -635,7 +949,7 @@ function cv_iht(
     xfile    :: String,
     x2file   :: String,
     yfile    :: String;
-    q        :: Int = cv_get_num_folds(3,5), 
+    q        :: Int = cv_get_num_folds(3,5),
     path     :: DenseVector{Int} = begin
            # find p from the corresponding BIM file, then make path
             bimfile = xfile[1:(endof(xfile)-3)] * "bim"
@@ -658,31 +972,76 @@ function cv_iht(
 
     # enforce type
     @assert T <: Float "Argument T must be either Float32 or Float64"
-
+print_with_color(:red, "gwas#666, Starting cv_iht().\n")
     # how many elements are in the path?
     nmodels = length(path)
-
+    println("here 664")
     # compute folds in parallel
+    println("xfile = $(xfile)")
+    println("x2file = $(x2file)")
+    yfile = yfile[3:end]
+    println("yfile = $(yfile)")
+    #println("path = $(path)")
     mses = pfold(T, xfile, x2file, yfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+    println("here 667")
+    #Gordon
+    println("here 500, yfile = $(yfile)")
+    println("here 500, xfile = $(xfile)")
+
+    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+    keyword["data_type"] = ""
+    keyword["predictors_per_group"] = ""
+    keyword["manhattan_plot_file"] = ""
+    keyword["max_groups"] = ""
+    keyword["group_membership"] = ""
+
+    keyword["prior_weights"] = ""
+    keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
+
+    file_name = xfile[1:end-4]
+# try xt_test
+    snpmatrix = SnpArray("x_test")
+    # HERE I READ THE PHENOTYPE FROM THE BEDFILE TO MATCH THE TUTORIAL RESULTS
+    # I'M SURE THERE IS A BETTER WAY TO GET IT
+    #phenotype is already set in tutorial_simulation.jl above  DIDN'T WORK - SAYS IT'S NOT DEFINED HERE
+    #phenotype = readdlm(file_name * ".fam", header = false)[:, 6] # NO GOOD, THE PHENOTYPE HERE IS ALL ONES
+    x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
+    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
+    phenotype = convert(Array{T,1}, y)
+    #println("phenotype = $(phenotype)")
+    # y_copy = copy(phenotype)
+    # y_copy .-= mean(y_copy)
+    groups = fill(1,24000)
+    k = 10
+    J = 1
+    outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
+    #println("outputg.beta = $(outputg.beta)")
+    found = find(outputg.beta .!= 0.0)
+    println("betas found in x_test = $(found)")
 
     # what is the best model size?
     k = path[indmin(mses)] :: Int
 
     # print results
     !quiet && print_cv_results(mses, path, k)
+    k = 10 # Gordon force 10 to be best model, because we still need new A_mul_B!() for error calcs
 
     # recompute ideal model
     ### first load data on *all* processes
     # first load data on *master* processes
+#=
     x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
     y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
-
+    #println("y = $(y)")
+=#
     # first use L0_reg to extract model
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=[1])
 
     # which components of beta are nonzero?
-    inferred_model = output.beta .!= 0 
+    inferred_model = output.beta .!= 0
     bidx = find(inferred_model)
+    #Gordon
+    println("betas found in bidx = $(bidx)")
 
     # allocate the submatrix of x corresponding to the inferred model
     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
@@ -707,4 +1066,53 @@ Important optional arguments and defaults include:
 - `folds`, an `Int` vector that specifies the fold structure. Defaults to `cv_get_folds(n,q)`, where `n` is the number of cases read from the PLINK FAM file.
 - `pids`, an `Int` vector of process IDs. Defaults to `procs()`.
 """
-cv_iht(xfile::String, x2file::String, yfile::String; q::Int = cv_get_num_folds(3,5), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::Vector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+cv_iht(xfile::String, x2file::String, yfile::String;
+ q::Int = 3, #cv_get_num_folds(3,5),   # Gordon - restricted for testing
+  path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); [1, 10] end, # Gordon - only way it works on my Windows PC
+   folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end,
+    pids::Vector{Int}=procs(),
+     tol::Float64=1e-4,
+      max_iter::Int=100,
+       max_step::Int=50,
+        quiet::Bool=true,
+         header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+"""
+    difference!(Z, X, Y [, a=1.0, b=1.0])
+
+Compute the matrix difference `Z = a*Y - b*Z`, overwriting `Z`.
+"""
+function difference!{T <: Float}(
+    Z :: DenseMatrix{T},
+    X :: DenseMatrix{T},
+    Y :: DenseMatrix{T};
+    a :: T = one(T),
+    b :: T = one(T),
+)
+    m,n = size(Z)
+    (m,n) == size(X) == size(Y) || throw(DimensionMismatch("Arguments, Z, X, and Y must have same size"))
+    @inbounds for j = 1:n
+        @inbounds for i = 1:m
+            Z[i,j] = a*X[i,j] - b*Y[i,j]
+        end
+    end
+    return nothing
+end
+
+"""
+    difference!(x, y, z [, a=1.0, b=1.0, n=length(x)])
+
+Compute the difference `x = a*y - b*z`, overwriting `x`.
+"""
+function difference!{T <: Float}(
+    x :: DenseVector{T},
+    y :: DenseVector{T},
+    z :: DenseVector{T};
+    a :: T = one(T),
+    b :: T = one(T),
+    n :: Int = length(x)
+)
+    @inbounds for i = 1:n
+        x[i] = a*y[i] - b*z[i]
+    end
+    return nothing
+end

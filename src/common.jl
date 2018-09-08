@@ -46,6 +46,28 @@ type IHTVariables{T <: Float, V <: DenseVector}
 
     IHTVariables{T,V}(b::V, b0::Vector{T}, xb::V, xb0::Vector{T}, xk::Matrix{T}, gk::Vector{T}, xgk::Vector{T}, idx::BitArray{1}, idx0::BitArray{1}, r::V, df::V) where {T <: Float, V <: DenseVector{T}} = new{T,V}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
+"""
+Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
+"""
+mutable struct IHTVariable{T <: Float, V <: DenseVector}
+
+    #TODO: Consider changing b and b0 to SparseVector
+    itc   :: T             # estimate for the intercept
+    itc0  :: T             # estimated intercept in the previous iteration
+    b     :: Vector{T}     # the statistical model, most will be 0
+    b0    :: Vector{T}     # estimated model in the previous iteration
+    xb    :: Vector{T}     # vector that holds x*b
+    xb0   :: Vector{T}     # xb in the previous iteration
+    xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of df
+    xgk   :: Vector{T}     # xk * gk, denominator of step size
+    idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
+    idx0  :: BitVector     # previous iterate of idx
+    r     :: V             # n-vector of residuals
+    df    :: V             # the gradient: df = x' * (y - xb - intercept)
+    group :: Vector{Int64} # vector denoting group membership
+end
+
 
 ## strong type construction of IHTVariables
 #IHTVariables{T <: Float}(
@@ -155,6 +177,19 @@ function update_variables!{T <: Float}(
     return nothing
 end
 
+function update_variables!{T <: Float}(
+    v :: IHTVariable{T},        # no s is Ben's type
+    #    x :: BEDFile{T},
+    x :: SnpLike{2},
+    k :: Int                    # k is J*q, see caller is gwas.jl line 371 in iht_path()
+)
+    n    = size(x,1)
+#    v.xk = zeros(T, n, k)
+    v.xk = SnpArray(n, k)       # k is J*q from caller
+    v.gk = zeros(T, k)
+    return nothing
+end
+
 
 # ----------------------------------------- #
 # crossvalidation routines
@@ -201,7 +236,7 @@ function refit_iht{T <: Float}(
         warn("caught error: ", e, "\nSetting returned values of b to -Inf")
         fill!(b, -Inf)
     end
-  
+
     return b, bidx
 end
 
@@ -229,11 +264,11 @@ function refit_iht(
 
     # extract model with IHT
     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol)
-   
+
     # which components of β are nonzero?
     inferred_model = output.beta .!= zero(T)
     bidx = find(inferred_model)
-  
+
     # allocate the submatrix of x corresponding to the inferred model
     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
     decompress_genotypes!(x_inferred, x, inferred_model)
@@ -281,7 +316,7 @@ function refit_iht(
     # which components of β are nonzero?
     inferred_model = output.beta .!= zero(T)
     bidx = find(inferred_model)
-  
+
     # allocate the submatrix of x corresponding to the inferred model
     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
     decompress_genotypes!(x_inferred, x, inferred_model)
@@ -328,7 +363,7 @@ function IHTCrossvalidationResults{T <: Float}(
     b    :: Vector{T},
     bidx :: Vector{Int},
     k    :: Int
-) 
+)
     bids = convert(Vector{String}, ["V" * "$i" for i in bidx]) :: Vector{String}
     IHTCrossvalidationResults(mses, path, b, bidx, k, bids) :: IHTCrossvalidationResults{T}
 end
@@ -360,7 +395,7 @@ Arguments:
 - `xβ` is the array to overwrite with `x*β`.
 - `x` is the `n` x `p` design matrix.
 - `β` is the `p`-dimensional parameter vector.
-- `idx` is a `BitArray` that indexes `β`. It must have `k` instances of `true`. 
+- `idx` is a `BitArray` that indexes `β`. It must have `k` instances of `true`.
 - `k` is the number of nonzeroes in `β`.
 """
 function update_xb!(
@@ -373,10 +408,10 @@ function update_xb!(
     @assert sum(idx) <= k "Argument indices with $(sum(indices)) trues should have at most $k of them"
     fill!(xβ, zero(T))
     numtrue = 0
-    @inbounds for j in eachindex(idx) 
+    @inbounds for j in eachindex(idx)
         if idx[j]
             numtrue += 1
-            @inbounds for i in eachindex(xβ) 
+            @inbounds for i in eachindex(xβ)
                 xβ[i] += β[j]*x[i,j]
             end
         end
@@ -468,7 +503,7 @@ end
 
 This function projects a vector `x` onto the set S_k = { y in R^p : || y ||_0 <= k }.
 It does so by first finding the pivot `a` of the `k` largest components of `x` in magnitude.
-`project_k!` then applies `x[abs.(x) < a] = 0 
+`project_k!` then applies `x[abs.(x) < a] = 0
 
 Arguments:
 - `b` is the vector to project.
@@ -476,7 +511,7 @@ Arguments:
 """
 function project_k!(x::DenseVector{T}, k::Int) where {T <: AbstractFloat}
     a = select(x, k, by = abs, rev = true) :: T
-    threshold!(x,abs(a)) 
+    threshold!(x,abs(a))
 end
 
 """
@@ -490,10 +525,10 @@ Arguments:
 """
 function update_indices!(idx::BitArray{1}, x::AbstractVector{T}) where {T <: AbstractFloat}
     @assert length(idx) == length(x)
-    @inbounds for i in eachindex(x) 
+    @inbounds for i in eachindex(x)
         idx[i] = x[i] != zero(T)# ? true : false
     end
-    return idx 
+    return idx
 end
 
 """
@@ -722,9 +757,9 @@ type IHTLogVariables{T <: Float, V <: DenseVector}
     d2b      :: Matrix{T}
     b        :: V
     b0       :: Vector{T}
-    df       :: V 
-    xb       :: V 
-    lxb      :: V 
+    df       :: V
+    xb       :: V
+    lxb      :: V
     l2xb     :: Vector{T}
     bk       :: Vector{T}
     bk2      :: Vector{T}
@@ -739,8 +774,8 @@ type IHTLogVariables{T <: Float, V <: DenseVector}
     idxs2    :: BitArray{1}
     idxs0    :: BitArray{1}
 
-    IHTLogVariables(xk::Matrix{T}, xk2::Matrix{T}, d2b::Matrix{T}, b::V, b0::Vector{T}, df::V, xb::V, lxb::V, l2xb::Vector{T}, bk::Vector{T}, bk2::Vector{T}, bk0::Vector{T}, ntb::Vector{T}, db::Vector{T}, dfk::Vector{T}, active::Vector{Int}, bidxs::Vector{Int}, dfidxs::Vector{Int}, idxs::BitArray{1}, idxs2::BitArray{1}, idxs0::BitArray{1}) where {T <: Float, V <: DenseVector{T}} = new{T,V}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
-    #IHTLogVariables(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) where {T <: Float, V <: DenseVector{T}} = new{T,V}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+    IHTLogVariables(xk::Matrix{T}, xk2::Matrix{T}, d2b::Matrix{T}, b::V, b0::Vector{T}, df::V, xb::V, lxb::V, l2xb::Vector{T}, bk::Vector{T}, bk2::Vector{T}, bk0::Vector{T}, ntb::Vector{T}, db::Vector{T}, dfk::Vector{T}, active::Vector{Int}, bidxs::Vector{Int}, dfidxs::Vector{Int}, idxs::BitArray{1}, idxs2::BitArray{1}, idxs0::BitArray{1}) where {T <: Float, V <: DenseVector{T}} = new{T,V}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0)
+    #IHTLogVariables(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) where {T <: Float, V <: DenseVector{T}} = new{T,V}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0)
 end
 
 #strongly typed constructor of IHTLogVariables
@@ -767,7 +802,7 @@ function IHTLogVariables{T <: Float}(
     idxs2    :: BitArray{1},
     idxs0    :: BitArray{1}
 )
-    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0)
 end
 
 # construct IHTLogVariables from data x, y, k
@@ -799,7 +834,7 @@ function IHTLogVariables{T <: Float}(
     idxs0  = falses(p)
     idxs2  = falses(p)
 
-    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0) 
+    IHTLogVariables{T, typeof(b)}(xk, xk2, d2b, b, b0, df, xb, lxb, l2xb, bk, bk2, bk0, ntb, db, dfk, active, bidxs, dfidxs, idxs, idxs2, idxs0)
 end
 
 
@@ -831,14 +866,14 @@ immutable IHTLogResults{T <: Float, V <: DenseVector}
     time   :: T
     iter   :: Int
     loss   :: T
-    beta   :: V 
+    beta   :: V
     active :: Vector{Int}
 
     IHTLogResults(time::T, iter::Int, loss::T, β::V, active::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, iter, loss, β, active)
 end
 
 ## strongly typed external constructor for IHTLogResults
-#function IHTLogResults{T <: Float}( 
+#function IHTLogResults{T <: Float}(
 #    time   :: T,
 #    iter   :: Int,
 #    loss   :: T,

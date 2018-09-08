@@ -1,25 +1,3 @@
-"""
-Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
-"""
-mutable struct IHTVariable{T <: Float, V <: DenseVector}
-
-    #TODO: Consider changing b and b0 to SparseVector
-    itc   :: T             # estimate for the intercept
-    itc0  :: T             # estimated intercept in the previous iteration
-    b     :: Vector{T}     # the statistical model, most will be 0
-    b0    :: Vector{T}     # estimated model in the previous iteration
-    xb    :: Vector{T}     # vector that holds x*b
-    xb0   :: Vector{T}     # xb in the previous iteration
-    xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of df
-    xgk   :: Vector{T}     # xk * gk, denominator of step size
-    idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
-    idx0  :: BitVector     # previous iterate of idx
-    r     :: V             # n-vector of residuals
-    df    :: V             # the gradient: df = x' * (y - xb - intercept)
-    group :: Vector{Int64} # vector denoting group membership
-end
-
 function IHTVariables{T <: Float}(
     x :: SnpLike{2},
     y :: Vector{T},
