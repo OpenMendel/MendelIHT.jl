@@ -370,7 +370,8 @@ function iht_path(
         update_variables!(v, x, J*q)
 
         # store projection of beta onto largest k nonzeroes in magnitude
-        project_k!(v.b, q)
+        #project_k!(v.b, q) # q is k
+        project_group_sparse!(v.b, v.group, J, q) # project to doubly sparse vector
 
         # now compute current model
         #output = L0_reg(x, y, q, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n)
@@ -512,9 +513,9 @@ function one_fold(
 end
 
 """
-    one_fold(x::BEDFile, y, path, folds, fold)
+    one_fold(x::SnpLike{2}, y, path, folds, fold)
 
-If used with a `BEDFile` object `x`, then the additional optional arguments are:
+??? If used with a `BEDFile` object `x`, then the additional optional arguments are:
 
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
 """
@@ -723,51 +724,6 @@ print_with_color(:red, "gwas488, Starting pfold(..NOT xt..).\n")
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
-#=
-    println("here 500, yfile = $(yfile)")
-    #Gordon - THIS CODE IS NOT NEEDED HERE
-    # I WAS JUST USING IT TO CHECK RESULTS MATCH BETWEEN BEN AND KEVIN'S L0_reg() CALLS BEFORE LAUNCHING THE FOLDS
-    # THIS CODE IS DUPLICATED BELOW, WHERE IT IS ACUTALLY NEEDED
-#
-    println("here 500, xfile = $(xfile)")
-
-    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
-    keyword["data_type"] = ""
-    keyword["predictors_per_group"] = ""
-    keyword["manhattan_plot_file"] = ""
-    keyword["max_groups"] = ""
-    keyword["group_membership"] = ""
-
-    keyword["prior_weights"] = ""
-    keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
-
-    file_name = xfile[1:end-4]
-# try xt_test
-    snpmatrix = SnpArray("xt_test")
-    # HERE I READ THE PHENOTYPE FROM THE BEDFILE TO MATCH THE TUTORIAL RESULTS
-    # I'M SURE THERE IS A BETTER WAY TO GET IT
-    #phenotype is already set in tutorial_simulation.jl above  DIDN'T WORK - SAYS IT'S NOT DEFINED HERE
-    #phenotype = readdlm(file_name * ".fam", header = false)[:, 6] # NO GOOD, THE PHENOTYPE HERE IS ALL ONES
-    x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
-    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
-    phenotype = convert(Array{T,1}, y)
-    #println("phenotype = $(phenotype)")
-    # y_copy = copy(phenotype)
-    # y_copy .-= mean(y_copy)
-    groups = fill(1,24000)
-    k = 10
-    J = 1
-    outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
-    #println("outputg.beta = $(outputg.beta)")
-    found = find(outputg.beta .!= 0.0)
-    println("betas found in xt_test = $(found)")
-# try x_test
-    snpmatrix = SnpArray("x_test")
-    outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
-    found = find(outputg.beta .!= 0.0)
-    println("betas found in x_test = $(found)")
-
-=#
     @sync begin
 
         # loop over all workers
