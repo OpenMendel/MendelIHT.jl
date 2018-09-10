@@ -324,9 +324,8 @@ function iht_path(
 end
 
 """
-    iht_path(x::BEDFile, y, path)
+    iht_path(x::SnpLike{2}, y, path)
 
-If used with a `BEDFile` object `x`, then the temporary arrays are all initialized as `SharedArray`s of the proper dimensions.
 The additional optional arguments are:
 
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
@@ -585,6 +584,7 @@ function one_fold(
 
 #        p_tmp = convert(Array{T,1}, path[i]) # Gordon - didn't help
         #A_mul_B!(xb, x, b, indices, path[i], mask_test)
+        #SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, similar(v.df))
 
         # compute residuals
         r .= y .- xb

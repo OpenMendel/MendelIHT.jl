@@ -46,28 +46,6 @@ type IHTVariables{T <: Float, V <: DenseVector}
 
     IHTVariables{T,V}(b::V, b0::Vector{T}, xb::V, xb0::Vector{T}, xk::Matrix{T}, gk::Vector{T}, xgk::Vector{T}, idx::BitArray{1}, idx0::BitArray{1}, r::V, df::V) where {T <: Float, V <: DenseVector{T}} = new{T,V}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df)
 end
-"""
-Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
-"""
-mutable struct IHTVariable{T <: Float, V <: DenseVector}
-
-    #TODO: Consider changing b and b0 to SparseVector
-    itc   :: T             # estimate for the intercept
-    itc0  :: T             # estimated intercept in the previous iteration
-    b     :: Vector{T}     # the statistical model, most will be 0
-    b0    :: Vector{T}     # estimated model in the previous iteration
-    xb    :: Vector{T}     # vector that holds x*b
-    xb0   :: Vector{T}     # xb in the previous iteration
-    xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of df
-    xgk   :: Vector{T}     # xk * gk, denominator of step size
-    idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
-    idx0  :: BitVector     # previous iterate of idx
-    r     :: V             # n-vector of residuals
-    df    :: V             # the gradient: df = x' * (y - xb - intercept)
-    group :: Vector{Int64} # vector denoting group membership
-end
-
 
 ## strong type construction of IHTVariables
 #IHTVariables{T <: Float}(
@@ -173,19 +151,6 @@ function update_variables!{T <: Float}(
 )
     n    = size(x,1)
     v.xk = zeros(T, n, k)
-    v.gk = zeros(T, k)
-    return nothing
-end
-
-function update_variables!{T <: Float}(
-    v :: IHTVariable{T},        # no s is Ben's type
-    #    x :: BEDFile{T},
-    x :: SnpLike{2},
-    k :: Int                    # k is J*q, see caller is gwas.jl line 371 in iht_path()
-)
-    n    = size(x,1)
-#    v.xk = zeros(T, n, k)
-    v.xk = SnpArray(n, k)       # k is J*q from caller
     v.gk = zeros(T, k)
     return nothing
 end
