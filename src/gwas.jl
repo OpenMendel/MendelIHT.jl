@@ -370,7 +370,8 @@ function iht_path(
         update_variables!(v, x, J*q)
 
         # store projection of beta onto largest k nonzeroes in magnitude
-        project_k!(v.b, q)
+        #project_k!(v.b, q) # q is k
+        project_group_sparse!(v.b, v.group, J, q) # project to doubly sparse vector
 
         # now compute current model
         #output = L0_reg(x, y, q, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n)
@@ -401,11 +402,11 @@ function iht_path(
         # y_copy = copy(phenotype)
         # y_copy .-= mean(y_copy)
         groups = fill(1,24000)
-        k = 10
+        #kkk = 10
         J = 1
         snpmatrix = x
         phenotype = y
-        outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
+        outputg = L0_reg(snpmatrix, phenotype, J, q, groups, keyword)
         #println("outputg.beta = $(outputg.beta)")
         found = find(outputg.beta .!= 0.0)
         println("betas found in xt_test = $(found)")
@@ -512,9 +513,9 @@ function one_fold(
 end
 
 """
-    one_fold(x::BEDFile, y, path, folds, fold)
+    one_fold(x::SnpLike{2}, y, path, folds, fold)
 
-If used with a `BEDFile` object `x`, then the additional optional arguments are:
+??? If used with a `BEDFile` object `x`, then the additional optional arguments are:
 
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
 """
@@ -723,51 +724,6 @@ print_with_color(:red, "gwas488, Starting pfold(..NOT xt..).\n")
 
     # master process will distribute tasks to workers
     # master synchronizes results at end before returning
-#=
-    println("here 500, yfile = $(yfile)")
-    #Gordon - THIS CODE IS NOT NEEDED HERE
-    # I WAS JUST USING IT TO CHECK RESULTS MATCH BETWEEN BEN AND KEVIN'S L0_reg() CALLS BEFORE LAUNCHING THE FOLDS
-    # THIS CODE IS DUPLICATED BELOW, WHERE IT IS ACUTALLY NEEDED
-#
-    println("here 500, xfile = $(xfile)")
-
-    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
-    keyword["data_type"] = ""
-    keyword["predictors_per_group"] = ""
-    keyword["manhattan_plot_file"] = ""
-    keyword["max_groups"] = ""
-    keyword["group_membership"] = ""
-
-    keyword["prior_weights"] = ""
-    keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
-
-    file_name = xfile[1:end-4]
-# try xt_test
-    snpmatrix = SnpArray("xt_test")
-    # HERE I READ THE PHENOTYPE FROM THE BEDFILE TO MATCH THE TUTORIAL RESULTS
-    # I'M SURE THERE IS A BETTER WAY TO GET IT
-    #phenotype is already set in tutorial_simulation.jl above  DIDN'T WORK - SAYS IT'S NOT DEFINED HERE
-    #phenotype = readdlm(file_name * ".fam", header = false)[:, 6] # NO GOOD, THE PHENOTYPE HERE IS ALL ONES
-    x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
-    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
-    phenotype = convert(Array{T,1}, y)
-    #println("phenotype = $(phenotype)")
-    # y_copy = copy(phenotype)
-    # y_copy .-= mean(y_copy)
-    groups = fill(1,24000)
-    k = 10
-    J = 1
-    outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
-    #println("outputg.beta = $(outputg.beta)")
-    found = find(outputg.beta .!= 0.0)
-    println("betas found in xt_test = $(found)")
-# try x_test
-    snpmatrix = SnpArray("x_test")
-    outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
-    found = find(outputg.beta .!= 0.0)
-    println("betas found in x_test = $(found)")
-
-=#
     @sync begin
 
         # loop over all workers
@@ -791,12 +747,10 @@ print_with_color(:red, "gwas488, Starting pfold(..NOT xt..).\n")
 
                         # launch job on worker
                         # worker loads data from file paths and then computes the errors in one fold
-                        println("here 524, abspath(yfile) = $(abspath(yfile))")
                         r = remotecall_fetch(worker) do
                             processes = [worker]
                             println("xfile = $(xfile)")
                             println("x2file = $(x2file)")
-
                             println("here 530, abspath(yfile) = $(abspath(yfile))")
 
                             keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
@@ -823,12 +777,12 @@ print_with_color(:red, "gwas488, Starting pfold(..NOT xt..).\n")
                             # y_copy = copy(phenotype)
                             # y_copy .-= mean(y_copy)
                             groups = fill(1,24000)
-                            k = 10
+                            #kkk = 10
                             J = 1
-                            outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
+                            outputg = L0_reg(snpmatrix, phenotype, J, q, groups, keyword)
                             #println("outputg.beta = $(outputg.beta)")
                             found = find(outputg.beta .!= 0.0)
-                            println("betas found in x_test = $(found)")
+                            println("(in pfold() before call onefold(), betas found in x_test = $(found)")
 
                             x = BEDFile(T, xfile, x2file, pids=processes, header=header)
                             y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=processes) :: SharedVector{T}
@@ -839,7 +793,7 @@ print_with_color(:red, "gwas488, Starting pfold(..NOT xt..).\n")
                             #one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
                             # !!! don't put any code here, return from one_fold() is return for remotecall_fetch() !!!
                         end # end remotecall_fetch()
-                        println("First test done.")
+                        println("Fold done.")
                         setindex!(results, r, :, current_fold)
                     end # end while
                 end # end @async
@@ -1012,9 +966,9 @@ print_with_color(:red, "gwas#666, Starting cv_iht().\n")
     # y_copy = copy(phenotype)
     # y_copy .-= mean(y_copy)
     groups = fill(1,24000)
-    k = 10
+    kkk = 10
     J = 1
-    outputg = L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
+    outputg = L0_reg(snpmatrix, phenotype, J, kkk, groups, keyword)
     #println("outputg.beta = $(outputg.beta)")
     found = find(outputg.beta .!= 0.0)
     println("betas found in x_test = $(found)")
@@ -1023,8 +977,9 @@ print_with_color(:red, "gwas#666, Starting cv_iht().\n")
     k = path[indmin(mses)] :: Int
 
     # print results
+    kkk = 10 # Gordon force 10 to be best model, because we still need new A_mul_B!() for error calcs
     !quiet && print_cv_results(mses, path, k)
-    k = 10 # Gordon force 10 to be best model, because we still need new A_mul_B!() for error calcs
+    kkk = 10 # Gordon force 10 to be best model, because we still need new A_mul_B!() for error calcs
 
     # recompute ideal model
     ### first load data on *all* processes
@@ -1035,7 +990,7 @@ print_with_color(:red, "gwas#666, Starting cv_iht().\n")
     #println("y = $(y)")
 =#
     # first use L0_reg to extract model
-    output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=[1])
+    output = L0_reg(x, y, kkk, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=[1])
 
     # which components of beta are nonzero?
     inferred_model = outputg.beta .!= 0
@@ -1048,10 +1003,10 @@ print_with_color(:red, "gwas#666, Starting cv_iht().\n")
     decompress_genotypes!(x_inferred, x, inferred_model)
 
     # refit the best model
-    b, bidx = refit_iht(x_inferred, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
+    b, bidx = refit_iht(x_inferred, y, kkk, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
 
     bids = prednames(x)[bidx]
-    return IHTCrossvalidationResults(mses, sdata(path), b, bidx, k, bids)
+    return IHTCrossvalidationResults(mses, sdata(path), b, bidx, kkk, bids)
 end
 
 """
