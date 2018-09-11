@@ -54,11 +54,11 @@ function update_variables!{T <: Float}(
     v :: IHTVariable{T},        # no s is Ben's type
     #    x :: BEDFile{T},
     x :: SnpLike{2},
-    k :: Int                    # k is J*q, see caller is gwas.jl line 371 in iht_path()
+    k :: Int
 )
     n    = size(x,1)
 #    v.xk = zeros(T, n, k)
-    v.xk = SnpArray(n, k)       # k is J*q from caller
+    v.xk = SnpArray(n, k)
     v.gk = zeros(T, k)
     return nothing
 end
