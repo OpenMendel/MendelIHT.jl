@@ -32,7 +32,7 @@ s  = 5.0                   # very noisy!
 y2 = x_temp*b + s*randn(n) # y2 has noise distribution N(0,25), substantially noiser than y
 
 # simulate (or recover from PLINK.jl) some GWAS data
-fpath = expanduser("~/.julia/v0.6/PLINK/data/")         # path to simulated data from PLINK module
+fpath = expanduser("F:/JuliaPro-0.6.3.1-MKL/pkgs-0.6.3.1/v0.6/PLINK/data/")         # path to simulated data from PLINK module
 genopath  = fpath * "x_test.bed"                        # path to original BED file
 tgenopath = fpath * "xt_test.bed"                       # path to transposed BED file
 covpath   = fpath * "covfile.txt"                       # path to covariate file
@@ -54,6 +54,9 @@ bidxbed   = find(bbed)                       # store locations of nonzero coeffi
 idx       = bbed .!= 0                       # need BitArray indices of nonzeroes in b for A_mul_B
 xb        = A_mul_B(xbed, bbed, idx, k)      # compute x*b
 ybed2     = xb + 0.1*randn(n)                # yields a Vector, so we must convert it to SharedVector
+#Gordon
+const phenotype = xb + 0.1*randn(n)        # didn't work, fell out of scope
+#ybed2   = ones(ybed2)  # didn't work, made size(v.gk)==16, s/b 10
 ybed      = SharedVector{T}((n,), pids=[1])  # our response variable with the BEDFile
 copy!(ybed, ybed2)
 ypath     = ENV["TMPDIR"] * "y.bin"          # ybed uses path to Julia TMP directory
