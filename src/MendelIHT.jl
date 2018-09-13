@@ -1,24 +1,3 @@
-# """
-# This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel.
-# """
-# function MendelIHT(file_name::String, k::Int64)
-#     const MENDEL_IHT_VERSION :: VersionNumber = v"0.2.0"
-#     #
-#     # Print the logo. Store the initial directory.
-#     #
-#     print(" \n \n")
-#     println("     Welcome to OpenMendel's")
-#     println("      IHT analysis option")
-#     println("        version ", MENDEL_IHT_VERSION)
-#     print(" \n \n")
-
-#     snpmatrix = SnpArray(file_name)
-#     phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
-#     # phenotype = randn(959) #testing GAW data since it has no phenotype
-
-#     return L0_reg(snpmatrix, phenotype, k)
-# end #function MendelIHT
-
 """
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel.
 """
@@ -47,10 +26,9 @@ function MendelIHT(control_file = ""; args...)
     keyword["manhattan_plot_file"] = ""
     keyword["max_groups"] = ""
     keyword["group_membership"] = ""
-
     keyword["prior_weights"] = ""
     keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
-
+    keyword["non_genetic_covariates"] = ""
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -64,42 +42,37 @@ function MendelIHT(control_file = ""; args...)
         throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
     end
     keyword["analysis_option"] = "Iterative Hard Thresholding"
-    @assert (keyword["max_groups"] != "")           "Need number of groups. Choose 1 to run normal IHT"
-    @assert (keyword["predictors_per_group"] != "") "Need number of predictors per group"
-
+    @assert keyword["max_groups"] != ""           "Need number of groups. Set as 1 to run normal IHT"
+    @assert keyword["predictors_per_group"] != "" "Need number of predictors per group"
     #
-    # Read the genetic data from the external files named in the keywords.
+    # Import genotype/non-genetic/phenotype data
     #
-    # (pedigree, person, nuclear_family, locus, snpdata, locus_frame, phenotype_frame,
-    #     pedigree_frame, snp_definition_frame) = read_external_data_files(keyword)
+    println(" \nReading in data.\n")
+    snpmatrix = SnpArray(keyword["plink_input_basename"]) #requires .bim .bed .fam files
+    phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
+    if keyword["non_genetic_covariates"] != ""
+        non_genetic_cov = vec(readdlm(keyword["non_genetic_covariates"], Float64))
+    else
+        non_genetic_cov = Matrix{Float64}(0, 0)
+    end
+    #
+    # Define variables for group membership, max number of predictors for each group, and max number of groups
+    #
+    groups = vec(readdlm(keyword["group_membership"], Int64))
+    k      = keyword["predictors_per_group"]
+    J      = keyword["max_groups"]
     #
     # Execute the specified analysis.
     #
     println(" \nAnalyzing the data.\n")
-##
-    file_name = keyword["plink_input_basename"]
-    snpmatrix = SnpArray(file_name)
-    phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
-    # y_copy = copy(phenotype)
-    # y_copy .-= mean(y_copy)
-    groups = vec(readdlm(keyword["group_membership"], Int64))
-    k = keyword["predictors_per_group"]
-    J = keyword["max_groups"]
-    return L0_reg(snpmatrix, phenotype, J, k, groups, keyword)
-##
-    # execution_error = iht_gwas(person, snpdata, pedigree_frame, keyword)
-    # if execution_error
-    #   println(" \n \nERROR: Mendel terminated prematurely!\n")
-    # else
-    #   println(" \n \nMendel's analysis is finished.\n")
-    # end
-    # #
-    # # Finish up by closing, and thus flushing, any output files.
-    # # Return to the initial directory.
-    # #
-    # close(keyword["output_unit"])
-    # cd(initial_directory)
-    # return nothing
+    return L0_reg(snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword)
+    #
+    # Finish up by closing, and thus flushing, any output files.
+    # Return to the initial directory.
+    #
+    close(keyword["output_unit"])
+    cd(initial_directory)
+    return nothing
 end #function MendelIHT
 
 """
@@ -111,6 +84,7 @@ This function updates: b, xb, xk, gk, xgk, idx
 function iht!(
     v        :: IHTVariable{T},
     x        :: SnpLike{2},
+    z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int,
     k        :: Int,
@@ -136,8 +110,8 @@ function iht!(
     v.gk .= v.df[v.idx]
 
     # now compute subset of x*g
-    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, mean_vec[v.idx], std_vec[v.idx])
-    v.xgk .+= sum(v.r)
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, view(mean_vec, v.idx), view(std_vec, v.idx))
+    v.xgk .+= sum(v.r) #since intercept is separated from x, gk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
@@ -153,7 +127,7 @@ function iht!(
 
     # update xb
     v.xk .= view(x, :, v.idx)
-    SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
+    SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx))
     v.xb .+= v.itc
 
     # calculate omega
@@ -173,7 +147,7 @@ function iht!(
 
         # recompute xb
         v.xk .= view(x, :, v.idx)
-        SnpArrays.A_mul_B!(v.xb, v.xk, v.b[v.idx], mean_vec[v.idx], std_vec[v.idx])
+        SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx))
         v.xb .+= v.itc
 
         # calculate omega
@@ -191,13 +165,13 @@ This function performs IHT on GWAS data.
 """
 function L0_reg(
     x        :: SnpLike{2},
+    z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int,
     k        :: Int,
     group    :: Vector{Int},
     keyword  :: Dict{AbstractString, Any};
     v        :: IHTVariable = IHTVariables(x, y, J, k),
-    # v        :: IHTVariables = IHTVariables(x, y, J, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
@@ -235,6 +209,7 @@ function L0_reg(
     maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
     people, snps = size(x)
     mean_vec = deepcopy(maf) # Gordon wants maf below
+    
     #precompute mean and standard deviations for each snp. Note that (1) the mean is
     #given by 2 * maf, and (2) based on which allele is the minor allele, might need to do
     #2.0 - the maf for the mean vector.
@@ -243,6 +218,7 @@ function L0_reg(
     end
     std_vec = std_reciprocal(x, mean_vec)
 
+    #weight snps based on maf or other user defined weights
     if keyword["prior_weights"] == "maf"
         my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,keyword,maf)
         hold_std_vec = deepcopy(std_vec)
@@ -273,11 +249,13 @@ function L0_reg(
         # save values from previous iterate
         copy!(v.b0, v.b)   # b0 = b    CONSIDER BLASCOPY!
         copy!(v.xb0, v.xb) # Xb0 = Xb  CONSIDER BLASCOPY!
+        copy!(v.c0, v.c)   # c0 = c    CONSIDER BLASCOPY!
+        copy!(v.zc0, v.zc) # Zc0 = Zc  CONSIDER BLASCOPY!
         v.itc0 = v.itc     # update intercept as well
         loss = next_loss
 
         #calculate the step size μ.
-        (μ, μ_step) = iht!(v, x, y, J, k, mean_vec, std_vec, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb # v.r = (y - Xβ - intercept)

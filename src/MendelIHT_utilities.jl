@@ -6,8 +6,12 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     #TODO: Consider changing b and b0 to SparseVector
     itc   :: T             # estimate for the intercept
     itc0  :: T             # estimated intercept in the previous iteration
-    b     :: Vector{T}     # the statistical model, most will be 0
-    b0    :: Vector{T}     # estimated model in the previous iteration
+    c     :: Vector{T}     # estimated model for non-genetic variates
+    c0    :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
+    zc    :: Vector{T}     # z * c (covariate matrix times c)
+    zc0   :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
+    b     :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
+    b0    :: Vector{T}     # estimated model for genotype matrix in the previous iteration
     xb    :: Vector{T}     # vector that holds x*b
     xb0   :: Vector{T}     # xb in the previous iteration
     xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
@@ -24,11 +28,14 @@ function IHTVariables{T <: Float}(
     x :: SnpLike{2},
     y :: Vector{T},
     J :: Int64,   # decide whether to use just Int for J, k everywhere
-    k :: Int64
+    k :: Int64;
+    z :: Matrix{T} # covariate matrix is optionally inputted
 )
     n, p  = size(x)
     itc   = zero(T)
     itc0  = zero(T)
+    c     = zeros(T, )
+    c0 
     b     = zeros(T, p)
     b0    = zeros(T, p)
     xb    = zeros(T, n)
@@ -76,7 +83,7 @@ function _iht_gradstep{T <: Float}(
     J :: Int,
     k :: Int
 )
-   BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: v.b = b + μ∇f(b)
+   BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ∇f(b)
    v.itc = v.itc0 + μ * sum(v.r)             # update intercept too
    project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector
    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
@@ -153,8 +160,7 @@ end
 n active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown group membership.
 
-TODO: 1)make this function operate in-place
-      2)check if sortperm can be replaced by something that doesn't sort the whole array
+TODO: check if sortperm can be replaced by something that doesn't sort the whole array
 """
 function project_group_sparse!{T <: Float}(
     y     :: Vector{T},
@@ -164,7 +170,7 @@ function project_group_sparse!{T <: Float}(
 )
     groups = maximum(group)
     group_count = zeros(Int, groups)         #counts number of predictors in each group
-    z = zeros(groups)                        #l2 norm of each group
+    group_norm = zeros(groups)               #l2 norm of each group
     perm = zeros(Int64, length(y))           #vector holding the permuation vector after sorting
     sortperm!(perm, y, by = abs, rev = true)
 
@@ -173,14 +179,14 @@ function project_group_sparse!{T <: Float}(
         j = perm[i]
         k = group[j]
         if group_count[k] < n
-            z[k] = z[k] + y[j]^2
+            group_norm[k] = group_norm[k] + y[j]^2
             group_count[k] = group_count[k] + 1
         end
     end
 
     #go through the top predictors in order. Set predictor to 0 if criteria not met
-    group_rank = zeros(Int64, length(z))
-    sortperm!(group_rank, z, rev = true)
+    group_rank = zeros(Int64, length(group_norm))
+    sortperm!(group_rank, group_norm, rev = true)
     group_rank = invperm(group_rank)
     fill!(group_count, 1)
     for i in eachindex(y)
