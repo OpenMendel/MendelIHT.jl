@@ -32,7 +32,7 @@ s  = 5.0                   # very noisy!
 y2 = x_temp*b + s*randn(n) # y2 has noise distribution N(0,25), substantially noiser than y
 
 # simulate (or recover from PLINK.jl) some GWAS data
-fpath = expanduser("F:/JuliaPro-0.6.3.1-MKL/pkgs-0.6.3.1/v0.6/PLINK/data/")         # path to simulated data from PLINK module
+fpath = expanduser("~/.julia/v0.6/PLINK/data/")         # path to simulated data from PLINK module
 genopath  = fpath * "x_test.bed"                        # path to original BED file
 tgenopath = fpath * "xt_test.bed"                       # path to transposed BED file
 covpath   = fpath * "covfile.txt"                       # path to covariate file
