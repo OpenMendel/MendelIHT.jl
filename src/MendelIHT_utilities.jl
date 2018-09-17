@@ -4,52 +4,56 @@ Object to contain intermediate variables and temporary arrays. Used for cleaner 
 mutable struct IHTVariable{T <: Float, V <: DenseVector}
 
     #TODO: Consider changing b and b0 to SparseVector
-    itc   :: T             # estimate for the intercept
-    itc0  :: T             # estimated intercept in the previous iteration
-    c     :: Vector{T}     # estimated model for non-genetic variates
-    c0    :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
-    zc    :: Vector{T}     # z * c (covariate matrix times c)
-    zc0   :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
     b     :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
     b0    :: Vector{T}     # estimated model for genotype matrix in the previous iteration
     xb    :: Vector{T}     # vector that holds x*b
     xb0   :: Vector{T}     # xb in the previous iteration
     xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores to non-0 elements of df
+    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores the non-0 elements of df
     xgk   :: Vector{T}     # xk * gk, denominator of step size
     idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
     idx0  :: BitVector     # previous iterate of idx
     r     :: V             # n-vector of residuals
-    df    :: V             # the gradient: df = x' * (y - xb - intercept)
+    df    :: V             # the gradient portion of the genotype part: df = ∇f(β) = snpmatrix * (y - xb - zc)
+    df2   :: V             # the gradient portion of the non-genetic covariates: covariate matrix * (y - xb - zc)
+    c     :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
+    c0    :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
+    zc    :: Vector{T}     # z * c (covariate matrix times c)
+    zc0   :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
+    zdf2  :: Vector{T}     # z * df2. needed to calculate non-genetic covariate contribution for denomicator of step size 
     group :: Vector{Int64} # vector denoting group membership
 end
 
 function IHTVariables{T <: Float}(
     x :: SnpLike{2},
+    z :: Matrix{T},
     y :: Vector{T},
-    J :: Int64,   # decide whether to use just Int for J, k everywhere
-    k :: Int64;
-    z :: Matrix{T} # covariate matrix is optionally inputted
+    J :: Int64,    # decide whether to use just Int instead of Int64 for J, k everywhere
+    k :: Int64,
 )
     n, p  = size(x)
-    itc   = zero(T)
-    itc0  = zero(T)
-    c     = zeros(T, )
-    c0 
+    q     = size(z, 2)
+
     b     = zeros(T, p)
     b0    = zeros(T, p)
     xb    = zeros(T, n)
     xb0   = zeros(T, n)
-    xk    = SnpArray(n, J*k)
-    gk    = zeros(T, J*k)
+    xk    = SnpArray(n, J * k)
+    gk    = zeros(T, J * k)
     xgk   = zeros(T, n)
     idx   = falses(p)
     idx0  = falses(p)
     r     = zeros(T, n)
     df    = zeros(T, p)
+    df2   = zeros(T, q)
+    c     = zeros(T, q)
+    c0    = zeros(T, q)
+    zc    = zeros(T, n)
+    zc0   = zeros(T, n)
+    zdf2  = zeros(T, q)
     group = ones(Int64, p)
 
-    return IHTVariable{T, typeof(y)}(itc, itc0, b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, group)
+    return IHTVariable{T, typeof(y)}(c, c0, zc, zc0, b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, df2, group)
 end
 
 """
@@ -84,8 +88,9 @@ function _iht_gradstep{T <: Float}(
     k :: Int
 )
    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ∇f(b)
-   v.itc = v.itc0 + μ * sum(v.r)             # update intercept too
-   project_group_sparse!(v.b, v.group, J, k) # project to doubly sparse vector
+   BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ∇f(b)
+   # v.itc = v.itc0 + μ * sum(v.r)             # update intercept too
+   project_group_sparse!(v.b, v.group, J, k) # only project b to sparse vector
    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
 
    # If the k'th largest component is not unique, warn the user.
@@ -114,8 +119,8 @@ this function calculates the omega (here a / b) used for determining backtrackin
 function _iht_omega{T <: Float}(
     v :: IHTVariable{T}
 )
-    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.itc, v.itc0)  :: T
-    b = sqeuclidean(v.xb, v.xb0::Vector{T}) :: T
+    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0)  :: T
+    b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
     return a, b
 end
 

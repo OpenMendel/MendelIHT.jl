@@ -49,9 +49,9 @@ function MendelIHT(control_file = ""; args...)
     #
     println(" \nReading in data.\n")
     snpmatrix = SnpArray(keyword["plink_input_basename"]) #requires .bim .bed .fam files
-    phenotype = readdlm(file_name * ".fam", header = false)[:, 6]
+    phenotype = readdlm(keyword["plink_input_basename"] * ".fam", header = false)[:, 6]
     if keyword["non_genetic_covariates"] != ""
-        non_genetic_cov = vec(readdlm(keyword["non_genetic_covariates"], Float64))
+        non_genetic_cov = readdlm(keyword["non_genetic_covariates"], Float64)
     else
         non_genetic_cov = Matrix{Float64}(0, 0)
     end
@@ -61,11 +61,19 @@ function MendelIHT(control_file = ""; args...)
     groups = vec(readdlm(keyword["group_membership"], Int64))
     k      = keyword["predictors_per_group"]
     J      = keyword["max_groups"]
+    v      = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
+    #
+    #assign groups memberships
+    #
+    if size(v.group) != size(groups)
+        throw(error("Error: Group membership file has $(size(group)), should be $(size(v.group))."))
+    end
+    v.group = groups
     #
     # Execute the specified analysis.
     #
     println(" \nAnalyzing the data.\n")
-    return L0_reg(snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword)
+    return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword)
     #
     # Finish up by closing, and thus flushing, any output files.
     # Return to the initial directory.
@@ -106,18 +114,21 @@ function iht!(
         copy!(v.xk, view(x, :, v.idx))
     end
 
-    # store relevant components of gradient
+    # store relevant components of gradient (gk is numerator of step size)
     v.gk .= v.df[v.idx]
 
-    # now compute subset of x*g
+    # compute the denominator of step size, store it in xgk (recall gk = df[idx])
     SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, view(mean_vec, v.idx), view(std_vec, v.idx))
-    v.xgk .+= sum(v.r) #since intercept is separated from x, gk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    # v.xgk .+= sum(v.r) #add contribution of non-genetic covariates: xgk is missing an extra entry equal to l2 norm(Z' * (y-Xβ-Zc))
+
+    # compute z * df2 needed in the denominator of step size calculation
+    BLAS.A_mul_B!(v.zdf2, v.z, v.df2)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
-    μ = ((sum(abs2, v.gk) + sum(v.r)^2) / sum(abs2, v.xgk)) :: T
+    μ = ((sum(abs2, v.gk) + sum(abs2, v.df2) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2))) :: T
 
     # check for finite stepsize
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
@@ -125,10 +136,9 @@ function iht!(
     # compute gradient step
     _iht_gradstep(v, μ, J, k)
 
-    # update xb
+    # update xb (needed to calculate ω to determine line search criteria)
     v.xk .= view(x, :, v.idx)
     SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx))
-    v.xb .+= v.itc
 
     # calculate omega
     ω_top, ω_bot = _iht_omega(v)
@@ -142,13 +152,12 @@ function iht!(
 
         # recompute gradient step
         copy!(v.b,v.b0)
-        v.itc = v.itc0
+        copy!(v.c,v.c0)
         _iht_gradstep(v, μ, J, k)
 
         # recompute xb
         v.xk .= view(x, :, v.idx)
         SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx))
-        v.xb .+= v.itc
 
         # calculate omega
         ω_top, ω_bot = _iht_omega(v)
@@ -164,6 +173,7 @@ end
 This function performs IHT on GWAS data.
 """
 function L0_reg(
+    v        :: IHTVariable, 
     x        :: SnpLike{2},
     z        :: Matrix{T},
     y        :: Vector{T},
@@ -171,7 +181,6 @@ function L0_reg(
     k        :: Int,
     group    :: Vector{Int},
     keyword  :: Dict{AbstractString, Any};
-    v        :: IHTVariable = IHTVariables(x, y, J, k),
     mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
@@ -233,14 +242,10 @@ function L0_reg(
     # Begin IHT calculations
     #
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    copy!(v.r, y)          #redisual = y-Xβ-intercept = y  CONSIDER BLASCOPY!
+    copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
     v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
-    if size(v.group) != size(group)
-        throw(error("Error: Group membership file has $(size(group)), should be $(size(v.group))."))
-    end
-    v.group .= group       #assign the groups in the beginning
 
-    # Calculate the gradient v.df = -X'(y - Xβ) = X'(-1*(Y-Xb)). All future gradient
+    # Calculate the gradient v.df = -X'(y - Xβ - Zc) = X'(-1*(Y-Xb - Zc)). All future gradient
     # calculations are done in iht!. Note the negative sign will be cancelled afterwards
     # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
     SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec)
@@ -251,18 +256,18 @@ function L0_reg(
         copy!(v.xb0, v.xb) # Xb0 = Xb  CONSIDER BLASCOPY!
         copy!(v.c0, v.c)   # c0 = c    CONSIDER BLASCOPY!
         copy!(v.zc0, v.zc) # Zc0 = Zc  CONSIDER BLASCOPY!
-        v.itc0 = v.itc     # update intercept as well
         loss = next_loss
 
         #calculate the step size μ.
         (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
-        v.r .= y .- v.xb # v.r = (y - Xβ - intercept)
+        v.r .= y .- v.xb .- v.zc 
         v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet
 
-        # v.df = X'(y - Xβ - intercept)
+        # update v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
         SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, similar(v.df))
+        BLAS.At_mul_B!(v.df2, z, v.r)
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2
@@ -270,8 +275,8 @@ function L0_reg(
         !isinf(next_loss) || throw(error("Objective function is Inf, aborting..."))
 
         # track convergence
-        the_norm    = max(chebyshev(v.b, v.b0), abs(v.itc - v.itc0)) #max(abs(x - y))
-        scaled_norm = the_norm / (max(norm(v.b0, Inf), v.itc0) + 1.0)
+        the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
+        scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
 
         if converged
