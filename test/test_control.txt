@@ -10,3 +10,4 @@ data_type = genetic
 predictors_per_group = 1
 max_groups = 1
 group_membership = 1_group_test.dat
+non_genetic_covariates = test_cov.txt

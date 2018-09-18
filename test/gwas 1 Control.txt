@@ -3,7 +3,6 @@
 #
 plink_input_basename = gwas 1 data
 output_file = gwas 1 Output.txt
-manhattan_plot_file = gwas 1 Manhattan Plot Output.png
 #
 # Analysis parameters for IHT option.
 #
@@ -11,7 +10,7 @@ data_type = genetic
 predictors_per_group = 9
 max_groups = 1
 group_membership = 1_group_gwas1.dat
+non_genetic_covariates = gwas 1 cov.txt
+
 #group_membership = 100_rand_groups_gwas1.dat
-
 #prior_weights = maf
-

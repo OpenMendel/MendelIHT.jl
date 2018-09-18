@@ -11,40 +11,42 @@ end
 function test_data()
 	# dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
 	x = SnpArray("test")
+	z = readdlm("test_cov.txt", Float64)
 	y = CSV.read("test.fam", delim = ' ', header = false)
 	y = convert(Array{Float64,1}, y[:, 6])
 	J = 1
 	k = 1
-	v = IHTVariables(x, y, J, k)
-	return (x, y, J, k, v)
+	v = IHTVariables(x, z, y, J, k)
+	return (x, z, y, J, k, v)
 end
 
 function gwas1_data()
 	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10000
 	x = SnpArray("gwas 1 data") 
+	z = readdlm("gwas 1 cov.txt", Float64)
 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
 	y = convert(Array{Float64,1}, y[:, 6])
 	J = 1
 	k = 10
-	v = IHTVariables(x, y, J, k)
-	return (x, y, J, k, v)
+	v = IHTVariables(x, z, y, J, k)
+	return (x, z, y, J, k, v)
 end
 
 
 @testset "initilize IHTVariables" begin
-	(x, y, J, k, v) = test_data()
+	(x, z, y, J, k, v) = test_data()
 
 	#J, k must be a non-zero integer
-	@test_throws(ArgumentError, IHTVariables(x, y, -1, 2))
-	@test_throws(MethodError, IHTVariables(x, y, 1.1, 2))
-	@test_throws(MethodError, IHTVariables(x, y, NaN, 2))
-	@test_throws(MethodError, IHTVariables(x, y, missing, 2))
-	@test_throws(MethodError, IHTVariables(x, y, Inf, 2))
-	@test_throws(ArgumentError, IHTVariables(x, y, 1, -1))
-	@test_throws(MethodError, IHTVariables(x, y, 1, 1.1))
-	@test_throws(MethodError, IHTVariables(x, y, 1, NaN))
-	@test_throws(MethodError, IHTVariables(x, y, 1, missing))
-	@test_throws(MethodError, IHTVariables(x, y, 1, Inf))
+	@test_throws(ArgumentError, IHTVariables(x, z, y, -1, 2))
+	@test_throws(MethodError, IHTVariables(x, z, y, 1.1, 2))
+	@test_throws(MethodError, IHTVariables(x, z, y, NaN, 2))
+	@test_throws(MethodError, IHTVariables(x, z, y, missing, 2))
+	@test_throws(MethodError, IHTVariables(x, z, y, Inf, 2))
+	@test_throws(ArgumentError, IHTVariables(x, z, y, 1, -1))
+	@test_throws(MethodError, IHTVariables(x, z, y, 1, 1.1))
+	@test_throws(MethodError, IHTVariables(x, z, y, 1, NaN))
+	@test_throws(MethodError, IHTVariables(x, z, y, 1, missing))
+	@test_throws(MethodError, IHTVariables(x, z, y, 1, Inf))
 
 	#Different types of inputs for IHTVariables(x, y, J, k) is
 	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
@@ -61,6 +63,12 @@ end
 	@test size(v.idx0) == (2,)
 	@test size(v.r)	   == (6,)
 	@test size(v.df)   == (2,)
+	@test size(v.df2)  == (1,)
+	@test size(v.c)    == (1,)
+	@test size(v.c0)   == (1,)
+	@test size(v.zc)   == (6,)
+	@test size(v.zc0)  == (6,)
+	@test size(v.zdf2) == (6,)
 	@test size(v.group)== (2,)
 
 	@test typeof(v.b)    == Array{Float64, 1}
@@ -74,11 +82,17 @@ end
 	@test typeof(v.idx0) == BitArray{1}
 	@test typeof(v.r)	 == Array{Float64, 1}
 	@test typeof(v.df)   == Array{Float64, 1}
+	@test typeof(v.df2)  == Array{Float64, 1}
+	@test typeof(v.c)    == Array{Float64, 1}
+	@test typeof(v.c0)   == Array{Float64, 1}
+	@test typeof(v.zc)   == Array{Float64, 1}
+	@test typeof(v.zc0)  == Array{Float64, 1}
+	@test typeof(v.zdf2) == Array{Float64, 1}
 	@test typeof(v.group)== Array{Int64, 1}
 end
 
 @testset "_init_iht_indices" begin
-	(x, y, J, k, v) = gwas1_data()
+	(x, z, y, J, k, v) = gwas1_data()
 
 	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
 	# set v.idx = 1 for the k largest terms in v.df 
@@ -103,7 +117,7 @@ end
 end
 
 @testset "use_A2_as_minor_allele" begin
-	(x, y, J, k, v) = test_data()
+	(x, z, y, J, k, v) = test_data()
     result = use_A2_as_minor_allele(x)
     answer = [[0.0 1.0]; [1.0 1.0]; [2.0 0.0]; [1.0 2.0]; [2.0 1.0]; [2.0 2.0]]
 
@@ -156,11 +170,11 @@ end
 end
 
 @testset "_iht_omega" begin
-	(x, y, J, k, v) = test_data()
+	(x, z, y, J, k, v) = test_data()
 	v.b    = [0.0, 0.334712]
 	v.b0   = [0.0, 0.0]
-	v.itc  = 1.51177394
-	v.itc0 = 0.0
+	v.c[1] = 1.51177394
+	v.c0[1]= 0.0
 	v.xb   = [1.43767, 1.43767, 0.993028, 1.88231, 1.43767, 1.88231]
 	v.xb0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 

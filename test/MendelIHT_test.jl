@@ -10,7 +10,9 @@ else
     using Test
 end
 
-@testset "Do MendelIHT and IHT output the same result when group = 1?" begin
+@testset "Do MendelIHT and IHT output the same result?" begin
+	# Note: For both test, there are only 1 group and covariates only contain 
+	# a column of 1 for intercept
 
     #test on small data set
     mendel_result = MendelIHT("test_control.txt")
@@ -19,7 +21,7 @@ end
 	non_zero_mendel = find(mendel_result.beta)
 	non_zero_iht = find(iht_result.beta)
 	mendel_beta_val = mendel_result.beta[non_zero_mendel]
-	mendel_intercept = mendel_result.itc
+	mendel_intercept = mendel_result.c
 	iht_beta_val = iht_result.beta[non_zero_iht]
 
 	#test overall loss and number of iterations agree
@@ -31,7 +33,7 @@ end
 
 	#test non-zero entries of beta are equal in value
 	@test mendel_beta_val[1] ≈ iht_beta_val[1]
-	@test mendel_intercept ≈ iht_beta_val[2]
+	@test mendel_intercept[1] ≈ iht_beta_val[2]
 
 	#test non-zero entries of beta are at the correct places
 	@test non_zero_mendel[1] == non_zero_iht[1]
@@ -43,7 +45,7 @@ end
 	non_zero_mendel = find(mendel_result.beta)
 	non_zero_iht = find(iht_result.beta)
 	mendel_beta_val = mendel_result.beta[non_zero_mendel]
-	mendel_intercept = mendel_result.itc
+	mendel_intercept = mendel_result.c
 	iht_beta_val = iht_result.beta[non_zero_iht]
 
 	@test round(mendel_result.loss, 3) == round(iht_result.loss, 3)
@@ -54,7 +56,7 @@ end
 
 	#test non-zero entries of beta are equal in absolute value
 	@test all(isapprox.(mendel_beta_val, iht_beta_val[1:end-1], atol=0.0000001))
-	@test isapprox(mendel_result.itc, iht_beta_val[end], atol=0.0000001)
+	@test isapprox(mendel_result.c[1], iht_beta_val[end], atol=0.0000001)
 
 	#test non-zero entries of beta are at the correct places
 	@test all(non_zero_mendel .== non_zero_iht[1:end-1]) 
