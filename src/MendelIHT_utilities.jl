@@ -50,10 +50,10 @@ function IHTVariables{T <: Float}(
     c0    = zeros(T, q)
     zc    = zeros(T, n)
     zc0   = zeros(T, n)
-    zdf2  = zeros(T, q)
+    zdf2  = zeros(T, n)
     group = ones(Int64, p)
 
-    return IHTVariable{T, typeof(y)}(c, c0, zc, zc0, b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, df2, group)
+    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, df2, c, c0, zc, zc0, zdf2, group)
 end
 
 """

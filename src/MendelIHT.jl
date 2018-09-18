@@ -53,7 +53,7 @@ function MendelIHT(control_file = ""; args...)
     if keyword["non_genetic_covariates"] != ""
         non_genetic_cov = readdlm(keyword["non_genetic_covariates"], Float64)
     else
-        non_genetic_cov = Matrix{Float64}(0, 0)
+        non_genetic_cov = Vector{Float64}(0, 0)
     end
     #
     # Define variables for group membership, max number of predictors for each group, and max number of groups
@@ -104,12 +104,14 @@ function iht!(
 
     # compute indices of nonzeroes in beta
     v.idx .= v.b .!= 0
+
+    println(sum(abs2, v.df) + sum(abs2, v.df2))
     if sum(v.idx) == 0
         _init_iht_indices(v, J, k)
     end
+    println(sum(abs2, v.df) + sum(abs2, v.df2))
 
-    # store relevant columns of x. Need to do this on 1st iteration.
-    # afterwards, only do if support changes
+    # store relevant columns of x. Need to do this on 1st iteration, and when support changes
     if !isequal(v.idx, v.idx0) || iter < 2
         copy!(v.xk, view(x, :, v.idx))
     end
@@ -119,16 +121,23 @@ function iht!(
 
     # compute the denominator of step size, store it in xgk (recall gk = df[idx])
     SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, view(mean_vec, v.idx), view(std_vec, v.idx))
-    # v.xgk .+= sum(v.r) #add contribution of non-genetic covariates: xgk is missing an extra entry equal to l2 norm(Z' * (y-Xβ-Zc))
 
     # compute z * df2 needed in the denominator of step size calculation
-    BLAS.A_mul_B!(v.zdf2, v.z, v.df2)
+    BLAS.A_mul_B!(v.zdf2, z, v.df2)
+
+    println(v.gk)
+    println(v.df2)
+    println(sum(abs2, v.zdf2))
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
-    μ = ((sum(abs2, v.gk) + sum(abs2, v.df2) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2))) :: T
+    μ = ((sum(abs2, v.gk) + sum(abs2, v.df2) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
+
+    println("below is numerator and denominator")
+    println(sum(abs2, v.gk) + sum(abs2, v.df2))
+    println(sum(abs2, v.xgk) + sum(abs2, v.zdf2))
 
     # check for finite stepsize
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
@@ -245,10 +254,9 @@ function L0_reg(
     copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
     v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
 
-    # Calculate the gradient v.df = -X'(y - Xβ - Zc) = X'(-1*(Y-Xb - Zc)). All future gradient
-    # calculations are done in iht!. Note the negative sign will be cancelled afterwards
-    # when we do b+ = P_k( b - μ∇f(b)) = P_k( b + μ(-∇f(b))) = P_k( b + μ*v.df)
+    # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
     SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec)
+    BLAS.At_mul_B!(v.df2, z, v.r)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate
@@ -260,6 +268,11 @@ function L0_reg(
 
         #calculate the step size μ.
         (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, max_step, mm_iter)
+
+        println("below is step size and number of step-halving")
+        println(μ)
+        println(μ_step)
+        return 1.1111
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb .- v.zc 
