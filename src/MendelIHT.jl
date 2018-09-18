@@ -105,11 +105,9 @@ function iht!(
     # compute indices of nonzeroes in beta
     v.idx .= v.b .!= 0
 
-    println(sum(abs2, v.df) + sum(abs2, v.df2))
     if sum(v.idx) == 0
         _init_iht_indices(v, J, k)
     end
-    println(sum(abs2, v.df) + sum(abs2, v.df2))
 
     # store relevant columns of x. Need to do this on 1st iteration, and when support changes
     if !isequal(v.idx, v.idx0) || iter < 2
@@ -125,19 +123,11 @@ function iht!(
     # compute z * df2 needed in the denominator of step size calculation
     BLAS.A_mul_B!(v.zdf2, z, v.df2)
 
-    println(v.gk)
-    println(v.df2)
-    println(sum(abs2, v.zdf2))
-
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
-    μ = ((sum(abs2, v.gk) + sum(abs2, v.df2) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
-
-    println("below is numerator and denominator")
-    println(sum(abs2, v.gk) + sum(abs2, v.df2))
-    println(sum(abs2, v.xgk) + sum(abs2, v.zdf2))
+    μ = (((sum(abs2, v.gk) + sum(abs2, v.df2)) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
 
     # check for finite stepsize
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
@@ -148,6 +138,7 @@ function iht!(
     # update xb (needed to calculate ω to determine line search criteria)
     v.xk .= view(x, :, v.idx)
     SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx))
+    BLAS.A_mul_B!(v.zc, z, v.c)
 
     # calculate omega
     ω_top, ω_bot = _iht_omega(v)
@@ -167,6 +158,7 @@ function iht!(
         # recompute xb
         v.xk .= view(x, :, v.idx)
         SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx))
+        BLAS.A_mul_B!(v.zc, z, v.c)
 
         # calculate omega
         ω_top, ω_bot = _iht_omega(v)
@@ -269,11 +261,6 @@ function L0_reg(
         #calculate the step size μ.
         (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, max_step, mm_iter)
 
-        println("below is step size and number of step-halving")
-        println(μ)
-        println(μ_step)
-        return 1.1111
-
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb .- v.zc 
         v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet
@@ -294,7 +281,7 @@ function L0_reg(
 
         if converged
             mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.itc, J, k, group)
+            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.c, J, k, group)
         end
 
         if mm_iter == max_iter

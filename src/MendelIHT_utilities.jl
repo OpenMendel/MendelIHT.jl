@@ -89,7 +89,6 @@ function _iht_gradstep{T <: Float}(
 )
    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ∇f(b)
    BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ∇f(b)
-   # v.itc = v.itc0 + μ * sum(v.r)             # update intercept too
    project_group_sparse!(v.b, v.group, J, k) # only project b to sparse vector
    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
 
@@ -119,7 +118,7 @@ this function calculates the omega (here a / b) used for determining backtrackin
 function _iht_omega{T <: Float}(
     v :: IHTVariable{T}
 )
-    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0)  :: T
+    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
     b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
     return a, b
 end
@@ -213,16 +212,16 @@ immutable gIHTResults{T <: Float, V <: DenseVector}
     loss  :: T
     iter  :: Int
     beta  :: V
-    itc   :: T
+    c     :: V
     J     :: Int64
     k     :: Int64
     group :: Vector{Int64}
 
-    gIHTResults{T,V}(time, loss, iter, beta, itc, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta, itc, J, k, group)
+    gIHTResults{T,V}(time, loss, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta, c, J, k, group)
 end
 
 # strongly typed external constructor for gIHTResults
-gIHTResults(time::T, loss::T, iter::Int, beta::V, itc::T, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = gIHTResults{T, V}(time, loss, iter, beta, itc, J, k, group)
+gIHTResults(time::T, loss::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = gIHTResults{T, V}(time, loss, iter, beta, c, J, k, group)
 
 """
 a function to display gIHTResults object
@@ -237,7 +236,7 @@ function Base.show(io::IO, x::gIHTResults)
     println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
     non_zero = find(x.beta)
     print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
-    println(io, "\n\nIntercept of model = ", x.itc)
+    println(io, "\n\nIntercept of model = ", x.c[1])
 
     return nothing
 end
