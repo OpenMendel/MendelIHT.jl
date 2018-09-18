@@ -86,8 +86,6 @@ end #function MendelIHT
 """
 Calculates the IHT step β+ = P_k(β - μ ∇f(β)).
 Returns step size (μ), and number of times line search was done (μ_step).
-
-This function updates: b, xb, xk, gk, xgk, idx
 """
 function iht!(
     v        :: IHTVariable{T},
@@ -98,6 +96,7 @@ function iht!(
     k        :: Int,
     mean_vec :: Vector{T},
     std_vec  :: Vector{T},
+    storage  :: Vector{Vector{T}},
     iter     :: Int = 1,
     nstep    :: Int = 50,
 ) where {T <: Float}
@@ -115,10 +114,10 @@ function iht!(
     end
 
     # store relevant components of gradient (gk is numerator of step size)
-    v.gk .= v.df[v.idx]
+    v.gk .= view(v.df, v.idx)
 
     # compute the denominator of step size, store it in xgk (recall gk = df[idx])
-    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, view(mean_vec, v.idx), view(std_vec, v.idx))
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
 
     # compute z * df2 needed in the denominator of step size calculation
     BLAS.A_mul_B!(v.zdf2, z, v.df2)
@@ -137,7 +136,7 @@ function iht!(
 
     # update xb (needed to calculate ω to determine line search criteria)
     v.xk .= view(x, :, v.idx)
-    SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx))
+    SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
     BLAS.A_mul_B!(v.zc, z, v.c)
 
     # calculate omega
@@ -157,7 +156,7 @@ function iht!(
 
         # recompute xb
         v.xk .= view(x, :, v.idx)
-        SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx))
+        SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
         BLAS.A_mul_B!(v.zc, z, v.c)
 
         # calculate omega
@@ -182,7 +181,7 @@ function L0_reg(
     k        :: Int,
     group    :: Vector{Int},
     keyword  :: Dict{AbstractString, Any};
-    mask_n   :: Vector{Int} = ones(Int, size(y)),
+#    mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
     max_step :: Int = 50,
@@ -215,6 +214,12 @@ function L0_reg(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
+    # initialize empty vectors to facilitate garbage collection in (snpmatrix)-(vector) computation
+    store = Vector{Vector{T}}(3)
+    store[1] = zeros(T, size(v.df))  # length p 
+    store[2] = zeros(T, size(v.xgk)) # length n
+    store[3] = zeros(T, size(v.gk))  # length J * k
+
     # compute some summary statistics for our snpmatrix
     maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
     people, snps = size(x)
@@ -244,10 +249,10 @@ function L0_reg(
     #
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
     copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-    v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
+#    v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
-    SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec)
+    SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, store[1])
     BLAS.At_mul_B!(v.df2, z, v.r)
 
     for mm_iter = 1:max_iter
@@ -259,14 +264,14 @@ function L0_reg(
         loss = next_loss
 
         #calculate the step size μ.
-        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, store, max_step, mm_iter)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb .- v.zc 
-        v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet
+#        v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet
 
         # update v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
-        SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, similar(v.df))
+        SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, store[1])
         BLAS.At_mul_B!(v.df2, z, v.r)
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
