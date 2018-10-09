@@ -57,6 +57,24 @@ function IHTVariables{T <: Float}(
 end
 
 """
+new SnpLike{2} signature for update_variables!
+used in gwas.jl
+others signatures are in common.jl (for DenseMatrix and BEDFile)
+"""
+function update_variables!{T <: Float}(
+    v :: IHTVariable{T},        # no s is Ben's type
+    #    x :: BEDFile{T},
+    x :: SnpLike{2},
+    k :: Int
+)
+    n    = size(x,1)
+#    v.xk = zeros(T, n, k)
+    v.xk = SnpArray(n, k)
+    v.gk = zeros(T, k)
+    return nothing
+end
+
+"""
 This function is needed for testing purposes only.
 
 Converts a SnpArray to a matrix of float64 using A2 as the minor allele. We want this function

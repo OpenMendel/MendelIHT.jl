@@ -54,6 +54,9 @@ bidxbed   = find(bbed)                       # store locations of nonzero coeffi
 idx       = bbed .!= 0                       # need BitArray indices of nonzeroes in b for A_mul_B
 xb        = A_mul_B(xbed, bbed, idx, k)      # compute x*b
 ybed2     = xb + 0.1*randn(n)                # yields a Vector, so we must convert it to SharedVector
+#Gordon
+const phenotype = xb + 0.1*randn(n)        # didn't work, fell out of scope
+#ybed2   = ones(ybed2)  # didn't work, made size(v.gk)==16, s/b 10
 ybed      = SharedVector{T}((n,), pids=[1])  # our response variable with the BEDFile
 copy!(ybed, ybed2)
 ypath     = ENV["TMPDIR"] * "y.bin"          # ybed uses path to Julia TMP directory
