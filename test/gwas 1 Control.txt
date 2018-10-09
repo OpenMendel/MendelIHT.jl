@@ -10,7 +10,15 @@ data_type = genetic
 predictors_per_group = 9
 max_groups = 1
 group_membership = 1_group_gwas1.dat
+	#group_membership = 100_rand_groups_gwas1.dat
 non_genetic_covariates = gwas 1 cov.txt
-
-#group_membership = 100_rand_groups_gwas1.dat
-#prior_weights = maf
+#
+# keywords for weighting predictors
+#
+	#prior_weights = maf
+#
+# Cross Validation parameters
+#
+run_cross_validation = true
+cv_path = "1,2,3,4,5"
+cv_fold = 1

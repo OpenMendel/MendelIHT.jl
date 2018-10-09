@@ -29,6 +29,9 @@ function MendelIHT(control_file = ""; args...)
     keyword["prior_weights"] = ""
     keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
     keyword["non_genetic_covariates"] = ""
+    keyword["run_cross_validation"] = false
+    keyword["cv_path"] = ""
+    keyword["cv_fold"] = 0
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -47,7 +50,7 @@ function MendelIHT(control_file = ""; args...)
     #
     # Import genotype/non-genetic/phenotype data
     #
-    println(" \nReading in data.\n")
+    info(" \nReading in data.\n")
     snpmatrix = SnpArray(keyword["plink_input_basename"]) #requires .bim .bed .fam files
     phenotype = readdlm(keyword["plink_input_basename"] * ".fam", header = false)[:, 6]
     if keyword["non_genetic_covariates"] != ""
@@ -63,7 +66,7 @@ function MendelIHT(control_file = ""; args...)
     J      = keyword["max_groups"]
     v      = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
     #
-    #assign groups memberships
+    #assign group memberships
     #
     if size(v.group) != size(groups)
         throw(error("Error: Group membership file has $(size(group)), should be $(size(v.group))."))
@@ -72,8 +75,21 @@ function MendelIHT(control_file = ""; args...)
     #
     # Execute the specified analysis.
     #
-    println(" \nAnalyzing the data.\n")
-    return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword)
+    if keyword["run_cross_validation"]
+        n     = size(snpmatrix, 1)
+        q     = keyword["cv_fold"]
+        folds = cv_get_folds(n, q) #partitions n samples into q disjoint subsets
+        if keyword["cv_path"] != ""
+            path  = [parse(Int, ss) for ss in split(keyword["cv_path"], ',')] #use specified path
+        else
+            path = collect(1:20)
+        end
+        info("Running " * string(q) * "-fold cross validation over " * string(length(path)) * " different paths")
+        return cv_iht(snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword, path, folds)
+    else
+        info(" \nAnalyzing the data.\n")
+        return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword)
+    end
     #
     # Finish up by closing, and thus flushing, any output files.
     # Return to the initial directory.
@@ -464,7 +480,6 @@ function one_fold(
     return myerrors :: Vector{T}
 end
 
-
 function pfold(
     T        :: Type,
     xfile    :: String,
@@ -655,35 +670,37 @@ end
 #cv_iht(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 """
-    cv_iht(T::Type, xfile, x2file, yfile, J, groups, keyword, [q=max(3, min(CPU_CORES,5)), path=collect(1:min(p,20)), folds=cv_get_folds(n,q), pids=procs()])
+    cv_iht(T::Type, x, z, y, J, k, groups, keyword, [q=max(3, min(CPU_CORES,5)), path=collect(1:min(p,20)), folds=cv_get_folds(n,q), pids=procs()])
 
-An abbreviated call to `cv_iht` that calculates means, precs, and transpose on the fly.
+The default call to `cv_iht`. Here `x` points to the PLINK BED file stored on disk, `x2file` points to the nongenetic covariates stored in a delimited file, and `yfile` points to the response variable stored in a **binary** file.
+
+Important optional arguments and defaults include:
+
+- `q`, the number of crossvalidation folds. Defaults to `max(3, min(CPU_CORES,5))`
+- `path`, an `Int` vector that contains the model sizes to test. Defaults to `collect(1:min(p,20))`, where `p` is the number of genetic predictors read from the PLINK BIM file.
+- `folds`, an `Int` vector that specifies the fold structure. Defaults to `cv_get_folds(n,q)`, where `n` is the number of cases read from the PLINK FAM file.
+- `pids`, an `Int` vector of process IDs. Defaults to `procs()`.
 """
 function cv_iht(
-    T        :: Type,
-    xfile    :: String,
-    x2file   :: String,
-    yfile    :: String, J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any};
-    q        :: Int = cv_get_num_folds(3,5),
-    path     :: DenseVector{Int} = begin
-           # find p from the corresponding BIM file, then make path
-            bimfile = xfile[1:(endof(xfile)-3)] * "bim"
-            p       = countlines(bimfile)
-            collect(1:min(20,p))
-            end,
-    folds    :: DenseVector{Int} = begin
-           # find n from the corresponding FAM file, then make folds
-            famfile = xfile[1:(endof(xfile)-3)] * "fam"
-            n       = countlines(famfile)
-            cv_get_folds(n, q)
-            end,
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T}, 
+    J        :: Int64, 
+    k        :: Int64,
+    groups   :: Vector{Int64}, 
+    keyword  :: Dict{AbstractString, Any}, 
+    path     :: DenseVector{Int},
+    folds    :: DenseVector{Int};
     pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
     max_step :: Int   = 50,
     quiet    :: Bool  = true,
     header   :: Bool  = false
-)
+) where {T <: Float}
+
+    println(1.11)
+    return fdsafdsa
 
     # enforce type
     @assert T <: Float "Argument T must be either Float32 or Float64"
@@ -763,29 +780,3 @@ quiet || print_with_color(:red, "gwas#666, Starting cv_iht().\n")
     bids = prednames(x)[bidx]
     return IHTCrossvalidationResults(mses, sdata(path), b, bidx, kkk, bids)
 end
-
-"""
-    cv_iht(xfile, x2file, yfile, J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any})
-
-Three additional arguments to support groups and weighting:
-J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any}
-
-The default call to `cv_iht`. Here `xfile` points to the PLINK BED file stored on disk, `x2file` points to the nongenetic covariates stored in a delimited file, and `yfile` points to the response variable stored in a **binary** file.
-
-Important optional arguments and defaults include:
-
-- `q`, the number of crossvalidation folds. Defaults to `max(3, min(CPU_CORES,5))`
-- `path`, an `Int` vector that contains the model sizes to test. Defaults to `collect(1:min(p,20))`, where `p` is the number of genetic predictors read from the PLINK BIM file.
-- `folds`, an `Int` vector that specifies the fold structure. Defaults to `cv_get_folds(n,q)`, where `n` is the number of cases read from the PLINK FAM file.
-- `pids`, an `Int` vector of process IDs. Defaults to `procs()`.
-"""
-cv_iht(xfile::String, x2file::String, yfile::String, J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any};
- q::Int = 3, #cv_get_num_folds(3,5),   # Gordon - restricted for testing
-  path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); [1, 10] end, # Gordon - only way it works on my Windows PC
-   folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end,
-    pids::Vector{Int}=procs(),
-     tol::Float64=1e-4,
-      max_iter::Int=100,
-       max_step::Int=50,
-        quiet::Bool=true,
-         header::Bool=false) = cv_iht(Float64, xfile, x2file, yfile, J, groups, keyword, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)

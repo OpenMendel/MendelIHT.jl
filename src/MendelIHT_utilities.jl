@@ -58,8 +58,6 @@ end
 
 """
 new SnpLike{2} signature for update_variables!
-used in gwas.jl
-others signatures are in common.jl (for DenseMatrix and BEDFile)
 """
 function update_variables!{T <: Float}(
     v :: IHTVariable{T},        # no s is Ben's type
