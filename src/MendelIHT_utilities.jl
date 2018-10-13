@@ -58,15 +58,15 @@ end
 
 """
 new SnpLike{2} signature for update_variables!
+
+Note: now the cv path does not support grouping structures (i.e. J = 1)
 """
 function update_variables!{T <: Float}(
-    v :: IHTVariable{T},        # no s is Ben's type
-    #    x :: BEDFile{T},
+    v :: IHTVariable{T},
     x :: SnpLike{2},
     k :: Int
 )
-    n    = size(x,1)
-#    v.xk = zeros(T, n, k)
+    n    = size(x, 1)
     v.xk = SnpArray(n, k)
     v.gk = zeros(T, k)
     return nothing

@@ -32,6 +32,8 @@ function MendelIHT(control_file = ""; args...)
     keyword["run_cross_validation"] = false
     keyword["cv_path"] = ""
     keyword["cv_fold"] = 0
+    keyword["run_specific_paths"] = false
+    keyword["model_size_paths"] = ""
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -50,7 +52,7 @@ function MendelIHT(control_file = ""; args...)
     #
     # Import genotype/non-genetic/phenotype data
     #
-    info(" \nReading in data.\n")
+    info("Reading in data")
     snpmatrix = SnpArray(keyword["plink_input_basename"]) #requires .bim .bed .fam files
     phenotype = readdlm(keyword["plink_input_basename"] * ".fam", header = false)[:, 6]
     if keyword["non_genetic_covariates"] != ""
@@ -76,18 +78,24 @@ function MendelIHT(control_file = ""; args...)
     # Execute the specified analysis.
     #
     if keyword["run_cross_validation"]
-        n     = size(snpmatrix, 1)
-        q     = keyword["cv_fold"]
-        folds = cv_get_folds(n, q) #partitions n samples into q disjoint subsets
-        if keyword["cv_path"] != ""
-            path  = [parse(Int, ss) for ss in split(keyword["cv_path"], ',')] #use specified path
-        else
-            path = collect(1:20)
-        end
-        info("Running " * string(q) * "-fold cross validation over " * string(length(path)) * " different paths")
-        return cv_iht(snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword, path, folds)
+        # @assert J = 1 "Cross validation doesn't support finding different groups yet!"
+        # n     = size(snpmatrix, 1)
+        # q     = keyword["cv_fold"]
+        # folds = cv_get_folds(n, q) #partitions n samples into q disjoint subsets
+        # path  = collect(1:20) #default paths
+        # if keyword["cv_path"] != ""
+        #     path = [parse(Int, ss) for ss in split(keyword["cv_path"], ',')] #use specified path
+        # else
+        # info("Running " * string(q) * "-fold cross validation over " * string(length(path)) * " different paths")
+        # return cv_iht(snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword, path, folds)
+    elseif keyword["model_size_paths"] != ""
+        path = [parse(Int, ss) for ss in split(keyword["model_size_paths"], ',')]
+        info("Running the following model sizes: " * string(path))
+        @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
+
+        models = iht_path(snpmatrix, non_genetic_cov, phenotype, J, path, groups, keyword)
     else
-        info(" \nAnalyzing the data.\n")
+        info(" \nAnalyzing the data for model size k = $k.\n") 
         return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword)
     end
     #
@@ -317,90 +325,73 @@ end #function L0_reg
 """
     iht_path(x::SnpLike{2}, y, path)
 
-The additional optional arguments are:
+This function computes and stores different models with different values of k. 
 
+The additional optional arguments are:
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
 - `mask_n`, an `Int` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of ones.
 """
 function iht_path(
-    snpmatrix        :: SnpLike{2},
-    phenotype        :: Array{T,1},
-    path     :: DenseVector{Int}, J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any};
-    pids     :: Vector{Int} = procs(x),
-    mask_n   :: Vector{Int} = ones(Int, size(y)),
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T},
+    J        :: Int64,
+    path     :: DenseVector{Int},
+    groups   :: Vector{Int64},
+    keyword  :: Dict{AbstractString, Any},
+    #pids     :: Vector{Int} = procs(x),
+    #mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
-    quiet    :: Bool = true
+    #quiet    :: Bool = true
 ) where {T <: Float}
-    quiet || print_with_color(:red, "gwas266, Starting iht_path().\n")
+
     # size of problem?
-    n,p = size(snpmatrix)
+    n, p = size(x)
 
     # how many models will we compute?
     nmodels = length(path)
 
     # also preallocate matrix to store betas
-    betas = spzeros(T,p,nmodels)  # a matrix to store calculated models
+    betas = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
 
-    # preallocate temporary arrays
-    #J = 1
-    v = IHTVariables(snpmatrix, phenotype, J, 1) # call Ben's code here, returns a different v
-
-    # compute the path
+    # compute the specified paths
     @inbounds for i = 1:nmodels
+    # @inbounds Threads.@threads for i = 1:nmodels
 
-        # model size?
-        q = path[i]
+        # current model size?
+        k = path[i]
 
-        # monitor progress
-        quiet || print_with_color(:blue, "Computing model size $q.\n\n")
-
-        # these arrays change in size from iteration to iteration
-        # we must allocate them for every new model size
-        update_variables!(v, snpmatrix, q) #BenBenBen is this ok?
-
-        # store projection of beta onto largest k nonzeroes in magnitude
-        #project_k!(v.b, q) # q is k
-        #BenBenBen do we want to use groups here or v.group ???
-        project_group_sparse!(v.b, groups, J, q) # project to doubly sparse vector
+        #define the IHTVariable used for cleaner code
+        v = IHTVariables(x, z, y, J, k)
 
         # now compute current model
-        #OLDWAY output = L0_reg(x, y, q, v=v, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=pids, mask_n=mask_n)
-        #Gordon
-        #snpmatrix = x
-        #phenotype = y
-        output = L0_reg(snpmatrix, phenotype, J, q, groups, keyword)
-        if !quiet
-            found = find(output.beta .!= 0.0)
-            println("betas found in iht_path() = $(found)")
-        end
-
-        # ensure that we correctly index the nonzeroes in b
-        update_indices!(v.idx, output.beta)
-        fill!(v.idx0, false)
+        output = L0_reg(v, x, z, y, J, k, groups, keyword)
 
         # put model into sparse matrix of betas
-        betas[:,i] = sparsevec(output.beta)
+        found = find(output.beta .!= 0.0)
+        betas[:, i] = sparsevec(output.beta)
     end
 
     # return a sparsified copy of the models
+    display(betas)
     return betas
 end
 
 
 """
-    one_fold(x::SnpLike{2}, y, path, folds, fold)
 
-??? If used with a `BEDFile` object `x`, then the additional optional arguments are:
+Given a lot of different model sizes specified in `fold`, this function calculates the L0_reg on 
+all of them and finds the best model size by smallest MSE. 
 
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
 """
 function one_fold(
-    snpmatrix        :: SnpLike{2},
-    phenotype        :: Array{T,1},
+    x        :: SnpLike{2},
+    z        :: Vector{T},
+    y        :: Vector{T},
     path     :: DenseVector{Int},
-    folds    :: DenseVector{Int},
     fold     :: Int, J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any};
     pids     :: Vector{Int} = procs(x),
     tol      :: T    = convert(T, 1e-4),
@@ -684,11 +675,11 @@ Important optional arguments and defaults include:
 function cv_iht(
     x        :: SnpLike{2},
     z        :: Matrix{T},
-    y        :: Vector{T}, 
-    J        :: Int64, 
+    y        :: Vector{T},
+    J        :: Int64,
     k        :: Int64,
-    groups   :: Vector{Int64}, 
-    keyword  :: Dict{AbstractString, Any}, 
+    groups   :: Vector{Int64},
+    keyword  :: Dict{AbstractString, Any},
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int};
     pids     :: Vector{Int} = procs(),
@@ -699,42 +690,18 @@ function cv_iht(
     header   :: Bool  = false
 ) where {T <: Float}
 
-    println(1.11)
-    return fdsafdsa
-
-    # enforce type
-    @assert T <: Float "Argument T must be either Float32 or Float64"
-quiet || print_with_color(:red, "gwas#666, Starting cv_iht().\n")
     # how many elements are in the path?
     nmodels = length(path)
-    quiet || println("here 664")
-    # compute folds in parallel
-    quiet || println("xfile = $(xfile)")
-    quiet || println("x2file = $(x2file)")
-    yfile = yfile[3:end]
-    quiet || println("yfile = $(yfile)")
-    #println("path = $(path)")
-    mses = pfold(T, xfile, x2file, yfile, path, folds, pids, q, J, groups, keyword, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
-    quiet || println("here 667")
-    #Gordon
-    quiet || println("here 500, yfile = $(yfile)")
-    quiet || println("here 500, xfile = $(xfile)")
 
-    test99 = keyword["pw_algorithm_value"]
-    quiet || println("Check pw_algorithm_value = $(test99) ")    # not user defined at this time
+    # compute folds
+    mse = one_fold(x, z, y, path, folds, pids, q, J, groups, keyword, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
+    # mses = pfold(T, xfile, x2file, yfile, path, folds, pids, q, J, groups, keyword, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
-    file_name = xfile[1:end-4]
-# try xt_test
-    snpmatrix = SnpArray(file_name)
-    # HERE I READ THE PHENOTYPE FROM THE BEDFILE TO MATCH THE TUTORIAL RESULTS
-    # I'M SURE THERE IS A BETTER WAY TO GET IT
-    #phenotype is already set in tutorial_simulation.jl above  DIDN'T WORK - SAYS IT'S NOT DEFINED HERE
-    #phenotype = readdlm(file_name * ".fam", header = false)[:, 6] # NO GOOD, THE PHENOTYPE HERE IS ALL ONES
-    x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
-    y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
-    phenotype = convert(Array{T,1}, y)
-    # y_copy = copy(phenotype)
-    # y_copy .-= mean(y_copy)
+    return 1.111
+
+
+
+
     kkk = 10
     output = L0_reg(snpmatrix, phenotype, J, kkk, groups, keyword)
     found = find(output.beta .!= 0.0)
