@@ -21,10 +21,8 @@ function MendelIHT(control_file = ""; args...)
     #
     # Define some keywords unique to this analysis option.
     #
-    keyword["data_type"] = ""
-    keyword["predictors_per_group"] = ""
-    keyword["manhattan_plot_file"] = ""
-    keyword["max_groups"] = ""
+    keyword["predictors_per_group"] = 0
+    keyword["max_groups"] = 1
     keyword["group_membership"] = ""
     keyword["prior_weights"] = ""
     keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
@@ -47,33 +45,31 @@ function MendelIHT(control_file = ""; args...)
         throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
     end
     keyword["analysis_option"] = "Iterative Hard Thresholding"
-    @assert keyword["max_groups"] != ""           "Need number of groups. Set as 1 to run normal IHT"
-    @assert keyword["predictors_per_group"] != "" "Need number of predictors per group"
+    @assert typeof(keyword["max_groups"]) == Int           "Number of groups must be an integer. Set as 1 to run normal IHT"
+    @assert typeof(keyword["predictors_per_group"]) == Int "Sparsity constraint must be positive integer"
+    @assert keyword["predictors_per_group"] > 0            "Need positive number of predictors per group"
     #
     # Import genotype/non-genetic/phenotype data
     #
     info("Reading in data")
     snpmatrix = SnpArray(keyword["plink_input_basename"]) #requires .bim .bed .fam files
     phenotype = readdlm(keyword["plink_input_basename"] * ".fam", header = false)[:, 6]
-    if keyword["non_genetic_covariates"] != ""
-        non_genetic_cov = readdlm(keyword["non_genetic_covariates"], Float64)
+    if keyword["non_genetic_covariates"] == ""
+        non_genetic_cov = ones(size(snpmatrix, 1), 1)
     else
-        non_genetic_cov = Vector{Float64}(0, 0)
+        non_genetic_cov = readdlm(keyword["non_genetic_covariates"], Float64)
     end
     #
     # Define variables for group membership, max number of predictors for each group, and max number of groups
     #
-    groups = vec(readdlm(keyword["group_membership"], Int64))
-    k      = keyword["predictors_per_group"]
-    J      = keyword["max_groups"]
-    v      = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
-    #
-    #assign group memberships
-    #
-    if size(v.group) != size(groups)
-        throw(error("Error: Group membership file has $(size(group)), should be $(size(v.group))."))
+    k = keyword["predictors_per_group"]
+    J = keyword["max_groups"]
+    v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
+    if keyword["group_membership"] != ""
+        v.group = vec(readdlm(keyword["group_membership"], Int64))
+    else
+        v.group = ones(size(snpmatrix, 2))
     end
-    v.group = groups
     #
     # Execute the specified analysis.
     #
@@ -93,10 +89,10 @@ function MendelIHT(control_file = ""; args...)
         info("Running the following model sizes: " * string(path))
         @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
 
-        models = iht_path(snpmatrix, non_genetic_cov, phenotype, J, path, groups, keyword)
+        models = iht_path(snpmatrix, non_genetic_cov, phenotype, J, path, keyword)
     else
         info(" \nAnalyzing the data for model size k = $k.\n") 
-        return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword)
+        return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, keyword)
     end
     #
     # Finish up by closing, and thus flushing, any output files.
@@ -194,7 +190,7 @@ function iht!(
 end
 
 """
-This function performs IHT on GWAS data.
+This function run IHT on GWAS data for specified sparsity constraint k and J. 
 """
 function L0_reg(
     v        :: IHTVariable, 
@@ -203,7 +199,6 @@ function L0_reg(
     y        :: Vector{T},
     J        :: Int,
     k        :: Int,
-    group    :: Vector{Int},
     keyword  :: Dict{AbstractString, Any};
 #    mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: T = 1e-4,
@@ -310,7 +305,7 @@ function L0_reg(
 
         if converged
             mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.c, J, k, group)
+            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
@@ -323,9 +318,7 @@ end #function L0_reg
 
 
 """
-    iht_path(x::SnpLike{2}, y, path)
-
-This function computes and stores different models with different values of k. 
+This function computes and stores different models in sparsevector `beta` with different values of k. 
 
 The additional optional arguments are:
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
@@ -337,7 +330,6 @@ function iht_path(
     y        :: Vector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
-    groups   :: Vector{Int64},
     keyword  :: Dict{AbstractString, Any},
     #pids     :: Vector{Int} = procs(x),
     #mask_n   :: Vector{Int} = ones(Int, size(y)),
@@ -357,8 +349,7 @@ function iht_path(
     betas = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
 
     # compute the specified paths
-    @inbounds for i = 1:nmodels
-    # @inbounds Threads.@threads for i = 1:nmodels
+    @inbounds Threads.@threads for i = 1:nmodels
 
         # current model size?
         k = path[i]
