@@ -21,7 +21,7 @@ function MendelIHT(control_file = ""; args...)
     #
     # Define some keywords unique to this analysis option.
     #
-    keyword["predictors_per_group"] = 0
+    keyword["predictors"] = 0
     keyword["max_groups"] = 1
     keyword["group_membership"] = ""
     keyword["prior_weights"] = ""
@@ -31,7 +31,7 @@ function MendelIHT(control_file = ""; args...)
     keyword["cv_path"] = ""
     keyword["cv_fold"] = 0
     keyword["run_specific_paths"] = false
-    keyword["model_size_paths"] = ""
+    keyword["model_sizes"] = ""
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -45,9 +45,9 @@ function MendelIHT(control_file = ""; args...)
         throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
     end
     keyword["analysis_option"] = "Iterative Hard Thresholding"
-    @assert typeof(keyword["max_groups"]) == Int           "Number of groups must be an integer. Set as 1 to run normal IHT"
-    @assert typeof(keyword["predictors_per_group"]) == Int "Sparsity constraint must be positive integer"
-    @assert keyword["predictors_per_group"] > 0            "Need positive number of predictors per group"
+    @assert typeof(keyword["max_groups"]) == Int "Number of groups must be an integer. Set as 1 to run normal IHT"
+    @assert typeof(keyword["predictors"]) == Int "Sparsity constraint must be positive integer"
+    @assert keyword["predictors"] > 0            "Need positive number of predictors per group"
     #
     # Import genotype/non-genetic/phenotype data
     #
@@ -57,12 +57,12 @@ function MendelIHT(control_file = ""; args...)
     if keyword["non_genetic_covariates"] == ""
         non_genetic_cov = ones(size(snpmatrix, 1), 1)
     else
-        non_genetic_cov = readdlm(keyword["non_genetic_covariates"], Float64)
+        non_genetic_cov = readdlm(keyword["non_genetic_covariates"], keyword["field_separator"], Float64)
     end
     #
     # Define variables for group membership, max number of predictors for each group, and max number of groups
     #
-    k = keyword["predictors_per_group"]
+    k = keyword["predictors"]
     J = keyword["max_groups"]
     v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
     if keyword["group_membership"] != ""
@@ -84,14 +84,16 @@ function MendelIHT(control_file = ""; args...)
         # else
         # info("Running " * string(q) * "-fold cross validation over " * string(length(path)) * " different paths")
         # return cv_iht(snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword, path, folds)
-    elseif keyword["model_size_paths"] != ""
-        path = [parse(Int, ss) for ss in split(keyword["model_size_paths"], ',')]
+    elseif keyword["model_sizes"] != ""
+        path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
         info("Running the following model sizes: " * string(path))
         @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
-
-        models = iht_path(snpmatrix, non_genetic_cov, phenotype, J, path, keyword)
+        #
+        # Compute the various models and associated errors
+        #
+        return iht_path(snpmatrix, non_genetic_cov, phenotype, J, path, keyword)
     else
-        info(" \nAnalyzing the data for model size k = $k.\n") 
+        info("Analyzing the data for model size k = $k") 
         return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, keyword)
     end
     #
@@ -345,8 +347,9 @@ function iht_path(
     # how many models will we compute?
     nmodels = length(path)
 
-    # also preallocate matrix to store betas
-    betas = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
+    # also preallocate matrix to store betas and errors
+    betas  = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
+    errors = zeros(nmodels)
 
     # compute the specified paths
     @inbounds Threads.@threads for i = 1:nmodels
@@ -358,16 +361,16 @@ function iht_path(
         v = IHTVariables(x, z, y, J, k)
 
         # now compute current model
-        output = L0_reg(v, x, z, y, J, k, groups, keyword)
+        output = L0_reg(v, x, z, y, J, k, keyword)
 
         # put model into sparse matrix of betas
         found = find(output.beta .!= 0.0)
         betas[:, i] = sparsevec(output.beta)
+        errors[i] = output.loss
     end
 
     # return a sparsified copy of the models
-    display(betas)
-    return betas
+    return betas, errors
 end
 
 
