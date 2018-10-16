@@ -29,7 +29,7 @@ function MendelIHT(control_file = ""; args...)
     keyword["non_genetic_covariates"] = ""
     keyword["run_cross_validation"] = false
     keyword["cv_path"] = ""
-    keyword["cv_fold"] = 0
+    keyword["cv_folds"] = ""
     keyword["run_specific_paths"] = false
     keyword["model_sizes"] = ""
     #
@@ -74,16 +74,33 @@ function MendelIHT(control_file = ""; args...)
     # Execute the specified analysis.
     #
     if keyword["run_cross_validation"]
-        # @assert J = 1 "Cross validation doesn't support finding different groups yet!"
-        # n     = size(snpmatrix, 1)
-        # q     = keyword["cv_fold"]
-        # folds = cv_get_folds(n, q) #partitions n samples into q disjoint subsets
-        # path  = collect(1:20) #default paths
-        # if keyword["cv_path"] != ""
-        #     path = [parse(Int, ss) for ss in split(keyword["cv_path"], ',')] #use specified path
-        # else
-        # info("Running " * string(q) * "-fold cross validation over " * string(length(path)) * " different paths")
-        # return cv_iht(snpmatrix, non_genetic_cov, phenotype, J, k, groups, keyword, path, folds)
+        #
+        # Specify how many folds of cross validation the user wants. Defaults to 5
+        #
+        if keyword["cv_folds"] == "" 
+            num_folds = 5
+            info("Running 5-fold cross validation!")
+        else
+            num_folds = keyword["cv_folds"]
+            @assert typeof(num_folds) == Int "Please provide an integer value for the number of folds for cross validation"
+            info("Running " * string(num_folds) * "-fold cross validation")
+        end
+        folds = rand(1:num_folds, size(snpmatrix, 1))
+        #
+        # Find the model sizes the user wants. Defaults to 1~10
+        #
+        if keyword["model_sizes"] == ""
+            path = collect(1:10)
+            info("Running the following model sizes: " * string(path))
+        else
+            path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
+            @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
+        end
+
+        #test one_fold correctness
+        fold = 1
+        return one_fold(snpmatrix, non_genetic_cov, phenotype, path, folds, fold, J, keyword)
+
     elseif keyword["model_sizes"] != ""
         path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
         info("Running the following model sizes: " * string(path))
@@ -92,6 +109,7 @@ function MendelIHT(control_file = ""; args...)
         # Compute the various models and associated errors
         #
         return iht_path(snpmatrix, non_genetic_cov, phenotype, J, path, keyword)
+
     else
         info("Analyzing the data for model size k = $k") 
         return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, keyword)
@@ -202,7 +220,7 @@ function L0_reg(
     J        :: Int,
     k        :: Int,
     keyword  :: Dict{AbstractString, Any};
-#    mask_n   :: Vector{Int} = ones(Int, size(y)),
+    mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
     max_step :: Int = 50,
@@ -270,7 +288,7 @@ function L0_reg(
     #
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
     copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-#    v.r[mask_n .== 0] .= 0 #bit masking? idk why we need this yet
+    v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
     SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, store[1])
@@ -289,7 +307,7 @@ function L0_reg(
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb .- v.zc 
-#        v.r[mask_n .== 0] .= 0 #bit masking, idk why we need this yet
+        v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
         # update v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
         SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, store[1])
@@ -332,13 +350,14 @@ function iht_path(
     y        :: Vector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
-    keyword  :: Dict{AbstractString, Any},
+    keyword  :: Dict{AbstractString, Any};
     #pids     :: Vector{Int} = procs(x),
-    #mask_n   :: Vector{Int} = ones(Int, size(y)),
+    mask_n   :: Vector{Int} = ones(Int, size(y)),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
     #quiet    :: Bool = true
+
 ) where {T <: Float}
 
     # size of problem?
@@ -349,7 +368,7 @@ function iht_path(
 
     # also preallocate matrix to store betas and errors
     betas  = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
-    errors = zeros(nmodels)
+    # errors = zeros(nmodels)
 
     # compute the specified paths
     @inbounds Threads.@threads for i = 1:nmodels
@@ -361,16 +380,17 @@ function iht_path(
         v = IHTVariables(x, z, y, J, k)
 
         # now compute current model
-        output = L0_reg(v, x, z, y, J, k, keyword)
+        output = L0_reg(v, x, z, y, J, k, keyword, mask_n=mask_n)
 
         # put model into sparse matrix of betas
         found = find(output.beta .!= 0.0)
         betas[:, i] = sparsevec(output.beta)
-        errors[i] = output.loss
+        # errors[i] = output.loss
     end
 
     # return a sparsified copy of the models
-    return betas, errors
+    # return betas, errors
+    return betas
 end
 
 
@@ -379,23 +399,28 @@ end
 Given a lot of different model sizes specified in `fold`, this function calculates the L0_reg on 
 all of them and finds the best model size by smallest MSE. 
 
-- `pids`, a vector of process IDs. Defaults to `procs(x)`.
+- `path` , a vector of various model sizes
+- `folds`, a vector indicating which of the q fold each sample belongs to. 
+- `fold` , the current fold that is being used as test set. 
+- `pids` , a vector of process IDs. Defaults to `procs(x)`.
 """
 function one_fold(
     x        :: SnpLike{2},
-    z        :: Vector{T},
+    z        :: Matrix{T},
     y        :: Vector{T},
     path     :: DenseVector{Int},
-    fold     :: Int, J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any};
-    pids     :: Vector{Int} = procs(x),
+    folds    :: DenseVector{Int}, 
+    fold     :: Int, 
+    J        :: Int64,
+    keyword  :: Dict{AbstractString, Any};
+    #pids     :: Vector{Int} = procs(x),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
-    quiet    :: Bool = true
+    # quiet    :: Bool = true
 ) where {T <: Float}
     # dimensions of problem
-    n,p = size(snpmatrix)
-    quiet || print_with_color(:red, "gwas332, Starting one_fold().\n")
+    n, p = size(x)
 
     # make vector of indices for folds
     test_idx = folds .== fold
@@ -404,16 +429,10 @@ function one_fold(
     # train_idx is the vector that indexes the TRAINING set
     train_idx = .!test_idx
     mask_n    = convert(Vector{Int}, train_idx)
-    mask_test = convert(Vector{Int}, test_idx)
-    #Gordon
-    quiet || println("test_size = $(test_size)")
-    #println("train_idx = $(train_idx)")
-    quiet || println()
-    quiet || println()
-    #println("test_idx = $(test_idx)")
+    #mask_test = convert(Vector{Int}, test_idx)
 
     # compute the regularization path on the training set
-    betas = iht_path(snpmatrix, phenotype, path, J, groups, keyword, mask_n=mask_n, max_iter=max_iter, quiet=quiet, max_step=max_step, pids=pids, tol=tol)
+    betas = iht_path(x, z, y, J, path, keyword, mask_n=mask_n, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # tidy up
     #gc()
@@ -422,12 +441,12 @@ function one_fold(
     myerrors = zeros(T, length(path))
 
     # allocate an index vector for b
-    indices = falses(p)
+    #indices = falses(p)
 
     # allocate the arrays for the test set
-    xb = SharedArray{T}((n,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
-    b  = SharedArray{T}((p,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
-    r  = SharedArray{T}((n,), init = S -> S[localindexes(S)] = zero(T), pids=pids) :: SharedVector{T}
+    xb = SharedArray{T}(test_size,)
+    b  = SharedArray{T}(p,)
+    r  = SharedArray{T}(test_size,)
 
     # compute the mean out-of-sample error for the TEST set
     # do this for every computed model in regularization path
@@ -440,26 +459,21 @@ function one_fold(
         copy!(sdata(b),sdata(b2))
 
         # indices stores Boolean indexes of nonzeroes in b
-        update_indices!(indices, b)
+        #update_indices!(indices, b)
 
         # compute estimated response Xb with $(path[i]) nonzeroes
-        #A_mul_B!(xb, x, b, indices, path[i], mask_test, pids=pids)
-
-#        p_tmp = convert(Array{T,1}, path[i]) # Gordon - didn't help
-        #A_mul_B!(xb, x, b, indices, path[i], mask_test)
-        #SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, similar(v.df))
+        A_mul_B!(xb, x[test_idx, :], b) #should use view(x, test_idx, :) when SnpArray code gets fixed
 
         # compute residuals
-        r .= phenotype .- xb
+        r .= view(y, test_idx) .- xb
 
         # mask data from training set
         # training set consists of data NOT in fold:
         # r[folds .!= fold] = zero(T)
-        mask!(r, mask_test, 0, zero(T))
+        #mask!(r, mask_test, 0, zero(T))
 
         # compute out-of-sample error as squared residual averaged over size of test set
         myerrors[i] = sum(abs2, r) / test_size / 2
-        #myerrors[i] -= size(betas,2) # Gordon force more Betas lower becuase A_mul_B!() is needed above
     end
 
     return myerrors :: Vector{T}
