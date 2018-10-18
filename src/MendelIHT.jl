@@ -28,10 +28,10 @@ function MendelIHT(control_file = ""; args...)
     keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
     keyword["non_genetic_covariates"] = ""
     keyword["run_cross_validation"] = false
+    keyword["model_sizes"] = ""
     keyword["cv_path"] = ""
     keyword["cv_folds"] = ""
     keyword["run_specific_paths"] = false
-    keyword["model_sizes"] = ""
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -220,7 +220,7 @@ function L0_reg(
     J        :: Int,
     k        :: Int,
     keyword  :: Dict{AbstractString, Any};
-    mask_n   :: Vector{Int} = ones(Int, size(y)),
+    mask_n   :: BitArray = trues(size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
     max_step :: Int = 50,
@@ -342,7 +342,7 @@ This function computes and stores different models in sparsevector `beta` with d
 
 The additional optional arguments are:
 - `pids`, a vector of process IDs. Defaults to `procs(x)`.
-- `mask_n`, an `Int` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of ones.
+- `mask_n`, a `Bool` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of trues.
 """
 function iht_path(
     x        :: SnpLike{2},
@@ -352,7 +352,7 @@ function iht_path(
     path     :: DenseVector{Int},
     keyword  :: Dict{AbstractString, Any};
     #pids     :: Vector{Int} = procs(x),
-    mask_n   :: Vector{Int} = ones(Int, size(y)),
+    mask_n   :: BitArray = trues(size(y)),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
@@ -362,12 +362,14 @@ function iht_path(
 
     # size of problem?
     n, p = size(x)
+    q = size(z, 2) #number of non-genetic covariates
 
     # how many models will we compute?
     nmodels = length(path)
 
     # also preallocate matrix to store betas and errors
     betas  = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
+    cs     = zeros(T, q, nmodels)   # matrix of models of non-genetic covariates
     # errors = zeros(nmodels)
 
     # compute the specified paths
@@ -383,14 +385,15 @@ function iht_path(
         output = L0_reg(v, x, z, y, J, k, keyword, mask_n=mask_n)
 
         # put model into sparse matrix of betas
-        found = find(output.beta .!= 0.0)
+        # found = find(output.beta .!= 0.0)
         betas[:, i] = sparsevec(output.beta)
+        cs[:, i] .= output.c
         # errors[i] = output.loss
     end
 
     # return a sparsified copy of the models
     # return betas, errors
-    return betas
+    return betas, cs
 end
 
 
@@ -421,30 +424,22 @@ function one_fold(
 ) where {T <: Float}
     # dimensions of problem
     n, p = size(x)
+    q    = size(z, 2)
 
-    # make vector of indices for folds
-    test_idx = folds .== fold
+    # find entries that are for test sets and train sets
+    test_idx  = folds .== fold
+    train_idx = .!test_idx
     test_size = sum(test_idx)
 
-    # train_idx is the vector that indexes the TRAINING set
-    train_idx = .!test_idx
-    mask_n    = convert(Vector{Int}, train_idx)
-    #mask_test = convert(Vector{Int}, test_idx)
-
     # compute the regularization path on the training set
-    betas = iht_path(x, z, y, J, path, keyword, mask_n=mask_n, max_iter=max_iter, max_step=max_step, tol=tol)
-
-    # tidy up
-    #gc()
+    betas, cs = iht_path(x, z, y, J, path, keyword, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
 
-    # allocate an index vector for b
-    #indices = falses(p)
-
     # allocate the arrays for the test set
     xb = SharedArray{T}(test_size,)
+    zc = SharedArray{T}(test_size,)
     b  = SharedArray{T}(p,)
     r  = SharedArray{T}(test_size,)
 
@@ -454,23 +449,17 @@ function one_fold(
 
         # pull ith model in dense vector format
         b2 = full(vec(betas[:,i]))
+        c  = cs[:,i] 
 
         # copy it into SharedArray b
         copy!(sdata(b),sdata(b2))
 
-        # indices stores Boolean indexes of nonzeroes in b
-        #update_indices!(indices, b)
-
         # compute estimated response Xb with $(path[i]) nonzeroes
-        A_mul_B!(xb, x[test_idx, :], b) #should use view(x, test_idx, :) when SnpArray code gets fixed
+        A_mul_B!(xb, x[test_idx, :], b) #should use view(x, test_idx, :) when SnpArray code gets fixe
+        A_mul_B!(zc, z[test_idx, :], c)
 
         # compute residuals
-        r .= view(y, test_idx) .- xb
-
-        # mask data from training set
-        # training set consists of data NOT in fold:
-        # r[folds .!= fold] = zero(T)
-        #mask!(r, mask_test, 0, zero(T))
+        r .= view(y, test_idx) .- xb .- zc
 
         # compute out-of-sample error as squared residual averaged over size of test set
         myerrors[i] = sum(abs2, r) / test_size / 2
