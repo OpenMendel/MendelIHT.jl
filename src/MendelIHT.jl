@@ -47,7 +47,7 @@ function MendelIHT(control_file = ""; args...)
     keyword["analysis_option"] = "Iterative Hard Thresholding"
     @assert typeof(keyword["max_groups"]) == Int "Number of groups must be an integer. Set as 1 to run normal IHT"
     @assert typeof(keyword["predictors"]) == Int "Sparsity constraint must be positive integer"
-    @assert keyword["predictors"] > 0            "Need positive number of predictors per group"
+    @assert 0 <= keyword["predictors"]           "Need positive number of predictors per group"
     #
     # Import genotype/non-genetic/phenotype data
     #
@@ -83,7 +83,7 @@ function MendelIHT(control_file = ""; args...)
         else
             num_folds = keyword["cv_folds"]
             @assert typeof(num_folds) == Int "Please provide an integer value for the number of folds for cross validation"
-            info("Running " * string(num_folds) * "-fold cross validation")
+            info("Running " * string(num_folds) * "-fold cross validation on the following model sizes: " * keyword["model_sizes"] * ". Ignoring keyword predictors.")
         end
         folds = rand(1:num_folds, size(snpmatrix, 1))
         #
@@ -105,7 +105,7 @@ function MendelIHT(control_file = ""; args...)
         #
         # Compute the various models and associated errors
         #
-        return iht_path(snpmatrix, non_genetic_cov, phenotype, J, path, keyword)
+        return iht_path_threaded(snpmatrix, non_genetic_cov, phenotype, J, path, keyword)
 
     else
         info("Analyzing the data for model size k = $k") 
@@ -367,7 +367,6 @@ function iht_path(
     # also preallocate matrix to store betas and errors
     betas  = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
     cs     = zeros(T, q, nmodels)   # matrix of models of non-genetic covariates
-    # errors = zeros(nmodels)
 
     # compute the specified paths
     @inbounds for i = 1:nmodels
@@ -382,15 +381,69 @@ function iht_path(
         output = L0_reg(v, x, z, y, J, k, keyword, mask_n=mask_n)
 
         # put model into sparse matrix of betas
-        # found = find(output.beta .!= 0.0)
-        betas[:, i] = sparsevec(output.beta)
+        betas[:, i] .= sparsevec(output.beta)
         cs[:, i] .= output.c
-        # errors[i] = output.loss
     end
 
     # return a sparsified copy of the models
-    # return betas, errors
     return betas, cs
+end
+
+"""
+Naively threaded version of iht_path
+"""
+function iht_path_threaded(
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T},
+    J        :: Int64,
+    path     :: DenseVector{Int},
+    keyword  :: Dict{AbstractString, Any};
+    #pids     :: Vector{Int} = procs(x),
+    mask_n   :: BitArray = trues(size(y)),
+    tol      :: T    = convert(T, 1e-4),
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    #quiet    :: Bool = true
+
+) where {T <: Float}
+    
+    # number of threads available?
+    num_threads = Threads.nthreads()
+
+    # size of problem?
+    n, p = size(x)
+    q = size(z, 2) #number of non-genetic covariates
+
+    # how many models will we compute?
+    nmodels = length(path)
+
+    # Initialize vector of matrices to hold a separate matrix for each thread to access. This makes everything thread-safe
+    betas = [zeros(p, nmodels) for i in 1:num_threads]
+    cs   = [zeros(q, nmodels) for i in 1:num_threads]
+
+    # compute the specified paths
+    @inbounds Threads.@threads for i = 1:nmodels
+
+        # current thread?
+        cur_thread = Threads.threadid()
+
+        # current model size?
+        k = path[i]
+
+        #define the IHTVariable used for cleaner code
+        v = IHTVariables(x, z, y, J, k)
+
+        # now compute current model
+        output = L0_reg(v, x, z, y, J, k, keyword, mask_n=mask_n)
+
+        # put model into sparse matrix of betas in the corresponding thread
+        betas[cur_thread][:, i] = output.beta
+        cs[cur_thread][:, i]   = output.c
+    end
+
+    # return a sparsified copy of the models
+    return sum(betas), sum(cs)
 end
 
 
@@ -430,27 +483,32 @@ function one_fold(
     test_size = sum(test_idx)
 
     # compute the regularization path on the training set
-    betas, cs = iht_path(x, z, y, J, path, keyword, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    betas, cs = iht_path_threaded(x, z, y, J, path, keyword, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
 
     # allocate the arrays for the test set
-    xb = SharedArray{T}(test_size,)
-    zc = SharedArray{T}(test_size,)
-    b  = SharedArray{T}(p,)
-    r  = SharedArray{T}(test_size,)
+    # xb = SharedArray{T}(test_size,)
+    # zc = SharedArray{T}(test_size,)
+    # b  = SharedArray{T}(p,)
+    # r  = SharedArray{T}(test_size,)
+    xb = zeros(test_size,)
+    zc = zeros(test_size,)
+    b  = zeros(p,)
+    r  = zeros(test_size,)
 
     # compute the mean out-of-sample error for the TEST set
     # do this for every computed model in regularization path
     for i = 1:size(betas,2)
 
         # pull ith model in dense vector format
-        b2 = full(vec(betas[:,i]))
+        # b2 = full(vec(betas[:,i]))
+        b = full(vec(betas[:,i]))
         c  = cs[:,i] 
 
         # copy it into SharedArray b
-        copy!(sdata(b),sdata(b2))
+        # copy!(sdata(b),sdata(b2))
 
         # compute estimated response Xb with $(path[i]) nonzeroes
         A_mul_B!(xb, x[test_idx, :], b) #should use view(x, test_idx, :) when SnpArray code gets fixe
