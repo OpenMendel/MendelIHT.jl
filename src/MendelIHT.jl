@@ -96,10 +96,7 @@ function MendelIHT(control_file = ""; args...)
             path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
             @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
         end
-
-        #test one_fold correctness
-        fold = 1
-        return one_fold(snpmatrix, non_genetic_cov, phenotype, path, folds, fold, J, keyword)
+        return pfold_naive(snpmatrix, non_genetic_cov, phenotype, path, folds, J, keyword)
 
     elseif keyword["model_sizes"] != ""
         path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
@@ -373,7 +370,7 @@ function iht_path(
     # errors = zeros(nmodels)
 
     # compute the specified paths
-    @inbounds Threads.@threads for i = 1:nmodels
+    @inbounds for i = 1:nmodels
 
         # current model size?
         k = path[i]
@@ -398,9 +395,10 @@ end
 
 
 """
-
-Given a lot of different model sizes specified in `fold`, this function calculates the L0_reg on 
-all of them and finds the best model size by smallest MSE. 
+In cross validation we separate samples into `q` disjoint subsets. This function fits a model on 
+q-1 of those sets (indexed by train_idx), and then tests the model's performance on the 
+qth set (indexed by test_idx). We loop over all sparsity level specified in `path` and 
+returns the out-of-sample errors in a vector. 
 
 - `path` , a vector of various model sizes
 - `folds`, a vector indicating which of the q fold each sample belongs to. 
@@ -468,21 +466,51 @@ function one_fold(
     return myerrors :: Vector{T}
 end
 
-function pfold(
-    T        :: Type,
-    xfile    :: String,
-    x2file   :: String,
-    yfile    :: String,
+"""
+Wrapper function for one_fold. Returns the averaged MSE for each fold of cross validation
+"""
+function pfold_naive(
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T},
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
-    pids     :: Vector{Int},
-    q        :: Int, J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any};
+    J        :: Int64, 
+    keyword  :: Dict{AbstractString, Any};
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+) where {T <: Float}
+    num_folds = length(unique(folds))
+    mses = zeros(length(path), num_folds)
+    for fold in 1:num_folds
+        mses[:, fold] .= one_fold(x, z, y, path, folds, fold, J, keyword)
+    end
+    return sum(mses, 2) ./ num_folds
+end
+
+"""
+This is a wrapper function that called one_fold on each of the q subset. 
+
+- `path` , a vector of various model sizes
+- `folds`, a vector indicating which of the q fold each sample belongs to. 
+- `fold` , the current fold that is being used as test set. 
+- `pids` , a vector of process IDs. Defaults to `procs(x)`.
+"""
+function pfold(
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T},
+    path     :: DenseVector{Int},
+    folds    :: DenseVector{Int},
+    J        :: Int64, 
+    keyword  :: Dict{AbstractString, Any};
+    # pids     :: Vector{Int},
+    # q        :: Int, 
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
     quiet    :: Bool = true,
     header   :: Bool = false
-)
-quiet || print_with_color(:red, "gwas488, Starting pfold(..NOT xt..).\n")
+) where {T <: Float}
 
     # ensure correct type
     @assert T <: Float "Argument T must be either Float32 or Float64"
