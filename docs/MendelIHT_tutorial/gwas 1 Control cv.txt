@@ -1,0 +1,10 @@
+#
+# Input and Output files.
+#
+plink_input_basename = gwas 1 data
+#
+# Cross Validation parameters
+#
+run_cross_validation = true
+cv_folds = 5
+model_sizes = "1,2,3,4,5,6,7,8,9,10"
