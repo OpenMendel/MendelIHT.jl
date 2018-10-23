@@ -258,18 +258,14 @@ function Base.show(io::IO, x::gIHTResults)
 end
 """
 Calculates the Prior Weighting for IHT.
-Returns a weight array (my_snpweights) (1,10000)
-    and a MAF array (my_snpMAF ) (1,10000).
-
-This function updates: hopefully nothing
+Returns a weight array (my_snpweights) (1,10000) and a MAF array (my_snpMAF ) (1,10000).
 """
 function calculate_snp_weights(
-#    xxx        :: SnpData,
     x        :: SnpLike{2},
     y        :: Vector{Float64},
     k        :: Int,
     v        :: IHTVariable,
-    keyword  :: Dict{AbstractString, Any},
+    use_maf  :: Bool,
     maf      :: Array{Float64,1}
 )
     # get my_snpMAF from x

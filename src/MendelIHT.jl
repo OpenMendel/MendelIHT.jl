@@ -24,7 +24,7 @@ function MendelIHT(control_file = ""; args...)
     keyword["predictors"] = 0
     keyword["max_groups"] = 1
     keyword["group_membership"] = ""
-    keyword["prior_weights"] = ""
+    keyword["maf_weights"] = ""
     keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
     keyword["non_genetic_covariates"] = ""
     keyword["run_cross_validation"] = false
@@ -69,6 +69,10 @@ function MendelIHT(control_file = ""; args...)
         v.group = ones(size(snpmatrix, 2))
     end
     #
+    # Determine what weighting (if any) the user specified for each predictors
+    #
+    keyword["maf_weights"] == "maf" ? maf_weights = true : maf_weights = false
+    #
     # Execute the specified analysis.
     #
     if keyword["run_cross_validation"]
@@ -92,7 +96,7 @@ function MendelIHT(control_file = ""; args...)
             path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
             @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
         end
-        return cv_iht(snpmatrix, non_genetic_cov, phenotype, path, folds, J, keyword, num_folds)
+        return cv_iht(snpmatrix, non_genetic_cov, phenotype, J, path, folds, num_folds, use_maf = maf_weights)
 
     elseif keyword["model_sizes"] != ""
         path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
@@ -101,11 +105,11 @@ function MendelIHT(control_file = ""; args...)
         #
         # Compute the various models and associated errors
         #
-        return iht_path_threaded(snpmatrix, non_genetic_cov, phenotype, J, path, keyword)
+        return iht_path_threaded(snpmatrix, non_genetic_cov, phenotype, J, path, use_maf = maf_weights)
 
     else
         info("Analyzing the data for model size k = $k") 
-        return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, keyword)
+        return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, use_maf = maf_weights)
     end
     #
     # Finish up by closing, and thus flushing, any output files.
@@ -117,8 +121,19 @@ function MendelIHT(control_file = ""; args...)
 end #function MendelIHT
 
 """
-Calculates the IHT step β+ = P_k(β - μ ∇f(β)).
-Returns step size (μ), and number of times line search was done (μ_step).
+    iht! calculates the IHT step β+ = P_k(β - μ ∇f(β)) and returns step size (μ), and number of times line search was done (μ_step).
+
+- `v` is a IHTVariable that holds many variables in the current and previous iteration. 
+- `x` is the SNP matrix
+- `z` is the non genetic covraiates. The grand mean (i.e. intercept) is the first column of this
+- `y` is the response (phenotype) vector
+- `J` is the maximum number of groups IHT should keep. When J = 1, we run normal IHT.  
+- `k` is the maximum number of predictors per group. 
+- `mean_vec` is a vector storing the mean of SNP frequency. Needed for standarization on-the-fly
+- `std_vec` is a vector storing the inverse standard deviation of each SNP. Needed for standarization on-the-fly
+- `storage` is a vector of matrices preallocated for (snpmatrix)-(dense vector) multiplication. This is needed for better garbage collection.
+- `iter` is an integer storing the number of full iht steps taken (i.e. negative gradient + projection)
+- `nstep` number of backtracking done. 
 """
 function iht!(
     v        :: IHTVariable{T},
@@ -203,7 +218,17 @@ function iht!(
 end
 
 """
-This function run IHT on GWAS data for specified sparsity constraint k and J. 
+    L0_reg run IHT on GWAS data for a given sparsity constraint k and J. 
+
+- `v` is a IHTVariable that holds many variables in the current and previous iteration. 
+- `x` is the SNP matrix
+- `z` is the non genetic covraiates. The grand mean (i.e. intercept) is the first column of this
+- `y` is the response (phenotype) vector
+- `J` is the maximum number of groups IHT should keep. When J = 1, we run normal IHT.  
+- `k` is the maximum number of predictors per group. 
+- `use_maf` is a boolean. If true, IHT will scale each SNP using their minor allele frequency.
+- `mask_n` is a bit masking vector of booleans. It is used in cross-validation where certain samples are excluded from the model
+- `tol` and `max_iter` and `max_step` is self-explanatory.
 """
 function L0_reg(
     v        :: IHTVariable, 
@@ -211,8 +236,8 @@ function L0_reg(
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int,
-    k        :: Int,
-    keyword  :: Dict{AbstractString, Any};
+    k        :: Int;
+    use_maf  :: Bool = false,
     mask_n   :: BitArray = trues(size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
@@ -266,16 +291,11 @@ function L0_reg(
     std_vec = std_reciprocal(x, mean_vec)
 
     #weight snps based on maf or other user defined weights
-    if keyword["prior_weights"] == "maf"
-        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,keyword,maf)
+    if use_maf
+        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
         hold_std_vec = deepcopy(std_vec)
         Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
-    else
-        # need dummies for my_snpMAF and my_snpweights for Gordon's reports
-        my_snpMAF = convert(Matrix{Float64},maf')
-        my_snpweights = ones(my_snpMAF)
     end
-
     #
     # Begin IHT calculations
     #
@@ -331,10 +351,10 @@ end #function L0_reg
 
 
 """
-This function computes and stores different models in sparsevector `beta` with different values of k. 
+This function computes and stores different models in each column of the matrix `betas` and 
+matrix `cs`. 
 
 The additional optional arguments are:
-- `pids`, a vector of process IDs. Defaults to `procs(x)`.
 - `mask_n`, a `Bool` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of trues.
 """
 function iht_path(
@@ -342,15 +362,14 @@ function iht_path(
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
-    path     :: DenseVector{Int},
-    keyword  :: Dict{AbstractString, Any};
+    path     :: DenseVector{Int};
+    use_maf  :: Bool = false,
     #pids     :: Vector{Int} = procs(x),
     mask_n   :: BitArray = trues(size(y)),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
     #quiet    :: Bool = true
-
 ) where {T <: Float}
 
     # size of problem?
@@ -374,7 +393,7 @@ function iht_path(
         v = IHTVariables(x, z, y, J, k)
 
         # now compute current model
-        output = L0_reg(v, x, z, y, J, k, keyword, mask_n=mask_n)
+        output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
 
         # put model into sparse matrix of betas
         betas[:, i] .= sparsevec(output.beta)
@@ -386,15 +405,18 @@ function iht_path(
 end
 
 """
-Naively threaded version of iht_path
+Multi-threaded version of `iht_path`. Each thread writes to a different matrix of betas
+and cs, and the reduction step is to sum all these matrices. The increase in memory usage 
+increases linearly with the number of paths, which is negligible as long as the number of 
+paths is reasonable (e.g. less than 100). 
 """
 function iht_path_threaded(
     x        :: SnpLike{2},
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
-    path     :: DenseVector{Int},
-    keyword  :: Dict{AbstractString, Any};
+    path     :: DenseVector{Int};
+    use_maf  :: Bool = false,
     #pids     :: Vector{Int} = procs(x),
     mask_n   :: BitArray = trues(size(y)),
     tol      :: T    = convert(T, 1e-4),
@@ -431,7 +453,7 @@ function iht_path_threaded(
         v = IHTVariables(x, z, y, J, k)
 
         # now compute current model
-        output = L0_reg(v, x, z, y, J, k, keyword, mask_n=mask_n)
+        output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
 
         # put model into sparse matrix of betas in the corresponding thread
         betas[cur_thread][:, i] = output.beta
@@ -458,11 +480,11 @@ function one_fold(
     x        :: SnpLike{2},
     z        :: Matrix{T},
     y        :: Vector{T},
+    J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int}, 
-    fold     :: Int, 
-    J        :: Int64,
-    keyword  :: Dict{AbstractString, Any};
+    fold     :: Int;
+    use_maf  :: Bool = false,
     #pids     :: Vector{Int} = procs(x),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
@@ -479,7 +501,7 @@ function one_fold(
     test_size = sum(test_idx)
 
     # compute the regularization path on the training set
-    betas, cs = iht_path_threaded(x, z, y, J, path, keyword, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
@@ -522,11 +544,11 @@ function pfold_naive(
     x        :: SnpLike{2},
     z        :: Matrix{T},
     y        :: Vector{T},
+    J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
-    J        :: Int64, 
-    keyword  :: Dict{AbstractString, Any},
     num_fold :: Int64;
+    use_maf  :: Bool = false,
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
 ) where {T <: Float}
@@ -535,7 +557,7 @@ function pfold_naive(
 
     mses = zeros(length(path), num_fold)
     for fold in 1:num_fold
-        mses[:, fold] = one_fold(x, z, y, path, folds, fold, J, keyword)
+        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf)
     end
     return vec(sum(mses, 2) ./ num_fold)
 end
@@ -738,7 +760,7 @@ end
 #cv_iht(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
 
 """
-    cv_iht(T::Type, x, z, y, J, k, groups, keyword, [q=max(3, min(CPU_CORES,5)), path=collect(1:min(p,20)), folds=cv_get_folds(n,q), pids=procs()])
+    cv_iht(T::Type, x, z, y, J, k, groups, use_maf, [q=max(3, min(CPU_CORES,5)), path=collect(1:min(p,20)), folds=cv_get_folds(n,q), pids=procs()])
 
 The default call to `cv_iht`. Here `x` points to the PLINK BED file stored on disk, `x2file` points to the nongenetic covariates stored in a delimited file, and `yfile` points to the response variable stored in a **binary** file.
 
@@ -753,11 +775,11 @@ function cv_iht(
     x        :: SnpLike{2},
     z        :: Matrix{T},
     y        :: Vector{T},
+    J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
-    J        :: Int64,
-    keyword  :: Dict{AbstractString, Any},
     num_fold :: Int64;
+    use_maf  :: Bool = false,
     # pids     :: Vector{Int} = procs(),
     tol      :: Float = convert(T, 1e-4),
     max_iter :: Int   = 100,
@@ -770,7 +792,7 @@ function cv_iht(
     nmodels = length(path)
 
     # compute folds
-    mses = pfold_naive(x, z, y, path, folds, J, keyword, num_fold)
+    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf)
 
     # find best model size and print cross validation result
     k = path[indmin(mses)] :: Int
