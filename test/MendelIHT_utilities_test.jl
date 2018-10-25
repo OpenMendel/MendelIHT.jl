@@ -149,11 +149,12 @@ end
 
 @testset "project_group_sparse!" begin
 	srand(1914) 
+
     m, n, k = 2, 3, 20
 	y = randn(k);
 	group = rand(1:5, k);
 	x = copy(y)
-	project_group_sparse!(x, group, m, n);
+	project_group_sparse!(x, group, m, n)
 
 	# view result easily:
 	# for i = 1:length(x)
@@ -167,6 +168,16 @@ end
 	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621;
 								   -0.5746320293057241; 0.9225538732662374;
 								   2.4060215839929158; 2.9499620312194383])
+
+	# test project_group_sparse! is equivalent to project_k! when max group = 1
+	m, n, k = 1, 10, 100000
+	group = ones(Int, k) #everybody is in the same group
+	y = randn(k)
+	x = copy(y)
+	project_k!(x, n)
+	project_group_sparse!(y, group, m, n)
+	@test all(x .== y)
+
 end
 
 @testset "_iht_omega" begin
