@@ -451,9 +451,12 @@ function iht_path_threaded(
 
         #define the IHTVariable used for cleaner code #TODO: should declare this only 1 time for max efficiency. 
         v = IHTVariables(x, z, y, J, k)
+        x_copy = deepcopy(x)
+        z_copy = deepcopy(z)
+        y_copy = deepcopy(y)
 
         # now compute current model
-        output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+        output = L0_reg(v, x_copy, z_copy, y_copy, J, k, use_maf=use_maf, mask_n=mask_n)
 
         # put model into sparse matrix of betas in the corresponding thread
         betas[cur_thread][:, i] = output.beta
@@ -502,6 +505,7 @@ function one_fold(
 
     # compute the regularization path on the training set
     betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    # betas, cs = iht_path(x, z, y, J, path, use_maf=use_maf, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
@@ -797,4 +801,6 @@ function cv_iht(
     # find best model size and print cross validation result
     k = path[indmin(mses)] :: Int
     print_cv_results(mses, path, k)
+
+    return nothing
 end

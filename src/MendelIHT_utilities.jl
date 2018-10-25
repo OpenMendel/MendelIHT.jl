@@ -178,7 +178,7 @@ end
 
 """ Projects the point y onto the set with at most m active groups and at most
 n active predictors per group. The variable group encodes group membership. Currently
-assumes there are no unknown group membership.
+assumes there are no unknown or overlaping group membership.
 
 TODO: check if sortperm can be replaced by something that doesn't sort the whole array
 """
