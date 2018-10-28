@@ -176,8 +176,8 @@ function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
     return std_vector
 end
 
-""" Projects the point y onto the set with at most m active groups and at most
-n active predictors per group. The variable group encodes group membership. Currently
+""" Projects the point y onto the set with at most J active groups and at most
+k active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown or overlaping group membership.
 
 TODO: check if sortperm can be replaced by something that doesn't sort the whole array
@@ -185,8 +185,8 @@ TODO: check if sortperm can be replaced by something that doesn't sort the whole
 function project_group_sparse!{T <: Float}(
     y     :: Vector{T},
     group :: Vector{Int64},
-    m     :: Int64,
-    n     :: Int64
+    J     :: Int64,
+    k     :: Int64
 )
     groups = maximum(group)
     group_count = zeros(Int, groups)         #counts number of predictors in each group
@@ -197,10 +197,10 @@ function project_group_sparse!{T <: Float}(
     #calculate the magnitude of each group, where only top predictors contribute
     for i in eachindex(y)
         j = perm[i]
-        k = group[j]
-        if group_count[k] < n
-            group_norm[k] = group_norm[k] + y[j]^2
-            group_count[k] = group_count[k] + 1
+        n = group[j]
+        if group_count[n] < k
+            group_norm[n] = group_norm[n] + y[j]^2
+            group_count[n] = group_count[n] + 1
         end
     end
 
@@ -211,11 +211,11 @@ function project_group_sparse!{T <: Float}(
     fill!(group_count, 1)
     for i in eachindex(y)
         j = perm[i]
-        k = group[j]
-        if (group_rank[k] > m) || (group_count[k] > n)
+        n = group[j]
+        if (group_rank[n] > J) || (group_count[n] > k)
             y[j] = 0.0
         else
-            group_count[k] = group_count[k] + 1
+            group_count[n] = group_count[n] + 1
         end
     end
 end
