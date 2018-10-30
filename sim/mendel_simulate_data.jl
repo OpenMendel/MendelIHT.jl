@@ -36,15 +36,15 @@ function simulate_data(
 	x      		= SnpArray(rand(0:2, n, p))    # a random snpmatrix (~37MB)
 	z      		= ones(n, 1)                   # non-gentic covariates (only including grand mean)
 	true_b      = zeros(p)				       # model vector
-	c     		= randn() 					   # intercept
+	c     		= 1.0    					   # intercept
 	true_b[1:k] = randn(k)			  	       # Initialize k non-zero entries in the true model
 	shuffle!(true_b)					       # Shuffle the entries
 	correct_position = find(true_b)		       # keep track of what the true entries are
 	noise = rand(Normal(0, s), n)			   # noise
 
 	#simulate the phenotype
-	#y = x*true_b + c*z[:, 1] + noise
 	y = x*true_b + c*z[:, 1] + noise
+	# y = x*true_b + noise
 
 	return x, z, y, true_b, correct_position, c
 end
@@ -65,12 +65,13 @@ function test_L0_reg()
 
 	#compute IHT result and compare it side by side with the true model
 	result = L0_reg(v, x, z, y, J, k)
+
 	estimated_position = find(result.beta)
 	estimated_β = result.beta[correct_position]
 	println("\n True intercept      = " * string(c))
 	println(" Estimated intercept = " * string(result.c[1]) * "\n")
-	compare = DataFrame(true_position = correct_position, estimated_position = estimated_position,
-		true_β = true_b[correct_position], estimated_β = estimated_β)
+	compare_position = DataFrame(true_position = correct_position, estimated_position = estimated_position)
+	compare_model = DataFrame(true_β = true_b[correct_position], estimated_β = estimated_β)
 
 	return compare
 end

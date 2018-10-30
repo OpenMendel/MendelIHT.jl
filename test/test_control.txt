@@ -6,7 +6,5 @@ output_file = test_Output.txt
 #
 # Analysis parameters for IHT option.
 #
-predictors = 1
+predictors = 2
 max_groups = 1
-group_membership = 1_group_test.dat
-non_genetic_covariates = test_cov.txt

@@ -9,10 +9,12 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     xb    :: Vector{T}     # vector that holds x*b
     xb0   :: Vector{T}     # xb in the previous iteration
     xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: Vector{T}     # gk = df[idx]. Temporary array of length k that stores the non-0 elements of df
+    gk    :: Vector{T}     # numerator of step size. gk = df[idx]. 
     xgk   :: Vector{T}     # xk * gk, denominator of step size
     idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
     idx0  :: BitVector     # previous iterate of idx
+    idc   :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
+    idc0  :: BitVector     # previous iterate of idc
     r     :: V             # n-vector of residuals
     df    :: V             # the gradient portion of the genotype part: df = ∇f(β) = snpmatrix * (y - xb - zc)
     df2   :: V             # the gradient portion of the non-genetic covariates: covariate matrix * (y - xb - zc)
@@ -28,8 +30,8 @@ function IHTVariables{T <: Float}(
     x :: SnpLike{2},
     z :: Matrix{T},
     y :: Vector{T},
-    J :: Int64,    # decide whether to use just Int instead of Int64 for J, k everywhere
-    k :: Int64,
+    J :: Int64,
+    k :: Int64;
 )
     n, p  = size(x)
     q     = size(z, 2)
@@ -38,11 +40,13 @@ function IHTVariables{T <: Float}(
     b0    = zeros(T, p)
     xb    = zeros(T, n)
     xb0   = zeros(T, n)
-    xk    = SnpArray(n, J * k)
-    gk    = zeros(T, J * k)
+    xk    = SnpArray(n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    gk    = zeros(T, J * k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
     xgk   = zeros(T, n)
     idx   = falses(p)
     idx0  = falses(p)
+    idc   = falses(q)
+    idc0  = falses(q)
     r     = zeros(T, n)
     df    = zeros(T, p)
     df2   = zeros(T, q)
@@ -51,25 +55,31 @@ function IHTVariables{T <: Float}(
     zc    = zeros(T, n)
     zc0   = zeros(T, n)
     zdf2  = zeros(T, n)
-    group = ones(Int64, p)
+    group = ones(Int64, p+1) # add 1 because by default the only non-genetic covariate is the intercept
 
-    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, r, df, df2, c, c0, zc, zc0, zdf2, group)
-end
+    # b[2335] = 0.687552
+    # b[4005] = -0.912389
+    # b[5510] = 0.284917
+    # b[6297] = 0.622528
+    # b[6321] = -0.322761
+    # b[7232] = -1.33137
+    # b[7370] = -0.268235
+    # b[7418] = -0.655171
+    # b[9524] = -2.90919
+    # b[9722] = -2.29789
 
-"""
-new SnpLike{2} signature for update_variables!
+    # b[2335] = 0.6
+    # b[4005] = -0.9
+    # b[5510] = 0.2
+    # b[6297] = 0.6
+    # b[6321] = -0.3
+    # b[7232] = -1.3
+    # b[7370] = -0.2
+    # b[7418] = -0.6
+    # b[9524] = -2.9
+    # b[9722] = -2.2
 
-Note: now the cv path does not support grouping structures (i.e. J = 1)
-"""
-function update_variables!{T <: Float}(
-    v :: IHTVariable{T},
-    x :: SnpLike{2},
-    k :: Int
-)
-    n    = size(x, 1)
-    v.xk = SnpArray(n, k)
-    v.gk = zeros(T, k)
-    return nothing
+    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group)
 end
 
 """
@@ -94,38 +104,74 @@ function use_A2_as_minor_allele(snpmatrix :: SnpArray)
 end
 
 """
-This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates v.idx. It is an
+This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates idx and idc. It is an
 addition here because recall that v.df stores an extra negative sign.
 """
 function _iht_gradstep{T <: Float}(
     v :: IHTVariable{T},
     μ :: T,
     J :: Int,
-    k :: Int
+    k :: Int,
+    temp_vec :: Vector{T}
 )
-   BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ∇f(b)
-   BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ∇f(b)
-   project_group_sparse!(v.b, v.group, J, k) # only project b to sparse vector
-   v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
+    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ∇f(b)
+    BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ∇f(b)
+##
+    length_b = length(v.b)
+    temp_vec[1:length_b] .= v.b
+    temp_vec[length_b+1:end] .= v.c
+    project_group_sparse!(temp_vec, v.group, J, k) # project [v.b; v.c] to sparse vector
+    v.b .= view(temp_vec, 1:length_b)
+    v.c .= view(temp_vec, length_b+1:length(temp_vec))
+##
+    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
+    v.idc .= v.c .!= 0
 
-   # If the k'th largest component is not unique, warn the user.
-   sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
+    # If the k'th largest component is not unique, warn the user.
+    sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
 
 """
 When initializing the IHT algorithm, take largest elements of each group of df as nonzero
 components of b. This function set v.idx = 1 for those indices.
 """
-function _init_iht_indices{T <: Float}(
+function init_iht_indices!{T <: Float}(
     v :: IHTVariable{T},
     J :: Int,
-    k :: Int
+    k :: Int,
+    temp_vec :: Vector{T}
 )
-    project_group_sparse!(v.df, v.group, J, k)
-    v.idx[find(v.df)] = true
-    v.gk = zeros(T, sum(v.idx))
+##
+    length_df = length(v.df)
+    temp_vec[1:length_df] .= v.df
+    temp_vec[length_df+1:end] .= v.df2
+    project_group_sparse!(temp_vec, v.group, J, k)
+    v.df = view(temp_vec, 1:length_df)
+    v.df2 = view(temp_vec, length_df+1:length(temp_vec))
+##
+    v.idx .= v.df .!= 0                        # find new indices of new beta that are nonzero
+    v.idc .= v.df2 .!= 0
+    #v.gk = zeros(T, sum(v.idx))
+
+    @assert sum(v.idx) + sum(v.idc) <= J * k "Did not initialize IHT correctly: more non-zero entries in model than J*k"
 
     return nothing
+end
+
+"""
+In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
+included/excluded, we must resize xk, gk, store2, and store3. 
+"""
+function check_covariate_supp!{T <: Float}(
+    v       :: IHTVariable{T},
+    storage :: Vector{Vector{T}},
+)
+    if sum(v.idx) != size(v.xk, 2)
+        v.xk = SnpArray(size(v.xk, 1), sum(v.idx))
+        v.gk = zeros(T, sum(v.idx))
+        storage[2] = zeros(T, size(v.xgk)) # length n
+        storage[3] = zeros(T, size(v.gk))  # length J * k
+    end
 end
 
 """
@@ -176,7 +222,7 @@ function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
     return std_vector
 end
 
-""" Projects the point y onto the set with at most J active groups and at most
+""" Projects the vector y = [y1; y2] onto the set with at most J active groups and at most
 k active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown or overlaping group membership.
 
@@ -188,6 +234,8 @@ function project_group_sparse!{T <: Float}(
     J     :: Int64,
     k     :: Int64
 )
+    @assert length(group) == length(y) "group membership vector does not have the same length as the vector to be projected on"
+
     groups = maximum(group)
     group_count = zeros(Int, groups)         #counts number of predictors in each group
     group_norm = zeros(groups)               #l2 norm of each group
@@ -295,4 +343,18 @@ function calculate_snp_weights(
         my_snpweights = copy(my_snpweights_huazhou_reciprocal)
     end
     return my_snpMAF, my_snpweights
+end
+
+"""
+Function that saves `b`, `xb`, `idx`, `idc`, `c`, and `zc` after each iteration. 
+"""
+function save_prev!{T <: Float}(
+    v :: IHTVariable{T}
+)
+    copy!(v.b0, v.b)     # b0 = b
+    copy!(v.xb0, v.xb)   # Xb0 = Xb
+    copy!(v.idx0, v.idx) # idx0 = idx
+    copy!(v.idc0, v.idc) # idc0 = idc
+    copy!(v.c0, v.c)     # c0 = c
+    copy!(v.zc0, v.zc)   # Zc0 = Zc
 end

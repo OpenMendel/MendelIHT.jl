@@ -59,14 +59,13 @@ function MendelIHT(control_file = ""; args...)
     end
     #
     # Define variables for group membership, max number of predictors for each group, and max number of groups
+    # If no group_membership file is provided, defaults every predictor to the same group
     #
     k = keyword["predictors"]
     J = keyword["max_groups"]
     v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
     if keyword["group_membership"] != ""
         v.group = vec(readdlm(keyword["group_membership"], Int64))
-    else
-        v.group = ones(size(snpmatrix, 2))
     end
     #
     # Determine what weighting (if any) the user specified for each predictors
@@ -145,23 +144,27 @@ function iht!(
     mean_vec :: Vector{T},
     std_vec  :: Vector{T},
     storage  :: Vector{Vector{T}},
-    iter     :: Int = 1,
-    nstep    :: Int = 50,
+    temp_vec :: Vector{T},
+    iter     :: Int,
+    nstep    :: Int
 ) where {T <: Float}
 
     # compute indices of nonzeroes in beta
     v.idx .= v.b .!= 0
+    v.idc .= v.c .!= 0
 
-    if sum(v.idx) == 0
-        _init_iht_indices(v, J, k)
+    #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
+    if iter == 1
+        init_iht_indices!(v, J, k, temp_vec)
+        check_covariate_supp!(v, storage) # make necessary resizing
     end
 
-    # store relevant columns of x. Need to do this on 1st iteration, and when support changes
-    if !isequal(v.idx, v.idx0) || iter < 2
+    # store relevant columns of x.
+    if (!isequal(v.idx, v.idx0) && !isequal(v.idc, v.idc0)) || iter < 2
         copy!(v.xk, view(x, :, v.idx))
     end
 
-    # store relevant components of gradient (gk is numerator of step size)
+    # store relevant components of gradient (gk is numerator of step size). 
     v.gk .= view(v.df, v.idx)
 
     # compute the denominator of step size, store it in xgk (recall gk = df[idx])
@@ -180,7 +183,10 @@ function iht!(
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
 
     # compute gradient step
-    _iht_gradstep(v, μ, J, k)
+    _iht_gradstep(v, μ, J, k, temp_vec)
+
+    # make necessary resizing since grad step might include/exclude non-genetic covariates
+    check_covariate_supp!(v, storage) 
 
     # update xb (needed to calculate ω to determine line search criteria)
     v.xk .= view(x, :, v.idx)
@@ -198,9 +204,12 @@ function iht!(
         μ /= 2
 
         # recompute gradient step
-        copy!(v.b,v.b0)
-        copy!(v.c,v.c0)
-        _iht_gradstep(v, μ, J, k)
+        copy!(v.b, v.b0)
+        copy!(v.c, v.c0)
+        _iht_gradstep(v, μ, J, k, temp_vec)
+
+        # make necessary resizing since grad step might include/exclude non-genetic covariates
+        check_covariate_supp!(v, storage) 
 
         # recompute xb
         v.xk .= view(x, :, v.idx)
@@ -242,6 +251,7 @@ function L0_reg(
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
     max_step :: Int = 50,
+    temp_vec :: Vector{T} = zeros(size(x, 2) + size(z, 2))
 ) where {T <: Float}
 
     # start timer
@@ -308,15 +318,12 @@ function L0_reg(
     BLAS.At_mul_B!(v.df2, z, v.r)
 
     for mm_iter = 1:max_iter
-        # save values from previous iterate
-        copy!(v.b0, v.b)   # b0 = b    CONSIDER BLASCOPY!
-        copy!(v.xb0, v.xb) # Xb0 = Xb  CONSIDER BLASCOPY!
-        copy!(v.c0, v.c)   # c0 = c    CONSIDER BLASCOPY!
-        copy!(v.zc0, v.zc) # Zc0 = Zc  CONSIDER BLASCOPY!
+        # save values from previous iterate and update loss
+        save_prev!(v)
         loss = next_loss
 
         #calculate the step size μ.
-        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, store, max_step, mm_iter)
+        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, store, temp_vec, mm_iter, max_step)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb .- v.zc 
@@ -336,7 +343,7 @@ function L0_reg(
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
 
-        if converged
+        if converged && mm_iter > 1
             mm_time = toq()   # stop time
             return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.c, J, k, v.group)
         end
