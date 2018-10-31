@@ -33,18 +33,25 @@ function simulate_data(
 	s :: Float64  # variance deviation of noise
 )
 	#construct snpmatrix, covariate files, and true model b
-	x      		= SnpArray(rand(0:2, n, p))    # a random snpmatrix (~37MB)
-	z      		= ones(n, 1)                   # non-gentic covariates (only including grand mean)
-	true_b      = zeros(p)				       # model vector
-	c     		= 1.0    					   # intercept
-	true_b[1:k] = randn(k)			  	       # Initialize k non-zero entries in the true model
-	shuffle!(true_b)					       # Shuffle the entries
-	correct_position = find(true_b)		       # keep track of what the true entries are
-	noise = rand(Normal(0, s), n)			   # noise
+	x       	= SnpArray(rand(0:2, n, p)) # a random snpmatrix
+	z           = ones(n, 1)                # non-genetic covariates, just the intercept
+	true_b      = zeros(p)				    # model vector
+	true_b[1:k] = randn(k)			  	    # Initialize k non-zero entries in the true model
+	shuffle!(true_b)					    # Shuffle the entries
+	correct_position = find(true_b)		    # keep track of what the true entries are
+	noise = rand(Normal(0, s), n)			# noise
 
-	#simulate the phenotype
-	y = x*true_b + c*z[:, 1] + noise
-	# y = x*true_b + noise
+	#compute mean and std for the simulated data
+	mean_vec, minor_allele = summarize(x)
+	for i in 1:p
+	    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
+	end
+	std_vec = std_reciprocal(x, mean_vec)
+
+	#simulate the phenotype 
+	y = zeros(n)
+	SnpArrays.A_mul_B!(y, x, true_b, mean_vec, std_vec)
+	y .+= noise #add N(0, 0.01) noise
 
 	return x, z, y, true_b, correct_position, c
 end
