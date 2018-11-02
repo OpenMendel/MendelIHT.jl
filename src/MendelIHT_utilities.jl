@@ -138,8 +138,8 @@ components of b. This function set v.idx = 1 for those indices.
 function init_iht_indices!{T <: Float}(
     v :: IHTVariable{T},
     J :: Int,
-    k :: Int,
-    temp_vec :: Vector{T}
+    k :: Int;
+    temp_vec :: Vector{T} = zeros(length(v.df) + length(v.df2))
 )
 ##
     length_df = length(v.df)
@@ -151,7 +151,6 @@ function init_iht_indices!{T <: Float}(
 ##
     v.idx .= v.df .!= 0                        # find new indices of new beta that are nonzero
     v.idc .= v.df2 .!= 0
-    #v.gk = zeros(T, sum(v.idx))
 
     @assert sum(v.idx) + sum(v.idc) <= J * k "Did not initialize IHT correctly: more non-zero entries in model than J*k"
 

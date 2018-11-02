@@ -58,16 +58,6 @@ function MendelIHT(control_file = ""; args...)
         non_genetic_cov = readdlm(keyword["non_genetic_covariates"], keyword["field_separator"], Float64)
     end
     #
-    # Define variables for group membership, max number of predictors for each group, and max number of groups
-    # If no group_membership file is provided, defaults every predictor to the same group
-    #
-    k = keyword["predictors"]
-    J = keyword["max_groups"]
-    v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
-    if keyword["group_membership"] != ""
-        v.group = vec(readdlm(keyword["group_membership"], Int64))
-    end
-    #
     # Determine what weighting (if any) the user specified for each predictors
     #
     keyword["maf_weights"] == "maf" ? maf_weights = true : maf_weights = false
@@ -76,26 +66,25 @@ function MendelIHT(control_file = ""; args...)
     #
     if keyword["run_cross_validation"]
         #
+        # Find the model sizes the user wants. Defaults to 1~10
+        #
+        path = collect(1:10)
+        if keyword["model_sizes"] != ""
+            path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
+            @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
+        end
+        #
         # Specify how many folds of cross validation the user wants. Defaults to 5
         #
         num_folds = 5
         if keyword["cv_folds"] != "" 
             num_folds = keyword["cv_folds"]
-            @assert typeof(num_folds) == Int "Please provide an integer value for the number of folds for cross validation"
+            @assert typeof(num_folds) == Int "Please provide positive integer value for the number of folds for cross validation"
+            @assert num_folds >= 1           "Please provide positive integer value for the number of folds for cross validation"
         end
         info("Running " * string(num_folds) * "-fold cross validation on the following model sizes:\n" * keyword["model_sizes"] * ".\nIgnoring keyword predictors.")
         folds = rand(1:num_folds, size(snpmatrix, 1))
-        #
-        # Find the model sizes the user wants. Defaults to 1~10
-        #
-        if keyword["model_sizes"] == ""
-            path = collect(1:10)
-            info("Running the following model sizes: " * string(path))
-        else
-            path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
-            @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
-        end
-        return cv_iht(snpmatrix, non_genetic_cov, phenotype, J, path, folds, num_folds, use_maf = maf_weights)
+        return cv_iht(snpmatrix, non_genetic_cov, phenotype, 1, path, folds, num_folds, use_maf = maf_weights)
 
     elseif keyword["model_sizes"] != ""
         path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
@@ -107,6 +96,19 @@ function MendelIHT(control_file = ""; args...)
         return iht_path_threaded(snpmatrix, non_genetic_cov, phenotype, J, path, use_maf = maf_weights)
 
     else
+        #
+        # Define variables for group membership, max number of predictors for each group, and max number of groups
+        # If no group_membership file is provided, defaults every predictor to the same group
+        #
+        k = keyword["predictors"]
+        J = keyword["max_groups"]
+        v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
+        if keyword["group_membership"] != ""
+            v.group = vec(readdlm(keyword["group_membership"], Int64))
+        end
+        #
+        # Run IHT
+        #
         info("Analyzing the data for model size k = $k") 
         return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, use_maf = maf_weights)
     end
@@ -132,7 +134,7 @@ end #function MendelIHT
 - `std_vec` is a vector storing the inverse standard deviation of each SNP. Needed for standarization on-the-fly
 - `storage` is a vector of matrices preallocated for (snpmatrix)-(dense vector) multiplication. This is needed for better garbage collection.
 - `iter` is an integer storing the number of full iht steps taken (i.e. negative gradient + projection)
-- `nstep` number of backtracking done. 
+- `nstep` number of maximum backtracking. 
 """
 function iht!(
     v        :: IHTVariable{T},
@@ -155,7 +157,7 @@ function iht!(
 
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
     if iter == 1
-        init_iht_indices!(v, J, k, temp_vec)
+        init_iht_indices!(v, J, k, temp_vec = temp_vec)
         check_covariate_supp!(v, storage) # make necessary resizing
     end
 
@@ -288,7 +290,7 @@ function L0_reg(
     store[3] = zeros(T, size(v.gk))  # length J * k
 
     # compute some summary statistics for our snpmatrix
-    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
+    maf, minor_allele, = summarize(x)
     people, snps = size(x)
     mean_vec = deepcopy(maf) # Gordon wants maf below
     
@@ -309,9 +311,16 @@ function L0_reg(
     #
     # Begin IHT calculations
     #
-    fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-    v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
+    # if sum(v.idx) + sum(v.idc) == 0
+        fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
+        copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
+        v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
+    # else
+    #     SnpArrays.A_mul_B!(v.xb, x, v.b, mean_vec, std_vec)
+    #     BLAS.A_mul_B!(v.zc, z, v.c)
+    #     v.r .= y .- v.xb .- v.zc
+    #     v.r[mask_n .== 0] .= 0
+    # end
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
     SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, store[1])
@@ -573,214 +582,19 @@ function pfold_naive(
     return vec(sum(mses, 2) ./ num_fold)
 end
 
-# """
-# This is a wrapper function that called one_fold on each of the q subset. 
-
-# - `path` , a vector of various model sizes
-# - `folds`, a vector indicating which of the q fold each sample belongs to. 
-# - `fold` , the current fold that is being used as test set. 
-# - `pids` , a vector of process IDs. Defaults to `procs(x)`.
-# """
-# function pfold(
-#     x        :: SnpLike{2},
-#     z        :: Matrix{T},
-#     y        :: Vector{T},
-#     path     :: DenseVector{Int},
-#     folds    :: DenseVector{Int},
-#     J        :: Int64, 
-#     keyword  :: Dict{AbstractString, Any};
-#     # pids     :: Vector{Int},
-#     # q        :: Int, 
-#     max_iter :: Int  = 100,
-#     max_step :: Int  = 50,
-#     quiet    :: Bool = true,
-#     header   :: Bool = false
-# ) where {T <: Float}
-
-#     # ensure correct type
-#     @assert T <: Float "Argument T must be either Float32 or Float64"
-
-#     # do not allow crossvalidation with fewer than 3 folds
-#     @assert q > 2 "Number of folds q = $q must be at least 3."
-
-#     # how many CPU processes can pfold use?
-#     np = length(pids)
-
-#     # report on CPU processes
-#     quiet || println("pfold: np = ", np)
-#     quiet || println("pids = ", pids)
-
-#     # set up function to share state (indices of folds)
-#     i = 1
-#     nextidx() = (idx=i; i+=1; idx)
-
-#     # preallocate array for results
-#     results = SharedArray{T}((length(path),q), pids=pids) :: SharedMatrix{T}
-
-#     # master process will distribute tasks to workers
-#     # master synchronizes results at end before returning
-#     @sync begin
-
-#         # loop over all workers
-#         for worker in pids
-
-#             # exclude process that launched pfold, unless only one process is available
-#             if worker != myid() || np == 1
-
-#                 # asynchronously distribute tasks
-#                 @async begin
-#                     while true
-
-#                         # grab next fold
-#                         current_fold = nextidx()
-
-#                         # if current fold exceeds total number of folds then exit loop
-#                         current_fold > q && break
-
-#                         # report distribution of fold to worker and device
-#                         quiet || print_with_color(:blue, "Computing fold $current_fold on worker $worker.\n\n")
-
-#                         # launch job on worker
-#                         # worker loads data from file paths and then computes the errors in one fold
-#                         r = remotecall_fetch(worker) do
-#                             processes = [worker]
-#                             quiet || println("xfile = $(xfile)")
-#                             quiet || println("x2file = $(x2file)")
-#                             quiet || println("here 530, abspath(yfile) = $(abspath(yfile))")
-
-
-#                             file_name = xfile[1:end-4] #BenBenBen
-#                             #snpmatrix = SnpArray("x_test")
-#                             snpmatrix = SnpArray(file_name)
-#                             # HERE I READ THE PHENOTYPE FROM THE BEDFILE TO MATCH THE TUTORIAL RESULTS
-#                             # I'M SURE THERE IS A BETTER WAY TO GET IT BenBenBen
-#                             #phenotype is already set in tutorial_simulation.jl above  DIDN'T WORK - SAYS IT'S NOT DEFINED HERE
-#                             #phenotype = readdlm(file_name * ".fam", header = false)[:, 6] # NO GOOD, THE PHENOTYPE HERE IS ALL ONES
-#                             x = BEDFile(T, xfile, x2file, header=header, pids=[1]) :: BEDFile{T}
-#                             y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=[1]) :: SharedVector{T}
-#                             phenotype = convert(Array{T,1}, y)
-#                             # y_copy = copy(phenotype)
-#                             # y_copy .-= mean(y_copy)
-
-#                             #OLDWAY x = BEDFile(T, xfile, x2file, pids=processes, header=header)
-#                             #OLDWAY y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=processes) :: SharedVector{T}
-#                             quiet || println("here 533, abspath(yfile) = $(abspath(yfile))")
-#                             #y = SharedArray{T}(yfile, (x.geno.n,), pids=processes) :: SharedVector{T}
-
-#                             one_fold(snpmatrix, phenotype, path, folds, current_fold, J, groups, keyword, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
-#                             #OLDWAY one_fold(x, y, path, folds, current_fold, max_iter=max_iter, max_step=max_step, quiet=quiet, pids=processes)
-#                             # !!! don't put any code here, return from one_fold() is return for remotecall_fetch() !!!
-#                         end # end remotecall_fetch()
-#                         quiet || println("Fold done.")
-#                         setindex!(results, r, :, current_fold)
-#                     end # end while
-#                 end # end @async
-#             end # end if
-#         end # end for
-#     end # end @sync
-
-#     # return reduction (row-wise sum) over results
-#     return (vec(sum(results, 2) ./ q)) :: Vector{T}
-# end
-
-# # default for previous function is Float64
-# pfold(xfile::String, x2file::String, yfile::String, path::DenseVector{Int}, folds::DenseVector{Int}, pids::Vector{Int}, q::Int, J::Int64, groups::Vector{Int64}, keyword::Dict{AbstractString, Any}; max_iter::Int = 100, max_step::Int = 50, quiet::Bool = true, header::Bool = false) = pfold(Float64, xfile, x2file, yfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
-
-
-
-# """
-#     cv_iht(xfile, xtfile, x2file, yfile, meanfile, precfile, [q=max(3, min(CPU_CORES,5)), path=collect(1:min(p,20)), folds=cv_get_folds(n,q), pids=procs()])
-
-# This variant of `cv_iht()` performs `q`-fold crossvalidation with a `BEDFile` object loaded by `xfile`, `xtfile`, and `x2file`,
-# with column means stored in `meanfile` and column precisions stored in `precfile`.
-# The continuous response is stored in `yfile` with data particioned by the `Int` vector `folds`.
-# The folds are distributed across the processes given by `pids`.
-# The dimensions `n` and `p` are inferred from BIM and FAM files corresponding to the BED file path `xpath`.
-# """
-# function cv_ihtNOTUSED(
-#     T        :: Type,
-#     xfile    :: String,
-#     xtfile   :: String,
-#     x2file   :: String,
-#     yfile    :: String,
-#     meanfile :: String,
-#     precfile :: String;
-#     q        :: Int = cv_get_num_folds(3,5),
-#     path     :: DenseVector{Int} = begin
-#            # find p from the corresponding BIM file, then make path
-#             bimfile = xfile[1:(endof(xfile)-3)] * "bim"
-#             p       = countlines(bimfile)
-#             collect(1:min(20,p))
-#             end,
-#     folds    :: DenseVector{Int} = begin
-#            # find n from the corresponding FAM file, then make folds
-#             famfile = xfile[1:(endof(xfile)-3)] * "fam"
-#             n       = countlines(famfile)
-#             cv_get_folds(n, q)
-#             end,
-#     pids     :: Vector{Int} = procs(),
-#     tol      :: Float = convert(T, 1e-4),
-#     max_iter :: Int   = 100,
-#     max_step :: Int   = 50,
-#     quiet    :: Bool  = true,
-#     header   :: Bool  = false
-# )
-
-#     # enforce type
-#     @assert T <: Float "Argument T must be either Float32 or Float64"
-
-#     # how many elements are in the path?
-#     nmodels = length(path)
-
-#     # compute folds in parallel
-#     mses = pfold(T, xfile, xtfile, x2file, yfile, meanfile, precfile, path, folds, pids, q, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
-
-#     # what is the best model size?
-#     k = path[indmin(errors)] :: Int
-
-#     # print results
-#     !quiet && print_cv_results(mses, path, k)
-
-#     # recompute ideal model
-#     # first load data on *all* processes
-#     x = BEDFile(T, xfile, xtfile, x2file, meanfile, precfile, header=header, pids=pids) :: BEDFile{T}
-#     y = SharedArray{T}(abspath(yfile), (x.geno.n,), pids=pids) :: SharedVector{T}
-
-#     # first use L0_reg to extract model
-#     output = L0_reg(x, y, k, max_iter=max_iter, max_step=max_step, quiet=quiet, tol=tol, pids=pids)
-
-#     # which components of beta are nonzero?
-#     inferred_model = output.beta .!= zero(T)
-#     bidx = find(inferred_model)
-
-#     # allocate the submatrix of x corresponding to the inferred model
-#     x_inferred = zeros(T, x.geno.n, sum(inferred_model))
-#     decompress_genotypes!(x_inferred, x, inferred_model)
-
-#     # refit the best model
-#     b, bidx = refit_iht(x_inferred, y, k, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet)
-
-#     bids = prednames(x)[bidx]
-#     return IHTCrossvalidationResults{T}(mses, sdata(path), b, bidx, k, bids)
-# end
-
-# encodes default type FLoat64 for previous function
-### 22 Sep 2016: Julia v0.5 warns that this conflicts with cv_iht for GPUs
-### since this is no longer the default interface for cv_iht with CPUs,
-### then it is commented out here
-#cv_iht(xfile::String, xtfile::String, x2file::String, yfile::String, meanfile::String, precfile::String; q::Int = max(3, min(CPU_CORES, 5)), path::DenseVector{Int} = begin bimfile=xfile[1:(endof(xfile)-3)] * "bim"; p=countlines(bimfile); collect(1:min(20,p)) end, folds::DenseVector{Int} = begin famfile=xfile[1:(endof(xfile)-3)] * "fam"; n=countlines(famfile); cv_get_folds(n, q) end, pids::DenseVector{Int}=procs(), tol::Float64=1e-4, max_iter::Int=100, max_step::Int=50, quiet::Bool=true, header::Bool=false) = cv_iht(Float64, xfile, xtfile, x2file, yfile, meanfile, precfile, path=path, folds=folds, q=q, pids=pids, tol=tol, max_iter=max_iter, max_step=max_step, quiet=quiet, header=header)
-
 """
-    cv_iht(T::Type, x, z, y, J, k, groups, use_maf, [q=max(3, min(CPU_CORES,5)), path=collect(1:min(p,20)), folds=cv_get_folds(n,q), pids=procs()])
+This function runs q-fold cross-validation across a specified regularization path in a 
+maximum of 8 parallel threads. 
 
-The default call to `cv_iht`. Here `x` points to the PLINK BED file stored on disk, `x2file` points to the nongenetic covariates stored in a delimited file, and `yfile` points to the response variable stored in a **binary** file.
-
-Important optional arguments and defaults include:
-
-- `q`, the number of crossvalidation folds. Defaults to `max(3, min(CPU_CORES,5))`
-- `path`, an `Int` vector that contains the model sizes to test. Defaults to `collect(1:min(p,20))`, where `p` is the number of genetic predictors read from the PLINK BIM file.
-- `folds`, an `Int` vector that specifies the fold structure. Defaults to `cv_get_folds(n,q)`, where `n` is the number of cases read from the PLINK FAM file.
-- `pids`, an `Int` vector of process IDs. Defaults to `procs()`.
+Important arguments and defaults include:
+- `x` is the genotype matrix
+- `z` is the matrix of non-genetic covariates (which includes the intercept as the first column)
+- `y` is the response (phenotype) vector
+- `J` is the maximum allowed active groups. 
+- `path` is vector of model sizes k1, k2...etc. IHT will compute all model sizes on each fold.
+- `folds` a vector of integers, with the same length as the number predictor, indicating a partitioning of the samples into q disjoin subsets
+- `num_folds` indicates how many disjoint subsets the samples are partitioned into. 
+- `use_maf` whether IHT wants to scale predictors using their minor allele frequency. This is experimental feature
 """
 function cv_iht(
     x        :: SnpLike{2},
@@ -792,9 +606,9 @@ function cv_iht(
     num_fold :: Int64;
     use_maf  :: Bool = false,
     # pids     :: Vector{Int} = procs(),
-    tol      :: Float = convert(T, 1e-4),
-    max_iter :: Int   = 100,
-    max_step :: Int   = 50,
+    # tol      :: Float = convert(T, 1e-4),
+    # max_iter :: Int   = 100,
+    # max_step :: Int   = 50,
     # quiet    :: Bool  = true,
     # header   :: Bool  = false
 ) where {T <: Float}

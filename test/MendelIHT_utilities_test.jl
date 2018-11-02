@@ -56,8 +56,8 @@ end
 	@test size(v.b0)   == (2,)
 	@test size(v.xb)   == (6,)
 	@test size(v.xb0)  == (6,)
-	@test size(v.xk)   == (6, 1)
-	@test size(v.gk)   == (1,)
+	@test size(v.xk)   == (6, 0)
+	@test size(v.gk)   == (0,)
 	@test size(v.xgk)  == (6,)
 	@test size(v.idx)  == (2,)
 	@test size(v.idx0) == (2,)
@@ -69,7 +69,7 @@ end
 	@test size(v.zc)   == (6,)
 	@test size(v.zc0)  == (6,)
 	@test size(v.zdf2) == (6,)
-	@test size(v.group)== (2,)
+	@test size(v.group)== (3,)
 
 	@test typeof(v.b)    == Array{Float64, 1}
 	@test typeof(v.b0)   == Array{Float64, 1}
@@ -91,7 +91,7 @@ end
 	@test typeof(v.group)== Array{Int64, 1}
 end
 
-@testset "_init_iht_indices" begin
+@testset "init_iht_indices!" begin
 	(x, z, y, J, k, v) = gwas1_data()
 
 	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
@@ -99,7 +99,7 @@ end
 	v.df[1:10000] .= rand(10000)
 	p = sortperm(v.df, rev = true)
 	top_k_index = p[1:10]
-	IHT._init_iht_indices(v, J, k)
+	IHT.init_iht_indices!(v, J, k)
 
 	@test all(v.idx[top_k_index] .== 1)
 end
@@ -193,6 +193,21 @@ end
 
 	@test round(ω_top, 4) == 2.3975
 	@test round(ω_bot, 4) == 14.273
+end
+
+@testset "check_covariate_supp!" begin
+end
+
+@testset "_iht_backtrack" begin
+end
+
+@testset "_iht_gradstep" begin
+end
+
+@testset "calculate_snp_weights" begin
+end
+
+@testset "save_prev!" begin
 end
 
 # @testset "_iht_backtrack" begin
