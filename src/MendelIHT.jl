@@ -52,15 +52,28 @@ function MendelIHT(control_file = ""; args...)
     info("Reading in data")
     snpmatrix = SnpArray(keyword["plink_input_basename"]) #requires .bim .bed .fam files
     phenotype = readdlm(keyword["plink_input_basename"] * ".fam", header = false)[:, 6]
-    if keyword["non_genetic_covariates"] == ""
-        non_genetic_cov = ones(size(snpmatrix, 1), 1)
-    else
+    non_genetic_cov = ones(size(snpmatrix, 1), 1) #defaults to just the intercept
+    if keyword["non_genetic_covariates"] != ""
         non_genetic_cov = readdlm(keyword["non_genetic_covariates"], keyword["field_separator"], Float64)
     end
     #
     # Determine what weighting (if any) the user specified for each predictors
     #
     keyword["maf_weights"] == "maf" ? maf_weights = true : maf_weights = false
+    #
+    # Determine the maximum number of groups and max number of predictors per group_membership.
+    # Defaults to only 1 group containing 10 predictors
+    #
+    J = 1
+    k = 10
+    if keyword["max_groups"] != 0
+        J = keyword["max_groups"]
+    end
+    if keyword["predictors"] != 0 
+        k = keyword["predictors"]
+    end
+    @assert k >= 1 "Number of predictors must be positive integer"
+    @assert J >= 1 "Number of predictors must be positive integer"
     #
     # Execute the specified analysis.
     #
@@ -100,8 +113,7 @@ function MendelIHT(control_file = ""; args...)
         # Define variables for group membership, max number of predictors for each group, and max number of groups
         # If no group_membership file is provided, defaults every predictor to the same group
         #
-        k = keyword["predictors"]
-        J = keyword["max_groups"]
+
         v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
         if keyword["group_membership"] != ""
             v.group = vec(readdlm(keyword["group_membership"], Int64))
@@ -467,12 +479,9 @@ function iht_path_threaded(
 
         #define the IHTVariable used for cleaner code #TODO: should declare this only 1 time for max efficiency. 
         v = IHTVariables(x, z, y, J, k)
-        x_copy = deepcopy(x)
-        z_copy = deepcopy(z)
-        y_copy = deepcopy(y)
 
         # now compute current model
-        output = L0_reg(v, x_copy, z_copy, y_copy, J, k, use_maf=use_maf, mask_n=mask_n)
+        output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
 
         # put model into sparse matrix of betas in the corresponding thread
         betas[cur_thread][:, i] = output.beta

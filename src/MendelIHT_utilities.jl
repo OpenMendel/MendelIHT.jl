@@ -55,29 +55,7 @@ function IHTVariables{T <: Float}(
     zc    = zeros(T, n)
     zc0   = zeros(T, n)
     zdf2  = zeros(T, n)
-    group = ones(Int64, p+1) # add 1 because by default the only non-genetic covariate is the intercept
-
-    # b[2335] = 0.687552
-    # b[4005] = -0.912389
-    # b[5510] = 0.284917
-    # b[6297] = 0.622528
-    # b[6321] = -0.322761
-    # b[7232] = -1.33137
-    # b[7370] = -0.268235
-    # b[7418] = -0.655171
-    # b[9524] = -2.90919
-    # b[9722] = -2.29789
-
-    # b[2335] = 0.6
-    # b[4005] = -0.9
-    # b[5510] = 0.2
-    # b[6297] = 0.6
-    # b[6321] = -0.3
-    # b[7232] = -1.3
-    # b[7370] = -0.2
-    # b[7418] = -0.6
-    # b[9524] = -2.9
-    # b[9722] = -2.2
+    group = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
 
     return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group)
 end
