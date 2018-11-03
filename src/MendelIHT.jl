@@ -52,15 +52,28 @@ function MendelIHT(control_file = ""; args...)
     info("Reading in data")
     snpmatrix = SnpArray(keyword["plink_input_basename"]) #requires .bim .bed .fam files
     phenotype = readdlm(keyword["plink_input_basename"] * ".fam", header = false)[:, 6]
-    if keyword["non_genetic_covariates"] == ""
-        non_genetic_cov = ones(size(snpmatrix, 1), 1)
-    else
+    non_genetic_cov = ones(size(snpmatrix, 1), 1) #defaults to just the intercept
+    if keyword["non_genetic_covariates"] != ""
         non_genetic_cov = readdlm(keyword["non_genetic_covariates"], keyword["field_separator"], Float64)
     end
     #
     # Determine what weighting (if any) the user specified for each predictors
     #
     keyword["maf_weights"] == "maf" ? maf_weights = true : maf_weights = false
+    #
+    # Determine the maximum number of groups and max number of predictors per group_membership.
+    # Defaults to only 1 group containing 10 predictors
+    #
+    J = 1
+    k = 10
+    if keyword["max_groups"] != 0
+        J = keyword["max_groups"]
+    end
+    if keyword["predictors"] != 0 
+        k = keyword["predictors"]
+    end
+    @assert k >= 1 "Number of predictors must be positive integer"
+    @assert J >= 1 "Number of predictors must be positive integer"
     #
     # Execute the specified analysis.
     #
@@ -100,8 +113,7 @@ function MendelIHT(control_file = ""; args...)
         # Define variables for group membership, max number of predictors for each group, and max number of groups
         # If no group_membership file is provided, defaults every predictor to the same group
         #
-        k = keyword["predictors"]
-        J = keyword["max_groups"]
+
         v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
         if keyword["group_membership"] != ""
             v.group = vec(readdlm(keyword["group_membership"], Int64))
