@@ -340,7 +340,8 @@ end
 This function computes the best step size μ for normal responses. 
 """
 function _normal_stepsize{T <: Float}(
-    v        :: IHTVariable{T}
+    v        :: IHTVariable{T},
+    z        :: Matrix{T},
     mean_vec :: Vector{T},
     std_vec  :: Vector{T},
     storage  :: Vector{Vector{T}}

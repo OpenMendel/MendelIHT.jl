@@ -7,4 +7,4 @@ output_file = gwas 1 Output.txt
 # Analysis parameters for IHT option.
 #
 predictors = 10
-analysis_option = logistic
+#analysis_option = normal

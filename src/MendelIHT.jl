@@ -111,7 +111,7 @@ function MendelIHT(control_file = ""; args...)
         #
         # Determine the type of analysis
         #
-        analysis = lowercase(keyword["analysis_option"])
+        keyword["analysis_option"] == "" ? analysis = "normal" : analysis = lowercase(keyword["analysis_option"])
         #
         # Run IHT
         #
@@ -175,9 +175,9 @@ function iht!(
 
     # calculate step size based on type of regression
     if glm == "normal"
-        μ = _normal_stepsize(v, mean_vec, std_vec, storage)
+        μ = _normal_stepsize(v, z, mean_vec, std_vec, storage)
     elseif glm == "logistic"
-        μ = _logistic_stepsize(v, mean_vec, std_vec, storage)
+        μ = _logistic_stepsize(v, x, z, y, mean_vec, std_vec, storage)
     else
         throw(error("Currently IHT does not support specified glm method: " * glm))
     end
