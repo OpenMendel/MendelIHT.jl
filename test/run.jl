@@ -90,3 +90,27 @@ end
 
 
 
+
+
+using MendelBase, MendelKinship, SnpArrays
+keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+keyword["repetitions"] = 1
+keyword["xlinked_analysis"] = false
+keyword["kinship_output_file"] = "kinship_file_output.txt"
+keyword["compare_kinships"] = false
+keyword["maf_threshold"] = 0.01
+keyword["grm_method"] = "MoM" # MoM is less sensitive to rare snps
+keyword["deviant_pairs"] = 0
+keyword["kinship_plot"] = ""
+keyword["z_score_plot"] = ""
+process_keywords!(keyword, "control_just_theoretical_29a.txt", "")
+(pedigree, person, nuclear_family, locus, snpdata, locus_frame, 
+    phenotype_frame, pedigree_frame, snp_definition_frame) =
+    read_external_data_files(keyword)
+
+
+
+
+
+
+

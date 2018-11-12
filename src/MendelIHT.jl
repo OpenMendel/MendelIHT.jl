@@ -35,14 +35,6 @@ function MendelIHT(control_file = ""; args...)
     # This will also initialize the random number generator.
     #
     process_keywords!(keyword, control_file, args)
-    #
-    # Check that the correct analysis option was specified.
-    #
-    lc_analysis_option = lowercase(keyword["analysis_option"])
-    if (lc_analysis_option != "" && lc_analysis_option != "iht")
-        throw(ArgumentError("An incorrect analysis option was specified.\n \n"))
-    end
-    keyword["analysis_option"] = "Iterative Hard Thresholding"
     @assert typeof(keyword["max_groups"]) == Int "Number of groups must be an integer. Set as 1 to run normal IHT"
     @assert typeof(keyword["predictors"]) == Int "Sparsity constraint must be positive integer"
     @assert 0 <= keyword["predictors"]           "Need positive number of predictors per group"
@@ -107,22 +99,24 @@ function MendelIHT(control_file = ""; args...)
         # Compute the various models and associated errors
         #
         return iht_path_threaded(snpmatrix, non_genetic_cov, phenotype, J, path, use_maf = maf_weights)
-
     else
         #
         # Define variables for group membership, max number of predictors for each group, and max number of groups
         # If no group_membership file is provided, defaults every predictor to the same group
         #
-
         v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
         if keyword["group_membership"] != ""
             v.group = vec(readdlm(keyword["group_membership"], Int64))
         end
         #
+        # Determine the type of analysis
+        #
+        analysis = lowercase(keyword["analysis_option"])
+        #
         # Run IHT
         #
-        info("Analyzing the data for model size k = $k") 
-        return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, use_maf = maf_weights)
+        info("Running " * string(analysis) * " IHT for model size k = $k and groups J = $J") 
+        return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, use_maf = maf_weights, glm = analysis)
     end
     #
     # Finish up by closing, and thus flushing, any output files.
@@ -157,6 +151,7 @@ function iht!(
     k        :: Int,
     mean_vec :: Vector{T},
     std_vec  :: Vector{T},
+    glm      :: String,
     storage  :: Vector{Vector{T}},
     temp_vec :: Vector{T},
     iter     :: Int,
@@ -178,23 +173,14 @@ function iht!(
         copy!(v.xk, view(x, :, v.idx))
     end
 
-    # store relevant components of gradient (gk is numerator of step size). 
-    v.gk .= view(v.df, v.idx)
-
-    # compute the denominator of step size, store it in xgk (recall gk = df[idx])
-    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
-
-    # compute z * df2 needed in the denominator of step size calculation
-    BLAS.A_mul_B!(v.zdf2, z, v.df2)
-
-    # warn if xgk only contains zeros
-    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
-
-    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
-    μ = (((sum(abs2, v.gk) + sum(abs2, v.df2)) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
-
-    # check for finite stepsize
-    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+    # calculate step size based on type of regression
+    if glm == "normal"
+        μ = _normal_stepsize(v, mean_vec, std_vec, storage)
+    elseif glm == "logistic"
+        μ = _logistic_stepsize(v, mean_vec, std_vec, storage)
+    else
+        throw(error("Currently IHT does not support specified glm method: " * glm))
+    end
 
     # compute gradient step
     _iht_gradstep(v, μ, J, k, temp_vec)
@@ -241,14 +227,16 @@ function iht!(
 end
 
 """
-    L0_reg run IHT on GWAS data for a given sparsity constraint k and J. 
+    L0_reg runs IHT on GWAS data for a given sparsity constraint k and J. 
+    GLM method is specified through the optional `glm` input.
 
 - `v` is a IHTVariable that holds many variables in the current and previous iteration. 
 - `x` is the SNP matrix
 - `z` is the non genetic covraiates. The grand mean (i.e. intercept) is the first column of this
 - `y` is the response (phenotype) vector
-- `J` is the maximum number of groups IHT should keep. When J = 1, we run normal IHT.  
+- `J` is the maximum number of groups IHT should keep. When J = 1, we run the usual IHT.  
 - `k` is the maximum number of predictors per group. 
+- `glm` is the generalized linear model option. Can be either logistic, poisson, normal = default
 - `use_maf` is a boolean. If true, IHT will scale each SNP using their minor allele frequency.
 - `mask_n` is a bit masking vector of booleans. It is used in cross-validation where certain samples are excluded from the model
 - `tol` and `max_iter` and `max_step` is self-explanatory.
@@ -261,6 +249,7 @@ function L0_reg(
     J        :: Int,
     k        :: Int;
     use_maf  :: Bool = false,
+    glm      :: String = "normal",
     mask_n   :: BitArray = trues(size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
@@ -344,7 +333,7 @@ function L0_reg(
         loss = next_loss
 
         #calculate the step size μ.
-        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, store, temp_vec, mm_iter, max_step)
+        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, glm, store, temp_vec, mm_iter, max_step)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb .- v.zc 

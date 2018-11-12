@@ -335,3 +335,75 @@ function save_prev!{T <: Float}(
     copy!(v.c0, v.c)     # c0 = c
     copy!(v.zc0, v.zc)   # Zc0 = Zc
 end
+
+"""
+This function computes the best step size μ for normal responses. 
+"""
+function _normal_stepsize{T <: Float}(
+    v        :: IHTVariable{T}
+    mean_vec :: Vector{T},
+    std_vec  :: Vector{T},
+    storage  :: Vector{Vector{T}}
+)
+    # store relevant components of gradient (gk is numerator of step size). 
+    v.gk .= view(v.df, v.idx)
+
+    # compute the denominator of step size, store it in xgk (recall gk = df[idx])
+    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
+
+    # compute z * df2 needed in the denominator of step size calculation
+    BLAS.A_mul_B!(v.zdf2, z, v.df2)
+
+    # warn if xgk only contains zeros
+    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+
+    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    μ = (((sum(abs2, v.gk) + sum(abs2, v.df2)) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
+
+    # check for finite stepsize
+    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+
+    return μ
+end
+
+"""
+This function computes the best step size μ for bernoulli responses. 
+"""
+function _logistic_stepsize{T <: Float}(
+    v        :: IHTVariable{T},
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T},
+    mean_vec :: Vector{T},
+    std_vec  :: Vector{T},
+    storage  :: Vector{Vector{T}}
+)
+    # store relevant components of x
+    v.xk .= view(x, :, v.idx)
+
+    #compute score direction = x^T * y
+    xt_y = zeros(size(v.xk, 2)) # k vector
+    zt_y = zeros(size(z, 2))    # scalar when z only has intercept
+    SnpArrays.At_mul_B!(xt_y, v.xk, view(y, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx), storage[3])
+    BLAS.At_mul_B!(zt_y, z, y)
+
+    #compute x * (x^T * y)
+    x_xt_y = zeros(size(x, 1)) # n vector
+    z_zt_y = zeros(size(z, 1)) # n vector
+    SnpArrays.A_mul_B!(x_xt_y, v.xk, xt_y, view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
+    BLAS.A_mul_B!(z_zt_y, z, y)
+
+    #compute the center of the information matrix
+    # SKIP FOR NOWWWWW HEHUEHUEHUEHUEHE
+
+    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    μ = (((sum(abs2, xt_y) + sum(abs2, zt_y)) / (sum(abs2, x_xt_y) + sum(abs2, z_zt_y)))) :: T
+
+    # check for finite stepsize
+    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+
+    return μ
+end
+
+
+
