@@ -110,6 +110,47 @@ function _iht_gradstep{T <: Float}(
 end
 
 """
+This function computes the score step v.b = P_k(β + μ(X^T (Y - P))) and updates idx and idc
+for logistic regression. 
+"""
+function _iht_gradstep_logistic{T <: Float}(
+    v        :: IHTVariable{T},
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T},
+    mean_vec :: Vector{T},
+    std_vec  :: Vector{T},
+    μ        :: T,
+    J        :: Int,
+    k        :: Int,
+    temp_vec :: Vector{T},
+    storage  :: Vector{Vector{T}}
+)
+    #compute score direction = x^T * y
+    # xt_y = zeros(size(x, 2))    # p vector
+    # zt_y = zeros(size(z, 2))    # scalar when z only has intercept
+    # SnpArrays.At_mul_B!(xt_y, x, y, mean_vec, std_vec, storage[1])
+    # BLAS.At_mul_B!(zt_y, z, y)
+
+    #take gradient step 
+    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ(X^T (Y - P))
+    BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ(X^T (Y - P))
+##
+    length_b = length(v.b)
+    temp_vec[1:length_b] .= v.b
+    temp_vec[length_b+1:end] .= v.c
+    project_group_sparse!(temp_vec, v.group, J, k) # project [v.b; v.c] to sparse vector
+    v.b .= view(temp_vec, 1:length_b)
+    v.c .= view(temp_vec, length_b+1:length(temp_vec))
+##
+    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
+    v.idc .= v.c .!= 0
+
+    # If the k'th largest component is not unique, warn the user.
+    sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
+end
+
+"""
 When initializing the IHT algorithm, take largest elements of each group of df as nonzero
 components of b. This function set v.idx = 1 for those indices.
 """
@@ -385,14 +426,14 @@ function _logistic_stepsize{T <: Float}(
     #compute score direction = x^T * y
     xt_y = zeros(size(v.xk, 2)) # k vector
     zt_y = zeros(size(z, 2))    # scalar when z only has intercept
-    SnpArrays.At_mul_B!(xt_y, v.xk, view(y, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx), storage[3])
+    SnpArrays.At_mul_B!(xt_y, v.xk, y, view(mean_vec, v.idx), view(std_vec, v.idx), storage[3])
     BLAS.At_mul_B!(zt_y, z, y)
 
     #compute x * (x^T * y)
     x_xt_y = zeros(size(x, 1)) # n vector
     z_zt_y = zeros(size(z, 1)) # n vector
     SnpArrays.A_mul_B!(x_xt_y, v.xk, xt_y, view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
-    BLAS.A_mul_B!(z_zt_y, z, y)
+    BLAS.A_mul_B!(z_zt_y, z, zt_y)
 
     #compute the center of the information matrix
     # SKIP FOR NOWWWWW HEHUEHUEHUEHUEHE
@@ -406,5 +447,21 @@ function _logistic_stepsize{T <: Float}(
     return μ
 end
 
+"""
+Checks whether y[i] == 1 or y[i] == 0. Returns true if condition satisfied. 
+"""
+function check_y_content{T <: Float}(
+    y   :: Vector{T},
+    glm :: String
+)
+    if glm == "logistic"
+        for i in 1:length(y)
+            if y[i] != 0 && y[i] != 1
+                throw(error("Logistic regression requires the response vector y to be 0 or 1"))
+            end
+        end
+    end
 
+    return nothing
+end
 
