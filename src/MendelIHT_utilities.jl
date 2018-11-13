@@ -126,12 +126,6 @@ function _iht_gradstep_logistic{T <: Float}(
     temp_vec :: Vector{T},
     storage  :: Vector{Vector{T}}
 )
-    #compute score direction = x^T * y
-    # xt_y = zeros(size(x, 2))    # p vector
-    # zt_y = zeros(size(z, 2))    # scalar when z only has intercept
-    # SnpArrays.At_mul_B!(xt_y, x, y, mean_vec, std_vec, storage[1])
-    # BLAS.At_mul_B!(zt_y, z, y)
-
     #take gradient step 
     BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ(X^T (Y - P))
     BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ(X^T (Y - P))
@@ -390,11 +384,8 @@ function _normal_stepsize{T <: Float}(
     # store relevant components of gradient (gk is numerator of step size). 
     v.gk .= view(v.df, v.idx)
 
-    # compute the denominator of step size, store it in xgk (recall gk = df[idx])
-    SnpArrays.A_mul_B!(v.xgk, v.xk, v.gk, view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
-
-    # compute z * df2 needed in the denominator of step size calculation
-    BLAS.A_mul_B!(v.zdf2, z, v.df2)
+    # compute the denominator of step size
+    A_mul_B!(v.xgk, v.zdf2, v.xk, z, v.gk, v.df2, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
@@ -426,6 +417,7 @@ function _logistic_stepsize{T <: Float}(
     #compute score direction = x^T * y
     xt_y = zeros(size(v.xk, 2)) # k vector
     zt_y = zeros(size(z, 2))    # scalar when z only has intercept
+
     SnpArrays.At_mul_B!(xt_y, v.xk, y, view(mean_vec, v.idx), view(std_vec, v.idx), storage[3])
     BLAS.At_mul_B!(zt_y, z, y)
 
@@ -448,12 +440,19 @@ function _logistic_stepsize{T <: Float}(
 end
 
 """
-Checks whether y[i] == 1 or y[i] == 0. Returns true if condition satisfied. 
+    Returns true if condition satisfied. 
+
+For logistic regression, checks whether y[i] == 1 or y[i] == 0. 
+For poisson regression, checks whether y is a vector of integer 
 """
 function check_y_content{T <: Float}(
     y   :: Vector{T},
     glm :: String
 )
+    if glm == "poisson"
+        @assert typeof(y) == Vector{Int} "Poisson regression requires the response vector y to be integer valued. "
+    end
+    
     if glm == "logistic"
         for i in 1:length(y)
             if y[i] != 0 && y[i] != 1
@@ -465,3 +464,48 @@ function check_y_content{T <: Float}(
     return nothing
 end
 
+"""
+This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
+where A1 is a snpmatrix and A2 is a dense Matrix{Float}. Used for cleaner code. 
+
+Here we are separating the computation because A1 is stored in compressed form while A2 is 
+uncompressed (float64) matrix. This means that they cannot be stored in the same data 
+structure. 
+"""
+function A_mul_B!{T <: Float}(
+    C1       :: AbstractVector{T},
+    C2       :: AbstractVector{T},
+    A1       :: SnpLike{2},
+    A2       :: AbstractMatrix{T},
+    B1       :: AbstractVector{T},
+    B2       :: AbstractVector{T},
+    mean_vec :: AbstractVector{T},
+    std_vec  :: AbstractVector{T},
+    storage  :: Vector{Vector{T}}
+)
+    SnpArrays.A_mul_B!(C1, A1, B1, mean_vec, std_vec, storage[2], storage[3])
+    BLAS.A_mul_B!(C2, A2, B2)
+end
+
+"""
+This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
+where A1 is a snpmatrix and A2 is a dense Matrix{Float}. Used for cleaner code. 
+
+Here we are separating the computation because A1 is stored in compressed form while A2 is 
+uncompressed (float64) matrix. This means that they cannot be stored in the same data 
+structure. 
+"""
+function At_mul_B!{T <: Float}(
+    C1       :: AbstractVector{T},
+    C2       :: AbstractVector{T},
+    A1       :: SnpLike{2},
+    A2       :: AbstractMatrix{T},
+    B1       :: AbstractVector{T},
+    B2       :: AbstractVector{T},
+    mean_vec :: AbstractVector{T},
+    std_vec  :: AbstractVector{T},
+    storage  :: Vector{Vector{T}}
+)
+    SnpArrays.At_mul_B!(C1, A1, B1, mean_vec, std_vec, storage[1])
+    BLAS.At_mul_B!(C2, A2, B2)
+end

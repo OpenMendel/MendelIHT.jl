@@ -189,8 +189,7 @@ function iht!(
 
     # update xb (needed to calculate ω to determine line search criteria)
     v.xk .= view(x, :, v.idx)
-    SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
-    BLAS.A_mul_B!(v.zc, z, v.c)
+    A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
     # calculate omega
     ω_top, ω_bot = _iht_omega(v)
@@ -218,8 +217,7 @@ function iht!(
 
         # recompute xb
         v.xk .= view(x, :, v.idx)
-        SnpArrays.A_mul_B!(v.xb, v.xk, view(v.b, v.idx), view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
-        BLAS.A_mul_B!(v.zc, z, v.c)
+        A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
         # calculate omega
         ω_top, ω_bot = _iht_omega(v)
@@ -331,9 +329,8 @@ function L0_reg(
     #     v.r[mask_n .== 0] .= 0
     # end
 
-    # Calculate the score v.df = -[X' ; Z']'(y) = [X' ; Z'](-1*(Y))
-    SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, store[1])
-    BLAS.At_mul_B!(v.df2, z, v.r)
+    # Calculate the score [v.df; v.df2] = -[X' ; Z']'(y) = [X' ; Z'](-1*(Y))
+    At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, store)
 
     for mm_iter = 1:max_iter
 
@@ -351,8 +348,7 @@ function L0_reg(
         v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
         # update v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
-        SnpArrays.At_mul_B!(v.df, x, v.r, mean_vec, std_vec, store[1])
-        BLAS.At_mul_B!(v.df2, z, v.r)
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, store)
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2
