@@ -109,40 +109,35 @@ function _iht_gradstep{T <: Float}(
     sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
 
-"""
-This function computes the score step v.b = P_k(β + μ(X^T (Y - P))) and updates idx and idc
-for logistic regression. 
-"""
-function _iht_gradstep_logistic{T <: Float}(
-    v        :: IHTVariable{T},
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    mean_vec :: Vector{T},
-    std_vec  :: Vector{T},
-    μ        :: T,
-    J        :: Int,
-    k        :: Int,
-    temp_vec :: Vector{T},
-    storage  :: Vector{Vector{T}}
-)
-    #take gradient step 
-    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ(X^T (Y - P))
-    BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ(X^T (Y - P))
-##
-    length_b = length(v.b)
-    temp_vec[1:length_b] .= v.b
-    temp_vec[length_b+1:end] .= v.c
-    project_group_sparse!(temp_vec, v.group, J, k) # project [v.b; v.c] to sparse vector
-    v.b .= view(temp_vec, 1:length_b)
-    v.c .= view(temp_vec, length_b+1:length(temp_vec))
-##
-    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
-    v.idc .= v.c .!= 0
+# """
+# This function computes the score step v.b = P_k(β + μ(X^T (Y - P))) and updates idx and idc
+# for logistic regression. 
+# """
+# function _iht_gradstep_logistic{T <: Float}(
+#     v        :: IHTVariable{T},
+#     μ        :: T,
+#     J        :: Int,
+#     k        :: Int,
+#     temp_vec :: Vector{T},
+#     storage  :: Vector{Vector{T}}
+# )
+#     #take gradient step 
+#     BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ(X^T (Y - P))
+#     BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ(X^T (Y - P))
+# ##
+#     length_b = length(v.b)
+#     temp_vec[1:length_b] .= v.b
+#     temp_vec[length_b+1:end] .= v.c
+#     project_group_sparse!(temp_vec, v.group, J, k) # project [v.b; v.c] to sparse vector
+#     v.b .= view(temp_vec, 1:length_b)
+#     v.c .= view(temp_vec, length_b+1:length(temp_vec))
+# ##
+#     v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
+#     v.idc .= v.c .!= 0
 
-    # If the k'th largest component is not unique, warn the user.
-    sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
-end
+#     # If the k'th largest component is not unique, warn the user.
+#     sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
+# end
 
 """
 When initializing the IHT algorithm, take largest elements of each group of df as nonzero
@@ -508,4 +503,23 @@ function At_mul_B!{T <: Float}(
 )
     SnpArrays.At_mul_B!(C1, A1, B1, mean_vec, std_vec, storage[1])
     BLAS.At_mul_B!(C2, A2, B2)
+end
+
+function update_df!{T <: Float}(
+    glm      :: String,
+    v        :: IHTVariable, 
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T},
+    mean_vec :: AbstractVector{T},
+    std_vec  :: AbstractVector{T},
+    storage  :: Vector{Vector{T}}
+)
+    if glm == "normal"
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
+    elseif glm == "logistic"
+        At_mul_B!(v.df, v.df2, x, z, y, y, mean_vec, std_vec, storage)
+    else
+        throw(error("unsupport glm method."))
+    end
 end
