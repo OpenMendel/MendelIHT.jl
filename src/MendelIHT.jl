@@ -233,6 +233,7 @@ function iht_logistic!(
     mean_vec  :: Vector{T},
     std_vec   :: Vector{T},
     glm       :: String,
+    old_logl  :: T,
     storage   :: Vector{Vector{T}},
     temp_vec  :: Vector{T},
     iter      :: Int,
@@ -268,11 +269,13 @@ function iht_logistic!(
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
     # calculate omega
-    ω_top, ω_bot = _iht_omega(v)
+    # ω_top, ω_bot = _iht_omega(v)
 
-    # backtrack until mu < omega and until support stabilizes
+    # calculate current loglikelihood
+    new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
+
     μ_step = 0
-    while _iht_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
+    while _iht_logistic_backtrack(new_logl, old_logl, μ_step, nstep)
 
         # stephalving
         μ /= 2
@@ -290,14 +293,16 @@ function iht_logistic!(
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
         # calculate omega
-        ω_top, ω_bot = _iht_omega(v)
+        # ω_top, ω_bot = _iht_omega(v)
+
+        # compute new loglikelihood again to see if we're now increasing
+        new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
 
         # increment the counter
         μ_step += 1
     end
 
     println("μ = " * string(μ) * "and μ_step = " * string(μ_step))
-    println("ω_top, ω_bot = " * string(ω_top) * ", " * string(ω_bot))
 
     return μ::T, μ_step::Int
 end
@@ -345,7 +350,7 @@ function L0_reg(
     next_loss = oftype(tol,Inf)   # loss function value
 
     # initialize floats
-    current_obj = oftype(tol,Inf) # tracks previous objective function value
+    # current_obj = oftype(tol,Inf) # tracks previous objective function value
     the_norm    = 0.0             # norm(b - b0)
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
     μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
@@ -483,10 +488,10 @@ function L0_logistic_reg(
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
     mm_time   = 0.0               # compute time *within* L0_reg
-    next_loss = oftype(tol,Inf)   # loss function value
+    next_logl = oftype(tol,-Inf)  # loglikelihood
 
     # initialize floats
-    current_obj = oftype(tol,Inf) # tracks previous objective function value
+    # current_obj = oftype(tol,Inf) # tracks previous objective function value
     the_norm    = 0.0             # norm(b - b0)
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
     μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
@@ -526,33 +531,33 @@ function L0_logistic_reg(
     # Begin IHT calculations
     #
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-    v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
+    # copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
+    # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
     # Calculate the score 
     update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
 
     for mm_iter = 1:max_iter
-        # save values from previous iterate and update loss
+        # save values from previous iterate and update loglikelihood
         save_prev!(v)
-        loss = next_loss
+        logl = next_logl
 
-        info("current iteration is " * string(mm_iter) * " and loss is " * string(loss))
+        info("current iteration is " * string(mm_iter) * " and loglikelihood is " * string(logl))
 
         #calculate the step size μ.
-        (μ, μ_step) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, store, temp_vec, mm_iter, max_step)
+        (μ, μ_step) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
-        v.r .= y .- v.xb .- v.zc 
-        v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
+        # v.r .= y .- v.xb .- v.zc 
+        # v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
         # update gradient (score): [v.df; v.df2] = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
         update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
 
-        # update loss, objective, gradient, and check objective is not NaN or Inf
-        next_loss = sum(abs2, v.r) / 2
-        !isnan(next_loss) || throw(error("Objective function is NaN, aborting..."))
-        !isinf(next_loss) || throw(error("Objective function is Inf, aborting..."))
+        # update loglikelihood and check it is not NaN or Inf
+        next_logl = compute_logl(v, x, z, y, glm, std_vec, mean_vec, store)
+        !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
+        !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))

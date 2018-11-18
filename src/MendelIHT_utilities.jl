@@ -217,6 +217,22 @@ function _iht_backtrack{T <: Float}(
 end
 
 """
+this function for determining whether or not to backtrack. True = backtrack
+"""
+function _iht_logistic_backtrack{T <: Float}(
+    logl      :: T, 
+    prev_logl :: T,
+    mu_step   :: Int,
+    nstep     :: Int
+)
+    println("previous loglikelihood is " * string(prev_logl))
+    println("current loglikelihood is " * string(logl))
+
+    prev_logl > logl &&
+    mu_step < nstep
+end
+
+"""
 Compute the standard deviation of a SnpArray in place
 """
 function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
@@ -567,4 +583,31 @@ function inverse_link!(
         p[i] = e^xβ / (1 + e^xβ)
     end
 end
+
+"""
+This function computes the loglikelihood of a model β for a given glm response
+"""
+function compute_logl{T <: Float}(
+    v        :: IHTVariable{T},
+    x        :: SnpLike{2},
+    z        :: Matrix{T},
+    y        :: Vector{T},
+    glm      :: String,
+    mean_vec :: AbstractVector{T},
+    std_vec  :: AbstractVector{T},
+    storage  :: Vector{Vector{T}}
+) 
+    if glm == "logistic"
+        Xβ = zeros(size(x, 1))
+        SnpArrays.A_mul_B!(Xβ, x, v.b, mean_vec, std_vec, storage[2], storage[1])
+        Xβ .+= z * v.c
+        return dot(y, Xβ) - sum(log.(1 .+ exp.(Xβ)))
+    else 
+        throw(error("currently compute_logl only supports logistic"))
+    end
+end
+
+
+
+
 
