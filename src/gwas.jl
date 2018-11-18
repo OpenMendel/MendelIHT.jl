@@ -32,7 +32,7 @@ function iht!(
     v.gk .= v.df[v.idx]
 
     # now compute subset of x*g
-    A_mul_B!(v.xgk, v.xk, v.gk)
+    Base.A_mul_B!(v.xgk, v.xk, v.gk)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")

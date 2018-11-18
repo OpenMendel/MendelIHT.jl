@@ -24,6 +24,7 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     zc0   :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
     zdf2  :: Vector{T}     # z * df2. needed to calculate non-genetic covariate contribution for denomicator of step size 
     group :: Vector{Int64} # vector denoting group membership
+    p     :: Vector{T}     # vector storing the mean of a glm: p = g^{-1}( Xβ )
 end
 
 function IHTVariables{T <: Float}(
@@ -56,8 +57,9 @@ function IHTVariables{T <: Float}(
     zc0   = zeros(T, n)
     zdf2  = zeros(T, n)
     group = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
+    p     = zeros(T, n)
 
-    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group)
+    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p)
 end
 
 """
@@ -187,6 +189,11 @@ this function calculates the omega (here a / b) used for determining backtrackin
 function _iht_omega{T <: Float}(
     v :: IHTVariable{T}
 )
+    # println("previous model is " * string(v.b0[find(v.b0)]))
+    # println("current model is " * string(v.b[find(v.b)]))
+    # println("previous intercept is " * string(v.c0))
+    # println("current intercept is " * string(v.c))
+
     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
     b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
     return a, b
@@ -369,7 +376,7 @@ end
 """
 This function computes the best step size μ for normal responses. 
 """
-function _normal_stepsize{T <: Float}(
+function _iht_stepsize{T <: Float}(
     v        :: IHTVariable{T},
     z        :: Matrix{T},
     mean_vec :: Vector{T},
@@ -379,14 +386,14 @@ function _normal_stepsize{T <: Float}(
     # store relevant components of gradient (gk is numerator of step size). 
     v.gk .= view(v.df, v.idx)
 
-    # compute the denominator of step size
-    A_mul_B!(v.xgk, v.zdf2, v.xk, z, v.gk, v.df2, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+    # compute the denominator of step size using only relevant components 
+    A_mul_B!(v.xgk, v.zdf2, v.xk, z, v.gk, view(v.df2, v.idc), view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
-    μ = (((sum(abs2, v.gk) + sum(abs2, v.df2)) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
+    μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
 
     # check for finite stepsize
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
@@ -398,35 +405,34 @@ end
 This function computes the best step size μ for bernoulli responses. 
 """
 function _logistic_stepsize{T <: Float}(
-    v        :: IHTVariable{T},
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    mean_vec :: Vector{T},
-    std_vec  :: Vector{T},
-    storage  :: Vector{Vector{T}}
+    v         :: IHTVariable{T},
+    x         :: SnpLike{2},
+    z         :: Matrix{T},
+    y         :: Vector{T},
+    mean_vec  :: Vector{T},
+    std_vec   :: Vector{T},
+    storage   :: Vector{Vector{T}}
 )
+
     # store relevant components of x
     v.xk .= view(x, :, v.idx)
 
-    #compute score direction = x^T * y
-    xt_y = zeros(size(v.xk, 2)) # k vector
-    zt_y = zeros(size(z, 2))    # scalar when z only has intercept
+    # store relevant components of gradient (gk is numerator of step size). 
+    v.gk .= view(v.df, v.idx)
 
-    SnpArrays.At_mul_B!(xt_y, v.xk, y, view(mean_vec, v.idx), view(std_vec, v.idx), storage[3])
-    BLAS.At_mul_B!(zt_y, z, y)
+    #compute J = X^T * P * X
+    X = convert(Matrix{T}, v.xk)
+    full_X = [X view(z, :, v.idc)]
+    J = full_X' * (diag(v.p) * full_X)
 
-    #compute x * (x^T * y)
-    x_xt_y = zeros(size(x, 1)) # n vector
-    z_zt_y = zeros(size(z, 1)) # n vector
-    SnpArrays.A_mul_B!(x_xt_y, v.xk, xt_y, view(mean_vec, v.idx), view(std_vec, v.idx), storage[2], storage[3])
-    BLAS.A_mul_B!(z_zt_y, z, zt_y)
+    #compute denominator 
+    full_v = [v.gk ; view(v.df2, v.idc)]
+    denom = full_v' * (J * full_v)
 
-    #compute the center of the information matrix
-    # SKIP FOR NOWWWWW HEHUEHUEHUEHUEHE
+    println(denom)
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
-    μ = (((sum(abs2, xt_y) + sum(abs2, zt_y)) / (sum(abs2, x_xt_y) + sum(abs2, z_zt_y)))) :: T
+    μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
 
     # check for finite stepsize
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
@@ -505,21 +511,52 @@ function At_mul_B!{T <: Float}(
     BLAS.At_mul_B!(C2, A2, B2)
 end
 
+
+"""
+This function calculates the score (gradient) direction for different glm models, and stores
+the result in v.df and v.df2, where the former stores the gradient associated with the snpmatrix
+direction and the latter associates with the intercept + other non-genetic covariates. 
+
+For normal responses, score = ∇f(β) = -X^T (Y - Xβ)
+For logistics responses, score = -∇L(β) = -X^T (Y - P) (using logit link)
+For Poisson responses, score = -∇L(β) = X^T (Y - Λ)
+"""
 function update_df!{T <: Float}(
-    glm      :: String,
-    v        :: IHTVariable, 
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    mean_vec :: AbstractVector{T},
-    std_vec  :: AbstractVector{T},
-    storage  :: Vector{Vector{T}}
+    glm       :: String,
+    v         :: IHTVariable{T}, 
+    x         :: SnpLike{2},
+    z         :: Matrix{T},
+    y         :: Vector{T},
+    mean_vec  :: AbstractVector{T},
+    std_vec   :: AbstractVector{T},
+    storage   :: Vector{Vector{T}}
 )
     if glm == "normal"
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
     elseif glm == "logistic"
-        At_mul_B!(v.df, v.df2, x, z, y, y, mean_vec, std_vec, storage)
+        y_minus_p = y .- v.p
+        At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     else
         throw(error("unsupport glm method."))
     end
 end
+
+"""
+This function calculates the inverse link of a glm model: p = g^{-1}( Xβ )
+
+In poisson and logistic, the score (gradient) direction is X'(Y - P) where 
+p_i depends on x and β. This function updates this P vector. 
+"""
+function inverse_link!(
+    p :: AbstractVector{Float64},
+    x :: SnpLike{2},
+    z :: AbstractMatrix{Float64},
+    b :: AbstractVector{Float64},
+    c :: AbstractVector{Float64}
+)
+    @inbounds @simd for i in eachindex(p)
+        xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
+        p[i] = e^xβ / (1 + e^xβ)
+    end
+end
+
