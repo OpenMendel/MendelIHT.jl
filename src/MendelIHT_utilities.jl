@@ -408,10 +408,8 @@ function _logistic_stepsize{T <: Float}(
     v         :: IHTVariable{T},
     x         :: SnpLike{2},
     z         :: Matrix{T},
-    y         :: Vector{T},
     mean_vec  :: Vector{T},
     std_vec   :: Vector{T},
-    storage   :: Vector{Vector{T}}
 )
 
     # store relevant components of x
@@ -422,14 +420,13 @@ function _logistic_stepsize{T <: Float}(
 
     #compute J = X^T * P * X
     X = convert(Matrix{T}, v.xk)
+    normalize!(X, mean_vec, std_vec)
     full_X = [X view(z, :, v.idc)]
-    J = full_X' * (diag(v.p) * full_X)
+    J = full_X' * (diagm(v.p) * full_X)
 
     #compute denominator 
     full_v = [v.gk ; view(v.df2, v.idc)]
     denom = full_v' * (J * full_v)
-
-    println(denom)
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
@@ -438,6 +435,16 @@ function _logistic_stepsize{T <: Float}(
     isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
 
     return μ
+end
+
+function normalize!{T <: Float}(
+    X        :: Matrix{T},
+    mean_vec :: Vector{T},
+    std_vec  :: Vector{T}
+)
+    for i in 1:size(X, 2)
+        X[:, i] .= (X[:, i] .- mean_vec[i]) .* std_vec[i]
+    end
 end
 
 """
@@ -534,7 +541,8 @@ function update_df!{T <: Float}(
     if glm == "normal"
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
     elseif glm == "logistic"
-        y_minus_p = y .- v.p
+        inverse_link!(v.p, x, z, v.b, v.c) #first update the P vector
+        y_minus_p = y .- v.p               
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     else
         throw(error("unsupport glm method."))

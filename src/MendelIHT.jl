@@ -232,6 +232,7 @@ function iht_logistic!(
     k         :: Int,
     mean_vec  :: Vector{T},
     std_vec   :: Vector{T},
+    glm       :: String,
     storage   :: Vector{Vector{T}},
     temp_vec  :: Vector{T},
     iter      :: Int,
@@ -254,7 +255,7 @@ function iht_logistic!(
     end
 
     # calculate step size and take gradient (score) step based on type of regression
-    μ = _logistic_stepsize(v, z, mean_vec, std_vec, storage)
+    μ = _logistic_stepsize(v, x, z, mean_vec, std_vec)
 
     # take the gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
@@ -295,7 +296,8 @@ function iht_logistic!(
         μ_step += 1
     end
 
-    println("μ = " * string(μ) * ". ω_top, ω_bot = " * string(ω_top) * ", " * string(ω_bot))
+    println("μ = " * string(μ) * "and μ_step = " * string(μ_step))
+    println("ω_top, ω_bot = " * string(ω_top) * ", " * string(ω_bot))
 
     return μ::T, μ_step::Int
 end
@@ -445,7 +447,6 @@ end #function L0_reg
 - `J` is the maximum number of groups IHT should keep. When J = 1, we run the usual IHT.  
 - `k` is the maximum number of predictors per group. 
 - `glm` is the generalized linear model option. Can be either logistic, poisson, normal = default
-- `glm_scale` is a constant that some glm methods (e.g. logistic and poisson) would need to compute the information martix
 - `use_maf` is a boolean. If true, IHT will scale each SNP using their minor allele frequency.
 - `mask_n` is a bit masking vector of booleans. It is used in cross-validation where certain samples are excluded from the model
 - `tol` and `max_iter` and `max_step` is self-explanatory.
@@ -459,7 +460,6 @@ function L0_logistic_reg(
     k         :: Int;
     use_maf   :: Bool = false,
     glm       :: String = "normal",
-    glm_scale :: T = 0.0,
     mask_n    :: BitArray = trues(size(y)),
     tol       :: T = 1e-4,
     max_iter  :: Int = 200, # up from 100 for sometimes weighting takes more
@@ -529,9 +529,6 @@ function L0_logistic_reg(
     copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
     v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
-    #update the mean of glm 
-    inverse_link!(v.p, x, z, v.b, v.c) 
-
     # Calculate the score 
     update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
 
@@ -543,7 +540,7 @@ function L0_logistic_reg(
         info("current iteration is " * string(mm_iter) * " and loss is " * string(loss))
 
         #calculate the step size μ.
-        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, glm, glm_scale, store, temp_vec, mm_iter, max_step)
+        (μ, μ_step) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, store, temp_vec, mm_iter, max_step)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb .- v.zc 

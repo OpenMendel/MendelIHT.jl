@@ -185,7 +185,9 @@ y .= round.(y)                     #map y to 0, 1
 scale = sum(y) / n
 estimated_models = zeros(k)
 v = IHTVariables(x, z, y, 1, k)
-result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic", glm_scale = scale)
+result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic")
+
+#check result
 estimated_models .= result.beta[correct_position]
 
 
