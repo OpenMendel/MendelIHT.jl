@@ -225,9 +225,6 @@ function _iht_logistic_backtrack{T <: Float}(
     mu_step   :: Int,
     nstep     :: Int
 )
-    println("previous loglikelihood is " * string(prev_logl))
-    println("current loglikelihood is " * string(logl))
-
     prev_logl > logl &&
     mu_step < nstep
 end
@@ -558,7 +555,7 @@ function update_df!{T <: Float}(
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
     elseif glm == "logistic"
         inverse_link!(v.p, x, z, v.b, v.c) #first update the P vector
-        y_minus_p = y .- v.p               
+        y_minus_p = y - v.p
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     else
         throw(error("unsupport glm method."))
@@ -601,7 +598,7 @@ function compute_logl{T <: Float}(
         Xβ = zeros(size(x, 1))
         SnpArrays.A_mul_B!(Xβ, x, v.b, mean_vec, std_vec, storage[2], storage[1])
         Xβ .+= z * v.c
-        return dot(y, Xβ) - sum(log.(1 .+ exp.(Xβ)))
+        return dot(y, Xβ) - sum(log.(1.0 .+ exp.(Xβ)))
     else 
         throw(error("currently compute_logl only supports logistic"))
     end

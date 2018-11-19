@@ -275,6 +275,7 @@ function iht_logistic!(
     new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
 
     μ_step = 0
+    println("new estimated loglikelihood before backtracking is " * string(new_logl))
     while _iht_logistic_backtrack(new_logl, old_logl, μ_step, nstep)
 
         # stephalving
@@ -300,9 +301,11 @@ function iht_logistic!(
 
         # increment the counter
         μ_step += 1
+
+        println("after " * string(μ_step) * " backtracking, loglikelihood is " * string(new_logl))
     end
 
-    println("μ = " * string(μ) * "and μ_step = " * string(μ_step))
+    println("μ = " * string(μ) * " and μ_step = " * string(μ_step))
 
     return μ::T, μ_step::Int
 end
@@ -537,27 +540,38 @@ function L0_logistic_reg(
     # Calculate the score 
     update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
 
+    info("loglikelihood is initialized to be " * string(next_logl))
+
+
+
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
         save_prev!(v)
         logl = next_logl
 
-        info("current iteration is " * string(mm_iter) * " and loglikelihood is " * string(logl))
-
         #calculate the step size μ.
         (μ, μ_step) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
+
+        next_logl = compute_logl(v, x, z, y, glm, std_vec, mean_vec, store)
+        println("right after iht_logistic!, loglikelihood is " * string(next_logl))
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         # v.r .= y .- v.xb .- v.zc 
         # v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
-        # update gradient (score): [v.df; v.df2] = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
+        # update gradient (score)
         update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
 
         # update loglikelihood and check it is not NaN or Inf
         next_logl = compute_logl(v, x, z, y, glm, std_vec, mean_vec, store)
         !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
+
+
+
+        info("current iteration is " * string(mm_iter) * " and loglikelihood is " * string(next_logl))
+
+
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
