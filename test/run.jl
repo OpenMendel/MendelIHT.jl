@@ -151,8 +151,8 @@ using Distributions
 srand(1111) 
 
 #specify dimension and noise of data
-n = 5000                        # number of cases
-p = 30000                       # number of predictors
+n = 1000                        # number of cases
+p = 10000                       # number of predictors
 k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
@@ -189,9 +189,11 @@ result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic")
 
 #check result
 estimated_models .= result.beta[correct_position]
-
-
-
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    noise_level_1    = estimated_models)
 
 
 

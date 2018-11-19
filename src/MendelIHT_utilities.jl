@@ -433,9 +433,9 @@ function _logistic_stepsize{T <: Float}(
 
     #compute J = X^T * P * X
     X = convert(Matrix{T}, v.xk)
-    normalize!(X, mean_vec, std_vec)
+    normalize!(X, view(mean_vec, v.idx), view(std_vec, v.idx))
     full_X = [X view(z, :, v.idc)]
-    J = full_X' * (diagm(v.p) * full_X)
+    J = full_X' * (diagm(v.p .* (1.0 .- v.p)) * full_X)
 
     #compute denominator 
     full_v = [v.gk ; view(v.df2, v.idc)]
@@ -451,10 +451,12 @@ function _logistic_stepsize{T <: Float}(
 end
 
 function normalize!{T <: Float}(
-    X        :: Matrix{T},
-    mean_vec :: Vector{T},
-    std_vec  :: Vector{T}
+    X        :: AbstractMatrix{T},
+    mean_vec :: AbstractVector{T},
+    std_vec  :: AbstractVector{T}
 )
+
+    @assert size(X, 2) == length(mean_vec) "normalize!: X and mean_vec have different size"
     for i in 1:size(X, 2)
         X[:, i] .= (X[:, i] .- mean_vec[i]) .* std_vec[i]
     end
@@ -554,7 +556,8 @@ function update_df!{T <: Float}(
     if glm == "normal"
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
     elseif glm == "logistic"
-        inverse_link!(v.p, x, z, v.b, v.c) #first update the P vector
+        # inverse_link!(v.p, x, z, v.b, v.c) #first update the P vector
+        inverse_link!(v) #first update the P vector
         y_minus_p = y - v.p
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     else
@@ -575,11 +578,23 @@ function inverse_link!(
     b :: AbstractVector{Float64},
     c :: AbstractVector{Float64}
 )
+
+    # ACTUALLY THIS FUNCTION IS NOT CORRECT SINCE X IS NOT STANDARDIZED
     @inbounds @simd for i in eachindex(p)
         xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
         p[i] = e^xβ / (1 + e^xβ)
     end
 end
+
+function inverse_link!{T <: Float}(
+    v :: IHTVariable{T}
+)
+    @inbounds @simd for i in eachindex(v.p)
+        # xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
+        v.p[i] = e^(v.xb[i] + v.zc[i]) / (1 + e^(v.xb[i] + v.zc[i]))
+    end
+end
+
 
 """
 This function computes the loglikelihood of a model β for a given glm response
@@ -595,10 +610,12 @@ function compute_logl{T <: Float}(
     storage  :: Vector{Vector{T}}
 ) 
     if glm == "logistic"
-        Xβ = zeros(size(x, 1))
-        SnpArrays.A_mul_B!(Xβ, x, v.b, mean_vec, std_vec, storage[2], storage[1])
-        Xβ .+= z * v.c
-        return dot(y, Xβ) - sum(log.(1.0 .+ exp.(Xβ)))
+        # Xβ = zeros(size(x, 1))
+        # SnpArrays.A_mul_B!(Xβ, x, v.b, mean_vec, std_vec, storage[2], storage[1])
+        # Xβ .+= z * v.c
+        # return dot(y, Xβ) - sum(log.(1.0 .+ exp.(Xβ)))
+        return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc)))
+
     else 
         throw(error("currently compute_logl only supports logistic"))
     end

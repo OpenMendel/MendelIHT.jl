@@ -556,7 +556,7 @@ function L0_logistic_reg(
         # v.r .= y .- v.xb .- v.zc 
         # v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
-        # update gradient (score)
+        # update gradient (score) and p vector
         update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
 
         # check loglikelihood is not NaN or Inf
@@ -578,8 +578,8 @@ function L0_logistic_reg(
 
         if mm_iter == max_iter
             mm_time = toq() # stop time
-            throw(error("Did not converge!!!!! The run time for IHT was " *
-                string(mm_time) * "seconds"))
+            println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds")
+            return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end
 end #function L0_logistic_reg
