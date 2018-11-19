@@ -307,7 +307,7 @@ function iht_logistic!(
 
     println("μ = " * string(μ) * " and μ_step = " * string(μ_step))
 
-    return μ::T, μ_step::Int
+    return μ::T, μ_step::Int, new_logl::T
 end
 
 """
@@ -550,10 +550,7 @@ function L0_logistic_reg(
         logl = next_logl
 
         #calculate the step size μ.
-        (μ, μ_step) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
-
-        next_logl = compute_logl(v, x, z, y, glm, std_vec, mean_vec, store)
-        println("right after iht_logistic!, loglikelihood is " * string(next_logl))
+        (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         # v.r .= y .- v.xb .- v.zc 
@@ -562,15 +559,11 @@ function L0_logistic_reg(
         # update gradient (score)
         update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
 
-        # update loglikelihood and check it is not NaN or Inf
-        next_logl = compute_logl(v, x, z, y, glm, std_vec, mean_vec, store)
+        # check loglikelihood is not NaN or Inf
         !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
 
-
-
         info("current iteration is " * string(mm_iter) * " and loglikelihood is " * string(next_logl))
-
 
 
         # track convergence
@@ -580,7 +573,7 @@ function L0_logistic_reg(
 
         if converged && mm_iter > 1
             mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.c, J, k, v.group)
+            return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
