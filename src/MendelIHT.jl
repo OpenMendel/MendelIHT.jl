@@ -251,27 +251,32 @@ function iht_logistic!(
     end
 
     # store relevant columns of x.
-    if (!isequal(v.idx, v.idx0) && !isequal(v.idc, v.idc0)) || iter < 2
-        copy!(v.xk, view(x, :, v.idx))
-    end
+    # if (!isequal(v.idx, v.idx0) && !isequal(v.idc, v.idc0)) || iter < 2
+    #     copy!(v.xk, view(x, :, v.idx))
+    # end
 
-    # calculate step size and take gradient (score) step based on type of regression
+    # calculate step size 
     μ = _logistic_stepsize(v, x, z, mean_vec, std_vec)
 
-    # take the gradient step v.b = P_k(β + μv) where v is the score direction
+    # update b and c by taking gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
 
+    # perform debiasing (i.e. fit b on its support)
+    # xk = convert(Matrix{Float64}, v.xk)
+    # (estimate, obj) = regress(xk, y, glm)
+    # view(v.b, v.idx) .= estimate
+    
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v, storage) 
 
-    # update xb (needed to calculate ω to determine line search criteria)
+    # update xb and zc with the new computed b and c
     v.xk .= view(x, :, v.idx)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
     # calculate omega
     # ω_top, ω_bot = _iht_omega(v)
 
-    # calculate current loglikelihood
+    # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
 
     μ_step = 0
@@ -285,6 +290,11 @@ function iht_logistic!(
         copy!(v.b, v.b0)
         copy!(v.c, v.c0)
         _iht_gradstep(v, μ, J, k, temp_vec)
+
+        # perform debiasing (i.e. fit b on its support)
+        # xk = convert(Matrix{Float64}, v.xk)
+        # (estimate, obj) = regress(xk, y, glm)
+        # view(v.b, v.idx) .= estimate
 
         # make necessary resizing since grad step might include/exclude non-genetic covariates
         check_covariate_supp!(v, storage) 
@@ -549,27 +559,24 @@ function L0_logistic_reg(
         save_prev!(v)
         logl = next_logl
 
-        #calculate the step size μ.
+        #calculate the step size μ and check loglikelihood is not NaN or Inf
         (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
+        !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
+        !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         # v.r .= y .- v.xb .- v.zc 
         # v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
-        # update gradient (score) and p vector
+        # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
-
-        # check loglikelihood is not NaN or Inf
-        !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
-        !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
-
-        info("current iteration is " * string(mm_iter) * " and loglikelihood is " * string(next_logl))
-
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
+
+        info("current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * "and scaled norm is " * string(scaled_norm))
 
         if converged && mm_iter > 1
             mm_time = toq()   # stop time

@@ -94,8 +94,8 @@ function _iht_gradstep{T <: Float}(
     k :: Int,
     temp_vec :: Vector{T}
 )
-    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ∇f(b)
-    BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ∇f(b)
+    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μv, v = score
+    BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μv, v = score
 ##
     length_b = length(v.b)
     temp_vec[1:length_b] .= v.b
@@ -424,7 +424,8 @@ function _logistic_stepsize{T <: Float}(
     mean_vec  :: Vector{T},
     std_vec   :: Vector{T},
 )
-
+    #BELOW IS ASSUMING WE IDENTIFIED CORRECT SUPPORT: THUS THE STEP SIZE CALCULATION
+    #COMUPTES NUMERATOR AND DENOMINATOR USING ONLY THE SUPPORT SET
     # store relevant components of x
     v.xk .= view(x, :, v.idx)
 
@@ -435,17 +436,34 @@ function _logistic_stepsize{T <: Float}(
     X = convert(Matrix{T}, v.xk)
     normalize!(X, view(mean_vec, v.idx), view(std_vec, v.idx))
     full_X = [X view(z, :, v.idc)]
-    J = full_X' * (diagm(v.p .* (1.0 .- v.p)) * full_X)
+    J = full_X' * (diagm(v.p .* (1.0 .- v.p)) * full_X) #J = (p + q) by (p + q)
 
     #compute denominator 
-    full_v = [v.gk ; view(v.df2, v.idc)]
+    full_v = [view(v.df, v.idx) ; view(v.df2, v.idc)]
     denom = full_v' * (J * full_v)
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
 
-    # check for finite stepsize
-    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+
+
+
+
+    #compute J = X^T * P * X
+    # X = convert(Matrix{T}, x)
+    # normalize!(X, mean_vec, std_vec)
+    # full_X = [X z]
+    # J = full_X' * (diagm(v.p .* (1.0 .- v.p)) * full_X) #J = (p + q) by (p + q)
+
+    # #compute denominator 
+    # full_v = [v.df ; v.df2]
+    # denom = full_v' * (J * full_v)
+
+    # # compute step size.
+    # μ = (sum(abs2, full_v) / denom) :: T
+
+    # # check for finite stepsize
+    # isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
 
     return μ
 end
@@ -556,8 +574,8 @@ function update_df!{T <: Float}(
     if glm == "normal"
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
     elseif glm == "logistic"
-        # inverse_link!(v.p, x, z, v.b, v.c) #first update the P vector
-        inverse_link!(v) #first update the P vector
+        # inverse_link!(v)     #first update the P vector
+        v.p .= logistic.(v.xb) #first update the P vector
         y_minus_p = y - v.p
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     else
@@ -571,27 +589,12 @@ This function calculates the inverse link of a glm model: p = g^{-1}( Xβ )
 In poisson and logistic, the score (gradient) direction is X'(Y - P) where 
 p_i depends on x and β. This function updates this P vector. 
 """
-function inverse_link!(
-    p :: AbstractVector{Float64},
-    x :: SnpLike{2},
-    z :: AbstractMatrix{Float64},
-    b :: AbstractVector{Float64},
-    c :: AbstractVector{Float64}
-)
-
-    # ACTUALLY THIS FUNCTION IS NOT CORRECT SINCE X IS NOT STANDARDIZED
-    @inbounds @simd for i in eachindex(p)
-        xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
-        p[i] = e^xβ / (1 + e^xβ)
-    end
-end
-
 function inverse_link!{T <: Float}(
     v :: IHTVariable{T}
 )
     @inbounds @simd for i in eachindex(v.p)
         # xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
-        v.p[i] = e^(v.xb[i] + v.zc[i]) / (1 + e^(v.xb[i] + v.zc[i]))
+        v.p[i] = 1.0 / (1.0 + e^(-v.xb[i] - v.zc[i]))
     end
 end
 
@@ -614,10 +617,10 @@ function compute_logl{T <: Float}(
         # SnpArrays.A_mul_B!(Xβ, x, v.b, mean_vec, std_vec, storage[2], storage[1])
         # Xβ .+= z * v.c
         # return dot(y, Xβ) - sum(log.(1.0 .+ exp.(Xβ)))
-        return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc)))
-
+        return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) 
+        # return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) - 30.0*(norm(v.b, 2) + norm(v.c, 2)) 
     else 
-        throw(error("currently compute_logl only supports logistic"))
+        error("compute_logl: currently only supports logistic")
     end
 end
 

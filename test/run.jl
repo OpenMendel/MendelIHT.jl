@@ -146,13 +146,14 @@ using IHT
 using SnpArrays
 using DataFrames
 using Distributions
+using StatsFuns: logistic
 
 #set random seed
 srand(1111) 
 
 #specify dimension and noise of data
-n = 1000                        # number of cases
-p = 10000                       # number of predictors
+n = 5000                        # number of cases
+p = 30000                       # number of predictors
 k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
@@ -177,14 +178,19 @@ y_temp = zeros(n)
 SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
 y_temp .+= noise #add some noise
 
+# # Apply inverse logit link to map y to {0, 1} 
+# y_old = 1 ./ (1 .+ exp.(-y_temp)) #inverse logit link
+# y_old .= round.(y_old)                     #map y to 0, 1
+
 # Apply inverse logit link to map y to {0, 1} 
-y = 1 ./ (1 .+ exp.(-y_temp)) #inverse logit link
-y .= round.(y)                     #map y to 0, 1
+y = logistic.(y_temp)               #inverse logit link
+y = Float64.(rand(length(y)) .< y)  #map y to 0, 1
 
 #compute logistic IHT result
 scale = sum(y) / n
 estimated_models = zeros(k)
 v = IHTVariables(x, z, y, 1, k)
+# result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic", max_iter = 30)
 result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic")
 
 #check result
@@ -193,7 +199,8 @@ true_model = true_b[correct_position]
 compare_model = DataFrame(
     correct_position = correct_position, 
     true_β           = true_model, 
-    noise_level_1    = estimated_models)
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(result.iter))
 
 
 
@@ -270,6 +277,83 @@ function test()
 	shuffle!(β)
 	e^dot(x, β) / (1 + e^dot(x, β))
 end
+
+using BenchmarkTools
+srand(111)
+function test()
+	n = 100
+	M = zeros(n, n)
+	V = [rand(n, n) for _ in 1:40]
+	for i in 1:40
+		M = M + V[i]
+	end
+end
+@benchmark test()
+
+n = 100
+M = zeros(n, n)
+V = [rand(n, n) for _ in 1:40]
+function test(hi::Matrix{Float64}, hii::Vector{Matrix{Float64}})
+	for i in 1:40
+		hi = hi + hii[i]
+	end
+end
+test(M, V)
+
+n = 100
+M = zeros(n, n)
+V = [rand(n, n) for _ in 1:40]
+function test2(hi::Matrix{Float64}, hii::Vector{Matrix{Float64}})
+	for i in 1:40
+		hi .+= hii[i]
+	end
+end
+test2(M, V)
+
+
+using BenchmarkTools
+srand(111)
+function test2()
+	n = 100
+	M = zeros(n, n)
+	V = [rand(n, n) for _ in 1:40]
+	for i in 1:size(V, 1)
+		M .+= V[i]
+	end
+end
+@benchmark test2()
+
+
+
+using StatsFuns: logistic
+X = randn(1000, 2)
+Y = X * [2, 3] .+ 1
+p = logistic.(Y)
+y = Float64.(rand(length(p)) .< p)
+
+
+
+
+
+function inverse_link!{T <: Float64}(
+    p :: Vector{T},
+    xb :: Vector{T}
+)
+    @inbounds @simd for i in eachindex(p)
+        p[i] = 1.0 / (1.0 + e^(-xb[i]))
+    end
+end
+
+using StatsFuns: logistic
+p = zeros(1000000)
+xb = randn(1000000)
+inverse_link!(p, xb)
+p2 = logistic.(xb)
+
+all(p2 .== p)
+
+@benchmark inverse_link!(p, xb)
+@benchmark logistic.(xb)
 
 
 

@@ -8,6 +8,7 @@ using Gadfly
 using MendelBase
 using SnpArrays
 using StatsBase
+using StatsFuns: logistic
 
 ### idea from Julio Hoffimann Mendes to conditionally load OpenCL module
 # only load if Julia can find OpenCL module
