@@ -61,12 +61,14 @@ try
 catch e
     warn("IHT.jl failed to load GPU functions!")
 end
-include("gwas.jl")
-include("cv.jl")
+# include("gwas.jl")
+# include("cv.jl")
 include("hardthreshold.jl")
 #include("aiht.jl")
 #include("log.jl")
+include("data_structures.jl")
 include("MendelIHT_utilities.jl")
 include("MendelIHT.jl")
+include("gwas_logistic.jl")
 
 end # end module IHT
