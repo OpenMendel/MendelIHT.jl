@@ -46,6 +46,7 @@ export cv_get_folds
 export cv_log
 export MendelIHT
 export L0_logistic_reg
+export L0_poisson_reg
 
 export IHTVariable, IHTVariables, use_A2_as_minor_allele
 export project_k!, std_reciprocal, project_group_sparse!
@@ -70,5 +71,6 @@ include("data_structures.jl")
 include("MendelIHT_utilities.jl")
 include("MendelIHT.jl")
 include("gwas_logistic.jl")
+include("gwas_poisson.jl")
 
 end # end module IHT

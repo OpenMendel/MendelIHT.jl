@@ -326,6 +326,7 @@ function _logistic_stepsize{T <: Float}(
 )
     #BELOW IS ASSUMING WE IDENTIFIED CORRECT SUPPORT: THUS THE STEP SIZE CALCULATION
     #COMUPTES NUMERATOR AND DENOMINATOR USING ONLY THE SUPPORT SET
+
     # store relevant components of x
     v.xk .= view(x, :, v.idx)
 
@@ -368,6 +369,36 @@ function _logistic_stepsize{T <: Float}(
     return μ
 end
 
+function _poisson_stepsize{T <: Float}(
+    v         :: IHTVariable{T},
+    x         :: SnpLike{2},
+    z         :: Matrix{T},
+    mean_vec  :: Vector{T},
+    std_vec   :: Vector{T},
+)
+    #BELOW IS ASSUMING WE IDENTIFIED CORRECT SUPPORT: THUS THE STEP SIZE CALCULATION
+    #COMUPTES NUMERATOR AND DENOMINATOR USING ONLY THE SUPPORT SET
+    
+    # store relevant components of x
+    v.xk .= view(x, :, v.idx)
+
+    # store relevant components of gradient (gk is numerator of step size). 
+    v.gk .= view(v.df, v.idx)
+
+    #compute J = X^T * P * X
+    X = convert(Matrix{T}, v.xk)
+    normalize!(X, view(mean_vec, v.idx), view(std_vec, v.idx))
+    full_X = [X view(z, :, v.idc)]
+    J = full_X' * (diagm(v.p) * full_X) #J = (p + q) by (p + q)
+
+    #compute denominator 
+    full_v = [view(v.df, v.idx) ; view(v.df2, v.idc)]
+    denom = full_v' * (J * full_v)
+
+    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
+end
+
 function normalize!{T <: Float}(
     X        :: AbstractMatrix{T},
     mean_vec :: AbstractVector{T},
@@ -386,12 +417,16 @@ end
 For logistic regression, checks whether y[i] == 1 or y[i] == 0. 
 For poisson regression, checks whether y is a vector of integer 
 """
-function check_y_content{T <: Float}(
+function check_y_content(
     y   :: Vector{T},
     glm :: String
-)
+) where {T <: Float}
     if glm == "poisson"
-        @assert typeof(y) == Vector{Int} "Poisson regression requires the response vector y to be integer valued. "
+        try
+            convert(Vector{Int64}, y)
+        catch e
+            warn("cannot convert response vector y to be integer valued. Please check if y is count data.")
+        end
     end
     
     if glm == "logistic"
@@ -461,7 +496,7 @@ For normal responses, score = ∇f(β) = -X^T (Y - Xβ)
 For logistics responses, score = -∇L(β) = -X^T (Y - P) (using logit link)
 For Poisson responses, score = -∇L(β) = X^T (Y - Λ)
 """
-function update_df!{T <: Float}(
+function update_df!(
     glm       :: String,
     v         :: IHTVariable{T}, 
     x         :: SnpLike{2},
@@ -470,7 +505,7 @@ function update_df!{T <: Float}(
     mean_vec  :: AbstractVector{T},
     std_vec   :: AbstractVector{T},
     storage   :: Vector{Vector{T}}
-)
+) where {T <: Float}
     if glm == "normal"
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
     elseif glm == "logistic"
@@ -478,25 +513,29 @@ function update_df!{T <: Float}(
         v.p .= logistic.(v.xb) #first update the P vector
         y_minus_p = y - v.p
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
+    elseif glm == "poisson"
+        v.p .= exp.(v.xb)      #first update the P vector
+        y_minus_p = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     else
         throw(error("unsupport glm method."))
     end
 end
 
-"""
-This function calculates the inverse link of a glm model: p = g^{-1}( Xβ )
+# """
+# This function calculates the inverse link of a glm model: p = g^{-1}( Xβ )
 
-In poisson and logistic, the score (gradient) direction is X'(Y - P) where 
-p_i depends on x and β. This function updates this P vector. 
-"""
-function inverse_link!{T <: Float}(
-    v :: IHTVariable{T}
-)
-    @inbounds @simd for i in eachindex(v.p)
-        # xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
-        v.p[i] = 1.0 / (1.0 + e^(-v.xb[i] - v.zc[i]))
-    end
-end
+# In poisson and logistic, the score (gradient) direction is X'(Y - P) where 
+# p_i depends on x and β. This function updates this P vector. 
+# """
+# function inverse_link!{T <: Float}(
+#     v :: IHTVariable{T}
+# )
+#     @inbounds @simd for i in eachindex(v.p)
+#         # xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
+#         v.p[i] = 1.0 / (1.0 + e^(-v.xb[i] - v.zc[i]))
+#     end
+# end
 
 
 """
@@ -513,14 +552,15 @@ function compute_logl{T <: Float}(
     storage  :: Vector{Vector{T}}
 ) 
     if glm == "logistic"
-        # Xβ = zeros(size(x, 1))
-        # SnpArrays.A_mul_B!(Xβ, x, v.b, mean_vec, std_vec, storage[2], storage[1])
-        # Xβ .+= z * v.c
-        # return dot(y, Xβ) - sum(log.(1.0 .+ exp.(Xβ)))
         return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) 
-        # return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) - 30.0*(norm(v.b, 2) + norm(v.c, 2)) 
+    elseif glm == "poisson"
+        println(dot(y, v.xb + v.zc))
+        println(- sum(exp.(v.xb + v.zc)))
+        println(- sum(lfact.(Int.(y))))
+        return hihiiii
+        return dot(y, v.xb + v.zc) - sum(exp.(v.xb + v.zc)) - sum(lfact.(Int.(y)))
     else 
-        error("compute_logl: currently only supports logistic")
+        error("compute_logl: currently only supports logistic and poisson")
     end
 end
 

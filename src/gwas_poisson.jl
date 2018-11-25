@@ -48,7 +48,7 @@ function iht_poisson!(
     # end
 
     # calculate step size 
-    μ = _logistic_stepsize(v, x, z, mean_vec, std_vec)
+    μ = _poisson_stepsize(v, x, z, mean_vec, std_vec)
 
     # update b and c by taking gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
@@ -169,7 +169,7 @@ function L0_poisson_reg(
     # current_obj = oftype(tol,Inf) # tracks previous objective function value
     the_norm    = 0.0             # norm(b - b0)
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
-    μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
+    # μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
     mu_step = 0                   # counts number of backtracking steps for mu
@@ -222,7 +222,7 @@ function L0_poisson_reg(
         logl = next_logl
 
         #calculate the step size μ and check loglikelihood is not NaN or Inf
-        (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
+        (μ, μ_step, next_logl) = iht_poisson!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
         !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
 
