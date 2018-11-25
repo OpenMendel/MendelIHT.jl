@@ -152,8 +152,8 @@ using StatsFuns: logistic
 srand(1111) 
 
 #specify dimension and noise of data
-n = 1000                        # number of cases
-p = 100000                       # number of predictors
+n = 5000                        # number of cases
+p = 30000                       # number of predictors
 k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
@@ -191,7 +191,6 @@ y = Float64.(hi .< y)  #map y to 0, 1
 scale = sum(y) / n
 estimated_models = zeros(k)
 v = IHTVariables(x, z, y, 1, k)
-# result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic", max_iter = 30)
 result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic")
 
 #check result
@@ -239,7 +238,7 @@ std_vec = std_reciprocal(x, mean_vec)
 #simulate phenotypes under different noises by: y = Xb + noise
 y_temp = zeros(n)
 SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
-y_temp .+= noise #add some noise
+# y_temp .+= noise #add some noise
 
 # Apply inverse logit link to map y to {0, 1} 
 # poisson = 

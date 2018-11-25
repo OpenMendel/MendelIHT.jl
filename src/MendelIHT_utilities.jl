@@ -155,7 +155,7 @@ end
 """
 this function for determining whether or not to backtrack. True = backtrack
 """
-function _iht_logistic_backtrack{T <: Float}(
+function _iht_glm_backtrack{T <: Float}(
     logl      :: T, 
     prev_logl :: T,
     mu_step   :: Int,
@@ -509,12 +509,12 @@ function update_df!(
     if glm == "normal"
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
     elseif glm == "logistic"
-        # inverse_link!(v)     #first update the P vector
-        v.p .= logistic.(v.xb) #first update the P vector
+        # inverse_link!(v)            #first update the P vector
+        v.p .= logistic.(v.xb + v.zc) #first update the P vector
         y_minus_p = y - v.p
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     elseif glm == "poisson"
-        v.p .= exp.(v.xb)      #first update the P vector
+        v.p .= exp.(v.xb + v.zc)      #first update the P vector
         y_minus_p = y - v.p
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     else
@@ -554,10 +554,6 @@ function compute_logl{T <: Float}(
     if glm == "logistic"
         return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) 
     elseif glm == "poisson"
-        println(dot(y, v.xb + v.zc))
-        println(- sum(exp.(v.xb + v.zc)))
-        println(- sum(lfact.(Int.(y))))
-        return hihiiii
         return dot(y, v.xb + v.zc) - sum(exp.(v.xb + v.zc)) - sum(lfact.(Int.(y)))
     else 
         error("compute_logl: currently only supports logistic and poisson")

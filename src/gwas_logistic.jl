@@ -74,7 +74,7 @@ function iht_logistic!(
     new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
 
     μ_step = 0
-    while _iht_logistic_backtrack(new_logl, old_logl, μ_step, nstep)
+    while _iht_glm_backtrack(new_logl, old_logl, μ_step, nstep)
 
         # stephalving
         μ /= 2

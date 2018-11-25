@@ -75,7 +75,7 @@ function iht_poisson!(
 
     μ_step = 0
     println("new estimated loglikelihood before backtracking is " * string(new_logl))
-    while _iht_logistic_backtrack(new_logl, old_logl, μ_step, nstep)
+    while _iht_glm_backtrack(new_logl, old_logl, μ_step, nstep)
 
         # stephalving
         μ /= 2
@@ -251,5 +251,5 @@ function L0_poisson_reg(
             return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end
-end #function L0_logistic_reg
+end #function L0_poisson_reg
 
