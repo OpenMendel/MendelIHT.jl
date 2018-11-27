@@ -300,7 +300,7 @@ function _iht_stepsize{T <: Float}(
     v.gk .= view(v.df, v.idx)
 
     # compute the denominator of step size using only relevant components 
-    A_mul_B!(v.xgk, v.zdf2, v.xk, z, v.gk, view(v.df2, v.idc), view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc), view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
@@ -337,7 +337,7 @@ function _logistic_stepsize{T <: Float}(
     X = convert(Matrix{T}, v.xk)
     normalize!(X, view(mean_vec, v.idx), view(std_vec, v.idx))
     full_X = [X view(z, :, v.idc)]
-    J = full_X' * (diagm(v.p .* (1.0 .- v.p)) * full_X) #J = (p + q) by (p + q)
+    J = full_X' * ((v.p .* (1.0 .- v.p)) .* full_X)
 
     #compute denominator 
     full_v = [view(v.df, v.idx) ; view(v.df2, v.idc)]
@@ -389,7 +389,7 @@ function _poisson_stepsize{T <: Float}(
     X = convert(Matrix{T}, v.xk)
     normalize!(X, view(mean_vec, v.idx), view(std_vec, v.idx))
     full_X = [X view(z, :, v.idc)]
-    J = full_X' * (diagm(v.p) * full_X) #J = (p + q) by (p + q)
+    J = full_X' * (v.p .* full_X)
 
     #compute denominator 
     full_v = [view(v.df, v.idx) ; view(v.df2, v.idc)]

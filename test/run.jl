@@ -152,7 +152,7 @@ using StatsFuns: logistic
 srand(1111) 
 
 #specify dimension and noise of data
-n = 5000                        # number of cases
+n = 1000                        # number of cases
 p = 30000                       # number of predictors
 k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
@@ -214,8 +214,8 @@ using StatsFuns: logistic
 srand(1111) 
 
 #specify dimension and noise of data
-n = 10000                        # number of cases
-p = 30000                       # number of predictors
+n = 1000                        # number of cases
+p = 50000                       # number of predictors
 k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
@@ -306,8 +306,15 @@ y .+= noise
 #compute IHT result for less noisy data
 v = IHTVariables(x, z, y, 1, k)
 result = L0_reg(v, x, z, y, 1, k)
-estimated_models = result.beta[correct_position]
 
+#check result
+estimated_models .= result.beta[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(result.iter))
 
 
 function test(
