@@ -65,13 +65,13 @@ function iht_path_threaded(
     J        :: Int64,
     path     :: DenseVector{Int};
     use_maf  :: Bool = false,
-    #pids     :: Vector{Int} = procs(x),
+    glm      :: String = "normal",    
     mask_n   :: BitArray = trues(size(y)),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
+    #pids     :: Vector{Int} = procs(x),
     #quiet    :: Bool = true
-
 ) where {T <: Float}
     
     # number of threads available?
@@ -89,7 +89,7 @@ function iht_path_threaded(
     cs    = [zeros(q, nmodels) for i in 1:num_threads]
 
     # compute the specified paths
-    @inbounds Threads.@threads for i = 1:nmodels
+    Threads.@threads for i = 1:nmodels
 
         # current thread?
         cur_thread = Threads.threadid()
@@ -101,7 +101,13 @@ function iht_path_threaded(
         v = IHTVariables(x, z, y, J, k)
 
         # now compute current model
-        output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+        if glm == "normal"
+            output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+        elseif glm == "logistic"
+            output = L0_logistic_reg(v, x, z, y, J, k, glm = "logistic")
+        elseif glm == "poisson"
+            output = L0_poisson_reg(v, x, z, y, J, k, glm = "poisson")
+        end
 
         # put model into sparse matrix of betas in the corresponding thread
         betas[cur_thread][:, i] = output.beta
@@ -133,10 +139,11 @@ function one_fold(
     folds    :: DenseVector{Int}, 
     fold     :: Int;
     use_maf  :: Bool = false,
-    #pids     :: Vector{Int} = procs(x),
+    glm      :: String = "normal",
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
+    #pids     :: Vector{Int} = procs(x),
     # quiet    :: Bool = true
 ) where {T <: Float}
     # dimensions of problem
@@ -148,8 +155,18 @@ function one_fold(
     train_idx = .!test_idx
     test_size = sum(test_idx)
 
+    # allocate test model, this can be avoided with view(x, test_idx, :), but SnpArray code needs to gets fixed first 
+    x_test = x[test_idx, :]
+    z_test = z[test_idx, :]
+
+    # compute some statistics needed to standardize the snpmatrix
+    mean_vec, minor_allele, = summarize(x_test)
+    people, snps = size(x)
+    update_mean!(mean_vec, minor_allele, snps)
+    std_vec = std_reciprocal(x, mean_vec)
+
     # compute the regularization path on the training set
-    betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, glm = glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
     # betas, cs = iht_path(x, z, y, J, path, use_maf=use_maf, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # preallocate vector for output
@@ -162,27 +179,16 @@ function one_fold(
     b  = zeros(p,)
     c  = zeros(q,)
 
-    # compute the mean out-of-sample error for the TEST set
-    # do this for every computed model in regularization path
+    # for each computed model in regularization path, compute the mean out-of-sample error for the TEST set
     for i = 1:size(betas,2)
 
         # pull ith model in dense vector format
         b .= betas[:, i]
         c .= cs[:, i] 
 
-        # allocate test model, this can be avoided with view(x, test_idx, :), but SnpArray code needs to gets fixed first 
-        x_test = x[test_idx, :]
-        z_test = z[test_idx, :]
-
-        # compute some statistics needed to standardize the snpmatrix
-        mean_vec, minor_allele, = summarize(x_test)
-        people, snps = size(x)
-        update_mean!(mean_vec, minor_allele, snps)
-        std_vec = std_reciprocal(x, mean_vec)
-
         # compute estimated response Xb with $(path[i]) nonzeroes
-        SnpArrays.A_mul_B!(xb, x[test_idx, :], b, mean_vec, std_vec) 
-        BLAS.A_mul_B!(zc, z[test_idx, :], c)
+        SnpArrays.A_mul_B!(xb, x_test, b, mean_vec, std_vec) 
+        BLAS.A_mul_B!(zc, z_test, c)
 
         # compute residuals
         r .= view(y, test_idx) .- xb .- zc
@@ -208,6 +214,7 @@ function pfold_naive(
     folds    :: DenseVector{Int},
     num_fold :: Int64;
     use_maf  :: Bool = false,
+    glm      :: String = "normal",
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
 ) where {T <: Float}
@@ -216,7 +223,7 @@ function pfold_naive(
 
     mses = zeros(length(path), num_fold)
     for fold in 1:num_fold
-        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf)
+        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf, glm = glm)
     end
     return vec(sum(mses, 2) ./ num_fold)
 end
@@ -244,6 +251,7 @@ function cv_iht(
     folds    :: DenseVector{Int},
     num_fold :: Int64;
     use_maf  :: Bool = false,
+    glm      :: String = "normal",
     # pids     :: Vector{Int} = procs(),
     # tol      :: Float = convert(T, 1e-4),
     # max_iter :: Int   = 100,
@@ -256,7 +264,7 @@ function cv_iht(
     nmodels = length(path)
 
     # compute folds
-    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf)
+    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf, glm = glm)
 
     # find best model size and print cross validation result
     k = path[indmin(mses)] :: Int

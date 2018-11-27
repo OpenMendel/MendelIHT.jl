@@ -321,10 +321,10 @@ println("Total iteration number was " * string(result.iter))
 
 
 
-path = collect(1:20)
+path = collect(1:30)
 num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
-cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false)
+cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
 
 
 
