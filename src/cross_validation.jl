@@ -12,11 +12,12 @@ function iht_path(
     J        :: Int64,
     path     :: DenseVector{Int};
     use_maf  :: Bool = false,
-    #pids     :: Vector{Int} = procs(x),
+    glm      :: String = "normal",
     mask_n   :: BitArray = trues(size(y)),
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
+    #pids     :: Vector{Int} = procs(x),
     #quiet    :: Bool = true
 ) where {T <: Float}
 
@@ -41,7 +42,22 @@ function iht_path(
         v = IHTVariables(x, z, y, J, k)
 
         # now compute current model
-        output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+        if glm == "normal"
+            v = IHTVariables(x, z, y, J, k)
+            output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+        elseif glm == "logistic"
+            x_train = x[mask_n, :]
+            y_train = y[mask_n]
+            z_train = z[mask_n, :]
+            v = IHTVariables(x_train, z_train, y_train, J, k)
+            output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm = "logistic")
+        elseif glm == "poisson"
+            x_train = x[mask_n, :]
+            y_train = y[mask_n]
+            z_train = z[mask_n, :]
+            v = IHTVariables(x_train, z_train, y_train, J, k)
+            output = L0_poisson_reg(v, x, z, y, J, k, glm = "poisson")
+        end
 
         # put model into sparse matrix of betas
         betas[:, i] .= sparsevec(output.beta)
@@ -97,15 +113,21 @@ function iht_path_threaded(
         # current model size?
         k = path[i]
 
-        #define the IHTVariable used for cleaner code #TODO: should declare this only 1 time for max efficiency. 
-        v = IHTVariables(x, z, y, J, k)
-
         # now compute current model
         if glm == "normal"
+            v = IHTVariables(x, z, y, J, k)
             output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
         elseif glm == "logistic"
-            output = L0_logistic_reg(v, x, z, y, J, k, glm = "logistic")
+            x_train = x[mask_n, :]
+            y_train = y[mask_n]
+            z_train = z[mask_n, :]
+            v = IHTVariables(x_train, z_train, y_train, J, k)
+            output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm = "logistic")
         elseif glm == "poisson"
+            x_train = x[mask_n, :]
+            y_train = y[mask_n]
+            z_train = z[mask_n, :]
+            v = IHTVariables(x_train, z_train, y_train, J, k)
             output = L0_poisson_reg(v, x, z, y, J, k, glm = "poisson")
         end
 
@@ -166,8 +188,8 @@ function one_fold(
     std_vec = std_reciprocal(x, mean_vec)
 
     # compute the regularization path on the training set
-    betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, glm = glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
-    # betas, cs = iht_path(x, z, y, J, path, use_maf=use_maf, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, glm=glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    # betas, cs = iht_path(x, z, y, J, path, use_maf=use_maf, glm = glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
@@ -190,8 +212,16 @@ function one_fold(
         SnpArrays.A_mul_B!(xb, x_test, b, mean_vec, std_vec) 
         BLAS.A_mul_B!(zc, z_test, c)
 
-        # compute residuals
-        r .= view(y, test_idx) .- xb .- zc
+        # compute residuals. For glm, recall E(Y) = g^-1(Xβ) where g^-1 is the inverse link
+        if glm == "normal"
+            r .= view(y, test_idx) .- xb .- zc
+        elseif glm == "logistic"
+            r .= view(y, test_idx) .- logistic.(xb .+ zc)
+        elseif glm == "poisson"
+            r .= view(y, test_idx) .- exp.(xb .+ zc)
+        else
+            error("unsupported glm method")
+        end
 
         # reduction step. Return out-of-sample error as squared residual averaged over size of test set
         myerrors[i] = sum(abs2, r) / test_size / 2
