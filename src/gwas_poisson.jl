@@ -32,20 +32,11 @@ function iht_poisson!(
     nstep     :: Int
 ) where {T <: Float}
 
-    # compute indices of nonzeroes in beta
-    # v.idx .= v.b .!= 0
-    # v.idc .= v.c .!= 0
-
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
     if iter == 1
         init_iht_indices!(v, J, k, temp_vec = temp_vec)
         check_covariate_supp!(v, storage) # make necessary resizing
     end
-
-    # store relevant columns of x.
-    # if (!isequal(v.idx, v.idx0) && !isequal(v.idc, v.idc0)) || iter < 2
-    #     copy!(v.xk, view(x, :, v.idx))
-    # end
 
     # calculate step size 
     μ = _poisson_stepsize(v, x, z, mean_vec, std_vec)
@@ -67,15 +58,11 @@ function iht_poisson!(
     v.xk .= view(x, :, v.idx)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
-    # calculate omega
-    # ω_top, ω_bot = _iht_omega(v)
-
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
 
     μ_step = 0
-    println("new estimated loglikelihood before backtracking is " * string(new_logl))
-    while _iht_glm_backtrack(new_logl, old_logl, μ_step, nstep)
+    while _poisson_backtrack(v, new_logl, old_logl, μ_step, nstep)
 
         # stephalving
         μ /= 2
@@ -99,19 +86,12 @@ function iht_poisson!(
         v.xk .= view(x, :, v.idx)
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
-        # calculate omega
-        # ω_top, ω_bot = _iht_omega(v)
-
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
 
         # increment the counter
         μ_step += 1
-
-        println("after " * string(μ_step) * " backtracking, loglikelihood is " * string(new_logl))
     end
-
-    println("μ = " * string(μ) * " and μ_step = " * string(μ_step))
 
     return μ::T, μ_step::Int, new_logl::T
 end
@@ -142,7 +122,7 @@ function L0_poisson_reg(
     glm       :: String = "normal",
     mask_n    :: BitArray = trues(size(y)),
     tol       :: T = 1e-4,
-    max_iter  :: Int = 200, # up from 100 for sometimes weighting takes more
+    max_iter  :: Int = 1000, # up from 100 for sometimes weighting takes more
     max_step  :: Int = 50,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2))
 ) where {T <: Float}
@@ -166,10 +146,8 @@ function L0_poisson_reg(
     next_logl = oftype(tol,-Inf)  # loglikelihood
 
     # initialize floats
-    # current_obj = oftype(tol,Inf) # tracks previous objective function value
     the_norm    = 0.0             # norm(b - b0)
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
-    # μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
     mu_step = 0                   # counts number of backtracking steps for mu
@@ -211,10 +189,6 @@ function L0_poisson_reg(
 
     # Calculate the score 
     update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
-
-    info("loglikelihood is initialized to be " * string(next_logl))
-
-
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood

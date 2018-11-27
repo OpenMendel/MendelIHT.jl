@@ -32,20 +32,11 @@ function iht_logistic!(
     nstep     :: Int
 ) where {T <: Float}
 
-    # compute indices of nonzeroes in beta
-    # v.idx .= v.b .!= 0
-    # v.idc .= v.c .!= 0
-
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
     if iter == 1
         init_iht_indices!(v, J, k, temp_vec = temp_vec)
         check_covariate_supp!(v, storage) # make necessary resizing
     end
-
-    # store relevant columns of x.
-    # if (!isequal(v.idx, v.idx0) && !isequal(v.idc, v.idc0)) || iter < 2
-    #     copy!(v.xk, view(x, :, v.idx))
-    # end
 
     # calculate step size 
     μ = _logistic_stepsize(v, x, z, mean_vec, std_vec)
@@ -67,14 +58,11 @@ function iht_logistic!(
     v.xk .= view(x, :, v.idx)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
-    # calculate omega
-    # ω_top, ω_bot = _iht_omega(v)
-
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
 
     μ_step = 0
-    while _iht_glm_backtrack(new_logl, old_logl, μ_step, nstep)
+    while _logistic_backtrack(new_logl, old_logl, μ_step, nstep)
 
         # stephalving
         μ /= 2
@@ -97,9 +85,6 @@ function iht_logistic!(
         # recompute xb
         v.xk .= view(x, :, v.idx)
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
-
-        # calculate omega
-        # ω_top, ω_bot = _iht_omega(v)
 
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
@@ -161,7 +146,6 @@ function L0_logistic_reg(
     next_logl = oftype(tol,-Inf)  # loglikelihood
 
     # initialize floats
-    # current_obj = oftype(tol,Inf) # tracks previous objective function value
     the_norm    = 0.0             # norm(b - b0)
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
     μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2

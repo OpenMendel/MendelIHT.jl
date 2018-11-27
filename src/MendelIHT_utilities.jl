@@ -47,36 +47,6 @@ function _iht_gradstep{T <: Float}(
     sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
 
-# """
-# This function computes the score step v.b = P_k(β + μ(X^T (Y - P))) and updates idx and idc
-# for logistic regression. 
-# """
-# function _iht_gradstep_logistic{T <: Float}(
-#     v        :: IHTVariable{T},
-#     μ        :: T,
-#     J        :: Int,
-#     k        :: Int,
-#     temp_vec :: Vector{T},
-#     storage  :: Vector{Vector{T}}
-# )
-#     #take gradient step 
-#     BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μ(X^T (Y - P))
-#     BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μ(X^T (Y - P))
-# ##
-#     length_b = length(v.b)
-#     temp_vec[1:length_b] .= v.b
-#     temp_vec[length_b+1:end] .= v.c
-#     project_group_sparse!(temp_vec, v.group, J, k) # project [v.b; v.c] to sparse vector
-#     v.b .= view(temp_vec, 1:length_b)
-#     v.c .= view(temp_vec, length_b+1:length(temp_vec))
-# ##
-#     v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
-#     v.idc .= v.c .!= 0
-
-#     # If the k'th largest component is not unique, warn the user.
-#     sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
-# end
-
 """
 When initializing the IHT algorithm, take largest elements of each group of df as nonzero
 components of b. This function set v.idx = 1 for those indices.
@@ -125,20 +95,15 @@ this function calculates the omega (here a / b) used for determining backtrackin
 function _iht_omega{T <: Float}(
     v :: IHTVariable{T}
 )
-    # println("previous model is " * string(v.b0[find(v.b0)]))
-    # println("current model is " * string(v.b[find(v.b)]))
-    # println("previous intercept is " * string(v.c0))
-    # println("current intercept is " * string(v.c))
-
     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
     b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
     return a, b
 end
 
 """
-this function for determining whether or not to backtrack. True = backtrack
+this function for determining whether or not to backtrack for normal least squares. True = backtrack
 """
-function _iht_backtrack{T <: Float}(
+function _normal_backtrack{T <: Float}(
     v       :: IHTVariable{T},
     ot      :: T,
     ob      :: T,
@@ -153,16 +118,32 @@ function _iht_backtrack{T <: Float}(
 end
 
 """
-this function for determining whether or not to backtrack. True = backtrack
+this function for determining whether or not to backtrack for logistic regression. True = backtrack
 """
-function _iht_glm_backtrack{T <: Float}(
+function _logistic_backtrack{T <: Float}(
     logl      :: T, 
     prev_logl :: T,
     mu_step   :: Int,
     nstep     :: Int
 )
-    prev_logl > logl &&
-    mu_step < nstep
+    prev_logl > logl ||
+    mu_step > nstep 
+end
+
+"""
+this function for determining whether or not to backtrack for poisson regression. True = backtrack
+"""
+function _poisson_backtrack{T <: Float}(
+    v        :: IHTVariable{T},
+    logl      :: T, 
+    prev_logl :: T,
+    mu_step   :: Int,
+    nstep     :: Int
+)
+    prev_logl > logl   ||
+    maximum(v.c) > 20  || # to prevent loglikelihood blowing up for poisson in first few iteration for small number of snps
+    maximum(v.b) > 20  ||
+    mu_step > nstep 
 end
 
 """
@@ -346,26 +327,6 @@ function _logistic_stepsize{T <: Float}(
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
 
-
-
-
-
-    #compute J = X^T * P * X
-    # X = convert(Matrix{T}, x)
-    # normalize!(X, mean_vec, std_vec)
-    # full_X = [X z]
-    # J = full_X' * (diagm(v.p .* (1.0 .- v.p)) * full_X) #J = (p + q) by (p + q)
-
-    # #compute denominator 
-    # full_v = [v.df ; v.df2]
-    # denom = full_v' * (J * full_v)
-
-    # # compute step size.
-    # μ = (sum(abs2, full_v) / denom) :: T
-
-    # # check for finite stepsize
-    # isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
-
     return μ
 end
 
@@ -533,7 +494,7 @@ end
 # )
 #     @inbounds @simd for i in eachindex(v.p)
 #         # xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
-#         v.p[i] = 1.0 / (1.0 + e^(-v.xb[i] - v.zc[i]))
+#         v.p[i] = 1.0 / (1.0 + e^(-v.xb[i] - v.zc[i])) #logit link
 #     end
 # end
 

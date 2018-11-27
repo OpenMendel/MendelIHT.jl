@@ -147,13 +147,14 @@ using SnpArrays
 using DataFrames
 using Distributions
 using StatsFuns: logistic
+using BenchmarkTools
 
 #set random seed
 srand(1111) 
 
 #specify dimension and noise of data
-n = 1000                        # number of cases
-p = 30000                       # number of predictors
+n = 10                        # number of cases
+p = 100                       # number of predictors
 k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
@@ -193,6 +194,8 @@ estimated_models = zeros(k)
 v = IHTVariables(x, z, y, 1, k)
 result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic")
 
+# @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
+
 #check result
 estimated_models .= result.beta[correct_position]
 true_model = true_b[correct_position]
@@ -214,8 +217,8 @@ using StatsFuns: logistic
 srand(1111) 
 
 #specify dimension and noise of data
-n = 1000                        # number of cases
-p = 50000                       # number of predictors
+n = 200                        # number of cases
+p = 500                       # number of predictors
 k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
@@ -277,8 +280,8 @@ using Distributions
 srand(1111) 
 
 #specify dimension and noise of data
-n = 1000                        # number of cases
-p = 10000                       # number of predictors
+n = 10                        # number of cases
+p = 100                       # number of predictors
 k = 10                          # number of true predictors per group
 S = 0.1                         # noise vector, from very little noise to a lot of noise
 

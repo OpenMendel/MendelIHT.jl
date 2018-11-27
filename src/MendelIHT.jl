@@ -194,7 +194,7 @@ function iht!(
 
     # backtrack until mu < omega and until support stabilizes
     μ_step = 0
-    while _iht_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
+    while _normal_backtrack(v, ω_top, ω_bot, μ, μ_step, nstep)
 
         # stephalving
         μ /= 2
