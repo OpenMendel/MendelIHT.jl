@@ -166,6 +166,26 @@ function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
     return std_vector
 end
 
+"""
+This function computes the mean of each SNP. Note that (1) the mean is given by 
+2 * maf (minor allele frequency), and (2) based on which allele is the minor allele, 
+might need to do 2.0 - the maf for the mean vector.
+"""
+function update_mean!{T <: Float}(
+    mean_vec     :: Vector{T},
+    minor_allele :: BitArray{1},
+    p            :: Int64
+)
+
+    @inbounds @simd for i in 1:p
+        if minor_allele[i]
+            mean_vec[i] = 2.0 - 2.0mean_vec[i]
+        else
+            mean_vec[i] = 2.0mean_vec[i]
+        end
+    end
+end
+
 """ Projects the vector y = [y1; y2] onto the set with at most J active groups and at most
 k active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown or overlaping group membership.

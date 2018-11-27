@@ -151,24 +151,21 @@ function L0_reg(
     store[3] = zeros(T, size(v.gk))  # length J * k
 
     # compute some summary statistics for our snpmatrix
-    maf, minor_allele, = summarize(x)
+    mean_vec, minor_allele, = summarize(x)
     people, snps = size(x)
-    mean_vec = deepcopy(maf) # Gordon wants maf below
-    
-    #precompute mean and standard deviations for each snp. Note that (1) the mean is
-    #given by 2 * maf, and (2) based on which allele is the minor allele, might need to do
-    #2.0 - the maf for the mean vector.
-    for i in 1:snps
-        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
-    end
-    std_vec = std_reciprocal(x, mean_vec)
 
     #weight snps based on maf or other user defined weights
     if use_maf
+        maf = deepcopy(mean_vec) 
         my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
         hold_std_vec = deepcopy(std_vec)
         Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
     end
+    
+    #precompute mean and standard deviations for each snp. 
+    update_mean!(mean_vec, minor_allele, snps)
+    std_vec = std_reciprocal(x, mean_vec)
+
     #
     # Begin IHT calculations
     #

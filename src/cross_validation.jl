@@ -170,9 +170,19 @@ function one_fold(
         b .= betas[:, i]
         c .= cs[:, i] 
 
+        # allocate test model, this can be avoided with view(x, test_idx, :), but SnpArray code needs to gets fixed first 
+        x_test = x[test_idx, :]
+        z_test = z[test_idx, :]
+
+        # compute some statistics needed to standardize the snpmatrix
+        mean_vec, minor_allele, = summarize(x_test)
+        people, snps = size(x)
+        update_mean!(mean_vec, minor_allele, snps)
+        std_vec = std_reciprocal(x, mean_vec)
+
         # compute estimated response Xb with $(path[i]) nonzeroes
-        A_mul_B!(xb, x[test_idx, :], b) #should use view(x, test_idx, :) when SnpArray code gets fixe
-        A_mul_B!(zc, z[test_idx, :], c)
+        SnpArrays.A_mul_B!(xb, x[test_idx, :], b, mean_vec, std_vec) 
+        BLAS.A_mul_B!(zc, z[test_idx, :], c)
 
         # compute residuals
         r .= view(y, test_idx) .- xb .- zc

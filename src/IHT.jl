@@ -70,8 +70,9 @@ include("numeric_IHT/hardthreshold.jl")
 include("data_structures.jl")
 include("MendelIHT_utilities.jl")
 include("MendelIHT.jl")
+include("gwas_normal.jl")
 include("gwas_logistic.jl")
 include("gwas_poisson.jl")
-include("cross_validation")
+include("cross_validation.jl")
 
 end # end module IHT
