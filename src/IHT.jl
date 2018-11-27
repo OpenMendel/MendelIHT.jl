@@ -56,15 +56,15 @@ export save_prev!
 # IHT will only work on single/double precision floats!
 const Float = Union{Float64,Float32}
 
-include("common.jl")
+include("numeric_IHT/common.jl")
 try
     include("gpu.jl") # conditional load of GPU code
 catch e
     warn("IHT.jl failed to load GPU functions!")
 end
 # include("gwas.jl")
-# include("cv.jl")
-include("hardthreshold.jl")
+include("numeric_IHT/cv.jl")
+include("numeric_IHT/hardthreshold.jl")
 #include("aiht.jl")
 #include("log.jl")
 include("data_structures.jl")
@@ -72,5 +72,6 @@ include("MendelIHT_utilities.jl")
 include("MendelIHT.jl")
 include("gwas_logistic.jl")
 include("gwas_poisson.jl")
+include("cross_validation")
 
 end # end module IHT
