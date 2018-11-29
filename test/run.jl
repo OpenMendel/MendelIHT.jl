@@ -207,6 +207,79 @@ println("Total iteration number was " * string(result.iter))
 
 
 
+
+
+
+
+
+# BELOW ARE POISSON SIMULATIONS
+using IHT
+using SnpArrays
+using DataFrames
+using Distributions
+using StatsFuns: logistic
+
+#set random seed
+srand(1111) 
+
+#specify dimension and noise of data
+n = 2000                        # number of cases
+p = 20000                       # number of predictors
+k = 10                          # number of true predictors per group
+# s = 0.1                         # noise vector, from very little noise to a lot of noise
+
+#construct snpmatrix, covariate files, and true model b
+x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
+z           = ones(n, 1)                   # non-genetic covariates, just the intercept
+true_b      = zeros(p)                     # model vector
+true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
+shuffle!(true_b)                           # Shuffle the entries
+correct_position = find(true_b)            # keep track of what the true entries are
+# noise = rand(Normal(0, s), n)              # noise vectors from N(0, s) where s ∈ S = {0.01, 0.1, 1, 10}s
+
+#compute mean and std used to standardize data to mean 0 variance 1
+mean_vec, minor_allele, = summarize(x)
+for i in 1:p
+    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
+end
+std_vec = std_reciprocal(x, mean_vec)
+
+#simulate phenotypes under different noises by: y = Xb + noise
+y_temp = zeros(n)
+SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
+# y_temp .+= noise #add some noise
+
+# Apply inverse logit link to map y to {0, 1} 
+# poisson = 
+y = zeros(n)
+y_temp = exp.(y_temp)                  #inverse log link
+for i in 1:n
+	dist = Poisson(y_temp[i])
+	y[i] = rand(dist)
+end
+
+#compute logistic IHT result
+scale = sum(y) / n
+estimated_models = zeros(k)
+v = IHTVariables(x, z, y, 1, k)
+result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")
+
+#check result
+estimated_models .= result.beta[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(result.iter))
+
+
+
+
+
+
+
+########### LOGISTIC CROSS VALIDATION SIMULATION CODE##############
 using IHT
 using SnpArrays
 using DataFrames
@@ -260,16 +333,7 @@ cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic")
 
 
 
-
-
-
-
-
-
-
-
-
-# BELOW ARE POISSON SIMULATIONS
+############## POISSON CROSS VALIDATION SIMULATION
 using IHT
 using SnpArrays
 using DataFrames
@@ -281,8 +345,63 @@ srand(1111)
 
 #specify dimension and noise of data
 n = 2000                        # number of cases
-p = 20000                       # number of predictors
+p = 10000                       # number of predictors
 k = 10                          # number of true predictors per group
+# s = 0.1                         # noise vector, from very little noise to a lot of noise
+
+#construct snpmatrix, covariate files, and true model b
+x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
+z           = ones(n, 1)                   # non-genetic covariates, just the intercept
+true_b      = zeros(p)                     # model vector
+true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
+shuffle!(true_b)                           # Shuffle the entries
+correct_position = find(true_b)            # keep track of what the true entries are
+# noise = rand(Normal(0, s), n)              # noise vectors from N(0, s) where s ∈ S = {0.01, 0.1, 1, 10}s
+
+#compute mean and std used to standardize data to mean 0 variance 1
+mean_vec, minor_allele, = summarize(x)
+for i in 1:p
+    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
+end
+std_vec = std_reciprocal(x, mean_vec)
+
+#simulate phenotypes under different noises by: y = Xb + noise
+y_temp = zeros(n)
+SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
+
+# Apply inverse link
+y = zeros(n)
+y_temp = exp.(y_temp)                  #inverse log link
+for i in 1:n
+	dist = Poisson(y_temp[i])
+	y[i] = rand(dist)
+end
+
+#specify path and folds
+path = collect(2:2:20)
+num_folds = 3
+folds = rand(1:num_folds, size(x, 1))
+
+#compute cross validation
+cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "poisson")
+
+
+
+
+
+############## NORMAL CROSS VALIDATION SIMULATION
+using IHT
+using SnpArrays
+using DataFrames
+using Distributions
+
+#set random seed
+srand(1111) 
+
+#specify dimension and noise of data
+n = 2000                        # number of cases
+p = 10000                       # number of predictors
+k = 2                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
 #construct snpmatrix, covariate files, and true model b
@@ -304,38 +423,15 @@ std_vec = std_reciprocal(x, mean_vec)
 #simulate phenotypes under different noises by: y = Xb + noise
 y_temp = zeros(n)
 SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
-# y_temp .+= noise #add some noise
+y = y_temp += noise
 
-# Apply inverse logit link to map y to {0, 1} 
-# poisson = 
-y = zeros(n)
-y_temp = exp.(y_temp)                  #inverse log link
-for i in 1:n
-	dist = Poisson(y_temp[i])
-	y[i] = rand(dist)
-end
+#specify path and folds
+path = collect(1:20)
+num_folds = 3
+folds = rand(1:num_folds, size(x, 1))
 
-#compute logistic IHT result
-scale = sum(y) / n
-estimated_models = zeros(k)
-v = IHTVariables(x, z, y, 1, k)
-result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")
-
-#check result
-estimated_models .= result.beta[correct_position]
-true_model = true_b[correct_position]
-compare_model = DataFrame(
-    correct_position = correct_position, 
-    true_β           = true_model, 
-    estimated_β      = estimated_models)
-println("Total iteration number was " * string(result.iter))
-
-
-
-
-
-
-
+#compute cross validation
+cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
 
 
 

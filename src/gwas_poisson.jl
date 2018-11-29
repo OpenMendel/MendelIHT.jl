@@ -43,6 +43,7 @@ function iht_poisson!(
 
     # update b and c by taking gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
+    # println(v.b[v.idx])
 
     # perform debiasing (i.e. fit b on its support)
     # if all(v.idx .== v.idx0)
@@ -58,8 +59,24 @@ function iht_poisson!(
     v.xk .= view(x, :, v.idx)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
+    # to prevent overflow of loglikelihood, we don't allow xβ to have entries larger than 20
+    # for i in eachindex(v.xb)
+    #     if v.xb[i] > 20.0
+    #         v.xb[i] = 20.0
+    #     end
+    # end
+
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
+
+    # println(new_logl)
+    # println(μ)
+    # println(maximum(v.b))
+    # println(maximum(v.c))
+    # println(sum(v.df))
+    # println(sum(v.df2))
+    # println(sum(v.b))
+    # println(sum(v.c))
 
     μ_step = 0
     while _poisson_backtrack(v, new_logl, old_logl, μ_step, nstep)
@@ -92,6 +109,8 @@ function iht_poisson!(
         # increment the counter
         μ_step += 1
     end
+
+    info("performed " * string(μ_step) * " backtracking")
 
     return μ::T, μ_step::Int, new_logl::T
 end
@@ -161,6 +180,9 @@ function L0_poisson_reg(
     store[2] = zeros(T, size(v.xgk)) # length n
     store[3] = zeros(T, size(v.gk))  # length J * k
 
+    #initilize the intercept to the log of the sample mean to avoid overflow
+    # v.c[1] = log(mean(y))
+
     # compute some summary statistics for our snpmatrix
     mean_vec, minor_allele, = summarize(x)
     people, snps = size(x)
@@ -172,7 +194,7 @@ function L0_poisson_reg(
         hold_std_vec = deepcopy(std_vec)
         Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
     end
-    
+
     #precompute mean and standard deviations for each snp. 
     update_mean!(mean_vec, minor_allele, snps)
     std_vec = std_reciprocal(x, mean_vec)
@@ -194,6 +216,14 @@ function L0_poisson_reg(
 
         #calculate the step size μ and check loglikelihood is not NaN or Inf
         (μ, μ_step, next_logl) = iht_poisson!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
+        
+        if isnan(next_logl) || isinf(next_logl)
+            info("model size is" * string(k))
+            info("current iteration is " * string(mm_iter))
+            info("snpmatrix is " * string(size(x)))
+            println("there are " * string(sum(v.b .== 20)) * " entries of b that is 20 or larger")
+        end
+
         !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
 
@@ -209,7 +239,7 @@ function L0_poisson_reg(
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
 
-        info("current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * " and scaled norm is " * string(scaled_norm))
+        info("current loglikelihood is " * string(logl))
 
         if converged && mm_iter > 1
             mm_time = toq()   # stop time

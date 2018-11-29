@@ -56,7 +56,7 @@ function iht_path(
             y_train = y[mask_n]
             z_train = z[mask_n, :]
             v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_poisson_reg(v, x, z, y, J, k, glm = "poisson")
+            output = L0_poisson_reg(v, x_train, z_train, y_train, J, k, glm = "poisson")
         end
 
         # put model into sparse matrix of betas
@@ -128,7 +128,7 @@ function iht_path_threaded(
             y_train = y[mask_n]
             z_train = z[mask_n, :]
             v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_poisson_reg(v, x, z, y, J, k, glm = "poisson")
+            output = L0_poisson_reg(v, x_train, z_train, y_train, J, k, glm = "poisson")
         end
 
         # put model into sparse matrix of betas in the corresponding thread
@@ -163,7 +163,7 @@ function one_fold(
     use_maf  :: Bool = false,
     glm      :: String = "normal",
     tol      :: T    = convert(T, 1e-4),
-    max_iter :: Int  = 100,
+    max_iter :: Int  = 1000,
     max_step :: Int  = 50,
     #pids     :: Vector{Int} = procs(x),
     # quiet    :: Bool = true
@@ -181,7 +181,7 @@ function one_fold(
     x_test = x[test_idx, :]
     z_test = z[test_idx, :]
 
-    # compute some statistics needed to standardize the snpmatrix
+    # compute some statistics needed to standardize x_test
     mean_vec, minor_allele, = summarize(x_test)
     people, snps = size(x)
     update_mean!(mean_vec, minor_allele, snps)
@@ -189,7 +189,7 @@ function one_fold(
 
     # compute the regularization path on the training set
     betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, glm=glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
-    # betas, cs = iht_path(x, z, y, J, path, use_maf=use_maf, glm = glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    # betas, cs = iht_path(x, z, y, J, path, use_maf=use_maf, glm=glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
@@ -245,15 +245,15 @@ function pfold_naive(
     num_fold :: Int64;
     use_maf  :: Bool = false,
     glm      :: String = "normal",
-    max_iter :: Int  = 100,
-    max_step :: Int  = 50,
+    # max_iter :: Int  = 100,
+    # max_step :: Int  = 50,
 ) where {T <: Float}
 
     @assert num_fold >= 1 "number of folds must be positive integer"
 
     mses = zeros(length(path), num_fold)
     for fold in 1:num_fold
-        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf, glm = glm)
+        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf, glm=glm)
     end
     return vec(sum(mses, 2) ./ num_fold)
 end
@@ -294,7 +294,7 @@ function cv_iht(
     nmodels = length(path)
 
     # compute folds
-    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf, glm = glm)
+    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf, glm=glm)
 
     # find best model size and print cross validation result
     k = path[indmin(mses)] :: Int

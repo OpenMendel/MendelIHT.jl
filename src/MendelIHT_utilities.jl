@@ -126,24 +126,39 @@ function _logistic_backtrack{T <: Float}(
     mu_step   :: Int,
     nstep     :: Int
 )
-    prev_logl > logl ||
-    mu_step > nstep 
+    prev_logl > logl &&
+    mu_step < nstep 
 end
 
 """
-this function for determining whether or not to backtrack for poisson regression. True = backtrack
+this function for determining whether or not to backtrack for poisson regression. True = backtrack.
+
+Note that we want to ensure b is "small" (i.e. less than 20) to prevent loglikelihood blowing up 
+in first few iteration. This is a dirty fix. 
 """
 function _poisson_backtrack{T <: Float}(
-    v        :: IHTVariable{T},
+    v         :: IHTVariable{T},
     logl      :: T, 
     prev_logl :: T,
     mu_step   :: Int,
     nstep     :: Int
 )
+    # println("begin")
+    # println(logl)
+    # println(sum(v.df))
+    # println(sum(v.c))
+    # println(sum(v.b))
+
     prev_logl > logl   ||
-    maximum(v.c) > 20  || # to prevent loglikelihood blowing up for poisson in first few iteration for small number of snps
-    maximum(v.b) > 20  ||
-    mu_step > nstep 
+    maximum(v.c) <= 20 ||
+    maximum(v.b) <= 20 &&
+    mu_step < nstep 
+
+    # if mu_step >= nstep
+    #     return false
+    # else
+    #     return prev_logl > logl || maximum(v.c) <= 20 || maximum(v.b) <= 20
+    # end
 end
 
 """
@@ -304,7 +319,6 @@ function _iht_stepsize{T <: Float}(
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc), view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
     # warn if xgk only contains zeros
-    println("somehow reached here!")
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
@@ -497,6 +511,9 @@ function update_df!(
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     elseif glm == "poisson"
         v.p .= exp.(v.xb + v.zc)      #first update the P vector
+
+        # println(maximum(abs.(v.p)))
+
         y_minus_p = y - v.p
         At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
     else
@@ -536,7 +553,17 @@ function compute_logl{T <: Float}(
     if glm == "logistic"
         return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) 
     elseif glm == "poisson"
-        return dot(y, v.xb + v.zc) - sum(exp.(v.xb + v.zc)) - sum(lfact.(Int.(y)))
+        temp_exp = sum(exp.(v.xb + v.zc))
+
+        # println(v.xb)
+        # println(v.zc)
+        # println(exp.(v.xb + v.zc))
+
+        # if temp_exp >= 10^10
+        #     temp_exp = 10^10 #truncate bad guess, typically occurring in the first few iter
+        # end
+        
+        return dot(y, v.xb + v.zc) - temp_exp - sum(lfact.(Int.(y)))
     else 
         error("compute_logl: currently only supports logistic and poisson")
     end
