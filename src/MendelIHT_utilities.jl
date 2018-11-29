@@ -126,12 +126,15 @@ function _logistic_backtrack{T <: Float}(
     mu_step   :: Int,
     nstep     :: Int
 )
-    prev_logl > logl ||
-    mu_step > nstep 
+    prev_logl > logl &&
+    mu_step < nstep 
 end
 
 """
 this function for determining whether or not to backtrack for poisson regression. True = backtrack
+
+Note we require the model coefficients to be "small"  (that is, max entry not greater than 10) to 
+prevent loglikelihood blowing up in first few iteration.
 """
 function _poisson_backtrack{T <: Float}(
     v        :: IHTVariable{T},
@@ -141,9 +144,10 @@ function _poisson_backtrack{T <: Float}(
     nstep     :: Int
 )
     prev_logl > logl   ||
-    maximum(v.c) > 20  || # to prevent loglikelihood blowing up for poisson in first few iteration for small number of snps
-    maximum(v.b) > 20  ||
-    mu_step > nstep 
+    maximum(v.c) > 10  ||
+    maximum(v.b) > 10  ||
+    logl < -10e100     &&
+    mu_step < nstep 
 end
 
 """

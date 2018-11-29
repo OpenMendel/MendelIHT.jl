@@ -128,7 +128,7 @@ function iht_path_threaded(
             y_train = y[mask_n]
             z_train = z[mask_n, :]
             v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_poisson_reg(v, x, z, y, J, k, glm = "poisson")
+            output = L0_poisson_reg(v, x_train, z_train, y_train, J, k, glm = "poisson")
         end
 
         # put model into sparse matrix of betas in the corresponding thread

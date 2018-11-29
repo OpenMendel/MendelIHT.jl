@@ -194,8 +194,16 @@ function L0_poisson_reg(
 
         #calculate the step size μ and check loglikelihood is not NaN or Inf
         (μ, μ_step, next_logl) = iht_poisson!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
-        !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
-        !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
+
+        info("current iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * " and μ_step = " * string(μ_step))
+
+        # if mm_iter == 2
+        #     println(v.b[v.idx])
+        #     println(v.df[v.idx])
+        # end
+
+        !isnan(next_logl) || throw(error("Loglikelihood is NaN, aborting..."))
+        !isinf(next_logl) || throw(error("Loglikelihood is Inf, aborting..."))
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         # v.r .= y .- v.xb .- v.zc 
@@ -208,8 +216,6 @@ function L0_poisson_reg(
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
-
-        info("current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * " and scaled norm is " * string(scaled_norm))
 
         if converged && mm_iter > 1
             mm_time = toq()   # stop time
