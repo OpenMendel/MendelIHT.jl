@@ -140,6 +140,73 @@ function test4()
 end
 
 
+#BELOW ARE NORMAL SIMUATIONS
+#load packages
+using IHT
+using SnpArrays
+using DataFrames
+using Distributions
+
+#set random seed
+srand(1111) 
+
+#specify dimension and noise of data
+n = 5000                        # number of cases
+p = 30000                       # number of predictors
+k = 10                          # number of true predictors per group
+S = 0.1                         # noise vector, from very little noise to a lot of noise
+
+#construct snpmatrix, covariate files, and true model b
+x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
+z           = ones(n, 1)                   # non-genetic covariates, just the intercept
+true_b      = zeros(p)                     # model vector
+true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
+shuffle!(true_b)                           # Shuffle the entries
+correct_position = find(true_b)            # keep track of what the true entries are
+noise = rand(Normal(0, S), n)              # noise vectors from N(0, s) where s ∈ S = {0.01, 0.1, 1, 10}s
+
+#compute mean and std used to standardize data to mean 0 variance 1
+mean_vec, minor_allele, = summarize(x)
+for i in 1:p
+    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
+end
+std_vec = std_reciprocal(x, mean_vec)
+
+#simulate phenotypes under different noises by: y = Xb + noise
+y_temp = zeros(n)
+SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
+y = y_temp + noise
+
+#compute IHT result for less noisy data
+v = IHTVariables(x, z, y, 1, k)
+result = L0_reg(v, x, z, y, 1, k)
+
+#check result
+estimated_models = result.beta[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(result.iter))
+
+#how to get predicted response?
+xb = zeros(y_temp)
+SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
+[y xb]
+
+
+
+# path = collect(1:20)
+# num_folds = 5
+# folds = rand(1:num_folds, size(x, 1))
+# cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
+
+
+
+
+
+
 #BELOW ARE LOGISTIC SIMUATIONS
 #load packages
 using IHT
@@ -153,9 +220,9 @@ using BenchmarkTools
 srand(1111) 
 
 #specify dimension and noise of data
-n = 1000                        # number of cases
-p = 5000                       # number of predictors
-k = 30                          # number of true predictors per group
+n = 5000                        # number of cases
+p = 30000                       # number of predictors
+k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
 #construct snpmatrix, covariate files, and true model b
@@ -206,7 +273,12 @@ compare_model = DataFrame(
 println("Total iteration number was " * string(result.iter))
 
 
-
+#how to get predicted response?
+xb = zeros(y_temp)
+SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
+xb = logistic.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
+# [y round(xb)]
+[y xb]
 
 
 
@@ -223,9 +295,9 @@ using StatsFuns: logistic
 srand(1111) 
 
 #specify dimension and noise of data
-n = 2000                        # number of cases
-p = 20000                       # number of predictors
-k = 30                          # number of true predictors per group
+n = 5000                        # number of cases
+p = 30000                       # number of predictors
+k = 10                          # number of true predictors per group
 # s = 0.1                         # noise vector, from very little noise to a lot of noise
 
 #construct snpmatrix, covariate files, and true model b
@@ -274,8 +346,11 @@ compare_model = DataFrame(
 println("Total iteration number was " * string(result.iter))
 
 
-
-
+#how to get predicted response?
+xb = zeros(y_temp)
+SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
+xb = exp.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
+[y xb]
 
 
 
@@ -291,8 +366,8 @@ using BenchmarkTools
 srand(1111) 
 
 #specify dimension and noise of data
-n = 3000                        # number of cases
-p = 20000                       # number of predictors
+n = 5000                        # number of cases
+p = 30000                       # number of predictors
 k = 10                          # number of true predictors per group
 s = 0.1                         # noise vector, from very little noise to a lot of noise
 
@@ -323,7 +398,7 @@ y = Float64.(hi .< y)  #map y to 0, 1
 
 #specify path and folds
 path = collect(1:20)
-num_folds = 5
+num_folds = 3
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
@@ -443,9 +518,6 @@ cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
 
 
 
-#how to get predicted response?
-SnpArrays.A_mul_B!(y_temp, x, result.beta, mean_vec, std_vec)
-exp.(y_temp) #apply inverse link: E(Y) = g^-1(Xβ)
 
 
 
@@ -455,66 +527,6 @@ exp.(y_temp) #apply inverse link: E(Y) = g^-1(Xβ)
 
 
 
-
-
-
-
-#BELOW ARE NORMAL SIMUATIONS
-#load packages
-using IHT
-using SnpArrays
-using DataFrames
-using Distributions
-
-#set random seed
-srand(1111) 
-
-#specify dimension and noise of data
-n = 3000                        # number of cases
-p = 10000                       # number of predictors
-k = 15                          # number of true predictors per group
-S = 0.1                         # noise vector, from very little noise to a lot of noise
-
-#construct snpmatrix, covariate files, and true model b
-x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
-z           = ones(n, 1)                   # non-genetic covariates, just the intercept
-true_b      = zeros(p)                     # model vector
-true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
-shuffle!(true_b)                           # Shuffle the entries
-correct_position = find(true_b)            # keep track of what the true entries are
-noise = rand(Normal(0, S), n)              # noise vectors from N(0, s) where s ∈ S = {0.01, 0.1, 1, 10}s
-
-#compute mean and std used to standardize data to mean 0 variance 1
-mean_vec, minor_allele, = summarize(x)
-for i in 1:p
-    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
-end
-std_vec = std_reciprocal(x, mean_vec)
-
-#simulate phenotypes under different noises by: y = Xb + noise
-y = zeros(n)
-SnpArrays.A_mul_B!(y, x, true_b, mean_vec, std_vec)
-y .+= noise
-
-#compute IHT result for less noisy data
-v = IHTVariables(x, z, y, 1, k)
-result = L0_reg(v, x, z, y, 1, k)
-
-#check result
-estimated_models = result.beta[correct_position]
-true_model = true_b[correct_position]
-compare_model = DataFrame(
-    correct_position = correct_position, 
-    true_β           = true_model, 
-    estimated_β      = estimated_models)
-println("Total iteration number was " * string(result.iter))
-
-
-
-path = collect(1:20)
-num_folds = 5
-folds = rand(1:num_folds, size(x, 1))
-cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
 
 
 

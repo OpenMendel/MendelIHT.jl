@@ -151,7 +151,8 @@ function _poisson_backtrack{T <: Float}(
 end
 
 """
-Compute the standard deviation of a SnpArray in place
+Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs are not missing.
+Otherwise, the inner loop should only add if data not missing.
 """
 function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
     m, n = size(A)
@@ -161,9 +162,7 @@ function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
     @inbounds for j in 1:n
         @simd for i in 1:m
             (a1, a2) = A[i, j]
-            if !isnan(a1, a2) #only add if data not missing
-                std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
-            end
+            std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
         end
         std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
     end
@@ -308,7 +307,6 @@ function _iht_stepsize{T <: Float}(
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc), view(mean_vec, v.idx), view(std_vec, v.idx), storage)
 
     # warn if xgk only contains zeros
-    println("somehow reached here!")
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
     # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)

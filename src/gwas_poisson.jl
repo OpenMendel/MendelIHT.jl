@@ -18,8 +18,8 @@
 function iht_poisson!(
     v         :: IHTVariable{T},
     x         :: SnpLike{2},
-    z         :: Matrix{T},
-    y         :: Vector{T},
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
     J         :: Int,
     k         :: Int,
     mean_vec  :: Vector{T},
@@ -114,8 +114,8 @@ end
 function L0_poisson_reg(
     v         :: IHTVariable, 
     x         :: SnpLike{2},
-    z         :: Matrix{T},
-    y         :: Vector{T},
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
     J         :: Int,
     k         :: Int;
     use_maf   :: Bool = false,
@@ -195,7 +195,7 @@ function L0_poisson_reg(
         #calculate the step size μ and check loglikelihood is not NaN or Inf
         (μ, μ_step, next_logl) = iht_poisson!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
 
-        info("current iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * " and μ_step = " * string(μ_step))
+        # info("current iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * " and μ_step = " * string(μ_step))
 
         # if mm_iter == 2
         #     println(v.b[v.idx])
@@ -224,7 +224,7 @@ function L0_poisson_reg(
 
         if mm_iter == max_iter
             mm_time = toq() # stop time
-            println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds")
+            println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds and model size was" * string(k))
             return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end

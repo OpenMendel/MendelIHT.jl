@@ -219,7 +219,7 @@ function L0_logistic_reg(
 
         if mm_iter == max_iter
             mm_time = toq() # stop time
-            println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds")
+            println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds and model size was" * string(k))
             return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end
