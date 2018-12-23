@@ -115,8 +115,13 @@ function iht_path_threaded(
 
         # now compute current model
         if glm == "normal"
-            v = IHTVariables(x, z, y, J, k)
-            output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+            # v = IHTVariables(x, z, y, J, k)
+            # output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+            x_train = x[mask_n, :]
+            y_train = y[mask_n]
+            z_train = z[mask_n, :]
+            v = IHTVariables(x_train, z_train, y_train, J, k)
+            output = L0_reg(v, x_train, z_train, y_train, J, k)
         elseif glm == "logistic"
             x_train = x[mask_n, :]
             y_train = y[mask_n]
@@ -302,5 +307,5 @@ function cv_iht(
     k = path[indmin(mses)] :: Int
     print_cv_results(mses, path, k)
 
-    return nothing
+    return mses
 end

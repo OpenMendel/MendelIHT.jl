@@ -51,7 +51,7 @@ export L0_poisson_reg
 export IHTVariable, IHTVariables, use_A2_as_minor_allele
 export project_k!, std_reciprocal, project_group_sparse!
 export update_df!, At_mul_B!, A_mul_B!, check_y_content
-export save_prev!
+export save_prev!, update_mean!
 
 # IHT will only work on single/double precision floats!
 const Float = Union{Float64,Float32}
