@@ -8,6 +8,7 @@ using Gadfly
 using MendelBase
 using SnpArrays
 using StatsBase
+using StatsFuns: logistic
 
 ### idea from Julio Hoffimann Mendes to conditionally load OpenCL module
 # only load if Julia can find OpenCL module
@@ -44,25 +45,34 @@ export cv_iht
 export cv_get_folds
 export cv_log
 export MendelIHT
+export L0_logistic_reg
+export L0_poisson_reg
 
 export IHTVariable, IHTVariables, use_A2_as_minor_allele
 export project_k!, std_reciprocal, project_group_sparse!
+export update_df!, At_mul_B!, A_mul_B!, check_y_content
+export save_prev!, update_mean!
 
 # IHT will only work on single/double precision floats!
 const Float = Union{Float64,Float32}
 
-include("common.jl")
+include("numeric_IHT/common.jl")
 try
     include("gpu.jl") # conditional load of GPU code
 catch e
     warn("IHT.jl failed to load GPU functions!")
 end
-include("gwas.jl")
-include("cv.jl")
-include("hardthreshold.jl")
+# include("gwas.jl")
+include("numeric_IHT/cv.jl")
+include("numeric_IHT/hardthreshold.jl")
 #include("aiht.jl")
 #include("log.jl")
+include("data_structures.jl")
 include("MendelIHT_utilities.jl")
 include("MendelIHT.jl")
+include("gwas_normal.jl")
+include("gwas_logistic.jl")
+include("gwas_poisson.jl")
+include("cross_validation.jl")
 
 end # end module IHT

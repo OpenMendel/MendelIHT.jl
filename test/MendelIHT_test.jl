@@ -14,7 +14,7 @@ end
 	# Note: For both test, there are only 1 group and covariates only contain 
 	# a column of 1 for intercept
 
-    #test on small data set: CURRENTLY THESE ANSWERS IS OFF BY A FEW DECIMAL POINTS BECAUSE THE OLD CODE DOESN'T UPDATE v.idx
+    # test on small data set: CURRENTLY THESE ANSWERS IS OFF BY A FEW DECIMAL POINTS BECAUSE THE OLD CODE DOESN'T UPDATE v.idx
  #    mendel_result = MendelIHT("test_control.txt")
  #    (xbed, ybed) = PLINK.read_plink_data("test")
 	# iht_result = L0_reg(xbed, ybed, 2)
