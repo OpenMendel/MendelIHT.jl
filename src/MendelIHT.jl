@@ -2,7 +2,7 @@
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel.
 """
 function MendelIHT(control_file = ""; args...)
-    const MENDEL_IHT_VERSION :: VersionNumber = v"0.5.0"
+    const MENDEL_IHT_VERSION :: VersionNumber = v"0.6.0"
     #
     # Print the logo. Store the initial directory.
     #
