@@ -11,11 +11,11 @@ using LinearAlgebra
 Random.seed!(1111)
 
 #import snp data and construct SnpBitMatrix
-const EUR = SnpArray(SnpArrays.datadir("EUR_subset.bed"))
-const EURbm = SnpBitMatrix{Float64}(EUR, model=ADDITIVE_MODEL, center=true, scale=true); #construct SnpBitMatrix based on mouse SnpArrays
+const gwas1 = SnpArray("gwas 1 data.bed")
+const gwas1bm = SnpBitMatrix{Float64}(gwas1, model=ADDITIVE_MODEL, center=true, scale=true); #construct SnpBitMatrix based on mouse SnpArrays
 
 #compute dimension and specify noise of data
-n, p = size(EUR) # number of cases/predictors
+n, p = size(gwas1) # number of cases/predictors
 k = 10             # number of true predictors
 s = 0.1            # noise vector
 
@@ -28,11 +28,11 @@ correct_position = findall(x -> x != 0, true_b) # keep track of what the true en
 noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s) 
 
 #simulate phenotypes (e.g. vector y) via: y = Xb + noise
-y = EURbm * true_b + noise
+y = gwas1bm * true_b + noise
 
 #compute IHT result for less noisy data
-v = IHTVariables(EUR, z, y, 1, k)
-result = L0_reg(v, EUR, z, y, 1, k)
+v = IHTVariables(gwas1, z, y, 1, k)
+result = L0_reg(v, gwas1, z, y, 1, k)
 
 #check result
 estimated_models = result.beta[correct_position]

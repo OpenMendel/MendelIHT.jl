@@ -243,7 +243,7 @@ Calculates the Prior Weighting for IHT.
 Returns a weight array (my_snpweights) (1,10000) and a MAF array (my_snpMAF ) (1,10000).
 """
 function calculate_snp_weights(
-    x        :: SnpBitMatrix{T},
+    x        :: SnpArray,
     y        :: Vector{T},
     k        :: Int,
     v        :: IHTVariable,

@@ -53,11 +53,8 @@ function iht!(
     check_covariate_supp!(v)
 
     # update xb (needed to calculate ω to determine line search criteria)
-    isequal(v.idx, v.idx0) || copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+    copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
-
-    println("reached here")
-    return fff
 
     # calculate omega
     ω_top, ω_bot = _iht_omega(v)
@@ -70,16 +67,16 @@ function iht!(
         μ /= 2
 
         # recompute gradient step
-        copy!(v.b, v.b0)
-        copy!(v.c, v.c0)
+        copyto!(v.b, v.b0)
+        copyto!(v.c, v.c0)
         _iht_gradstep(v, μ, J, k, temp_vec)
 
         # make necessary resizing since grad step might include/exclude non-genetic covariates
-        check_covariate_supp!(v, storage) 
+        check_covariate_supp!(v) 
 
         # recompute xb
-        v.xk .= view(x, :, v.idx)
-        A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+        copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+        A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
 
         # calculate omega
         ω_top, ω_bot = _iht_omega(v)
@@ -87,8 +84,6 @@ function iht!(
         # increment the counter
         μ_step += 1
     end
-
-    #println("μ = " * string(μ) * ". ω_top, ω_bot = " * string(ω_top) * ", " * string(ω_bot))
 
     return μ::T, μ_step::Int
 end
@@ -131,7 +126,7 @@ function L0_reg(
 
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
-    mm_time   = 0.0               # compute time *within* L0_reg
+    tot_time  = 0.0               # compute time *within* L0_reg
     next_loss = oftype(tol,Inf)   # loss function value
 
     # initialize floats
@@ -151,21 +146,13 @@ function L0_reg(
     # store[2] = zeros(T, size(v.xgk)) # length n
     # store[3] = zeros(T, size(v.gk))  # length J * k
 
-    # compute some summary statistics for our snpmatrix
-    # mean_vec, minor_allele, = summarize(x)
-    # people, snps = size(x)
-
     #weight snps based on maf or other user defined weights
-    if use_maf
-        maf = deepcopy(mean_vec) 
-        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
-        hold_std_vec = deepcopy(std_vec)
-        Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
-    end
-    
-    #precompute mean and standard deviations for each snp. 
-    # update_mean!(mean_vec, minor_allele, snps)
-    # std_vec = std_reciprocal(x, mean_vec)
+    # if use_maf
+    #     maf = maf(x)
+    #     my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
+    #     hold_std_vec = deepcopy(std_vec)
+    #     Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
+    # end
 
     # Begin IHT calculations
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
@@ -189,7 +176,7 @@ function L0_reg(
         v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
         # update v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, store)
+        At_mul_B!(v.df, v.df2, x_bitmatrix, z, v.r, v.r)
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2
@@ -202,14 +189,14 @@ function L0_reg(
         converged   = scaled_norm < tol
 
         if converged && mm_iter > 1
-            tot_time = start_time - time()
+            tot_time = time() - start_time
             return gIHTResults(tot_time, next_loss, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
-            tot_time = start_time - time()
+            tot_time = time() - start_time
             throw(error("Did not converge!!!!! The run time for IHT was " *
-                string(mm_time) * "seconds"))
+                string(tot_time) * " seconds"))
         end
     end
 end #function L0_reg
