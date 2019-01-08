@@ -102,5 +102,24 @@ function Base.show(io::IO, x::gIHTResults)
     return nothing
 end
 
+"""
+verbose printing of cv results
+"""
+function print_cv_results(
+    io::IO, 
+    errors::Vector{T}, 
+    path::DenseVector{Int}, 
+    k::Int
+) where {T <: Float}
+    println(io, "\n\nCrossvalidation Results:")
+    println(io, "k\tMSE")
+    for i = 1:length(errors)
+        println(io, path[i], "\t", errors[i])
+    end
+    println(io, "\nThe lowest MSE is achieved at k = ", k)
+end
+
+# default IO for print_cv_results is STDOUT
+print_cv_results(errors::Vector{T}, path::DenseVector{Int}, k::Int) where {T <: Float} = print_cv_results(stdout, errors, path, k)
 
 

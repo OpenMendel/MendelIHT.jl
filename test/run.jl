@@ -11,13 +11,13 @@ using LinearAlgebra
 Random.seed!(1111)
 
 #simulat data
-n = 5000
-p = 30000
+n = 2000
+p = 10000
 x = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
-k = 10             # number of true predictors
+k = 5              # number of true predictors
 s = 0.1            # noise vector
 
 #construct covariates (intercept) and true model b
@@ -32,6 +32,7 @@ noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
+k = 6
 v = IHTVariables(x, z, y, 1, k)
 result = L0_reg(v, x, z, y, 1, k)
 
@@ -95,6 +96,8 @@ SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
 # num_folds = 5
 # folds = rand(1:num_folds, size(x, 1))
 # cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
+
+
 
 
 
@@ -244,6 +247,55 @@ xb = exp.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
 
 
 
+
+
+
+
+############## NORMAL CROSS VALIDATION SIMULATION
+using IHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+
+#set random seed
+Random.seed!(1111)
+
+#simulat data
+n = 2000
+p = 10000
+x = simulate_random_snparray(n, p)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+#specify true model size and noise of data
+k = 5   # number of true predictors
+s = 0.1  # noise vector
+
+#construct covariates (intercept) and true model b
+z = ones(n, 1)          # non-genetic covariates, just the intercept
+true_b = zeros(p)       # model vector
+true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
+shuffle!(true_b)        # Shuffle the entries
+correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
+noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s) 
+
+#simulate phenotypes (e.g. vector y) via: y = Xb + noise
+y = xbm * true_b + noise
+
+#specify path and folds
+path = collect(1:10)
+num_folds = 3
+folds = rand(1:num_folds, size(x, 1))
+
+#compute cross validation
+result = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
+
+
+
+
+
 ########### LOGISTIC CROSS VALIDATION SIMULATION CODE##############
 using IHT
 using SnpArrays
@@ -352,51 +404,6 @@ cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "poisson")
 
 
 
-
-
-############## NORMAL CROSS VALIDATION SIMULATION
-using IHT
-using SnpArrays
-using DataFrames
-using Distributions
-
-#set random seed
-srand(123) 
-
-#specify dimension and noise of data
-n = 2000                        # number of cases
-p = 10000                       # number of predictors
-k = 10                          # number of true predictors per group
-s = 0.1                         # noise vector, from very little noise to a lot of noise
-
-#construct snpmatrix, covariate files, and true model b
-x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
-z           = ones(n, 1)                   # non-genetic covariates, just the intercept
-true_b      = zeros(p)                     # model vector
-true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
-shuffle!(true_b)                           # Shuffle the entries
-correct_position = find(true_b)            # keep track of what the true entries are
-noise = rand(Normal(0, s), n)              # noise vectors from N(0, s) where s ∈ S = {0.01, 0.1, 1, 10}s
-
-#compute mean and std used to standardize data to mean 0 variance 1
-mean_vec, minor_allele, = summarize(x)
-for i in 1:p
-    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
-end
-std_vec = std_reciprocal(x, mean_vec)
-
-#simulate phenotypes under different noises by: y = Xb + noise
-y_temp = zeros(n)
-SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
-y = y_temp += noise
-
-#specify path and folds
-path = collect(1:5)
-num_folds = 3
-folds = rand(1:num_folds, size(x, 1))
-
-#compute cross validation
-result = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
 
 
 

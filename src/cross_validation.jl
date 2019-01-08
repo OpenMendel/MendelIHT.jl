@@ -6,7 +6,7 @@ The additional optional arguments are:
 - `mask_n`, a `Bool` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of trues.
 """
 function iht_path(
-    x        :: SnpBitMatrix{T},
+    x        :: SnpArray,
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
@@ -75,7 +75,7 @@ increases linearly with the number of paths, which is negligible as long as the 
 paths is reasonable (e.g. less than 100). 
 """
 function iht_path_threaded(
-    x        :: SnpBitMatrix{T},
+    x        :: SnpArray,
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
@@ -115,13 +115,8 @@ function iht_path_threaded(
 
         # now compute current model
         if glm == "normal"
-            # v = IHTVariables(x, z, y, J, k)
-            # output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_reg(v, x_train, z_train, y_train, J, k)
+            v = IHTVariables(x, z, y, J, k)
+            output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
         elseif glm == "logistic"
             x_train = x[mask_n, :]
             y_train = y[mask_n]
@@ -157,10 +152,9 @@ returns the out-of-sample errors in a vector.
 - `path` , a vector of various model sizes
 - `folds`, a vector indicating which of the q fold each sample belongs to. 
 - `fold` , the current fold that is being used as test set. 
-- `pids` , a vector of process IDs. Defaults to `procs(x)`.
 """
 function one_fold(
-    x        :: SnpBitMatrix{T},
+    x        :: SnpArray,
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
@@ -185,14 +179,12 @@ function one_fold(
     test_size = sum(test_idx)
 
     # allocate test model, this can be avoided with view(x, test_idx, :), but SnpArray code needs to gets fixed first 
-    x_test = x[test_idx, :]
-    z_test = z[test_idx, :]
-
-    # compute some statistics needed to standardize the snpmatrix
-    mean_vec, minor_allele, = summarize(x_test)
-    people, snps = size(x)
-    update_mean!(mean_vec, minor_allele, snps)
-    std_vec = std_reciprocal(x, mean_vec)
+    # x_test = x[test_idx, :]
+    # z_test = z[test_idx, :]
+    x_test = zeros(T, sum(test_idx), p)
+    z_test = zeros(T, sum(test_idx), q)
+    copyto!(x_test, @view(x[test_idx, :]), center=true, scale=true)
+    copyto!(z_test, @view(z[test_idx, :])) #should z be standardized?
 
     # compute the regularization path on the training set
     betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, glm=glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
@@ -202,11 +194,11 @@ function one_fold(
     myerrors = zeros(T, length(path))
 
     # allocate the arrays for the test set
-    xb = zeros(test_size,)
-    zc = zeros(test_size,)
-    r  = zeros(test_size,)
-    b  = zeros(p,)
-    c  = zeros(q,)
+    xb = zeros(T, test_size,)
+    zc = zeros(T, test_size,)
+    r  = zeros(T, test_size,)
+    b  = zeros(T, p,)
+    c  = zeros(T, q,)
 
     # for each computed model in regularization path, compute the mean out-of-sample error for the TEST set
     for i = 1:size(betas,2)
@@ -215,9 +207,8 @@ function one_fold(
         b .= betas[:, i]
         c .= cs[:, i] 
 
-        # compute estimated response Xb with $(path[i]) nonzeroes
-        SnpArrays.A_mul_B!(xb, x_test, b, mean_vec, std_vec) 
-        BLAS.A_mul_B!(zc, z_test, c)
+        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] with $(path[i]) nonzeroes
+        A_mul_B!(xb, zc, x_test, z_test, b, c) 
 
         # compute residuals. For glm, recall E(Y) = g^-1(Xβ) where g^-1 is the inverse link
         if glm == "normal"
@@ -243,9 +234,9 @@ mse[i, j] stores the ith model size for fold j. Thus to obtain the mean mse for 
 we take average along the rows and find the minimum.  
 """
 function pfold_naive(
-    x        :: SnpBitMatrix{T},
-    z        :: Matrix{T},
-    y        :: Vector{T},
+    x        :: SnpArray,
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
@@ -258,11 +249,11 @@ function pfold_naive(
 
     @assert num_fold >= 1 "number of folds must be positive integer"
 
-    mses = zeros(length(path), num_fold)
+    mses = zeros(T, length(path), num_fold)
     for fold in 1:num_fold
         mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf, glm = glm)
     end
-    return vec(sum(mses, 2) ./ num_fold)
+    return vec(sum(mses, dims=2) ./ num_fold)
 end
 
 """
@@ -280,9 +271,9 @@ Important arguments and defaults include:
 - `use_maf` whether IHT wants to scale predictors using their minor allele frequency. This is experimental feature
 """
 function cv_iht(
-    x        :: SnpBitMatrix{T},
-    z        :: Matrix{T},
-    y        :: Vector{T},
+    x        :: SnpArray,
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
@@ -304,8 +295,8 @@ function cv_iht(
     mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf, glm = glm)
 
     # find best model size and print cross validation result
-    k = path[indmin(mses)] :: Int
+    k = path[argmin(mses)] :: Int
     print_cv_results(mses, path, k)
 
-    return mses
+    return nothing
 end
