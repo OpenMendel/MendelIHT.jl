@@ -1,3 +1,44 @@
+#BELOW BENCHMARK PERFORMANCE OF L0_reg 
+using IHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+
+#set random seed
+Random.seed!(1111)
+
+#simulat data
+n = 5000
+p = 30000
+x = simulate_random_snparray(n, p)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+#specify true model size and noise of data
+k = 10             # number of true predictors
+s = 0.1            # noise vector
+
+#construct covariates (intercept) and true model b
+z = ones(n, 1)          # non-genetic covariates, just the intercept
+true_b = zeros(p)       # model vector
+true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
+shuffle!(true_b)        # Shuffle the entries
+correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
+noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s) 
+
+#simulate phenotypes (e.g. vector y) via: y = Xb + noise
+y = xbm * true_b + noise
+
+#compute IHT result for less noisy data
+v = IHTVariables(x, z, y, 1, k)
+result = L0_reg(v, x, z, y, 1, k)
+
+@benchmark L0_reg(v, x, z, y, 1, k) seconds = 30
+
+
+
 #BELOW ARE NORMAL SIMUATIONS
 using IHT
 using SnpArrays
@@ -12,7 +53,7 @@ Random.seed!(1111)
 
 #import snp data and construct SnpBitMatrix
 const gwas1 = SnpArray("gwas 1 data.bed")
-const gwas1bm = SnpBitMatrix{Float64}(gwas1, model=ADDITIVE_MODEL, center=true, scale=true); #construct SnpBitMatrix based on mouse SnpArrays
+const gwas1bm = SnpBitMatrix{Float64}(gwas1, model=ADDITIVE_MODEL, center=true, scale=true);
 
 #compute dimension and specify noise of data
 n, p = size(gwas1) # number of cases/predictors
@@ -54,9 +95,6 @@ SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
 # num_folds = 5
 # folds = rand(1:num_folds, size(x, 1))
 # cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
-
-
-
 
 
 

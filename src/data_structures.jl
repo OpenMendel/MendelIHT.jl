@@ -95,7 +95,7 @@ function Base.show(io::IO, x::gIHTResults)
     println(io, "Max number of groups:   ", x.J)
     println(io, "Max predictors/group:   ", x.k)
     println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero coefficients.")
-    non_zero = findall(x.beta)
+    non_zero = findall(x -> x != 0, x.beta)
     print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
     println(io, "\n\nIntercept of model = ", x.c[1])
 

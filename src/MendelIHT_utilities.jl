@@ -539,7 +539,6 @@ end
 #     end
 # end
 
-
 """
 This function computes the loglikelihood of a model β for a given glm response
 """
@@ -561,3 +560,25 @@ function compute_logl(
         error("compute_logl: currently only supports logistic and poisson")
     end
 end
+
+"""
+Simple function for simulating a random SnpArray without missing value
+"""
+function simulate_random_snparray(
+    n :: Int64,
+    p :: Int64
+)
+    x_tmp = rand(0:2, n, p)
+    x = SnpArray(undef, n, p)
+    for i in 1:(n*p)
+        if x_tmp[i] == 0
+            x[i] = 0x00
+        elseif x_tmp[i] == 1
+            x[i] = 0x02
+        else
+            x[i] = 0x03
+        end
+    end
+    return x
+end
+
