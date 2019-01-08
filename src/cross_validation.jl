@@ -6,7 +6,7 @@ The additional optional arguments are:
 - `mask_n`, a `Bool` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of trues.
 """
 function iht_path(
-    x        :: SnpLike{2},
+    x        :: SnpBitMatrix{T},
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
@@ -75,7 +75,7 @@ increases linearly with the number of paths, which is negligible as long as the 
 paths is reasonable (e.g. less than 100). 
 """
 function iht_path_threaded(
-    x        :: SnpLike{2},
+    x        :: SnpBitMatrix{T},
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
@@ -160,7 +160,7 @@ returns the out-of-sample errors in a vector.
 - `pids` , a vector of process IDs. Defaults to `procs(x)`.
 """
 function one_fold(
-    x        :: SnpLike{2},
+    x        :: SnpBitMatrix{T},
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
@@ -243,7 +243,7 @@ mse[i, j] stores the ith model size for fold j. Thus to obtain the mean mse for 
 we take average along the rows and find the minimum.  
 """
 function pfold_naive(
-    x        :: SnpLike{2},
+    x        :: SnpBitMatrix{T},
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,
@@ -280,7 +280,7 @@ Important arguments and defaults include:
 - `use_maf` whether IHT wants to scale predictors using their minor allele frequency. This is experimental feature
 """
 function cv_iht(
-    x        :: SnpLike{2},
+    x        :: SnpBitMatrix{T},
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int64,

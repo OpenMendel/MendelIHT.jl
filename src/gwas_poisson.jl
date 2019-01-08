@@ -14,10 +14,9 @@
 - `iter` is an integer storing the number of full iht steps taken (i.e. negative gradient + projection)
 - `nstep` number of maximum backtracking. 
 """
-
 function iht_poisson!(
     v         :: IHTVariable{T},
-    x         :: SnpLike{2},
+    x         :: SnpBitMatrix{T},
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
     J         :: Int,
@@ -113,7 +112,7 @@ end
 """
 function L0_poisson_reg(
     v         :: IHTVariable, 
-    x         :: SnpLike{2},
+    x         :: SnpBitMatrix{T},
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
     J         :: Int,

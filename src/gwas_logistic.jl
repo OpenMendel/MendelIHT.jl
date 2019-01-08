@@ -14,10 +14,9 @@
 - `iter` is an integer storing the number of full iht steps taken (i.e. negative gradient + projection)
 - `nstep` number of maximum backtracking. 
 """
-
 function iht_logistic!(
     v         :: IHTVariable{T},
-    x         :: SnpLike{2},
+    x         :: SnpBitMatrix{T},
     z         :: Matrix{T},
     y         :: Vector{T},
     J         :: Int,
@@ -113,7 +112,7 @@ end
 """
 function L0_logistic_reg(
     v         :: IHTVariable, 
-    x         :: SnpLike{2},
+    x         :: SnpBitMatrix{T},
     z         :: Matrix{T},
     y         :: Vector{T},
     J         :: Int,

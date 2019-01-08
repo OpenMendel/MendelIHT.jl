@@ -4,11 +4,11 @@ Object to contain intermediate variables and temporary arrays. Used for cleaner 
 mutable struct IHTVariable{T <: Float, V <: DenseVector}
 
     #TODO: Consider changing b and b0 to SparseVector
-    b     :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
-    b0    :: Vector{T}     # estimated model for genotype matrix in the previous iteration
-    xb    :: Vector{T}     # vector that holds x*b
-    xb0   :: Vector{T}     # xb in the previous iteration
-    xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    b     :: Vector{T}        # the statistical model for the genotype matrix, most will be 0
+    b0    :: Vector{T}        # estimated model for genotype matrix in the previous iteration
+    xb    :: Vector{T}        # vector that holds x*b
+    xb0   :: Vector{T}        # xb in the previous iteration
+    xk    :: Matrix{T}        # the n by k subset of the design matrix x corresponding to non-0 elements of b
     gk    :: Vector{T}     # numerator of step size. gk = df[idx]. 
     xgk   :: Vector{T}     # xk * gk, denominator of step size
     idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
@@ -27,13 +27,13 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     p     :: Vector{T}     # vector storing the mean of a glm: p = g^{-1}( Xβ )
 end
 
-function IHTVariables{T <: Float}(
-    x :: SnpLike{2},
-    z :: Matrix{T},
-    y :: Vector{T},
+function IHTVariables(
+    x :: SnpArray,
+    z :: AbstractMatrix{T},
+    y :: AbstractVector{T},
     J :: Int64,
     k :: Int64;
-)
+) where {T <: Float}
     n, p  = size(x)
     q     = size(z, 2)
 
@@ -41,8 +41,10 @@ function IHTVariables{T <: Float}(
     b0    = zeros(T, p)
     xb    = zeros(T, n)
     xb0   = zeros(T, n)
-    xk    = SnpArray(n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    gk    = zeros(T, J * k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
+    xk    = zeros(T, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    # xk    = SnpArray(undef, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    # xk    = SnpBitMatrix{T}(xktmp)
+    gk    = zeros(T, J * k - 1)           # subtracting 1 because the intercept will likely be selected in the first iter
     xgk   = zeros(T, n)
     idx   = falses(p)
     idx0  = falses(p)
@@ -65,7 +67,7 @@ end
 """
 an object that houses results returned from a group IHT run
 """
-immutable gIHTResults{T <: Float, V <: DenseVector}
+struct gIHTResults{T <: Float, V <: DenseVector}
     time  :: T
     loss  :: T
     iter  :: Int
