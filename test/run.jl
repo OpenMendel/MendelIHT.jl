@@ -32,11 +32,14 @@ noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-k = 6
+k = 3
 v = IHTVariables(x, z, y, 1, k)
 result = L0_reg(v, x, z, y, 1, k)
 
 @benchmark L0_reg(v, x, z, y, 1, k) seconds = 30
+
+
+
 
 
 
@@ -52,13 +55,14 @@ using LinearAlgebra
 #set random seed
 Random.seed!(1111)
 
-#import snp data and construct SnpBitMatrix
-const gwas1 = SnpArray("gwas 1 data.bed")
-const gwas1bm = SnpBitMatrix{Float64}(gwas1, model=ADDITIVE_MODEL, center=true, scale=true);
+#simulat data
+n = 2000
+p = 10000
+x = simulate_random_snparray(n, p)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
-#compute dimension and specify noise of data
-n, p = size(gwas1) # number of cases/predictors
-k = 10             # number of true predictors
+#specify true model size and noise of data
+k = 5              # number of true predictors
 s = 0.1            # noise vector
 
 #construct covariates (intercept) and true model b
@@ -70,11 +74,11 @@ correct_position = findall(x -> x != 0, true_b) # keep track of what the true en
 noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s) 
 
 #simulate phenotypes (e.g. vector y) via: y = Xb + noise
-y = gwas1bm * true_b + noise
+y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-v = IHTVariables(gwas1, z, y, 1, k)
-result = L0_reg(v, gwas1, z, y, 1, k)
+v = IHTVariables(x, z, y, 1, k)
+result = L0_reg(v, x, z, y, 1, k)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -107,47 +111,41 @@ using IHT
 using SnpArrays
 using DataFrames
 using Distributions
-using StatsFuns: logistic
 using BenchmarkTools
+using Random
+using LinearAlgebra
+using StatsFuns: logistic
 
 #set random seed
-srand(123) 
+Random.seed!(1111)
 
-#specify dimension and noise of data
-n = 5000                        # number of cases
-p = 10000                       # number of predictors
-k = 10                          # number of true predictors per group
-s = 0.1                         # noise vector, from very little noise to a lot of noise
+#simulat data
+n = 2000
+p = 10000
+x = simulate_random_snparray(n, p)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
-#construct snpmatrix, covariate files, and true model b
-x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
-z           = ones(n, 1)                   # non-genetic covariates, just the intercept
-true_b      = zeros(p)                     # model vector
-true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
-shuffle!(true_b)                           # Shuffle the entries
-correct_position = find(true_b)            # keep track of what the true entries are
-noise = rand(Normal(0, s), n)              # noise vectors from N(0, s) where s ∈ S = {0.01, 0.1, 1, 10}s
+#specify true model size and noise of data
+k = 5              # number of true predictors
+s = 0.1            # noise vector
 
-#compute mean and std used to standardize data to mean 0 variance 1
-mean_vec, minor_allele, = summarize(x)
-for i in 1:p
-    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
+#construct covariates (intercept) and true model b
+z = ones(n, 1)          # non-genetic covariates, just the intercept
+true_b = zeros(p)       # model vector
+true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
+shuffle!(true_b)        # Shuffle the entries
+correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
+
+#simulate phenotypes (e.g. vector y) via: y = Xb
+y_temp = xbm * true_b
+
+# Apply inverse logit link and sample from the vector of distributions
+y = zeros(n)
+prob = logistic.(y_temp) #inverse log link
+for i in 1:n
+    dist = Bernoulli(prob[i])
+    y[i] = rand(dist)
 end
-std_vec = std_reciprocal(x, mean_vec)
-
-#simulate phenotypes under different noises by: y = Xb + noise
-y_temp = zeros(n)
-SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
-# y_temp .+= noise #add some noise
-
-# # Apply inverse logit link to map y to {0, 1} 
-# y_old = 1 ./ (1 .+ exp.(-y_temp)) #inverse logit link
-# y_old .= round.(y_old)                     #map y to 0, 1
-
-# Apply inverse logit link to map y to {0, 1} 
-y = logistic.(y_temp)               #inverse logit link
-hi = rand(length(y))
-y = Float64.(hi .< y)  #map y to 0, 1
 
 #compute logistic IHT result
 estimated_models = zeros(k)
@@ -550,6 +548,12 @@ function test(x::Union{Vector{Int}, Vector{Float64}})
 	return sum(x)
 end
 
+z = zeros(1000)
+zz = zeros(1000)
+y = rand(1000)
+p = rand(1000)
+@benchmark z .= y - p
+@benchmark zz .= y .- p
 
 
 

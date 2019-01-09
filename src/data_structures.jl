@@ -2,13 +2,11 @@
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
 mutable struct IHTVariable{T <: Float, V <: DenseVector}
-
-    #TODO: Consider changing b and b0 to SparseVector
-    b     :: Vector{T}        # the statistical model for the genotype matrix, most will be 0
-    b0    :: Vector{T}        # estimated model for genotype matrix in the previous iteration
-    xb    :: Vector{T}        # vector that holds x*b
-    xb0   :: Vector{T}        # xb in the previous iteration
-    xk    :: Matrix{T}        # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    b     :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
+    b0    :: Vector{T}     # estimated model for genotype matrix in the previous iteration
+    xb    :: Vector{T}     # vector that holds x*b
+    xb0   :: Vector{T}     # xb in the previous iteration
+    xk    :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
     gk    :: Vector{T}     # numerator of step size. gk = df[idx]. 
     xgk   :: Vector{T}     # xk * gk, denominator of step size
     idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
@@ -25,6 +23,7 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     zdf2  :: Vector{T}     # z * df2. needed to calculate non-genetic covariate contribution for denomicator of step size 
     group :: Vector{Int64} # vector denoting group membership
     p     :: Vector{T}     # vector storing the mean of a glm: p = g^{-1}( Xβ )
+    ymp   :: Vector{T}     # y - p, arises as calculation in fisher's information matrix
 end
 
 function IHTVariables(
@@ -60,8 +59,9 @@ function IHTVariables(
     zdf2  = zeros(T, n)
     group = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
     p     = zeros(T, n)
+    ymp   = zeros(T, n)
 
-    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p)
+    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p, ymp)
 end
 
 """

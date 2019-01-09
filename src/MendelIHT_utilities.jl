@@ -322,35 +322,23 @@ function _iht_stepsize(
 end
 
 """
-This function computes the best step size μ for bernoulli responses. 
+This function computes the best step size μ for bernoulli responses. Here the computation
+is done on the n by k support set of the SNP matrix. 
 """
 function _logistic_stepsize(
-    v         :: IHTVariable{T},
-    x         :: SnpBitMatrix{T},
-    z         :: Matrix{T},
-    mean_vec  :: Vector{T},
-    std_vec   :: Vector{T},
+    v :: IHTVariable{T},
+    x :: SnpArray,
+    z :: AbstractMatrix{T},
 ) where {T <: Float}
-    #BELOW IS ASSUMING WE IDENTIFIED CORRECT SUPPORT: THUS THE STEP SIZE CALCULATION
-    #COMUPTES NUMERATOR AND DENOMINATOR USING ONLY THE SUPPORT SET
 
-    # store relevant components of x
-    v.xk .= view(x, :, v.idx)
-
-    # store relevant components of gradient (gk is numerator of step size). 
+    # store relevant components of gradient 
     v.gk .= view(v.df, v.idx)
+    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
-    #compute J = X^T * P * X
-    X = convert(Matrix{T}, v.xk)
-    normalize!(X, view(mean_vec, v.idx), view(std_vec, v.idx))
-    full_X = [X view(z, :, v.idc)]
-    J = full_X' * ((v.p .* (1.0 .- v.p)) .* full_X)
+    #compute denominator of step size
+    denom = (v.xgk + v.zdf2)' * ((v.p .* (1 .- v.p)) .* (v.xgk + v.zdf2))
 
-    #compute denominator 
-    full_v = [view(v.df, v.idx) ; view(v.df2, v.idc)]
-    denom = full_v' * (J * full_v)
-
-    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    # compute step size. Note non-genetic covariates are separated from x
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
 
     return μ
@@ -442,9 +430,6 @@ function A_mul_B!(
     A2       :: AbstractMatrix{T},
     B1       :: AbstractVector{T},
     B2       :: AbstractVector{T},
-    # mean_vec :: AbstractVector{T},
-    # std_vec  :: AbstractVector{T},
-    # storage  :: Vector{Vector{T}}
 ) where {T <: Float}
     SnpArrays.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
@@ -457,9 +442,6 @@ function A_mul_B!(
     A2       :: AbstractMatrix{T},
     B1       :: AbstractVector{T},
     B2       :: AbstractVector{T},
-    # mean_vec :: AbstractVector{T},
-    # std_vec  :: AbstractVector{T},
-    # storage  :: Vector{Vector{T}}
 ) where {T <: Float}
     LinearAlgebra.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
@@ -480,11 +462,20 @@ function At_mul_B!(
     A2       :: AbstractMatrix{T},
     B1       :: AbstractVector{T},
     B2       :: AbstractVector{T},
-    # mean_vec :: AbstractVector{T},
-    # std_vec  :: AbstractVector{T},
-    # storage  :: Vector{Vector{T}}
 ) where {T <: Float}
     SnpArrays.mul!(C1, A1', B1)
+    LinearAlgebra.mul!(C2, A2', B2)
+end
+
+function At_mul_B!(
+    C1       :: AbstractVector{T},
+    C2       :: AbstractVector{T},
+    A1       :: AbstractMatrix{T},
+    A2       :: AbstractMatrix{T},
+    B1       :: AbstractVector{T},
+    B2       :: AbstractVector{T},
+) where {T <: Float}
+    LinearAlgebra.mul!(C1, A1', B1)
     LinearAlgebra.mul!(C2, A2', B2)
 end
 
@@ -502,25 +493,21 @@ function update_df!(
     glm       :: String,
     v         :: IHTVariable{T}, 
     x         :: SnpBitMatrix{T},
-    z         :: Matrix{T},
-    y         :: Vector{T},
-    mean_vec  :: AbstractVector{T},
-    std_vec   :: AbstractVector{T},
-    storage   :: Vector{Vector{T}}
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
 ) where {T <: Float}
     if glm == "normal"
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     elseif glm == "logistic"
-        # inverse_link!(v)            #first update the P vector
-        v.p .= logistic.(v.xb + v.zc) #first update the P vector
-        y_minus_p = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
+        @. v.p = logistic(v.xb + v.zc) #first update the P vector
+        @. v.ymp = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     elseif glm == "poisson"
-        v.p .= exp.(v.xb + v.zc)      #first update the P vector
-        y_minus_p = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
+        @. v.p = exp(v.xb + v.zc) #first update the P vector
+        @. v.ymp = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     else
-        throw(error("unsupport glm method."))
+        throw(error("computing gradient for an unsupport glm method: " * glm))
     end
 end
 
@@ -543,14 +530,9 @@ end
 This function computes the loglikelihood of a model β for a given glm response
 """
 function compute_logl(
-    v        :: IHTVariable{T},
-    x        :: SnpBitMatrix{T},
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    glm      :: String,
-    mean_vec :: AbstractVector{T},
-    std_vec  :: AbstractVector{T},
-    storage  :: Vector{Vector{T}}
+    v   :: IHTVariable{T},
+    y   :: AbstractVector{T},
+    glm :: String,
 ) where {T <: Float}
     if glm == "logistic"
         return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) 
