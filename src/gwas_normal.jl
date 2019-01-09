@@ -15,14 +15,14 @@
 """
 function iht!(
     v         :: IHTVariable{T},
-    x         :: SnpLike{2},
+    x         :: SnpArray,
     z         :: Matrix{T},
     y         :: Vector{T},
     J         :: Int,
     k         :: Int,
-    mean_vec  :: Vector{T},
-    std_vec   :: Vector{T},
-    storage   :: Vector{Vector{T}},
+    # mean_vec  :: Vector{T},
+    # std_vec   :: Vector{T},
+    # storage   :: Vector{Vector{T}},
     temp_vec  :: Vector{T},
     iter      :: Int,
     nstep     :: Int
@@ -35,26 +35,26 @@ function iht!(
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
     if iter == 1
         init_iht_indices!(v, J, k, temp_vec = temp_vec)
-        check_covariate_supp!(v, storage) # make necessary resizing
+        check_covariate_supp!(v) # make necessary resizing
     end
 
     # store relevant columns of x.
     if (!isequal(v.idx, v.idx0) && !isequal(v.idc, v.idc0)) || iter < 2
-        copy!(v.xk, view(x, :, v.idx))
+        copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     end
 
     # calculate step size and take gradient (score) step based on type of regression
-    μ = _iht_stepsize(v, z, mean_vec, std_vec, storage)
+    μ = _iht_stepsize(v, z)
 
     # take the gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
 
     # make necessary resizing since grad step might include/exclude non-genetic covariates
-    check_covariate_supp!(v, storage) 
+    check_covariate_supp!(v)
 
     # update xb (needed to calculate ω to determine line search criteria)
-    v.xk .= view(x, :, v.idx)
-    A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+    copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+    A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
 
     # calculate omega
     ω_top, ω_bot = _iht_omega(v)
@@ -67,16 +67,16 @@ function iht!(
         μ /= 2
 
         # recompute gradient step
-        copy!(v.b, v.b0)
-        copy!(v.c, v.c0)
+        copyto!(v.b, v.b0)
+        copyto!(v.c, v.c0)
         _iht_gradstep(v, μ, J, k, temp_vec)
 
         # make necessary resizing since grad step might include/exclude non-genetic covariates
-        check_covariate_supp!(v, storage) 
+        check_covariate_supp!(v) 
 
         # recompute xb
-        v.xk .= view(x, :, v.idx)
-        A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+        copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+        A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
 
         # calculate omega
         ω_top, ω_bot = _iht_omega(v)
@@ -84,8 +84,6 @@ function iht!(
         # increment the counter
         μ_step += 1
     end
-
-    #println("μ = " * string(μ) * ". ω_top, ω_bot = " * string(ω_top) * ", " * string(ω_bot))
 
     return μ::T, μ_step::Int
 end
@@ -104,7 +102,7 @@ end
 """
 function L0_reg(
     v        :: IHTVariable, 
-    x        :: SnpLike{2},
+    x        :: SnpArray,
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int,
@@ -117,8 +115,7 @@ function L0_reg(
     temp_vec :: Vector{T} = zeros(size(x, 2) + size(z, 2))
 ) where {T <: Float}
 
-    # start timer
-    tic()
+    start_time = time()
 
     # first handle errors
     @assert J >= 0        "Value of J (max number of groups) must be nonnegative!\n"
@@ -129,11 +126,10 @@ function L0_reg(
 
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_reg
-    mm_time   = 0.0               # compute time *within* L0_reg
+    tot_time  = 0.0               # compute time *within* L0_reg
     next_loss = oftype(tol,Inf)   # loss function value
 
     # initialize floats
-    # current_obj = oftype(tol,Inf) # tracks previous objective function value
     the_norm    = 0.0             # norm(b - b0)
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
     μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
@@ -145,43 +141,27 @@ function L0_reg(
     converged = false             # scaled_norm < tol?
 
     # initialize empty vectors to facilitate garbage collection in (snpmatrix)-(vector) computation
-    store = Vector{Vector{T}}(3)
-    store[1] = zeros(T, size(v.df))  # length p 
-    store[2] = zeros(T, size(v.xgk)) # length n
-    store[3] = zeros(T, size(v.gk))  # length J * k
-
-    # compute some summary statistics for our snpmatrix
-    mean_vec, minor_allele, = summarize(x)
-    people, snps = size(x)
+    # store = Vector{Vector{T}}(3)
+    # store[1] = zeros(T, size(v.df))  # length p 
+    # store[2] = zeros(T, size(v.xgk)) # length n
+    # store[3] = zeros(T, size(v.gk))  # length J * k
 
     #weight snps based on maf or other user defined weights
-    if use_maf
-        maf = deepcopy(mean_vec) 
-        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
-        hold_std_vec = deepcopy(std_vec)
-        Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
-    end
-    
-    #precompute mean and standard deviations for each snp. 
-    update_mean!(mean_vec, minor_allele, snps)
-    std_vec = std_reciprocal(x, mean_vec)
-
-    #
-    # Begin IHT calculations
-    #
-    # if sum(v.idx) + sum(v.idc) == 0
-        fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-        copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-        v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
-    # else
-    #     SnpArrays.A_mul_B!(v.xb, x, v.b, mean_vec, std_vec)
-    #     BLAS.A_mul_B!(v.zc, z, v.c)
-    #     v.r .= y .- v.xb .- v.zc
-    #     v.r[mask_n .== 0] .= 0
+    # if use_maf
+    #     maf = maf(x)
+    #     my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
+    #     hold_std_vec = deepcopy(std_vec)
+    #     Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
     # end
 
+    # Begin IHT calculations
+    fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
+    copyto!(v.r, y)        #redisual = y-Xβ-zc = y since initially β = c = 0
+    v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
+
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
-    At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, store)
+    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    At_mul_B!(v.df, v.df2, x_bitmatrix, z, v.r, v.r)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loss
@@ -189,14 +169,14 @@ function L0_reg(
         loss = next_loss
 
         #calculate the step size μ.
-        (μ, μ_step) = iht!(v, x, z, y, J, k, mean_vec, std_vec, store, temp_vec, mm_iter, max_step)
+        (μ, μ_step) = iht!(v, x, z, y, J, k, temp_vec, mm_iter, max_step)
 
         # iht! gives us an updated x*b. Use it to recompute residuals and gradient
         v.r .= y .- v.xb .- v.zc 
         v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
         # update v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, store)
+        At_mul_B!(v.df, v.df2, x_bitmatrix, z, v.r, v.r)
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2
@@ -209,14 +189,14 @@ function L0_reg(
         converged   = scaled_norm < tol
 
         if converged && mm_iter > 1
-            mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_loss, mm_iter, v.b, v.c, J, k, v.group)
+            tot_time = time() - start_time
+            return gIHTResults(tot_time, next_loss, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
-            mm_time = toq() # stop time
+            tot_time = time() - start_time
             throw(error("Did not converge!!!!! The run time for IHT was " *
-                string(mm_time) * "seconds"))
+                string(tot_time) * " seconds"))
         end
     end
 end #function L0_reg

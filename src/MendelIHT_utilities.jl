@@ -23,13 +23,13 @@ end
 This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates idx and idc. It is an
 addition here because recall that v.df stores an extra negative sign.
 """
-function _iht_gradstep{T <: Float}(
+function _iht_gradstep(
     v :: IHTVariable{T},
     μ :: T,
     J :: Int,
     k :: Int,
     temp_vec :: Vector{T}
-)
+) where {T <: Float}
     BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μv, v = score
     BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μv, v = score
 ##
@@ -51,19 +51,19 @@ end
 When initializing the IHT algorithm, take largest elements of each group of df as nonzero
 components of b. This function set v.idx = 1 for those indices.
 """
-function init_iht_indices!{T <: Float}(
+function init_iht_indices!(
     v :: IHTVariable{T},
     J :: Int,
     k :: Int;
     temp_vec :: Vector{T} = zeros(length(v.df) + length(v.df2))
-)
+) where {T <: Float}
 ##
     length_df = length(v.df)
     temp_vec[1:length_df] .= v.df
     temp_vec[length_df+1:end] .= v.df2
     project_group_sparse!(temp_vec, v.group, J, k)
-    v.df = view(temp_vec, 1:length_df)
-    v.df2 = view(temp_vec, length_df+1:length(temp_vec))
+    v.df .= view(temp_vec, 1:length_df)
+    v.df2 .= view(temp_vec, length_df+1:length(temp_vec))
 ##
     v.idx .= v.df .!= 0                        # find new indices of new beta that are nonzero
     v.idc .= v.df2 .!= 0
@@ -77,24 +77,24 @@ end
 In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
 included/excluded, we must resize xk, gk, store2, and store3. 
 """
-function check_covariate_supp!{T <: Float}(
+function check_covariate_supp!(
     v       :: IHTVariable{T},
-    storage :: Vector{Vector{T}},
-)
+    # storage :: Vector{Vector{T}},
+) where {T <: Float}
     if sum(v.idx) != size(v.xk, 2)
-        v.xk = SnpArray(size(v.xk, 1), sum(v.idx))
+        v.xk = zeros(T, size(v.xk, 1), sum(v.idx))
         v.gk = zeros(T, sum(v.idx))
-        storage[2] = zeros(T, size(v.xgk)) # length n
-        storage[3] = zeros(T, size(v.gk))  # length J * k
+        # storage[2] = zeros(T, size(v.xgk)) # length n
+        # storage[3] = zeros(T, size(v.gk))  # length J * k
     end
 end
 
 """
 this function calculates the omega (here a / b) used for determining backtracking
 """
-function _iht_omega{T <: Float}(
+function _iht_omega(
     v :: IHTVariable{T}
-)
+) where {T <: Float}
     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
     b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
     return a, b
@@ -103,14 +103,14 @@ end
 """
 this function for determining whether or not to backtrack for normal least squares. True = backtrack
 """
-function _normal_backtrack{T <: Float}(
+function _normal_backtrack(
     v       :: IHTVariable{T},
     ot      :: T,
     ob      :: T,
     mu      :: T,
     mu_step :: Int,
     nstep   :: Int
-)
+) where {T <: Float}
     mu*ob > 0.99*ot              &&
     sum(v.idx) != 0              &&
     sum(xor.(v.idx,v.idx0)) != 0 &&
@@ -120,12 +120,12 @@ end
 """
 this function for determining whether or not to backtrack for logistic regression. True = backtrack
 """
-function _logistic_backtrack{T <: Float}(
+function _logistic_backtrack(
     logl      :: T, 
     prev_logl :: T,
     mu_step   :: Int,
     nstep     :: Int
-)
+) where {T <: Float}
     prev_logl > logl &&
     mu_step < nstep 
 end
@@ -136,13 +136,13 @@ this function for determining whether or not to backtrack for poisson regression
 Note we require the model coefficients to be "small"  (that is, max entry not greater than 10) to 
 prevent loglikelihood blowing up in first few iteration.
 """
-function _poisson_backtrack{T <: Float}(
+function _poisson_backtrack(
     v        :: IHTVariable{T},
     logl      :: T, 
     prev_logl :: T,
     mu_step   :: Int,
     nstep     :: Int
-)
+) where {T <: Float}
     prev_logl > logl   ||
     maximum(v.c) > 10  ||
     maximum(v.b) > 10  ||
@@ -154,7 +154,10 @@ end
 Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs are not missing.
 Otherwise, the inner loop should only add if data not missing.
 """
-function std_reciprocal{T <: Float}(A::SnpArray, mean_vec::Vector{T})
+function std_reciprocal(
+    A::SnpArray, 
+    mean_vec::Vector{T}
+) where {T <: Float}
     m, n = size(A)
     @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
     std_vector = zeros(T, n)
@@ -174,11 +177,11 @@ This function computes the mean of each SNP. Note that (1) the mean is given by
 2 * maf (minor allele frequency), and (2) based on which allele is the minor allele, 
 might need to do 2.0 - the maf for the mean vector.
 """
-function update_mean!{T <: Float}(
+function update_mean!(
     mean_vec     :: Vector{T},
     minor_allele :: BitArray{1},
     p            :: Int64
-)
+) where {T <: Float}
 
     @inbounds @simd for i in 1:p
         if minor_allele[i]
@@ -195,12 +198,12 @@ assumes there are no unknown or overlaping group membership.
 
 TODO: check if sortperm can be replaced by something that doesn't sort the whole array
 """
-function project_group_sparse!{T <: Float}(
+function project_group_sparse!(
     y     :: Vector{T},
     group :: Vector{Int64},
     J     :: Int64,
     k     :: Int64
-)
+) where {T <: Float}
     @assert length(group) == length(y) "group membership vector does not have the same length as the vector to be projected on"
 
     groups = maximum(group)
@@ -240,13 +243,13 @@ Calculates the Prior Weighting for IHT.
 Returns a weight array (my_snpweights) (1,10000) and a MAF array (my_snpMAF ) (1,10000).
 """
 function calculate_snp_weights(
-    x        :: SnpLike{2},
-    y        :: Vector{Float64},
+    x        :: SnpArray,
+    y        :: Vector{T},
     k        :: Int,
     v        :: IHTVariable,
     use_maf  :: Bool,
-    maf      :: Array{Float64,1}
-)
+    maf      :: Array{T,1}
+) where {T <: Float}
     # get my_snpMAF from x
     ALLELE_MAX = 2 * size(x,1)
     my_snpMAF = maf' # crashes line 308 npzwrite
@@ -279,32 +282,32 @@ end
 """
 Function that saves `b`, `xb`, `idx`, `idc`, `c`, and `zc` after each iteration. 
 """
-function save_prev!{T <: Float}(
+function save_prev!(
     v :: IHTVariable{T}
-)
-    copy!(v.b0, v.b)     # b0 = b
-    copy!(v.xb0, v.xb)   # Xb0 = Xb
-    copy!(v.idx0, v.idx) # idx0 = idx
-    copy!(v.idc0, v.idc) # idc0 = idc
-    copy!(v.c0, v.c)     # c0 = c
-    copy!(v.zc0, v.zc)   # Zc0 = Zc
+) where {T <: Float}
+    copyto!(v.b0, v.b)     # b0 = b
+    copyto!(v.xb0, v.xb)   # Xb0 = Xb
+    copyto!(v.idx0, v.idx) # idx0 = idx
+    copyto!(v.idc0, v.idc) # idc0 = idc
+    copyto!(v.c0, v.c)     # c0 = c
+    copyto!(v.zc0, v.zc)   # Zc0 = Zc
 end
 
 """
 This function computes the best step size μ for normal responses. 
 """
-function _iht_stepsize{T <: Float}(
+function _iht_stepsize(
     v        :: IHTVariable{T},
-    z        :: Matrix{T},
-    mean_vec :: Vector{T},
-    std_vec  :: Vector{T},
-    storage  :: Vector{Vector{T}}
-)
+    z        :: AbstractMatrix{T},
+    # mean_vec :: AbstractVector{T},
+    # std_vec  :: AbstractVector{T},
+    # storage  :: AbstractVector{AbstractVector{T}}
+) where {T <: Float}
     # store relevant components of gradient (gk is numerator of step size). 
     v.gk .= view(v.df, v.idx)
 
-    # compute the denominator of step size using only relevant components 
-    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc), view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+    # compute the denominator of step size using only relevant components
+    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
@@ -313,53 +316,41 @@ function _iht_stepsize{T <: Float}(
     μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
 
     # check for finite stepsize
-    isfinite(μ) || throw(error("Step size is not finite, is active set all zero?"))
+    isfinite(μ) || throw(error("Step size is not finite, check if active set is all zero or if your SnpArray have missing values."))
 
     return μ
 end
 
 """
-This function computes the best step size μ for bernoulli responses. 
+This function computes the best step size μ for bernoulli responses. Here the computation
+is done on the n by k support set of the SNP matrix. 
 """
-function _logistic_stepsize{T <: Float}(
-    v         :: IHTVariable{T},
-    x         :: SnpLike{2},
-    z         :: Matrix{T},
-    mean_vec  :: Vector{T},
-    std_vec   :: Vector{T},
-)
-    #BELOW IS ASSUMING WE IDENTIFIED CORRECT SUPPORT: THUS THE STEP SIZE CALCULATION
-    #COMUPTES NUMERATOR AND DENOMINATOR USING ONLY THE SUPPORT SET
+function _logistic_stepsize(
+    v :: IHTVariable{T},
+    x :: SnpArray,
+    z :: AbstractMatrix{T},
+) where {T <: Float}
 
-    # store relevant components of x
-    v.xk .= view(x, :, v.idx)
-
-    # store relevant components of gradient (gk is numerator of step size). 
+    # store relevant components of gradient 
     v.gk .= view(v.df, v.idx)
+    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
-    #compute J = X^T * P * X
-    X = convert(Matrix{T}, v.xk)
-    normalize!(X, view(mean_vec, v.idx), view(std_vec, v.idx))
-    full_X = [X view(z, :, v.idc)]
-    J = full_X' * ((v.p .* (1.0 .- v.p)) .* full_X)
+    #compute denominator of step size
+    denom = (v.xgk + v.zdf2)' * ((v.p .* (1 .- v.p)) .* (v.xgk + v.zdf2))
 
-    #compute denominator 
-    full_v = [view(v.df, v.idx) ; view(v.df2, v.idc)]
-    denom = full_v' * (J * full_v)
-
-    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    # compute step size. Note non-genetic covariates are separated from x
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
 
     return μ
 end
 
-function _poisson_stepsize{T <: Float}(
+function _poisson_stepsize(
     v         :: IHTVariable{T},
-    x         :: SnpLike{2},
+    x         :: SnpBitMatrix{T},
     z         :: Matrix{T},
     mean_vec  :: Vector{T},
     std_vec   :: Vector{T},
-)
+) where {T <: Float}
     #BELOW IS ASSUMING WE IDENTIFIED CORRECT SUPPORT: THUS THE STEP SIZE CALCULATION
     #COMUPTES NUMERATOR AND DENOMINATOR USING ONLY THE SUPPORT SET
     
@@ -383,11 +374,11 @@ function _poisson_stepsize{T <: Float}(
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
 end
 
-function normalize!{T <: Float}(
+function normalize!(
     X        :: AbstractMatrix{T},
     mean_vec :: AbstractVector{T},
     std_vec  :: AbstractVector{T}
-)
+) where {T <: Float}
 
     @assert size(X, 2) == length(mean_vec) "normalize!: X and mean_vec have different size"
     for i in 1:size(X, 2)
@@ -432,19 +423,28 @@ Here we are separating the computation because A1 is stored in compressed form w
 uncompressed (float64) matrix. This means that they cannot be stored in the same data 
 structure. 
 """
-function A_mul_B!{T <: Float}(
+function A_mul_B!(
     C1       :: AbstractVector{T},
     C2       :: AbstractVector{T},
-    A1       :: SnpLike{2},
+    A1       :: SnpBitMatrix{T},
     A2       :: AbstractMatrix{T},
     B1       :: AbstractVector{T},
     B2       :: AbstractVector{T},
-    mean_vec :: AbstractVector{T},
-    std_vec  :: AbstractVector{T},
-    storage  :: Vector{Vector{T}}
-)
-    SnpArrays.A_mul_B!(C1, A1, B1, mean_vec, std_vec, storage[2], storage[3])
-    BLAS.A_mul_B!(C2, A2, B2)
+) where {T <: Float}
+    SnpArrays.mul!(C1, A1, B1)
+    LinearAlgebra.mul!(C2, A2, B2)
+end
+
+function A_mul_B!(
+    C1       :: AbstractVector{T},
+    C2       :: AbstractVector{T},
+    A1       :: AbstractMatrix{T},
+    A2       :: AbstractMatrix{T},
+    B1       :: AbstractVector{T},
+    B2       :: AbstractVector{T},
+) where {T <: Float}
+    LinearAlgebra.mul!(C1, A1, B1)
+    LinearAlgebra.mul!(C2, A2, B2)
 end
 
 """
@@ -455,19 +455,28 @@ Here we are separating the computation because A1 is stored in compressed form w
 uncompressed (float64) matrix. This means that they cannot be stored in the same data 
 structure. 
 """
-function At_mul_B!{T <: Float}(
+function At_mul_B!(
     C1       :: AbstractVector{T},
     C2       :: AbstractVector{T},
-    A1       :: SnpLike{2},
+    A1       :: SnpBitMatrix{T},
     A2       :: AbstractMatrix{T},
     B1       :: AbstractVector{T},
     B2       :: AbstractVector{T},
-    mean_vec :: AbstractVector{T},
-    std_vec  :: AbstractVector{T},
-    storage  :: Vector{Vector{T}}
-)
-    SnpArrays.At_mul_B!(C1, A1, B1, mean_vec, std_vec, storage[1])
-    BLAS.At_mul_B!(C2, A2, B2)
+) where {T <: Float}
+    SnpArrays.mul!(C1, A1', B1)
+    LinearAlgebra.mul!(C2, A2', B2)
+end
+
+function At_mul_B!(
+    C1       :: AbstractVector{T},
+    C2       :: AbstractVector{T},
+    A1       :: AbstractMatrix{T},
+    A2       :: AbstractMatrix{T},
+    B1       :: AbstractVector{T},
+    B2       :: AbstractVector{T},
+) where {T <: Float}
+    LinearAlgebra.mul!(C1, A1', B1)
+    LinearAlgebra.mul!(C2, A2', B2)
 end
 
 
@@ -483,26 +492,22 @@ For Poisson responses, score = -∇L(β) = X^T (Y - Λ)
 function update_df!(
     glm       :: String,
     v         :: IHTVariable{T}, 
-    x         :: SnpLike{2},
-    z         :: Matrix{T},
-    y         :: Vector{T},
-    mean_vec  :: AbstractVector{T},
-    std_vec   :: AbstractVector{T},
-    storage   :: Vector{Vector{T}}
+    x         :: SnpBitMatrix{T},
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
 ) where {T <: Float}
     if glm == "normal"
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r, mean_vec, std_vec, storage)
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     elseif glm == "logistic"
-        # inverse_link!(v)            #first update the P vector
-        v.p .= logistic.(v.xb + v.zc) #first update the P vector
-        y_minus_p = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
+        @. v.p = logistic(v.xb + v.zc) #first update the P vector
+        @. v.ymp = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     elseif glm == "poisson"
-        v.p .= exp.(v.xb + v.zc)      #first update the P vector
-        y_minus_p = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, y_minus_p, y_minus_p, mean_vec, std_vec, storage)
+        @. v.p = exp(v.xb + v.zc) #first update the P vector
+        @. v.ymp = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     else
-        throw(error("unsupport glm method."))
+        throw(error("computing gradient for an unsupport glm method: " * glm))
     end
 end
 
@@ -521,20 +526,14 @@ end
 #     end
 # end
 
-
 """
 This function computes the loglikelihood of a model β for a given glm response
 """
-function compute_logl{T <: Float}(
-    v        :: IHTVariable{T},
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    glm      :: String,
-    mean_vec :: AbstractVector{T},
-    std_vec  :: AbstractVector{T},
-    storage  :: Vector{Vector{T}}
-) 
+function compute_logl(
+    v   :: IHTVariable{T},
+    y   :: AbstractVector{T},
+    glm :: String,
+) where {T <: Float}
     if glm == "logistic"
         return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) 
     elseif glm == "poisson"
@@ -544,7 +543,24 @@ function compute_logl{T <: Float}(
     end
 end
 
-
-
-
+"""
+Simple function for simulating a random SnpArray without missing value
+"""
+function simulate_random_snparray(
+    n :: Int64,
+    p :: Int64
+)
+    x_tmp = rand(0:2, n, p)
+    x = SnpArray(undef, n, p)
+    for i in 1:(n*p)
+        if x_tmp[i] == 0
+            x[i] = 0x00
+        elseif x_tmp[i] == 1
+            x[i] = 0x02
+        else
+            x[i] = 0x03
+        end
+    end
+    return x
+end
 

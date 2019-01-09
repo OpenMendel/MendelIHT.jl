@@ -2,14 +2,12 @@
 This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel.
 """
 function MendelIHT(control_file = ""; args...)
-    const MENDEL_IHT_VERSION :: VersionNumber = v"0.6.0"
     #
     # Print the logo. Store the initial directory.
     #
     print(" \n \n")
     println("     Welcome to OpenMendel's")
     println("      IHT analysis option")
-    println("        version ", MENDEL_IHT_VERSION)
     print(" \n \n")
     println("Reading the data.\n")
     initial_directory = pwd()

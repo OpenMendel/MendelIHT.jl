@@ -2,13 +2,11 @@
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
 mutable struct IHTVariable{T <: Float, V <: DenseVector}
-
-    #TODO: Consider changing b and b0 to SparseVector
     b     :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
     b0    :: Vector{T}     # estimated model for genotype matrix in the previous iteration
     xb    :: Vector{T}     # vector that holds x*b
     xb0   :: Vector{T}     # xb in the previous iteration
-    xk    :: SnpLike{2}    # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    xk    :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
     gk    :: Vector{T}     # numerator of step size. gk = df[idx]. 
     xgk   :: Vector{T}     # xk * gk, denominator of step size
     idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
@@ -25,15 +23,16 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     zdf2  :: Vector{T}     # z * df2. needed to calculate non-genetic covariate contribution for denomicator of step size 
     group :: Vector{Int64} # vector denoting group membership
     p     :: Vector{T}     # vector storing the mean of a glm: p = g^{-1}( Xβ )
+    ymp   :: Vector{T}     # y - p, arises as calculation in fisher's information matrix
 end
 
-function IHTVariables{T <: Float}(
-    x :: SnpLike{2},
-    z :: Matrix{T},
-    y :: Vector{T},
+function IHTVariables(
+    x :: SnpArray,
+    z :: AbstractMatrix{T},
+    y :: AbstractVector{T},
     J :: Int64,
     k :: Int64;
-)
+) where {T <: Float}
     n, p  = size(x)
     q     = size(z, 2)
 
@@ -41,8 +40,10 @@ function IHTVariables{T <: Float}(
     b0    = zeros(T, p)
     xb    = zeros(T, n)
     xb0   = zeros(T, n)
-    xk    = SnpArray(n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    gk    = zeros(T, J * k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
+    xk    = zeros(T, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    # xk    = SnpArray(undef, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    # xk    = SnpBitMatrix{T}(xktmp)
+    gk    = zeros(T, J * k - 1)           # subtracting 1 because the intercept will likely be selected in the first iter
     xgk   = zeros(T, n)
     idx   = falses(p)
     idx0  = falses(p)
@@ -58,14 +59,15 @@ function IHTVariables{T <: Float}(
     zdf2  = zeros(T, n)
     group = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
     p     = zeros(T, n)
+    ymp   = zeros(T, n)
 
-    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p)
+    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p, ymp)
 end
 
 """
 an object that houses results returned from a group IHT run
 """
-immutable gIHTResults{T <: Float, V <: DenseVector}
+struct gIHTResults{T <: Float, V <: DenseVector}
     time  :: T
     loss  :: T
     iter  :: Int
@@ -92,13 +94,32 @@ function Base.show(io::IO, x::gIHTResults)
     println(io, "Iterations:             ", x.iter)
     println(io, "Max number of groups:   ", x.J)
     println(io, "Max predictors/group:   ", x.k)
-    println(io, "IHT estimated ", countnz(x.beta), " nonzero coefficients.")
-    non_zero = find(x.beta)
+    println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero coefficients.")
+    non_zero = findall(x -> x != 0, x.beta)
     print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
     println(io, "\n\nIntercept of model = ", x.c[1])
 
     return nothing
 end
 
+"""
+verbose printing of cv results
+"""
+function print_cv_results(
+    io::IO, 
+    errors::Vector{T}, 
+    path::DenseVector{Int}, 
+    k::Int
+) where {T <: Float}
+    println(io, "\n\nCrossvalidation Results:")
+    println(io, "k\tMSE")
+    for i = 1:length(errors)
+        println(io, path[i], "\t", errors[i])
+    end
+    println(io, "\nThe lowest MSE is achieved at k = ", k)
+end
+
+# default IO for print_cv_results is STDOUT
+print_cv_results(errors::Vector{T}, path::DenseVector{Int}, k::Int) where {T <: Float} = print_cv_results(stdout, errors, path, k)
 
 
