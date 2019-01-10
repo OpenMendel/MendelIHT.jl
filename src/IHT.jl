@@ -9,7 +9,7 @@ using Gadfly
 using SnpArrays
 using StatsBase
 using StatsFuns: logistic
-using Random 
+using Random
 using LinearAlgebra
 using SpecialFunctions
 

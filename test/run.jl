@@ -120,13 +120,13 @@ using StatsFuns: logistic
 Random.seed!(1111)
 
 #simulat data
-n = 2000
-p = 10000
+n = 5000
+p = 30000
 x = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
-k = 5              # number of true predictors
+k = 10              # number of true predictors
 s = 0.1            # noise vector
 
 #construct covariates (intercept) and true model b
@@ -152,7 +152,7 @@ estimated_models = zeros(k)
 v = IHTVariables(x, z, y, 1, k)
 result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic")
 
-# @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
+@benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
 
 #check result
 estimated_models .= result.beta[correct_position]

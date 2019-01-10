@@ -1,10 +1,11 @@
-julia 0.6
-StatsFuns 0.3.1
-OpenCL 0.3.5
-DataFrames 0.8.3
-Gadfly 0.5.0
-Distances 0.3.2
+julia 0.7
+StatsFuns 
 DataFrames
-MendelBase
+Gadfly
+Distances
+DataFrames
 SnpArrays
 StatsBase
+LinearAlgebra
+SpecialFunctions
+Random

@@ -62,9 +62,6 @@ function iht_logistic!(
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, y, glm)
 
-    println("reached here")
-    return fff
-
     μ_step = 0
     while _logistic_backtrack(new_logl, old_logl, μ_step, nstep)
 
@@ -72,8 +69,8 @@ function iht_logistic!(
         μ /= 2
 
         # recompute gradient step
-        copy!(v.b, v.b0)
-        copy!(v.c, v.c0)
+        copyto!(v.b, v.b0)
+        copyto!(v.c, v.c0)
         _iht_gradstep(v, μ, J, k, temp_vec)
 
         # perform debiasing (i.e. fit b on its support)
@@ -84,14 +81,14 @@ function iht_logistic!(
         # end
 
         # make necessary resizing since grad step might include/exclude non-genetic covariates
-        check_covariate_supp!(v, storage) 
+        check_covariate_supp!(v) 
 
         # recompute xb
-        v.xk .= view(x, :, v.idx)
-        A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+        copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+        A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
 
         # compute new loglikelihood again to see if we're now increasing
-        new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
+        new_logl = compute_logl(v, y, glm)
 
         # increment the counter
         μ_step += 1
@@ -197,7 +194,7 @@ function L0_logistic_reg(
         # v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
         # update score (gradient) and p vector using stepsize μ 
-        update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
+        update_df!(glm, v, x_bitmatrix, z, y)
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
@@ -207,14 +204,14 @@ function L0_logistic_reg(
         # info("current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * " and scaled norm is " * string(scaled_norm))
 
         if converged && mm_iter > 1
-            mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+            tot_time = time() - start_time
+            return gIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
-            mm_time = toq() # stop time
+            tot_time = time() - start_time
             println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds and model size was" * string(k))
-            return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+            return gIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end
 end #function L0_logistic_reg

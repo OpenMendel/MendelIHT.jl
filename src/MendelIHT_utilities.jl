@@ -485,9 +485,10 @@ This function calculates the score (gradient) direction for different glm models
 the result in v.df and v.df2, where the former stores the gradient associated with the snpmatrix
 direction and the latter associates with the intercept + other non-genetic covariates. 
 
-For normal responses, score = ∇f(β) = -X^T (Y - Xβ)
-For logistics responses, score = -∇L(β) = -X^T (Y - P) (using logit link)
-For Poisson responses, score = -∇L(β) = X^T (Y - Λ)
+The following summarizes the score direction for different responses.
+    Normal = ∇f(β) = -X^T (Y - Xβ)
+    Binary = -∇L(β) = -X^T (Y - P) (using logit link)
+    Count  = -∇L(β) = X^T (Y - Λ)
 """
 function update_df!(
     glm       :: String,
@@ -537,7 +538,7 @@ function compute_logl(
     if glm == "logistic"
         return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) 
     elseif glm == "poisson"
-        return dot(y, v.xb + v.zc) - sum(exp.(v.xb + v.zc)) - sum(lfact.(Int.(y)))
+        return dot(y, v.xb + v.zc) - sum(exp.(v.xb + v.zc)) - sum(lfactorial.(Int.(y)))
     else 
         error("compute_logl: currently only supports logistic and poisson")
     end
