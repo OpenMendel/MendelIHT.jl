@@ -1,23 +1,23 @@
-"""
-This function is needed for testing purposes only.
+# """
+# This function is needed for testing purposes only.
 
-Converts a SnpArray to a matrix of float64 using A2 as the minor allele. We want this function
-because SnpArrays.jl uses the less frequent allele in each SNP as the minor allele, while PLINK.jl
-always uses A2 as the minor allele, and it's nice if we could cross-compare the results.
-"""
-function use_A2_as_minor_allele(snpmatrix :: SnpArray)
-    n, p = size(snpmatrix)
-    matrix = zeros(n, p)
-    for i in 1:p
-        for j in 1:n
-            if snpmatrix[j, i] == (0, 0); matrix[j, i] = 0.0; end
-            if snpmatrix[j, i] == (0, 1); matrix[j, i] = 1.0; end
-            if snpmatrix[j, i] == (1, 1); matrix[j, i] = 2.0; end
-            if snpmatrix[j, i] == (1, 0); matrix[j, i] = missing; end
-        end
-    end
-    return matrix
-end
+# Converts a SnpArray to a matrix of float64 using A2 as the minor allele. We want this function
+# because SnpArrays.jl uses the less frequent allele in each SNP as the minor allele, while PLINK.jl
+# always uses A2 as the minor allele, and it's nice if we could cross-compare the results.
+# """
+# function use_A2_as_minor_allele(snpmatrix :: SnpArray)
+#     n, p = size(snpmatrix)
+#     matrix = zeros(n, p)
+#     for i in 1:p
+#         for j in 1:n
+#             if snpmatrix[j, i] == (0, 0); matrix[j, i] = 0.0; end
+#             if snpmatrix[j, i] == (0, 1); matrix[j, i] = 1.0; end
+#             if snpmatrix[j, i] == (1, 1); matrix[j, i] = 2.0; end
+#             if snpmatrix[j, i] == (1, 0); matrix[j, i] = missing; end
+#         end
+#     end
+#     return matrix
+# end
 
 """
 This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates idx and idc. It is an
@@ -150,47 +150,47 @@ function _poisson_backtrack(
     mu_step < nstep 
 end
 
-"""
-Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs are not missing.
-Otherwise, the inner loop should only add if data not missing.
-"""
-function std_reciprocal(
-    A::SnpArray, 
-    mean_vec::Vector{T}
-) where {T <: Float}
-    m, n = size(A)
-    @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
-    std_vector = zeros(T, n)
+# """
+# Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs are not missing.
+# Otherwise, the inner loop should only add if data not missing.
+# """
+# function std_reciprocal(
+#     A::SnpArray, 
+#     mean_vec::Vector{T}
+# ) where {T <: Float}
+#     m, n = size(A)
+#     @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
+#     std_vector = zeros(T, n)
 
-    @inbounds for j in 1:n
-        @simd for i in 1:m
-            (a1, a2) = A[i, j]
-            std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
-        end
-        std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
-    end
-    return std_vector
-end
+#     @inbounds for j in 1:n
+#         @simd for i in 1:m
+#             (a1, a2) = A[i, j]
+#             std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
+#         end
+#         std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
+#     end
+#     return std_vector
+# end
 
-"""
-This function computes the mean of each SNP. Note that (1) the mean is given by 
-2 * maf (minor allele frequency), and (2) based on which allele is the minor allele, 
-might need to do 2.0 - the maf for the mean vector.
-"""
-function update_mean!(
-    mean_vec     :: Vector{T},
-    minor_allele :: BitArray{1},
-    p            :: Int64
-) where {T <: Float}
+# """
+# This function computes the mean of each SNP. Note that (1) the mean is given by 
+# 2 * maf (minor allele frequency), and (2) based on which allele is the minor allele, 
+# might need to do 2.0 - the maf for the mean vector.
+# """
+# function update_mean!(
+#     mean_vec     :: Vector{T},
+#     minor_allele :: BitArray{1},
+#     p            :: Int64
+# ) where {T <: Float}
 
-    @inbounds @simd for i in 1:p
-        if minor_allele[i]
-            mean_vec[i] = 2.0 - 2.0mean_vec[i]
-        else
-            mean_vec[i] = 2.0mean_vec[i]
-        end
-    end
-end
+#     @inbounds @simd for i in 1:p
+#         if minor_allele[i]
+#             mean_vec[i] = 2.0 - 2.0mean_vec[i]
+#         else
+#             mean_vec[i] = 2.0mean_vec[i]
+#         end
+#     end
+# end
 
 """ Projects the vector y = [y1; y2] onto the set with at most J active groups and at most
 k active predictors per group. The variable group encodes group membership. Currently
@@ -327,7 +327,6 @@ is done on the n by k support set of the SNP matrix.
 """
 function _logistic_stepsize(
     v :: IHTVariable{T},
-    x :: SnpArray,
     z :: AbstractMatrix{T},
 ) where {T <: Float}
 
@@ -345,46 +344,32 @@ function _logistic_stepsize(
 end
 
 function _poisson_stepsize(
-    v         :: IHTVariable{T},
-    x         :: SnpBitMatrix{T},
-    z         :: Matrix{T},
-    mean_vec  :: Vector{T},
-    std_vec   :: Vector{T},
+    v :: IHTVariable{T},
+    z :: Matrix{T},
 ) where {T <: Float}
-    #BELOW IS ASSUMING WE IDENTIFIED CORRECT SUPPORT: THUS THE STEP SIZE CALCULATION
-    #COMUPTES NUMERATOR AND DENOMINATOR USING ONLY THE SUPPORT SET
-    
-    # store relevant components of x
-    v.xk .= view(x, :, v.idx)
 
-    # store relevant components of gradient (gk is numerator of step size). 
+    # store relevant components of gradient
     v.gk .= view(v.df, v.idx)
+    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
-    #compute J = X^T * P * X
-    X = convert(Matrix{T}, v.xk)
-    normalize!(X, view(mean_vec, v.idx), view(std_vec, v.idx))
-    full_X = [X view(z, :, v.idc)]
-    J = full_X' * (v.p .* full_X)
+    #compute denominator of step size
+    denom = (v.xgk + v.zdf2)' * (v.p .* (v.xgk + v.zdf2))
 
-    #compute denominator 
-    full_v = [view(v.df, v.idx) ; view(v.df2, v.idc)]
-    denom = full_v' * (J * full_v)
-
-    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    # compute step size. Note non-genetic covariates are separated from x
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
 end
 
-function normalize!(
-    X        :: AbstractMatrix{T},
-    mean_vec :: AbstractVector{T},
-    std_vec  :: AbstractVector{T}
-) where {T <: Float}
+# function normalize!(
+#     X        :: AbstractMatrix{T},
+#     mean_vec :: AbstractVector{T},
+#     std_vec  :: AbstractVector{T}
+# ) where {T <: Float}
 
-    @assert size(X, 2) == length(mean_vec) "normalize!: X and mean_vec have different size"
-    for i in 1:size(X, 2)
-        X[:, i] .= (X[:, i] .- mean_vec[i]) .* std_vec[i]
-    end
-end
+#     @assert size(X, 2) == length(mean_vec) "normalize!: X and mean_vec have different size"
+#     for i in 1:size(X, 2)
+#         X[:, i] .= (X[:, i] .- mean_vec[i]) .* std_vec[i]
+#     end
+# end
 
 """
     Returns true if condition satisfied. 
@@ -551,6 +536,8 @@ function simulate_random_snparray(
     n :: Int64,
     p :: Int64
 )
+    Random.seed!(1111)
+
     x_tmp = rand(0:2, n, p)
     x = SnpArray(undef, n, p)
     for i in 1:(n*p)
@@ -560,6 +547,28 @@ function simulate_random_snparray(
             x[i] = 0x02
         else
             x[i] = 0x03
+        end
+    end
+    return x
+end
+
+"""
+Make a random SnpArray based on given Matrix{Float64} of 0~2.
+"""
+function make_snparray(
+    x_temp :: Matrix{Int64}
+)
+    n, p = size(x_temp)
+    x = SnpArray(undef, n, p)
+    for i in 1:(n*p)
+        if x_temp[i] == 0
+            x[i] = 0x00
+        elseif x_temp[i] == 1
+            x[i] = 0x02
+        elseif x_temp[i] == 2
+            x[i] = 0x03
+        else
+            throw(error("matrix shouldn't have missing values!"))
         end
     end
     return x

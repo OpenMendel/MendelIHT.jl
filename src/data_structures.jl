@@ -65,7 +65,8 @@ function IHTVariables(
 end
 
 """
-an object that houses results returned from a group IHT run
+objects that house results returned from IHT run. 
+The first `g` stands for group, the second `g` stands for generalized as in GLM.
 """
 struct gIHTResults{T <: Float, V <: DenseVector}
     time  :: T
@@ -83,14 +84,44 @@ end
 # strongly typed external constructor for gIHTResults
 gIHTResults(time::T, loss::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = gIHTResults{T, V}(time, loss, iter, beta, c, J, k, group)
 
+struct ggIHTResults{T <: Float, V <: DenseVector}
+    time  :: T
+    logl  :: T
+    iter  :: Int
+    beta  :: V
+    c     :: V
+    J     :: Int64
+    k     :: Int64
+    group :: Vector{Int64}
+
+    ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
+end
+
+# strongly typed external constructor for ggIHTResults
+ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
 
 """
-a function to display gIHTResults object
+functions to display gIHTResults and ggIHTResults object
 """
 function Base.show(io::IO, x::gIHTResults)
     println(io, "IHT results:")
     println(io, "\nCompute time (sec):     ", x.time)
     println(io, "Final loss:             ", x.loss)
+    println(io, "Iterations:             ", x.iter)
+    println(io, "Max number of groups:   ", x.J)
+    println(io, "Max predictors/group:   ", x.k)
+    println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero coefficients.")
+    non_zero = findall(x -> x != 0, x.beta)
+    print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
+    println(io, "\n\nIntercept of model = ", x.c[1])
+
+    return nothing
+end
+
+function Base.show(io::IO, x::ggIHTResults)
+    println(io, "IHT results:")
+    println(io, "\nCompute time (sec):     ", x.time)
+    println(io, "Final loglikelihood:    ", x.logl)
     println(io, "Iterations:             ", x.iter)
     println(io, "Max number of groups:   ", x.J)
     println(io, "Max predictors/group:   ", x.k)

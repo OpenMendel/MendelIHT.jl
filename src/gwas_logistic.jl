@@ -40,15 +40,14 @@ function iht_logistic!(
     end
 
     # calculate step size 
-    μ = _logistic_stepsize(v, x, z)
+    μ = _logistic_stepsize(v, z)
 
     # update b and c by taking gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
 
     # perform debiasing (i.e. fit b on its support)
-    # if all(v.idx .== v.idx0)
-    #     xk = convert(Matrix{Float64}, v.xk)
-    #     (estimate, obj) = regress(xk, y, glm)
+    # if all(v.idx .== v.idx0) || iter > 20
+    #     (estimate, obj) = regress(v.xk, y, glm)
     #     view(v.b, v.idx) .= estimate
     # end
 
@@ -141,14 +140,13 @@ function L0_logistic_reg(
     check_y_content(y, glm)
 
     # initialize return values
-    mm_iter   = 0                 # number of iterations of L0_reg
-    tot_time  = 0.0               # compute time *within* L0_reg
+    mm_iter   = 0                 # number of iterations of L0_logistic_reg
+    tot_time  = 0.0               # compute time *within* L0_logistic_reg
     next_logl = oftype(tol,-Inf)  # loglikelihood
 
     # initialize floats
     the_norm    = 0.0             # norm(b - b0)
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
-    μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
     mu_step = 0                   # counts number of backtracking steps for mu
@@ -201,17 +199,17 @@ function L0_logistic_reg(
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
 
-        # info("current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * " and scaled norm is " * string(scaled_norm))
+        # @info "current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * ", scaled norm is " * string(scaled_norm) * ", and backtracking was " * string(μ_step)
 
         if converged && mm_iter > 1
             tot_time = time() - start_time
-            return gIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+            return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
             tot_time = time() - start_time
             println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds and model size was" * string(k))
-            return gIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+            return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end
 end #function L0_logistic_reg

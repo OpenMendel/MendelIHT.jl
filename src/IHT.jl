@@ -51,7 +51,7 @@ export MendelIHT
 export L0_logistic_reg
 export L0_poisson_reg
 
-export IHTVariables, use_A2_as_minor_allele
+export IHTVariables, use_A2_as_minor_allele, make_snparray
 export project_k!, std_reciprocal, project_group_sparse!
 export update_df!, At_mul_B!, A_mul_B!, check_y_content
 export save_prev!, update_mean!, normalize!, simulate_random_snparray

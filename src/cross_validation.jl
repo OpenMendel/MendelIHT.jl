@@ -155,8 +155,8 @@ returns the out-of-sample errors in a vector.
 """
 function one_fold(
     x        :: SnpArray,
-    z        :: Matrix{T},
-    y        :: Vector{T},
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int}, 
