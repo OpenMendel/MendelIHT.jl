@@ -6,19 +6,17 @@ The additional optional arguments are:
 - `mask_n`, a `Bool` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of trues.
 """
 function iht_path(
-    x        :: SnpArray,
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    J        :: Int64,
-    path     :: DenseVector{Int};
-    use_maf  :: Bool = false,
-    glm      :: String = "normal",
-    mask_n   :: BitArray = trues(size(y)),
-    tol      :: T    = convert(T, 1e-4),
-    max_iter :: Int  = 100,
-    max_step :: Int  = 50,
-    #pids     :: Vector{Int} = procs(x),
-    #quiet    :: Bool = true
+    x         :: SnpArray,
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
+    J         :: Int64,
+    path      :: DenseVector{Int},
+    train_idx :: BitArray;
+    use_maf   :: Bool   = false,
+    glm       :: String = "normal",
+    tol       :: T      = convert(T, 1e-4),
+    max_iter  :: Int    = 100,
+    max_step  :: Int    = 50,
 ) where {T <: Float}
 
     # size of problem?
@@ -28,9 +26,15 @@ function iht_path(
     # how many models will we compute?
     nmodels = length(path)
 
-    # also preallocate matrix to store betas and errors
+    # preallocate matrix to store betas and errors
     betas  = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
     cs     = zeros(T, q, nmodels)   # matrix of models of non-genetic covariates
+
+    # Construct the training datas
+    x_train = SnpArray(undef, sum(train_idx), p)
+    copyto!(x_train, @view x[train_idx, :])
+    y_train = y[train_idx]
+    z_train = z[train_idx, :]
 
     # compute the specified paths
     @inbounds for i = 1:nmodels
@@ -38,24 +42,15 @@ function iht_path(
         # current model size?
         k = path[i]
 
-        #define the IHTVariable used for cleaner code
-        v = IHTVariables(x, z, y, J, k)
+        #define the IHTVariable used to store intermediate variables in IHT calculations
+        v = IHTVariables(x_train, z_train, y_train, J, k)
 
         # now compute current model
         if glm == "normal"
-            v = IHTVariables(x, z, y, J, k)
-            output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+            output = L0_reg(v, x_train, z_train, y_train, J, k, use_maf=use_maf)
         elseif glm == "logistic"
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
             output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm = "logistic")
         elseif glm == "poisson"
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
             output = L0_poisson_reg(v, x, z, y, J, k, glm = "poisson")
         end
 
@@ -75,19 +70,17 @@ increases linearly with the number of paths, which is negligible as long as the 
 paths is reasonable (e.g. less than 100). 
 """
 function iht_path_threaded(
-    x        :: SnpArray,
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    J        :: Int64,
-    path     :: DenseVector{Int};
-    use_maf  :: Bool = false,
-    glm      :: String = "normal",    
-    mask_n   :: BitArray = trues(size(y)),
-    tol      :: T    = convert(T, 1e-4),
-    max_iter :: Int  = 100,
-    max_step :: Int  = 50,
-    #pids     :: Vector{Int} = procs(x),
-    #quiet    :: Bool = true
+    x         :: SnpArray,
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
+    J         :: Int64,
+    path      :: DenseVector{Int},
+    train_idx :: BitArray;
+    use_maf   :: Bool   = false,
+    glm       :: String = "normal",    
+    tol       :: T      = convert(T, 1e-4),
+    max_iter  :: Int    = 100,
+    max_step  :: Int    = 50,
 ) where {T <: Float}
     
     # number of threads available?
@@ -113,24 +106,22 @@ function iht_path_threaded(
         # current model size?
         k = path[i]
 
+        # Construct the training datas (it appears I must make the training data sets here to avoid thread access issues)
+        x_train = SnpArray(undef, sum(train_idx), p)
+        copyto!(x_train, @view x[train_idx, :])
+        y_train = y[train_idx]
+        z_train = z[train_idx, :]
+
+        #define the IHTVariable used to store intermediate variables in IHT calculations
+        v = IHTVariables(x_train, z_train, y_train, J, k)
+
         # now compute current model
         if glm == "normal"
-            v = IHTVariables(x, z, y, J, k)
-            output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+            output = L0_reg(v, x_train, z_train, y_train, J, k, use_maf=use_maf)
         elseif glm == "logistic"
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm = "logistic")
+            output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm="logistic")
         elseif glm == "poisson"
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
             output = L0_poisson_reg(v, x_train, z_train, y_train, J, k, glm = "poisson")
-            # v = IHTVariables(view(x, mask_n, :), view(z, mask_n, :), view(y, mask_n), J, k)
-            # output = L0_poisson_reg(v, view(x, mask_n, :), view(z, mask_n, :), view(y, mask_n), J, k, glm = "poisson")
         end
 
         # put model into sparse matrix of betas in the corresponding thread
@@ -166,8 +157,6 @@ function one_fold(
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
-    #pids     :: Vector{Int} = procs(x),
-    # quiet    :: Bool = true
 ) where {T <: Float}
     # dimensions of problem
     n, p = size(x)
@@ -178,17 +167,16 @@ function one_fold(
     train_idx = .!test_idx
     test_size = sum(test_idx)
 
-    # allocate test model, this can be avoided with view(x, test_idx, :), but SnpArray code needs to gets fixed first 
-    # x_test = x[test_idx, :]
-    # z_test = z[test_idx, :]
-    x_test = zeros(T, sum(test_idx), p)
+    # allocate test model
+    x_test = SnpArray(undef, sum(test_idx), p)
     z_test = zeros(T, sum(test_idx), q)
-    copyto!(x_test, @view(x[test_idx, :]), center=true, scale=true)
-    copyto!(z_test, @view(z[test_idx, :])) #should z be standardized?
+    copyto!(x_test, @view(x[test_idx, :]))
+    copyto!(z_test, @view(z[test_idx, :]))
+    x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # compute the regularization path on the training set
-    betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, glm=glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
-    # betas, cs = iht_path(x, z, y, J, path, use_maf=use_maf, glm = glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    betas, cs = iht_path_threaded(x, z, y, J, path, train_idx, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol)
+    # betas, cs = iht_path(x, z, y, J, path, train_idx, use_maf=use_maf, glm = glm, max_iter=max_iter, max_step=max_step, tol=tol)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
@@ -208,7 +196,7 @@ function one_fold(
         c .= cs[:, i] 
 
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] with $(path[i]) nonzeroes
-        A_mul_B!(xb, zc, x_test, z_test, b, c) 
+        A_mul_B!(xb, zc, x_testbm, z_test, b, c) 
 
         # compute residuals. For glm, recall E(Y) = g^-1(Xβ) where g^-1 is the inverse link
         if glm == "normal"
@@ -280,12 +268,6 @@ function cv_iht(
     num_fold :: Int64;
     use_maf  :: Bool = false,
     glm      :: String = "normal",
-    # pids     :: Vector{Int} = procs(),
-    # tol      :: Float = convert(T, 1e-4),
-    # max_iter :: Int   = 100,
-    # max_step :: Int   = 50,
-    # quiet    :: Bool  = true,
-    # header   :: Bool  = false
 ) where {T <: Float}
 
     # how many elements are in the path?

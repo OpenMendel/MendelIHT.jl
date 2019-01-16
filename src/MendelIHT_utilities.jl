@@ -466,31 +466,38 @@ end
 
 
 """
-This function calculates the score (gradient) direction for different glm models, and stores
-the result in v.df and v.df2, where the former stores the gradient associated with the snpmatrix
+This function calculates the score (gradient) for different glm models, and stores the
+result in v.df and v.df2. The former stores the gradient associated with the snpmatrix
 direction and the latter associates with the intercept + other non-genetic covariates. 
 
 The following summarizes the score direction for different responses.
     Normal = ∇f(β) = -X^T (Y - Xβ)
-    Binary = -∇L(β) = -X^T (Y - P) (using logit link)
-    Count  = -∇L(β) = X^T (Y - Λ)
+    Binary = ∇L(β) = -X^T (Y - P) (using logit link)
+    Count  = ∇L(β) = X^T (Y - Λ)
+
+Note `mask_n` is used cross validation purposes.
 """
 function update_df!(
-    glm       :: String,
-    v         :: IHTVariable{T}, 
-    x         :: SnpBitMatrix{T},
-    z         :: AbstractMatrix{T},
-    y         :: AbstractVector{T},
+    glm    :: String,
+    v      :: IHTVariable{T}, 
+    x      :: SnpBitMatrix{T},
+    z      :: AbstractMatrix{T},
+    y      :: AbstractVector{T};
+    # mask_n :: BitArray = trues(size(y))
 ) where {T <: Float}
     if glm == "normal"
+        @. v.r = y - v.xb - v.zc
+        # v.r[mask_n .== 0] .= 0
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     elseif glm == "logistic"
-        @. v.p = logistic(v.xb + v.zc) #first update the P vector
+        @. v.p = logistic(v.xb + v.zc)
         @. v.ymp = y - v.p
+        # v.ymp[mask_n .== 0] .= 0
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     elseif glm == "poisson"
-        @. v.p = exp(v.xb + v.zc) #first update the P vector
+        @. v.p = exp(v.xb + v.zc)
         @. v.ymp = y - v.p
+        # v.ymp[mask_n .== 0] .= 0
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     else
         throw(error("computing gradient for an unsupport glm method: " * glm))
@@ -516,21 +523,49 @@ end
 This function computes the loglikelihood of a model β for a given glm response
 """
 function compute_logl(
-    v   :: IHTVariable{T},
-    y   :: AbstractVector{T},
-    glm :: String,
+    v      :: IHTVariable{T},
+    y      :: AbstractVector{T},
+    glm    :: String;
+    # mask_n :: BitArray = trues(size(y))
 ) where {T <: Float}
     if glm == "logistic"
-        return dot(y, v.xb + v.zc) - sum(log.(1.0 .+ exp.(v.xb + v.zc))) 
+        return _logistic_logl(y, v.xb + v.zc, mask_n=mask_n)
     elseif glm == "poisson"
-        return dot(y, v.xb + v.zc) - sum(exp.(v.xb + v.zc)) - sum(lfactorial.(Int.(y)))
+        return _poisson_logl(y, v.xb + v.zc, mask_n=mask_n)
     else 
         error("compute_logl: currently only supports logistic and poisson")
     end
 end
 
+@inline function _logistic_logl(
+    y      :: Vector{T}, 
+    xb     :: Vector{T};
+    # mask_n :: BitArray = trues(size(xb))
+) where {T <: Float64}
+    logl = 0.0
+    for i in eachindex(y)
+        # mask_n[i] ? logl += y[i]*xb[i] - log(1.0 + exp(xb[i])) : continue
+        logl += y[i]*xb[i] - log(1.0 + exp(xb[i]))
+    end
+    return logl
+end
+
+@inline function _poisson_logl(
+    y      :: Vector{T}, 
+    xb     :: Vector{T};
+    # mask_n :: BitArray = trues(size(xb))
+) where {T <: Float64}
+    logl = 0.0
+    for i in eachindex(y)
+        # mask_n[i] ? logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i])) : continue
+        logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
+    end
+    return logl
+end
+
 """
-Simple function for simulating a random SnpArray without missing value
+Simple function for simulating a random SnpArray without missing value.
+This is for testing purposes only. 
 """
 function simulate_random_snparray(
     n :: Int64,
@@ -554,6 +589,7 @@ end
 
 """
 Make a random SnpArray based on given Matrix{Float64} of 0~2.
+This is for testing purposes only. 
 """
 function make_snparray(
     x_temp :: Matrix{Int64}
@@ -574,3 +610,25 @@ function make_snparray(
     return x
 end
 
+"""
+Make a SnpArray from a matrix of UInt8 (which arises from subsetting a SnpArray). 
+This is for testing purposes only. 
+"""
+function make_snparray(
+    x_temp :: Matrix{UInt8}
+)
+    n, p = size(x_temp)
+    x = SnpArray(undef, n, p)
+    for i in 1:(n*p)
+        if x_temp[i] == 0x00
+            x[i] = 0x00
+        elseif x_temp[i] == 0x02
+            x[i] = 0x02
+        elseif x_temp[i] == 0x03
+            x[i] = 0x03
+        else
+            throw(error("matrix shouldn't have missing values!"))
+        end
+    end
+    return x
+end

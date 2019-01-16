@@ -25,7 +25,8 @@ function iht_logistic!(
     old_logl  :: T,
     temp_vec  :: AbstractVector{T},
     iter      :: Int,
-    nstep     :: Int
+    nstep     :: Int;
+    mask_n    :: BitArray = trues(size(y))
 ) where {T <: Float}
 
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
@@ -59,7 +60,7 @@ function iht_logistic!(
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
 
     # calculate current loglikelihood with the new computed xb and zc
-    new_logl = compute_logl(v, y, glm)
+    new_logl = compute_logl(v, y, glm, mask_n=mask_n)
 
     μ_step = 0
     while _logistic_backtrack(new_logl, old_logl, μ_step, nstep)
@@ -87,7 +88,7 @@ function iht_logistic!(
         A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
 
         # compute new loglikelihood again to see if we're now increasing
-        new_logl = compute_logl(v, y, glm)
+        new_logl = compute_logl(v, y, glm, mask_n=mask_n)
 
         # increment the counter
         μ_step += 1
@@ -122,7 +123,7 @@ function L0_logistic_reg(
     glm       :: String = "normal",
     mask_n    :: BitArray = trues(size(y)),
     tol       :: T = 1e-4,
-    max_iter  :: Int = 200, # up from 100 for sometimes weighting takes more
+    max_iter  :: Int = 500, # up from 100 for sometimes weighting takes more
     max_step  :: Int = 50,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2))
 ) where {T <: Float}
@@ -169,13 +170,12 @@ function L0_logistic_reg(
     # end
     
     # Begin IHT calculations
-    fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    # copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-    # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
+    fill!(v.xb, 0.0)     #initialize β = 0 vector, so Xβ = 0
+    y[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
     # Calculate the score
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-    update_df!(glm, v, x_bitmatrix, z, y)
+    update_df!(glm, v, x_bitmatrix, z, y, mask_n=mask_n)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
@@ -187,19 +187,15 @@ function L0_logistic_reg(
         !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
 
-        # iht! gives us an updated x*b. Use it to recompute residuals and gradient
-        # v.r .= y .- v.xb .- v.zc 
-        # v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
-
         # update score (gradient) and p vector using stepsize μ 
-        update_df!(glm, v, x_bitmatrix, z, y)
+        update_df!(glm, v, x_bitmatrix, z, y, mask_n=mask_n)
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
 
-        # @info "current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * ", scaled norm is " * string(scaled_norm) * ", and backtracking was " * string(μ_step)
+        @info "current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * ", scaled norm is " * string(scaled_norm) * ", and backtracking was " * string(μ_step)
 
         if converged && mm_iter > 1
             tot_time = time() - start_time
@@ -208,7 +204,7 @@ function L0_logistic_reg(
 
         if mm_iter == max_iter
             tot_time = time() - start_time
-            println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds and model size was" * string(k))
+            println("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k))
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end

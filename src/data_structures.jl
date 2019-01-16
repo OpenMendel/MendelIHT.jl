@@ -1,7 +1,7 @@
 """
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
-mutable struct IHTVariable{T <: Float, V <: DenseVector}
+mutable struct IHTVariable{T <: Float}
     b     :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
     b0    :: Vector{T}     # estimated model for genotype matrix in the previous iteration
     xb    :: Vector{T}     # vector that holds x*b
@@ -13,9 +13,9 @@ mutable struct IHTVariable{T <: Float, V <: DenseVector}
     idx0  :: BitVector     # previous iterate of idx
     idc   :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
     idc0  :: BitVector     # previous iterate of idc
-    r     :: V             # n-vector of residuals
-    df    :: V             # the gradient portion of the genotype part: df = ∇f(β) = snpmatrix * (y - xb - zc)
-    df2   :: V             # the gradient portion of the non-genetic covariates: covariate matrix * (y - xb - zc)
+    r     :: Vector{T}     # n-vector of residuals
+    df    :: Vector{T}     # the gradient portion of the genotype part: df = ∇f(β) = snpmatrix * (y - xb - zc)
+    df2   :: Vector{T}     # the gradient portion of the non-genetic covariates: covariate matrix * (y - xb - zc)
     c     :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
     c0    :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
     zc    :: Vector{T}     # z * c (covariate matrix times c)
@@ -61,7 +61,7 @@ function IHTVariables(
     p     = zeros(T, n)
     ymp   = zeros(T, n)
 
-    return IHTVariable{T, typeof(y)}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p, ymp)
+    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p, ymp)
 end
 
 """

@@ -101,14 +101,14 @@ end
 - `tol` and `max_iter` and `max_step` is self-explanatory.
 """
 function L0_reg(
-    v        :: IHTVariable, 
+    v        :: IHTVariable{T}, 
     x        :: SnpArray,
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int,
     k        :: Int;
     use_maf  :: Bool = false,
-    mask_n   :: BitArray = trues(size(y)),
+    # mask_n   :: BitArray = trues(size(y)),
     tol      :: T = 1e-4,
     max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
     max_step :: Int = 50,
@@ -157,7 +157,7 @@ function L0_reg(
     # Begin IHT calculations
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
     copyto!(v.r, y)        #redisual = y-Xβ-zc = y since initially β = c = 0
-    v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
+    # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
@@ -171,12 +171,8 @@ function L0_reg(
         #calculate the step size μ.
         (μ, μ_step) = iht!(v, x, z, y, J, k, temp_vec, mm_iter, max_step)
 
-        # iht! gives us an updated x*b. Use it to recompute residuals and gradient
-        v.r .= y .- v.xb .- v.zc 
-        v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
-
-        # update v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
-        At_mul_B!(v.df, v.df2, x_bitmatrix, z, v.r, v.r)
+        # iht! gives us an updated x*b. Use it to recompute gradient: v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
+        update_df!("normal", v, x_bitmatrix, z, y)
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2

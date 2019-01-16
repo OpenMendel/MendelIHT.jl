@@ -62,7 +62,7 @@ x = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
-k = 5              # number of true predictors
+k = 10              # number of true predictors
 s = 0.1            # noise vector
 
 #construct covariates (intercept) and true model b
@@ -120,9 +120,9 @@ using StatsFuns: logistic
 Random.seed!(1111)
 
 #simulat data
-n = 2000
-p = 10000
-k = 10 # number of true predictors
+n = 6000
+p = 5000
+k = 100 # number of true predictors
 x = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
@@ -146,6 +146,7 @@ end
 
 #compute logistic IHT result
 v = IHTVariables(x, z, y, 1, k)
+mask_n = bitrand(n)
 result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic")
 
 # @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
@@ -258,7 +259,7 @@ x = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
-k = 5   # number of true predictors
+k = 5    # number of true predictors
 s = 0.1  # noise vector
 
 #construct covariates (intercept) and true model b
@@ -582,4 +583,62 @@ y = y_temp + noise
 #compute IHT result for less noisy data
 v = IHTVariables(x, z, y, 1, k)
 hi = @benchmark L0_reg(v, x, z, y, 1, k)
+
+
+
+
+using LinearAlgebra
+using BenchmarkTools
+function old_logl(x :: Vector{Float64}, y :: Vector{Float64})
+	return dot(x, y) - sum(log.(1.0 .+ exp.(y))) 
+end
+function new_logl(x :: Vector{Float64}, y :: Vector{Float64})
+	logl = 0.0
+	for i in eachindex(x)
+		logl += x[i]*y[i] - log(1.0 + exp(y[i]))
+	end
+	return logl
+end
+x = rand(1000)
+y = rand(1000)
+old_logl(x, y) ≈ new_logl(x, y)
+@benchmark old_logl(x, y) #median = 33.845 μs
+@benchmark new_logl(x, y) #median = 34.986 μs
+
+
+
+using LinearAlgebra, SnpArrays, BenchmarkTools
+x = SnpArray(undef, 10000, 10000)
+xbm = SnpBitMatrix{Float64}(x, center=true, scale=true)
+Base.summarysize(x)   # 25640152
+Base.summarysize(xbm) # 25320360
+z = zeros(10000)
+y = rand(10000)
+@benchmark mul!(z, xbm, y) # 187.767 ms
+
+hi = @view x[1:1000, 1:1000]
+hibm = SnpBitMatrix{Float64}(hi) #this should work
+hibm = SnpBitMatrix{Float64}(hi, center=true) 
+
+x_mask = @view x[1:9999, 1:9999]
+xbm_mask = SnpBitMatrix{Float64}(x_mask, center=true, scale=true)
+Base.summarysize(x_mask)   # 25640152
+Base.summarysize(xbm_mask) # 25320360
+z = zeros(9999)
+y = rand(9999)
+@benchmark mul!(z, x_mask, y) # 187.767 ms
+
+
+
+using LinearAlgebra, SnpArrays, BenchmarkTools
+x = SnpArray(undef, 10000, 10000)
+x_subset = x[1:1000, 1:1000]
+x_subsetbm = SnpBitMatrix{Float64}(x_subset, center=true, scale=true)
+
+
+
+xbm = SnpBitMatrix{Float64}(x, center=true, scale=true);
+
+
+function copy_snparray()
 
