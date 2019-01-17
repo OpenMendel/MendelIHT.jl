@@ -22,6 +22,13 @@ k = countnz(true_b)
 x = SnpArray(x_temp)
 z = ones(n, 1)                   # non-genetic covariates, just the intercept
 
+#compute mean and std_reci
+mean_vec, minor_allele, = summarize(x)
+for i in 1:p
+    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
+end
+std_vec = std_reciprocal(x, mean_vec)
+
 #compute poisson IHT result
 v = IHTVariables(x, z, y, 1, k)
 result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")

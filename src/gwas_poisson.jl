@@ -45,13 +45,6 @@ function iht_poisson!(
     # update b and c by taking gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
 
-    # perform debiasing (i.e. fit b on its support)
-    # if all(v.idx .== v.idx0)
-    #     xk = convert(Matrix{Float64}, v.xk)
-    #     (estimate, obj) = regress(xk, y, glm)
-    #     view(v.b, v.idx) .= estimate
-    # end
-
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
 
@@ -72,13 +65,6 @@ function iht_poisson!(
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
         _iht_gradstep(v, μ, J, k, temp_vec)
-
-        # perform debiasing (i.e. fit b on its support)
-        # if all(v.idx .== v.idx0)
-        #     xk = convert(Matrix{Float64}, v.xk)
-        #     (estimate, obj) = regress(xk, y, glm)
-        #     view(v.b, v.idx) .= estimate
-        # end
 
         # make necessary resizing since grad step might include/exclude non-genetic covariates
         check_covariate_supp!(v) 
@@ -160,23 +146,34 @@ function L0_poisson_reg(
 
     # Calculate the score 
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-    x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #σinv is calculated wrong?
+    # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
     update_df!(glm, v, x_bitmatrix, z, y)
 
+    const_supp = 0
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
         save_prev!(v)
         logl = next_logl
 
+        # perform debiasing if support doesn't change for "a while" ≈ 10 iter
+        # v.idx == v.idx0 ? const_supp += 1 : const_supp = 0
+        # if const_supp >= 10
+        #     println("reached here!")
+        #     (β, obj) = regress(v.xk, y, glm)
+        #     view(v.b, v.idx) .= β
+        #     const_supp = 0
+        # end
+
+        #perform debiasing whenever possible
+        if sum(v.idx) == size(v.xk, 2)
+            (β, obj) = regress(v.xk, y, glm)
+            view(v.b, v.idx) .= β
+        end
+
         #calculate the step size μ and check loglikelihood is not NaN or Inf
         (μ, μ_step, next_logl) = iht_poisson!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
         !isnan(next_logl) || throw(error("Loglikelihood is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood is Inf, aborting..."))
-
-        # if mm_iter == 2
-        #     println(v.b[v.idx])
-        #     println(v.df[v.idx])
-        # end
 
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
@@ -186,7 +183,8 @@ function L0_poisson_reg(
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
 
-        info("current iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * " and μ_step = " * string(μ_step))
+        #print information about current iteration
+        @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
 
         if converged && mm_iter > 1
             tot_time = time() - start_time

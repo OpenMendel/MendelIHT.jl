@@ -297,9 +297,6 @@ This function computes the best step size μ for normal responses.
 function _iht_stepsize(
     v        :: IHTVariable{T},
     z        :: AbstractMatrix{T},
-    # mean_vec :: AbstractVector{T},
-    # std_vec  :: AbstractVector{T},
-    # storage  :: AbstractVector{AbstractVector{T}}
 ) where {T <: Float}
     # store relevant components of gradient (gk is numerator of step size). 
     v.gk .= view(v.df, v.idx)
@@ -559,11 +556,10 @@ This is for testing purposes only.
 """
 function simulate_random_snparray(
     n :: Int64,
-    p :: Int64
+    p :: Int64,
+    d :: Distribution
 )
-    Random.seed!(1111)
-
-    x_tmp = rand(0:2, n, p)
+    x_tmp = rand(d, n, p)
     x = SnpArray(undef, n, p)
     for i in 1:(n*p)
         if x_tmp[i] == 0
@@ -622,3 +618,240 @@ function make_snparray(
     end
     return x
 end
+
+# """
+# This code belongs to MendelBase in v0.7. 
+# 
+# Performs generalized linear regression. X is the design matrix, y is 
+# the response vector, meanf is the value and derivative of the inverse 
+# link, and varf is the variance function of the mean.
+# """
+# function fitglm(
+#     X             :: Matrix{T}, 
+#     y             :: Vector{T}, 
+#     meanf         :: Function, 
+#     varf          :: Function,
+#     loglikelihood :: Function
+# ) where {T <: Float}
+# #
+#   (n, p) = size(X)
+#   @assert n == length(y)
+#   (score, inform, β) = (zeros(p), zeros(p, p), zeros(p))
+#   (x, z) = (zeros(p), zeros(n))
+#   ybar = mean(y)
+#   for iteration = 1:20 # find the intercept by Newton's method
+#     g = meanf(β[1])
+#     β[1] = β[1] - clamp((g[1] - ybar) / g[2], -1.0, 1.0)
+#     if abs(g[1] - ybar) < 1e-10
+#       break
+#     end
+#   end
+#   (obj, old_obj, c, v) = (0.0, 0.0, 0.0, 0.0)
+#   epsilon = 1e-8
+#   for iteration = 1:100 # scoring algorithm
+#     fill!(score, 0.0)
+#     fill!(inform, 0.0)
+#     mul!(z, X, β) # z = X * β
+#     for i = 1:n
+#       f = meanf(z[i])
+#       v = varf(f[1])
+#       c = ((y[i] - f[1]) / v) * f[2]
+#       copyto!(x, X[i, :])
+#       BLAS.axpy!(c, x, score) # score = score + c * x
+#       c = f[2]^2 / v
+#       BLAS.ger!(c, x, x, inform) # inform = inform + c * x * x'
+#     end
+#     increment = inform \ score
+#     β = β + increment
+#     steps = -1
+#     fill!(score, 0.0)
+#     for step_halve = 0:3 # step halving
+#       obj = 0.0
+#       mul!(z, X, β) # z = X * β
+#       steps = steps + 1
+#       for i = 1:n
+#         f = meanf(z[i])
+#         v = varf(f[1])
+#         c = ((y[i] - f[1]) / v) * f[2]
+#         copyto!(x, X[i, :])
+#         BLAS.axpy!(c, x, score) # score = score + c * x
+#         obj = obj + loglikelihood(y[i], f[1]) 
+#       end
+#       if obj > old_obj
+#         break
+#       else
+#         β = β - increment
+#         increment = 0.5 * increment
+#       end
+#     end
+#     # println(iteration," ",old_obj," ",obj," ",steps)
+#     if iteration > 1 && abs(obj - old_obj) < epsilon * (abs(old_obj) + 1.0)
+#         println("completed fitting")
+#       return β, obj
+#     else
+#       old_obj = obj
+#     end
+#   end
+#   return β, obj
+# end # function glm
+
+# function PoissonMean(u)
+#   p = exp(u)
+#   return [p, p]
+# end
+
+# function PoissonVar(mu)
+#   return mu
+# end
+
+# function PoissonLoglikelihood(y, mu)
+#   y * log(mu) - mu 
+# end
+
+"""
+Performs generalized linear regression. X is the design matrix, y is 
+the response vector. We use this function when the support set of the model
+hasn't changed for a long time ≈ 10 iterations
+"""
+function regress(
+    X     :: AbstractMatrix{T}, 
+    y     :: AbstractVector{T}, 
+    model :: AbstractString
+) where {T <: Float}
+
+  if model != "linear" && model != "logistic" && model != "poisson"
+    throw(ArgumentError(
+      "The only model choices are linear, logistic, and poisson.\n \n"))
+  end
+  #
+  # Create the score vector, information matrix, estimate, a work
+  # vector z, and the loglikelihood.
+  #
+  (n, p) = size(X)
+  @assert n == length(y)
+  score = zeros(p)
+  information = zeros(p, p)
+  estimate = zeros(p)
+  z = zeros(n)
+  #
+  # Handle linear regression separately.
+  #
+  if model == "linear"
+    BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
+    BLAS.axpy!(-1.0, y, z) # z = z - y
+    score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
+    information = BLAS.gemm('T', 'N', X, X) # information = X' * X
+    estimate = information \ score
+    BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
+    obj = - 0.5 * n * log(sum(abs2, y - z) / n) - 0.5 * n
+    return (estimate, obj)
+  end
+  #
+  # Prepare for logistic and Poisson regression by estimating the 
+  # intercept.
+  #
+  if model == "logistic"
+    estimate[1] = log(mean(y) / (1.0 - mean(y)))
+  elseif model == "poisson"
+    estimate[1] = log(mean(y))
+  else
+    throw(ArgumentError(
+      "The only model choices are linear, logistic, and Poisson.\n \n"))
+  end
+  #
+  # Initialize the loglikelihood and the convergence criterion.
+  #
+  v = zeros(p)
+  obj = 0.0
+  old_obj = 0.0
+  epsilon = 1e-6
+  # 
+  #  Estimate parameters by the scoring algorithm.
+  #
+  for iteration = 1:10
+    #
+    # Initialize the score and information.
+    #
+    fill!(score, 0.0)
+    fill!(information, 0.0)
+    #
+    # Compute the score, information, and loglikelihood (obj).
+    #
+    BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
+    clamp!(z, -20.0, 20.0) 
+    if model == "logistic"
+      z = exp.(-z)
+      z = 1.0 ./ (1.0 .+ z)
+      w = z .* (1.0 .- z)
+      BLAS.axpy!(-1.0, y, z) # z = z - y
+      score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
+      w = sqrt.(w)
+      lmul!(Diagonal(w), X) # diag(w) * X
+      information = BLAS.gemm('T', 'N', X, X) # information = X' * W * X
+      w = 1.0 ./ w
+      lmul!(Diagonal(w), X)
+    elseif model == "poisson"
+      z = exp.(z)
+      w = copy(z)
+      BLAS.axpy!(-1.0, y, z) # z = z - y
+      score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
+      w = sqrt.(w)
+      lmul!(Diagonal(w), X) # diag(w) * X
+      information = BLAS.gemm('T', 'N', X, X) # information = X' * W * X
+      w = 1.0 ./ w
+      lmul!(Diagonal(w), X)
+    end
+    #
+    # Compute the scoring increment.
+    #
+    increment = information \ score
+    #
+    # Step halve to produce an increase in the loglikelihood.
+    #
+    steps = -1
+    for step_halve = 0:3
+      steps = steps + 1
+      obj = 0.0
+      estimate = estimate + increment
+      BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
+      clamp!(z, -20.0, 20.0)
+      #
+      # Compute the loglikelihood under the appropriate model.
+      #
+      if model == "logistic"
+        z = exp.(-z)
+        z = 1.0 ./ (1.0 .+ z)
+        for i = 1:n
+          if y[i] > 0.0
+            obj = obj + log(z[i])
+          else
+            obj = obj + log(1.0 - z[i])
+          end
+        end
+      elseif model == "poisson"
+        for i = 1:n
+          q = exp(z[i])
+          obj = obj + y[i] * z[i] - q
+        end  
+      end
+      #
+      # Check for an increase in the loglikelihood.
+      #
+      if old_obj < obj
+        break
+      else
+        estimate = estimate - increment
+        increment = 0.5 * increment
+      end
+    end
+    #
+    # Check for convergence.
+    # 
+    if iteration > 1 && abs(obj - old_obj) < epsilon * (abs(old_obj) + 1.0)
+      return (estimate, obj)
+    else
+      old_obj = obj
+    end
+  end
+  return (estimate, obj)
+end # function regress_old

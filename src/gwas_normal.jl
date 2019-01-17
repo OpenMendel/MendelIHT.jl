@@ -161,6 +161,7 @@ function L0_reg(
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
     At_mul_B!(v.df, v.df2, x_bitmatrix, z, v.r, v.r)
 
     for mm_iter = 1:max_iter

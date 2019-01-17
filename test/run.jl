@@ -123,7 +123,9 @@ Random.seed!(1111)
 n = 2000
 p = 10000
 k = 10 # number of true predictors
-x = simulate_random_snparray(n, p)
+d = Binomial(2, 0.2)
+# d = DiscreteUniform(0, 2)
+x = simulate_random_snparray(n, p, d)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #construct covariates (intercept) and true model b
@@ -181,15 +183,18 @@ using Distributions
 using StatsFuns: logistic
 using Random
 using LinearAlgebra
+using Distributions
 
 #set random seed
 Random.seed!(1111)
 
 #simulat data
-n = 1000
-p = 10000
+n = 2000
+p = 30000
 k = 10 # number of true predictors
-x = simulate_random_snparray(n, p)
+d = Binomial(2, 0.3)
+# d = DiscreteUniform(0, 2)
+x = simulate_random_snparray(n, p, d)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #construct snpmatrix, covariate files, and true model b
@@ -661,3 +666,36 @@ xb = rand(1000)
 
 old_poisson(y, xb)
 _poisson_logl(y, xb)
+
+
+
+
+
+function simulate_random_snparray(
+    n :: Int64,
+    p :: Int64,
+    d :: Distribution
+)
+    x_tmp = rand(dist, n, p)
+    x = SnpArray(undef, n, p)
+    for i in 1:(n*p)
+        if x_tmp[i] == 0
+            x[i] = 0x00
+        elseif x_tmp[i] == 1
+            x[i] = 0x02
+        else
+            x[i] = 0x03
+        end
+    end
+    return x
+end
+
+using Random, SnpArrays, Distributions
+Random.seed!(1111)
+
+x = simulate_random_snparray(1000, 1, Binomial(2, 0.5))
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+xbm_vector = convert(Matrix{Float64}, x)
+
+xbm.σinv
+1 / std(xbm_vector)
