@@ -106,7 +106,7 @@ function iht_path_threaded(
         # current model size?
         k = path[i]
 
-        # Construct the training datas (it appears I must make the training data sets here to avoid thread access issues)
+        # Construct the training datas (it appears I must make the training data sets inside this for loop. Not sure why. Perhaps to avoid thread access issues)
         x_train = SnpArray(undef, sum(train_idx), p)
         copyto!(x_train, @view x[train_idx, :])
         y_train = y[train_idx]

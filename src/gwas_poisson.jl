@@ -121,7 +121,6 @@ function L0_poisson_reg(
     k         :: Int;
     use_maf   :: Bool = false,
     glm       :: String = "normal",
-    mask_n    :: BitArray = trues(size(y)),
     tol       :: T = 1e-4,
     max_iter  :: Int = 1000, # up from 100 for sometimes weighting takes more
     max_step  :: Int = 50,
@@ -155,24 +154,8 @@ function L0_poisson_reg(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-    # # initialize empty vectors to facilitate garbage collection in (snpmatrix)-(vector) computation
-    # store = Vector{Vector{T}}(3)
-    # store[1] = zeros(T, size(v.df))  # length p 
-    # store[2] = zeros(T, size(v.xgk)) # length n
-    # store[3] = zeros(T, size(v.gk))  # length J * k
-
-    #weight snps based on maf or other user defined weights
-    # if use_maf
-    #     maf = deepcopy(mean_vec) 
-    #     my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
-    #     hold_std_vec = deepcopy(std_vec)
-    #     Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
-    # end
-
     # Begin IHT calculations
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    # copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-    # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
     # Calculate the score 
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
@@ -187,10 +170,6 @@ function L0_poisson_reg(
         (μ, μ_step, next_logl) = iht_poisson!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
         !isnan(next_logl) || throw(error("Loglikelihood is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood is Inf, aborting..."))
-
-        # iht! gives us an updated x*b. Use it to recompute residuals and gradient
-        # v.r .= y .- v.xb .- v.zc 
-        # v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
 
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
@@ -214,4 +193,3 @@ function L0_poisson_reg(
         end
     end
 end #function L0_poisson_reg
-

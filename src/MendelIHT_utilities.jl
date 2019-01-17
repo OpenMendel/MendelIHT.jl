@@ -30,8 +30,8 @@ function _iht_gradstep(
     k :: Int,
     temp_vec :: Vector{T}
 ) where {T <: Float}
-    BLAS.axpy!(μ, v.df, v.b)                  # take gradient step: b = b + μv, v = score
-    BLAS.axpy!(μ, v.df2, v.c)                 # take gradient step: b = b + μv, v = score
+    BLAS.axpy!(μ, v.df, v.b)  # take gradient step: b = b + μv, v = score
+    BLAS.axpy!(μ, v.df2, v.c) # take gradient step: b = b + μv, v = score
 ##
     length_b = length(v.b)
     temp_vec[1:length_b] .= v.b
@@ -137,7 +137,7 @@ Note we require the model coefficients to be "small"  (that is, max entry not gr
 prevent loglikelihood blowing up in first few iteration.
 """
 function _poisson_backtrack(
-    v        :: IHTVariable{T},
+    v         :: IHTVariable{T},
     logl      :: T, 
     prev_logl :: T,
     mu_step   :: Int,
@@ -474,8 +474,6 @@ The following summarizes the score direction for different responses.
     Normal = ∇f(β) = -X^T (Y - Xβ)
     Binary = ∇L(β) = -X^T (Y - P) (using logit link)
     Count  = ∇L(β) = X^T (Y - Λ)
-
-Note `mask_n` is used cross validation purposes.
 """
 function update_df!(
     glm    :: String,
@@ -483,16 +481,13 @@ function update_df!(
     x      :: SnpBitMatrix{T},
     z      :: AbstractMatrix{T},
     y      :: AbstractVector{T};
-    # mask_n :: BitArray = trues(size(y))
 ) where {T <: Float}
     if glm == "normal"
         @. v.r = y - v.xb - v.zc
-        # v.r[mask_n .== 0] .= 0
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     elseif glm == "logistic"
         @. v.p = logistic(v.xb + v.zc)
         @. v.ymp = y - v.p
-        # v.ymp[mask_n .== 0] .= 0
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     elseif glm == "poisson"
         @. v.p = exp(v.xb + v.zc)
@@ -526,12 +521,11 @@ function compute_logl(
     v      :: IHTVariable{T},
     y      :: AbstractVector{T},
     glm    :: String;
-    # mask_n :: BitArray = trues(size(y))
 ) where {T <: Float}
     if glm == "logistic"
-        return _logistic_logl(y, v.xb + v.zc, mask_n=mask_n)
+        return _logistic_logl(y, v.xb + v.zc)
     elseif glm == "poisson"
-        return _poisson_logl(y, v.xb + v.zc, mask_n=mask_n)
+        return _poisson_logl(y, v.xb + v.zc)
     else 
         error("compute_logl: currently only supports logistic and poisson")
     end
@@ -540,7 +534,6 @@ end
 @inline function _logistic_logl(
     y      :: Vector{T}, 
     xb     :: Vector{T};
-    # mask_n :: BitArray = trues(size(xb))
 ) where {T <: Float64}
     logl = 0.0
     for i in eachindex(y)
@@ -553,7 +546,6 @@ end
 @inline function _poisson_logl(
     y      :: Vector{T}, 
     xb     :: Vector{T};
-    # mask_n :: BitArray = trues(size(xb))
 ) where {T <: Float64}
     logl = 0.0
     for i in eachindex(y)

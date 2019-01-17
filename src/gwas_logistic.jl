@@ -26,7 +26,6 @@ function iht_logistic!(
     temp_vec  :: AbstractVector{T},
     iter      :: Int,
     nstep     :: Int;
-    mask_n    :: BitArray = trues(size(y))
 ) where {T <: Float}
 
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
@@ -60,7 +59,7 @@ function iht_logistic!(
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
 
     # calculate current loglikelihood with the new computed xb and zc
-    new_logl = compute_logl(v, y, glm, mask_n=mask_n)
+    new_logl = compute_logl(v, y, glm)
 
     μ_step = 0
     while _logistic_backtrack(new_logl, old_logl, μ_step, nstep)
@@ -88,7 +87,7 @@ function iht_logistic!(
         A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
 
         # compute new loglikelihood again to see if we're now increasing
-        new_logl = compute_logl(v, y, glm, mask_n=mask_n)
+        new_logl = compute_logl(v, y, glm)
 
         # increment the counter
         μ_step += 1
@@ -109,7 +108,6 @@ end
 - `k` is the maximum number of predictors per group. 
 - `glm` is the generalized linear model option. Can be either logistic, poisson, normal = default
 - `use_maf` is a boolean. If true, IHT will scale each SNP using their minor allele frequency.
-- `mask_n` is a bit masking vector of booleans. It is used in cross-validation where certain samples are excluded from the model
 - `tol` and `max_iter` and `max_step` is self-explanatory.
 """
 function L0_logistic_reg(
@@ -121,7 +119,6 @@ function L0_logistic_reg(
     k         :: Int;
     use_maf   :: Bool = false,
     glm       :: String = "normal",
-    mask_n    :: BitArray = trues(size(y)),
     tol       :: T = 1e-4,
     max_iter  :: Int = 500, # up from 100 for sometimes weighting takes more
     max_step  :: Int = 50,
@@ -154,28 +151,13 @@ function L0_logistic_reg(
 
     # initialize booleans
     converged = false             # scaled_norm < tol?
-
-    # initialize empty vectors to facilitate garbage collection in (snpmatrix)-(vector) computation
-    # store = Vector{Vector{T}}(3)
-    # store[1] = zeros(T, size(v.df))  # length p 
-    # store[2] = zeros(T, size(v.xgk)) # length n
-    # store[3] = zeros(T, size(v.gk))  # length J * k
-
-    #weight snps based on maf or other user defined weights
-    # if use_maf
-    #     maf = deepcopy(mean_vec) 
-    #     my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
-    #     hold_std_vec = deepcopy(std_vec)
-    #     Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
-    # end
     
     # Begin IHT calculations
     fill!(v.xb, 0.0)     #initialize β = 0 vector, so Xβ = 0
-    y[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
     # Calculate the score
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-    update_df!(glm, v, x_bitmatrix, z, y, mask_n=mask_n)
+    update_df!(glm, v, x_bitmatrix, z, y)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
@@ -188,14 +170,14 @@ function L0_logistic_reg(
         !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
 
         # update score (gradient) and p vector using stepsize μ 
-        update_df!(glm, v, x_bitmatrix, z, y, mask_n=mask_n)
+        update_df!(glm, v, x_bitmatrix, z, y)
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
 
-        @info "current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * ", scaled norm is " * string(scaled_norm) * ", and backtracking was " * string(μ_step)
+        # @info "current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * ", scaled norm is " * string(scaled_norm) * ", and backtracking was " * string(μ_step)
 
         if converged && mm_iter > 1
             tot_time = time() - start_time
