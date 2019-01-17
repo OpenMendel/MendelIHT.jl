@@ -85,7 +85,7 @@ function iht_poisson!(
 
         # recompute xb
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
-        A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
+        A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
 
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, y, glm)
@@ -140,8 +140,7 @@ function L0_poisson_reg(
     check_y_content(y, glm)
 
     # initialize return values
-    mm_iter   = 0                 # number of iterations of L0_poisson_reg
-    tot_time  = 0.0               # compute time *within* L0_poisson_reg
+    mm_iter   = 0                 # number of iterations of L0_reg
     next_logl = oftype(tol,-Inf)  # loglikelihood
 
     # initialize floats
@@ -153,12 +152,15 @@ function L0_poisson_reg(
 
     # initialize booleans
     converged = false             # scaled_norm < tol?
-
+    
     # Begin IHT calculations
     fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
+    # copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
+    # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
     # Calculate the score 
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #σinv is calculated wrong?
     update_df!(glm, v, x_bitmatrix, z, y)
 
     for mm_iter = 1:max_iter
@@ -170,6 +172,11 @@ function L0_poisson_reg(
         (μ, μ_step, next_logl) = iht_poisson!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
         !isnan(next_logl) || throw(error("Loglikelihood is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood is Inf, aborting..."))
+
+        # if mm_iter == 2
+        #     println(v.b[v.idx])
+        #     println(v.df[v.idx])
+        # end
 
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)

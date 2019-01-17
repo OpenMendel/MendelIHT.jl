@@ -79,13 +79,10 @@ included/excluded, we must resize xk, gk, store2, and store3.
 """
 function check_covariate_supp!(
     v       :: IHTVariable{T},
-    # storage :: Vector{Vector{T}},
 ) where {T <: Float}
     if sum(v.idx) != size(v.xk, 2)
         v.xk = zeros(T, size(v.xk, 1), sum(v.idx))
         v.gk = zeros(T, sum(v.idx))
-        # storage[2] = zeros(T, size(v.xgk)) # length n
-        # storage[3] = zeros(T, size(v.gk))  # length J * k
     end
 end
 
@@ -150,27 +147,28 @@ function _poisson_backtrack(
     mu_step < nstep 
 end
 
-# """
-# Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs are not missing.
-# Otherwise, the inner loop should only add if data not missing.
-# """
-# function std_reciprocal(
-#     A::SnpArray, 
-#     mean_vec::Vector{T}
-# ) where {T <: Float}
-#     m, n = size(A)
-#     @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
-#     std_vector = zeros(T, n)
+"""
+Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs are not missing.
+Otherwise, the inner loop should only add if data not missing.
+"""
+function std_reciprocal(
+    x        :: SnpBitMatrix, 
+    mean_vec :: Vector{T}
+) where {T <: Float}
+    m, n = size(x)
+    @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
+    std_vector = zeros(T, n)
 
-#     @inbounds for j in 1:n
-#         @simd for i in 1:m
-#             (a1, a2) = A[i, j]
-#             std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
-#         end
-#         std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
-#     end
-#     return std_vector
-# end
+    @inbounds for j in 1:n
+        @simd for i in 1:m
+            a1 = x.B1[i, j]
+            a2 = x.B2[i, j]
+            std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
+        end
+        std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
+    end
+    return std_vector
+end
 
 # """
 # This function computes the mean of each SNP. Note that (1) the mean is given by 

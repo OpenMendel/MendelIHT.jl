@@ -120,9 +120,9 @@ using StatsFuns: logistic
 Random.seed!(1111)
 
 #simulat data
-n = 6000
-p = 5000
-k = 100 # number of true predictors
+n = 2000
+p = 10000
+k = 10 # number of true predictors
 x = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
@@ -178,10 +178,9 @@ using IHT
 using SnpArrays
 using DataFrames
 using Distributions
-using BenchmarkTools
+using StatsFuns: logistic
 using Random
 using LinearAlgebra
-using StatsFuns: logistic
 
 #set random seed
 Random.seed!(1111)
@@ -193,14 +192,14 @@ k = 10 # number of true predictors
 x = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
-#construct covariates (intercept) and true model b
-z = ones(n, 1)          # non-genetic covariates, just the intercept
-true_b = zeros(p)       # model vector
-true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
-shuffle!(true_b)        # Shuffle the entries
+#construct snpmatrix, covariate files, and true model b
+z           = ones(n, 1)                   # non-genetic covariates, just the intercept
+true_b      = zeros(p)                     # model vector
+true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
+shuffle!(true_b)                           # Shuffle the entries
 correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
 
-#simulate phenotypes (e.g. vector y) via: y = Xb
+#simulate phenotypes under different noises by: y = Xb + noise
 y_temp = xbm * true_b
 
 # Apply inverse log link
@@ -211,7 +210,7 @@ for i in 1:n
 	y[i] = rand(dist)
 end
 
-#compute poisson IHT result
+#compute logistic IHT result
 v = IHTVariables(x, z, y, 1, k)
 result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")
 
@@ -636,3 +635,29 @@ xbm = SnpBitMatrix{Float64}(x, center=true, scale=true);
 
 
 
+
+# testing _poisson_logl correctness
+using LinearAlgebra
+using SpecialFunctions
+
+function old_poisson(y, xb)
+    return dot(y, xb) - sum(exp.(xb)) - sum(lfactorial.(Int.(y)))
+end
+
+function _poisson_logl(
+    y      :: Vector{T}, 
+    xb     :: Vector{T};
+) where {T <: Float64}
+    logl = 0.0
+    for i in eachindex(y)
+        # mask_n[i] ? logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i])) : continue
+        logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
+    end
+    return logl
+end
+
+y = rand(1.0:100.0, 1000)
+xb = rand(1000)
+
+old_poisson(y, xb)
+_poisson_logl(y, xb)
