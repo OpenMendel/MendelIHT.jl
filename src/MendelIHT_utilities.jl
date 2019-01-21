@@ -43,6 +43,9 @@ function _iht_gradstep(
     v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
     v.idc .= v.c .!= 0
 
+    clamp!(v.b, -10, 10)
+    clamp!(v.c, -10, 10)
+
     # If the k'th largest component is not unique, warn the user.
     sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
 end
@@ -123,8 +126,7 @@ function _logistic_backtrack(
     mu_step   :: Int,
     nstep     :: Int
 ) where {T <: Float}
-    prev_logl > logl &&
-    mu_step < nstep 
+    prev_logl > logl && mu_step < nstep 
 end
 
 """
@@ -140,11 +142,16 @@ function _poisson_backtrack(
     mu_step   :: Int,
     nstep     :: Int
 ) where {T <: Float}
-    prev_logl > logl   ||
-    maximum(v.c) > 10  ||
-    maximum(v.b) > 10  ||
-    logl < -10e100     &&
-    mu_step < nstep 
+    # mu_step < nstep    &&
+    # prev_logl > logl   ||
+    # maximum(v.c) > 10  ||
+    # maximum(v.b) > 10  ||
+    # logl < -10e100
+
+    mu_step > nstep   && return false
+    !isfinite(logl)   && return true
+    prev_logl > logl  && return true
+    # maximum(v.b) > 10 && return true
 end
 
 """
@@ -340,7 +347,7 @@ end
 
 function _poisson_stepsize(
     v :: IHTVariable{T},
-    z :: Matrix{T},
+    z :: AbstractMatrix{T},
 ) where {T <: Float}
 
     # store relevant components of gradient
@@ -349,6 +356,8 @@ function _poisson_stepsize(
 
     #compute denominator of step size
     denom = (v.xgk + v.zdf2)' * (v.p .* (v.xgk + v.zdf2))
+
+    isfinite(denom) || println("denominator of step size = $denom and max df is " * string(maximum(v.gk)))
 
     # compute step size. Note non-genetic covariates are separated from x
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
@@ -487,8 +496,14 @@ function update_df!(
     elseif glm == "poisson"
         @. v.p = exp(v.xb + v.zc)
         @. v.ymp = y - v.p
-        # v.ymp[mask_n .== 0] .= 0
+        # println("maximum of p = " * string(maximum(v.p)))
+        # println("minimum of p = " * string(minimum(v.p)))
+        # println("maximum of y - p = " * string(maximum(v.ymp)))
+        # println("minimum of y - p = " * string(minimum(v.ymp)))
+        # clamp!(v.ymp, -1e20, 1e20)
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
+        clamp!(v.df, -1e20, 1e20)
+        clamp!(v.df2, -1e20, 1e20)
     else
         throw(error("computing gradient for an unsupport glm method: " * glm))
     end
@@ -520,7 +535,7 @@ function compute_logl(
     if glm == "logistic"
         return _logistic_logl(y, v.xb + v.zc)
     elseif glm == "poisson"
-        return _poisson_logl(y, v.xb + v.zc)
+        return _poisson_logl(v, y, v.xb + v.zc)
     else 
         error("compute_logl: currently only supports logistic and poisson")
     end
@@ -539,11 +554,13 @@ end
 end
 
 @inline function _poisson_logl(
+    v      :: IHTVariable{T},
     y      :: Vector{T}, 
     xb     :: Vector{T};
 ) where {T <: Float64}
     logl = 0.0
     for i in eachindex(y)
+        # v.b[i] > 20 && continue #don't add to logl given a bad guess
         # mask_n[i] ? logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i])) : continue
         logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
     end

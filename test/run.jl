@@ -58,7 +58,9 @@ Random.seed!(1111)
 #simulat data
 n = 2000
 p = 10000
-x = simulate_random_snparray(n, p)
+d = Binomial(2, 0.2)
+# d = DiscreteUniform(0, 2)
+x = simulate_random_snparray(n, p, d)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
@@ -120,8 +122,8 @@ using StatsFuns: logistic
 Random.seed!(1111)
 
 #simulat data
-n = 2000
-p = 10000
+n = 3000
+p = 20000
 k = 10 # number of true predictors
 d = Binomial(2, 0.2)
 # d = DiscreteUniform(0, 2)
@@ -161,6 +163,7 @@ compare_model = DataFrame(
     true_β           = true_model, 
     estimated_β      = estimated_models)
 println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
 
 
 #how to get predicted response?
@@ -190,7 +193,7 @@ Random.seed!(1111)
 
 #simulat data
 n = 2000
-p = 30000
+p = 10000
 k = 10 # number of true predictors
 d = Binomial(2, 0.3)
 # d = DiscreteUniform(0, 2)
@@ -217,7 +220,9 @@ end
 
 #compute logistic IHT result
 v = IHTVariables(x, z, y, 1, k)
-result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")
+# result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")
+result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson", debias=false)
+
 
 #check result
 estimated_models = zeros(k)
@@ -228,6 +233,7 @@ compare_model = DataFrame(
     true_β           = true_model, 
     estimated_β      = estimated_models)
 println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
 
 
 #how to get predicted response?
@@ -257,7 +263,9 @@ Random.seed!(1111)
 #simulat data
 n = 2000
 p = 10000
-x = simulate_random_snparray(n, p)
+d = Binomial(2, 0.2)
+# d = DiscreteUniform(0, 2)
+x = simulate_random_snparray(n, p, d)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
@@ -298,12 +306,14 @@ using Random
 using LinearAlgebra
 
 #set random seed
-Random.seed!(1111)
+Random.seed!(11111)
 
 #simulat data
 n = 2000
 p = 10000
-x = simulate_random_snparray(n, p)
+d = Binomial(2, 0.2)
+# d = DiscreteUniform(0, 2)
+x = simulate_random_snparray(n, p, d)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
@@ -327,7 +337,7 @@ hi = rand(length(y))
 y = Float64.(hi .< y)  #map y to 0, 1
 
 #specify path and folds
-path = collect(1:5)
+path = collect(1:10)
 num_folds = 3
 folds = rand(1:num_folds, size(x, 1))
 
@@ -351,6 +361,11 @@ srand(1111)
 #specify dimension and noise of data
 n = 2000                        # number of cases
 p = 10000                       # number of predictors
+d = Binomial(2, 0.2)
+# d = DiscreteUniform(0, 2)
+x = simulate_random_snparray(n, p, d)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+
 k = 10                          # number of true predictors per group
 # s = 0.1                         # noise vector, from very little noise to a lot of noise
 

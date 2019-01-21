@@ -109,7 +109,8 @@ function L0_logistic_reg(
     tol       :: T = 1e-4,
     max_iter  :: Int = 500, # up from 100 for sometimes weighting takes more
     max_step  :: Int = 50,
-    temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2))
+    temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
+    debias    :: Bool = true
 ) where {T <: Float}
 
     start_time = time()
@@ -153,25 +154,16 @@ function L0_logistic_reg(
         save_prev!(v)
         logl = next_logl
 
-        # perform debiasing if support doesn't change for "a while" ≈ 10 iter
-        # v.idx == v.idx0 ? const_supp += 1 : const_supp = 0
-        # if const_supp >= 10
-        #     println("reached here!")
-        #     (β, obj) = regress(v.xk, y, glm)
-        #     view(v.b, v.idx) .= β
-        #     const_supp = 0
-        # end
-
-        #perform debiasing whenever possible
-        if sum(v.idx) == size(v.xk, 2)
-            (β, obj) = regress(v.xk, y, glm)
-            view(v.b, v.idx) .= β
-        end
-
         #calculate the step size μ and check loglikelihood is not NaN or Inf
         (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
         !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
+
+        #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
+        if debias && sum(v.idx) == size(v.xk, 2)
+            (β, obj) = regress(v.xk, y, glm)
+            view(v.b, v.idx) .= β
+        end
 
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
@@ -182,7 +174,7 @@ function L0_logistic_reg(
         converged   = scaled_norm < tol
 
         #print information about current iteration
-        @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
+        # @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
 
         if converged && mm_iter > 1
             tot_time = time() - start_time
