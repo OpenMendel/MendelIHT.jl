@@ -32,8 +32,9 @@ function _iht_gradstep(
 ) where {T <: Float}
     BLAS.axpy!(μ, v.df, v.b)  # take gradient step: b = b + μv, v = score
     BLAS.axpy!(μ, v.df2, v.c) # take gradient step: b = b + μv, v = score
-    # clamp!(v.b, -10, 10)
-    # clamp!(v.c, -10, 10)
+    # clamp!(v.b, -20, 20)
+    # clamp!(v.c, -20, 20)
+    # println(sum(v.b .== 20.0) + sum(v.b .== -20.0))
 ##
     length_b = length(v.b)
     temp_vec[1:length_b] .= v.b
@@ -141,15 +142,15 @@ function _poisson_backtrack(
     mu_step   :: Int,
     nstep     :: Int
 ) where {T <: Float}
-    mu_step < nstep    &&
-    prev_logl > logl   ||
-    maximum(v.c) > 10  ||
-    maximum(v.b) > 10  ||
-    logl < -10e100
+    # mu_step < nstep    &&
+    # prev_logl > logl   ||
+    # maximum(v.c) > 10  ||
+    # maximum(v.b) > 10  ||
+    # logl < -10e100
 
-    # mu_step > nstep   && return false
-    # !isfinite(logl)   && return true
-    # prev_logl > logl  && return true
+    mu_step > nstep   && return false
+    !isfinite(logl)   && return true
+    prev_logl > logl  && return true
     # maximum(v.b) > 10 && return true
 end
 

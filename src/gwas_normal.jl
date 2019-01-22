@@ -101,7 +101,7 @@ end
 - `tol` and `max_iter` and `max_step` is self-explanatory.
 """
 function L0_reg(
-    v        :: IHTVariable{T}, 
+    # v        :: IHTVariable{T}, 
     x        :: SnpArray,
     z        :: Matrix{T},
     y        :: Vector{T},
@@ -155,9 +155,8 @@ function L0_reg(
     # end
 
     # Begin IHT calculations
-    fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    copyto!(v.r, y)        #redisual = y-Xβ-zc = y since initially β = c = 0
-    # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
+    v = IHTVariables(x, z, y, J, k)
+    copyto!(v.r, y) #redisual = y-Xβ-zc = y since initially β = c = 0
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);

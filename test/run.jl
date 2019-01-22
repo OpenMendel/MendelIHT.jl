@@ -56,9 +56,8 @@ using LinearAlgebra
 Random.seed!(1111)
 
 #simulat data
-n = 2000
-p = 10000
-d = Binomial(2, 0.2)
+n = 1000
+p = 100000
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
@@ -79,8 +78,8 @@ noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-v = IHTVariables(x, z, y, 1, k)
-result = L0_reg(v, x, z, y, 1, k)
+# v = IHTVariables(x, z, y, 1, k)
+result = L0_reg(x, z, y, 1, k)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -90,6 +89,7 @@ compare_model = DataFrame(
     true_β           = true_model, 
     estimated_β      = estimated_models)
 println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
 
 #how to get predicted response?
 xb = zeros(y_temp)
@@ -145,8 +145,7 @@ y = [rand(Bernoulli(x)) for x in prob]
 y = Float64.(y)
 
 #compute logistic IHT result
-v = IHTVariables(x, z, y, 1, k)
-result = L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic")
+result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic")
 
 # @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
 
@@ -211,9 +210,8 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute logistic IHT result
-v = IHTVariables(x, z, y, 1, k)
-result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")
-# result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson", debias=false)
+result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson")
+# result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false)
 
 
 #check result

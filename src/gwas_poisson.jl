@@ -101,7 +101,6 @@ end
 - `tol` and `max_iter` and `max_step` is self-explanatory.
 """
 function L0_poisson_reg(
-    v         :: IHTVariable, 
     x         :: SnpArray,
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
@@ -143,6 +142,7 @@ function L0_poisson_reg(
     converged = false             # scaled_norm < tol?
     
     # Begin IHT calculations
+    v = IHTVariables(x, z, y, J, k)
     # fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
     # copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
     # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
