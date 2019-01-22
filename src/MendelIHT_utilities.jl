@@ -32,6 +32,8 @@ function _iht_gradstep(
 ) where {T <: Float}
     BLAS.axpy!(μ, v.df, v.b)  # take gradient step: b = b + μv, v = score
     BLAS.axpy!(μ, v.df2, v.c) # take gradient step: b = b + μv, v = score
+    # clamp!(v.b, -10, 10)
+    # clamp!(v.c, -10, 10)
 ##
     length_b = length(v.b)
     temp_vec[1:length_b] .= v.b
@@ -42,9 +44,6 @@ function _iht_gradstep(
 ##
     v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
     v.idc .= v.c .!= 0
-
-    clamp!(v.b, -10, 10)
-    clamp!(v.c, -10, 10)
 
     # If the k'th largest component is not unique, warn the user.
     sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
@@ -142,15 +141,15 @@ function _poisson_backtrack(
     mu_step   :: Int,
     nstep     :: Int
 ) where {T <: Float}
-    # mu_step < nstep    &&
-    # prev_logl > logl   ||
-    # maximum(v.c) > 10  ||
-    # maximum(v.b) > 10  ||
-    # logl < -10e100
+    mu_step < nstep    &&
+    prev_logl > logl   ||
+    maximum(v.c) > 10  ||
+    maximum(v.b) > 10  ||
+    logl < -10e100
 
-    mu_step > nstep   && return false
-    !isfinite(logl)   && return true
-    prev_logl > logl  && return true
+    # mu_step > nstep   && return false
+    # !isfinite(logl)   && return true
+    # prev_logl > logl  && return true
     # maximum(v.b) > 10 && return true
 end
 
@@ -502,8 +501,6 @@ function update_df!(
         # println("minimum of y - p = " * string(minimum(v.ymp)))
         # clamp!(v.ymp, -1e20, 1e20)
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
-        clamp!(v.df, -1e20, 1e20)
-        clamp!(v.df2, -1e20, 1e20)
     else
         throw(error("computing gradient for an unsupport glm method: " * glm))
     end
@@ -574,9 +571,16 @@ This is for testing purposes only.
 function simulate_random_snparray(
     n :: Int64,
     p :: Int64,
-    d :: Distribution
+    r :: Vector{Float64}, #minor allele frequencies
 )
-    x_tmp = rand(d, n, p)
+    #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
+    x_tmp = zeros(n, p)
+    for i in 1:n
+        sample_genotype = [rand(Binomial(2, x)) for x in r]
+        x_tmp[i, :] .= sample_genotype
+    end
+
+    #fill the SnpArray with the corresponding x_tmp entry
     x = SnpArray(undef, n, p)
     for i in 1:(n*p)
         if x_tmp[i] == 0

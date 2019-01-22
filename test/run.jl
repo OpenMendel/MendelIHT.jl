@@ -59,8 +59,8 @@ Random.seed!(1111)
 n = 2000
 p = 10000
 d = Binomial(2, 0.2)
-# d = DiscreteUniform(0, 2)
-x = simulate_random_snparray(n, p, d)
+bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
+x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
@@ -122,12 +122,11 @@ using StatsFuns: logistic
 Random.seed!(1111)
 
 #simulat data
-n = 3000
-p = 20000
+n = 1000
+p = 30000
 k = 10 # number of true predictors
-d = Binomial(2, 0.2)
-# d = DiscreteUniform(0, 2)
-x = simulate_random_snparray(n, p, d)
+bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
+x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #construct covariates (intercept) and true model b
@@ -141,12 +140,9 @@ correct_position = findall(x -> x != 0, true_b) # keep track of what the true en
 y_temp = xbm * true_b
 
 # Apply inverse logit link and sample from the vector of distributions
-y = zeros(n)
 prob = logistic.(y_temp) #inverse log link
-for i in 1:n
-    dist = Bernoulli(prob[i])
-    y[i] = rand(dist)
-end
+y = [rand(Bernoulli(x)) for x in prob]
+y = Float64.(y)
 
 #compute logistic IHT result
 v = IHTVariables(x, z, y, 1, k)
@@ -195,9 +191,8 @@ Random.seed!(1111)
 n = 2000
 p = 10000
 k = 10 # number of true predictors
-d = Binomial(2, 0.3)
-# d = DiscreteUniform(0, 2)
-x = simulate_random_snparray(n, p, d)
+bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
+x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #construct snpmatrix, covariate files, and true model b
@@ -210,18 +205,15 @@ correct_position = findall(x -> x != 0, true_b) # keep track of what the true en
 #simulate phenotypes under different noises by: y = Xb + noise
 y_temp = xbm * true_b
 
-# Apply inverse log link
-y = zeros(n)
-y_temp = exp.(y_temp)                  #inverse log link
-for i in 1:n
-	dist = Poisson(y_temp[i])
-	y[i] = rand(dist)
-end
+# Simulate poisson data
+λ = exp.(y_temp) #inverse log link
+y = [rand(Poisson(x)) for x in λ]
+y = Float64.(y)
 
 #compute logistic IHT result
 v = IHTVariables(x, z, y, 1, k)
-# result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")
-result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson", debias=false)
+result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson")
+# result = L0_poisson_reg(v, x, z, y, 1, k, glm = "poisson", debias=false)
 
 
 #check result
