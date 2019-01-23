@@ -108,11 +108,12 @@ function L0_reg(
     J        :: Int,
     k        :: Int;
     use_maf  :: Bool = false,
-    # mask_n   :: BitArray = trues(size(y)),
+    glm      :: String = "normal",
     tol      :: T = 1e-4,
-    max_iter :: Int = 200, # up from 100 for sometimes weighting takes more
+    max_iter :: Int = 1000,
     max_step :: Int = 50,
-    temp_vec :: Vector{T} = zeros(size(x, 2) + size(z, 2))
+    temp_vec :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
+    debias   :: Bool = true
 ) where {T <: Float}
 
     start_time = time()
@@ -140,28 +141,14 @@ function L0_reg(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-    # initialize empty vectors to facilitate garbage collection in (snpmatrix)-(vector) computation
-    # store = Vector{Vector{T}}(3)
-    # store[1] = zeros(T, size(v.df))  # length p 
-    # store[2] = zeros(T, size(v.xgk)) # length n
-    # store[3] = zeros(T, size(v.gk))  # length J * k
-
-    #weight snps based on maf or other user defined weights
-    # if use_maf
-    #     maf = maf(x)
-    #     my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
-    #     hold_std_vec = deepcopy(std_vec)
-    #     Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
-    # end
-
     # Begin IHT calculations
     v = IHTVariables(x, z, y, J, k)
-    copyto!(v.r, y) #redisual = y-Xβ-zc = y since initially β = c = 0
+    # copyto!(v.r, y) #redisual = y-Xβ-zc = y since initially β = c = 0
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
     # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
-    At_mul_B!(v.df, v.df2, x_bitmatrix, z, v.r, v.r)
+    update_df!(glm, v, x_bitmatrix, z, y)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loss
@@ -171,8 +158,14 @@ function L0_reg(
         #calculate the step size μ.
         (μ, μ_step) = iht!(v, x, z, y, J, k, temp_vec, mm_iter, max_step)
 
+        #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
+        if debias && sum(v.idx) == size(v.xk, 2)
+            (β, obj) = regress(v.xk, y, glm)
+            view(v.b, v.idx) .= β
+        end
+
         # iht! gives us an updated x*b. Use it to recompute gradient: v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
-        update_df!("normal", v, x_bitmatrix, z, y)
+        update_df!(glm, v, x_bitmatrix, z, y)
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2
@@ -182,7 +175,10 @@ function L0_reg(
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        converged   = scaled_norm < tol
+        println(scaled_norm)
+        # converged   = scaled_norm < tol
+        the_norm = sum(abs2, v.r)
+        converged = the_norm < tol
 
         if converged && mm_iter > 1
             tot_time = time() - start_time

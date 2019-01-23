@@ -106,7 +106,7 @@ function L0_logistic_reg(
     use_maf   :: Bool = false,
     glm       :: String = "normal",
     tol       :: T = 1e-4,
-    max_iter  :: Int = 500, # up from 100 for sometimes weighting takes more
+    max_iter  :: Int = 1000,
     max_step  :: Int = 50,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
     debias    :: Bool = true
@@ -169,12 +169,13 @@ function L0_logistic_reg(
         update_df!(glm, v, x_bitmatrix, z, y)
 
         # track convergence
-        the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
-        scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        converged   = scaled_norm < tol
+        # the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
+        # scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
+        # converged   = scaled_norm < tol
+        converged = abs(next_logl - logl) < tol
 
         #print information about current iteration
-        # @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
+        @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
 
         if converged && mm_iter > 1
             tot_time = time() - start_time

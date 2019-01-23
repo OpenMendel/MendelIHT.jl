@@ -1,24 +1,3 @@
-# """
-# This function is needed for testing purposes only.
-
-# Converts a SnpArray to a matrix of float64 using A2 as the minor allele. We want this function
-# because SnpArrays.jl uses the less frequent allele in each SNP as the minor allele, while PLINK.jl
-# always uses A2 as the minor allele, and it's nice if we could cross-compare the results.
-# """
-# function use_A2_as_minor_allele(snpmatrix :: SnpArray)
-#     n, p = size(snpmatrix)
-#     matrix = zeros(n, p)
-#     for i in 1:p
-#         for j in 1:n
-#             if snpmatrix[j, i] == (0, 0); matrix[j, i] = 0.0; end
-#             if snpmatrix[j, i] == (0, 1); matrix[j, i] = 1.0; end
-#             if snpmatrix[j, i] == (1, 1); matrix[j, i] = 2.0; end
-#             if snpmatrix[j, i] == (1, 0); matrix[j, i] = missing; end
-#         end
-#     end
-#     return matrix
-# end
-
 """
 This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates idx and idc. It is an
 addition here because recall that v.df stores an extra negative sign.
@@ -32,9 +11,6 @@ function _iht_gradstep(
 ) where {T <: Float}
     BLAS.axpy!(μ, v.df, v.b)  # take gradient step: b = b + μv, v = score
     BLAS.axpy!(μ, v.df2, v.c) # take gradient step: b = b + μv, v = score
-    # clamp!(v.b, -20, 20)
-    # clamp!(v.c, -20, 20)
-    # println(sum(v.b .== 20.0) + sum(v.b .== -20.0))
 ##
     length_b = length(v.b)
     temp_vec[1:length_b] .= v.b
@@ -148,10 +124,11 @@ function _poisson_backtrack(
     # maximum(v.b) > 10  ||
     # logl < -10e100
 
-    mu_step > nstep   && return false
-    !isfinite(logl)   && return true
-    prev_logl > logl  && return true
-    # maximum(v.b) > 10 && return true
+    mu_step > nstep  && return false
+    logl < -1e100    && return true
+    prev_logl > logl && return true
+
+    # prev_logl > logl && mu_step < nstep 
 end
 
 """
@@ -176,26 +153,6 @@ function std_reciprocal(
     end
     return std_vector
 end
-
-# """
-# This function computes the mean of each SNP. Note that (1) the mean is given by 
-# 2 * maf (minor allele frequency), and (2) based on which allele is the minor allele, 
-# might need to do 2.0 - the maf for the mean vector.
-# """
-# function update_mean!(
-#     mean_vec     :: Vector{T},
-#     minor_allele :: BitArray{1},
-#     p            :: Int64
-# ) where {T <: Float}
-
-#     @inbounds @simd for i in 1:p
-#         if minor_allele[i]
-#             mean_vec[i] = 2.0 - 2.0mean_vec[i]
-#         else
-#             mean_vec[i] = 2.0mean_vec[i]
-#         end
-#     end
-# end
 
 """ Projects the vector y = [y1; y2] onto the set with at most J active groups and at most
 k active predictors per group. The variable group encodes group membership. Currently
@@ -353,11 +310,13 @@ function _poisson_stepsize(
     # store relevant components of gradient
     v.gk .= view(v.df, v.idx)
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
+    # println(sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
+    # println(sum(abs2, v.xgk + v.zdf2))
 
     #compute denominator of step size
     denom = (v.xgk + v.zdf2)' * (v.p .* (v.xgk + v.zdf2))
 
-    isfinite(denom) || println("denominator of step size = $denom and max df is " * string(maximum(v.gk)))
+    isfinite(denom) || println("denominator blew up! it is $denom and max df is " * string(maximum(v.gk)))
 
     # compute step size. Note non-genetic covariates are separated from x
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
@@ -495,12 +454,8 @@ function update_df!(
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     elseif glm == "poisson"
         @. v.p = exp(v.xb + v.zc)
+        clamp!(v.p, -1e100, 1e100)
         @. v.ymp = y - v.p
-        # println("maximum of p = " * string(maximum(v.p)))
-        # println("minimum of p = " * string(minimum(v.p)))
-        # println("maximum of y - p = " * string(maximum(v.ymp)))
-        # println("minimum of y - p = " * string(minimum(v.ymp)))
-        # clamp!(v.ymp, -1e20, 1e20)
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     else
         throw(error("computing gradient for an unsupport glm method: " * glm))
@@ -533,34 +488,35 @@ function compute_logl(
     if glm == "logistic"
         return _logistic_logl(y, v.xb + v.zc)
     elseif glm == "poisson"
-        return _poisson_logl(v, y, v.xb + v.zc)
+        return _poisson_logl(y, v.xb + v.zc)
     else 
         error("compute_logl: currently only supports logistic and poisson")
     end
 end
 
-@inline function _logistic_logl(
+function _logistic_logl(
     y      :: Vector{T}, 
     xb     :: Vector{T};
 ) where {T <: Float64}
     logl = 0.0
-    for i in eachindex(y)
-        # mask_n[i] ? logl += y[i]*xb[i] - log(1.0 + exp(xb[i])) : continue
+    @inbounds for i in eachindex(y)
         logl += y[i]*xb[i] - log(1.0 + exp(xb[i]))
     end
     return logl
 end
 
-@inline function _poisson_logl(
-    v      :: IHTVariable{T},
+function _poisson_logl(
     y      :: Vector{T}, 
     xb     :: Vector{T};
 ) where {T <: Float64}
     logl = 0.0
-    for i in eachindex(y)
-        # v.b[i] > 20 && continue #don't add to logl given a bad guess
-        # mask_n[i] ? logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i])) : continue
-        logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
+    @inbounds for i in eachindex(y)
+        exp_xb = clamp(exp(xb[i]), -1e100, 1e100)
+        increment = y[i]*xb[i] - exp_xb - lfactorial(Int(y[i]))
+        logl += increment
+        # print("$increment, ")
+
+        # logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
     end
     return logl
 end
@@ -582,17 +538,7 @@ function simulate_random_snparray(
     end
 
     #fill the SnpArray with the corresponding x_tmp entry
-    x = SnpArray(undef, n, p)
-    for i in 1:(n*p)
-        if x_tmp[i] == 0
-            x[i] = 0x00
-        elseif x_tmp[i] == 1
-            x[i] = 0x02
-        else
-            x[i] = 0x03
-        end
-    end
-    return x
+    return make_snparray(x_tmp)
 end
 
 """
@@ -600,7 +546,7 @@ Make a random SnpArray based on given Matrix{Float64} of 0~2.
 This is for testing purposes only. 
 """
 function make_snparray(
-    x_temp :: Matrix{Int64}
+    x_temp :: Matrix{Float64}
 )
     n, p = size(x_temp)
     x = SnpArray(undef, n, p)
@@ -732,8 +678,7 @@ end
 
 """
 Performs generalized linear regression. X is the design matrix, y is 
-the response vector. We use this function when the support set of the model
-hasn't changed for a long time ≈ 10 iterations
+the response vector. This function is used as the debiasing step. 
 """
 function regress(
     X     :: AbstractMatrix{T}, 
@@ -741,7 +686,7 @@ function regress(
     model :: AbstractString
 ) where {T <: Float}
 
-  if model != "linear" && model != "logistic" && model != "poisson"
+  if model != "normal" && model != "logistic" && model != "poisson"
     throw(ArgumentError(
       "The only model choices are linear, logistic, and poisson.\n \n"))
   end
@@ -758,7 +703,7 @@ function regress(
   #
   # Handle linear regression separately.
   #
-  if model == "linear"
+  if model == "normal"
     BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
     BLAS.axpy!(-1.0, y, z) # z = z - y
     score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
@@ -768,18 +713,18 @@ function regress(
     obj = - 0.5 * n * log(sum(abs2, y - z) / n) - 0.5 * n
     return (estimate, obj)
   end
-  #
-  # Prepare for logistic and Poisson regression by estimating the 
-  # intercept.
-  #
-  if model == "logistic"
-    estimate[1] = log(mean(y) / (1.0 - mean(y)))
-  elseif model == "poisson"
-    estimate[1] = log(mean(y))
-  else
-    throw(ArgumentError(
-      "The only model choices are linear, logistic, and Poisson.\n \n"))
-  end
+          # #
+          # # Prepare for logistic and Poisson regression by estimating the 
+          # # intercept.
+          # #
+          # if model == "logistic"
+          #   estimate[1] = log(mean(y) / (1.0 - mean(y)))
+          # elseif model == "poisson"
+          #   estimate[1] = log(mean(y))
+          # else
+          #   throw(ArgumentError(
+          #     "The only model choices are linear, logistic, and Poisson.\n \n"))
+          # end
   #
   # Initialize the loglikelihood and the convergence criterion.
   #

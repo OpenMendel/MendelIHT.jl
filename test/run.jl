@@ -56,8 +56,8 @@ using LinearAlgebra
 Random.seed!(1111)
 
 #simulat data
-n = 1000
-p = 100000
+n = 2000
+p = 10000
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
@@ -79,7 +79,7 @@ y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
 # v = IHTVariables(x, z, y, 1, k)
-result = L0_reg(x, z, y, 1, k)
+result = L0_reg(x, z, y, 1, k, tol=1e-8, debias=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -122,8 +122,8 @@ using StatsFuns: logistic
 Random.seed!(1111)
 
 #simulat data
-n = 1000
-p = 30000
+n = 2000
+p = 100000
 k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
@@ -140,12 +140,13 @@ correct_position = findall(x -> x != 0, true_b) # keep track of what the true en
 y_temp = xbm * true_b
 
 # Apply inverse logit link and sample from the vector of distributions
-prob = logistic.(y_temp) #inverse log link
+prob = logistic.(y_temp) #inverse logit link
 y = [rand(Bernoulli(x)) for x in prob]
 y = Float64.(y)
 
 #compute logistic IHT result
-result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic")
+# result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic")
+result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=false)
 
 # @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
 
@@ -187,8 +188,8 @@ using Distributions
 Random.seed!(1111)
 
 #simulat data
-n = 2000
-p = 10000
+n = 1000
+p = 20000
 k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
@@ -209,9 +210,9 @@ y_temp = xbm * true_b
 y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
-#compute logistic IHT result
-result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson")
-# result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false)
+#compute poisson IHT result
+# result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson")
+result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=true)
 
 
 #check result
@@ -649,6 +650,7 @@ xbm = SnpBitMatrix{Float64}(x, center=true, scale=true);
 # testing _poisson_logl correctness
 using LinearAlgebra
 using SpecialFunctions
+using BenchmarkTools
 
 function old_poisson(y, xb)
     return dot(y, xb) - sum(exp.(xb)) - sum(lfactorial.(Int.(y)))
@@ -659,8 +661,7 @@ function _poisson_logl(
     xb     :: Vector{T};
 ) where {T <: Float64}
     logl = 0.0
-    for i in eachindex(y)
-        # mask_n[i] ? logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i])) : continue
+    @inbounds for i in eachindex(y)
         logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
     end
     return logl
@@ -669,8 +670,8 @@ end
 y = rand(1.0:100.0, 1000)
 xb = rand(1000)
 
-old_poisson(y, xb)
-_poisson_logl(y, xb)
+# old_poisson(y, xb)
+@benchmark _poisson_logl($y, $xb)
 
 
 

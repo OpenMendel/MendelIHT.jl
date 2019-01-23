@@ -48,9 +48,11 @@ function iht_poisson!(
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
 
-    # update xb and zc with the new computed b and c
+    # update xb and zc with the new computed b and c, truncating bad guesses to avoid overflow
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
+    # clamp!(v.xb, -20, 20)
+    # clamp!(v.zc, -20, 20)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, y, glm)
@@ -72,6 +74,8 @@ function iht_poisson!(
         # recompute xb
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
+        # clamp!(v.xb, -20, 20)
+        # clamp!(v.zc, -20, 20)
 
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, y, glm)
@@ -80,7 +84,22 @@ function iht_poisson!(
         μ_step += 1
     end
 
-    # println("μ = $μ, μ_step = $μ_step, new_logl = $new_logl")
+    #return machine precision if step size is smaller than that
+    # if μ < eps(T)
+    #     μ = eps(T) 
+    # end
+
+        # println(maximum(v.p))
+        # println(maximum(abs.(v.ymp)))
+        # println(maximum(v.b))
+        # println(maximum(v.c))
+        # println(maximum(v.xb))
+        # println(μ)
+        # println(μ_step)
+        # println(new_logl)
+        # println(size(findall(v.b .> 100)))
+        # println("reached here!")
+        # return ff
 
     return μ::T, μ_step::Int, new_logl::T
 end
@@ -109,8 +128,8 @@ function L0_poisson_reg(
     use_maf   :: Bool = false,
     glm       :: String = "normal",
     tol       :: T = 1e-4,
-    max_iter  :: Int = 1000, # up from 100 for sometimes weighting takes more
-    max_step  :: Int = 50,
+    max_iter  :: Int = 1000,
+    max_step  :: Int = 4,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
     debias    :: Bool = true
 ) where {T <: Float}
@@ -143,14 +162,23 @@ function L0_poisson_reg(
     
     # Begin IHT calculations
     v = IHTVariables(x, z, y, J, k)
-    # fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    # copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-    # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
 
     # Calculate the score 
-    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    # x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true);
     # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
+
+    #initiliaze intercept to be sample mean_vec
+    v.c[1] = mean(x_bitmatrix.μ)
+
+    #compute the gradient
     update_df!(glm, v, x_bitmatrix, z, y)
+
+    #perform debiasing 1 time
+    if debias
+        (β, obj) = regress(v.xk, y, glm)
+        view(v.b, v.idx) .= β
+    end
 
     const_supp = 0
     for mm_iter = 1:max_iter
@@ -163,6 +191,14 @@ function L0_poisson_reg(
         !isnan(next_logl) || throw(error("Loglikelihood is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood is Inf, aborting..."))
 
+        # perform debiasing if support doesn't change for "a while" ≈ 10 iter
+        # v.idx == v.idx0 ? const_supp += 1 : const_supp = 0
+        # if debias && const_supp >= 10
+        #     (β, obj) = regress(v.xk, y, glm)
+        #     view(v.b, v.idx) .= β
+        #     const_supp = 0
+        # end
+
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)
             (β, obj) = regress(v.xk, y, glm)
@@ -171,6 +207,18 @@ function L0_poisson_reg(
 
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
+
+        # println(maximum(v.p))
+        # println(maximum(abs.(v.ymp)))
+        # println(maximum(v.df))
+        # println(maximum(v.df2))
+        # println(maximum(v.xb))
+        # println(maximum(v.b))
+        # # println(μ)
+        # # println(μ_step)
+        # # println(new_logl)
+        # # println(size(findall(v.b .> 100)))
+        # return ff
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
@@ -187,7 +235,7 @@ function L0_poisson_reg(
 
         if mm_iter == max_iter
             tot_time = time() - start_time
-            println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds and model size was" * string(k))
+            println("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k))
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end
