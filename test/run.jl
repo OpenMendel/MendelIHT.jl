@@ -189,7 +189,7 @@ Random.seed!(1111)
 
 #simulat data
 n = 1000
-p = 20000
+p = 20000 #20001 does not work!
 k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
@@ -227,12 +227,13 @@ println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
 
 
+bernoulli_rates[correct_position]
+
 #how to get predicted response?
 xb = zeros(y_temp)
 SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
 xb = exp.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
 [y xb]
-
 
 
 

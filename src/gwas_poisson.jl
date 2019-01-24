@@ -174,13 +174,6 @@ function L0_poisson_reg(
     #compute the gradient
     update_df!(glm, v, x_bitmatrix, z, y)
 
-    #perform debiasing 1 time
-    if debias
-        (β, obj) = regress(v.xk, y, glm)
-        view(v.b, v.idx) .= β
-    end
-
-    const_supp = 0
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
         save_prev!(v)
@@ -191,39 +184,22 @@ function L0_poisson_reg(
         !isnan(next_logl) || throw(error("Loglikelihood is NaN, aborting..."))
         !isinf(next_logl) || throw(error("Loglikelihood is Inf, aborting..."))
 
-        # perform debiasing if support doesn't change for "a while" ≈ 10 iter
-        # v.idx == v.idx0 ? const_supp += 1 : const_supp = 0
-        # if debias && const_supp >= 10
-        #     (β, obj) = regress(v.xk, y, glm)
-        #     view(v.b, v.idx) .= β
-        #     const_supp = 0
-        # end
-
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)
             (β, obj) = regress(v.xk, y, glm)
-            view(v.b, v.idx) .= β
+            if !all(β .≈ 0)
+                view(v.b, v.idx) .= β
+            end
         end
 
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
 
-        # println(maximum(v.p))
-        # println(maximum(abs.(v.ymp)))
-        # println(maximum(v.df))
-        # println(maximum(v.df2))
-        # println(maximum(v.xb))
-        # println(maximum(v.b))
-        # # println(μ)
-        # # println(μ_step)
-        # # println(new_logl)
-        # # println(size(findall(v.b .> 100)))
-        # return ff
-
         # track convergence
-        the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
-        scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        converged   = scaled_norm < tol
+        converged = abs(next_logl - logl) < tol
+        # the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
+        # scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
+        # converged   = scaled_norm < tol
 
         #print information about current iteration
         @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step))

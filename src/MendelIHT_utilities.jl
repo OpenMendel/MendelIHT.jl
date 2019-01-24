@@ -125,8 +125,8 @@ function _poisson_backtrack(
     # logl < -10e100
 
     mu_step > nstep  && return false
-    logl < -1e100    && return true
     prev_logl > logl && return true
+    logl < -1e10     && return true
 
     # prev_logl > logl && mu_step < nstep 
 end
