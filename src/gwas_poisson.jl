@@ -57,7 +57,7 @@ function iht_poisson!(
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, y, glm)
 
-    μ_step = 0
+    μ_step = 1
     while _poisson_backtrack(v, new_logl, old_logl, μ_step, nstep)
 
         # stephalving
@@ -83,6 +83,8 @@ function iht_poisson!(
         # increment the counter
         μ_step += 1
     end
+
+    isfinite(μ) || printstyled("step size weird! it is $μ and max df is " * string(maximum(v.gk)), color=:red)
 
     #return machine precision if step size is smaller than that
     # if μ < eps(T)
@@ -129,7 +131,7 @@ function L0_poisson_reg(
     glm       :: String = "normal",
     tol       :: T = 1e-4,
     max_iter  :: Int = 1000,
-    max_step  :: Int = 4,
+    max_step  :: Int = 3,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
     debias    :: Bool = true
 ) where {T <: Float}
@@ -164,12 +166,13 @@ function L0_poisson_reg(
     v = IHTVariables(x, z, y, J, k)
 
     # Calculate the score 
-    # x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true);
+    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    # x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true);
     # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
 
-    #initiliaze intercept to be sample mean_vec
-    v.c[1] = mean(x_bitmatrix.μ)
+    #initiliaze intercept and the model
+    v.c[1] = log(mean(y))
+    # initialize_beta!(v.b, x, v.c[1])
 
     #compute the gradient
     update_df!(glm, v, x_bitmatrix, z, y)
@@ -196,13 +199,20 @@ function L0_poisson_reg(
         update_df!(glm, v, x_bitmatrix, z, y)
 
         # track convergence
-        converged = abs(next_logl - logl) < tol
+        converged = abs(next_logl - logl) < 1e-6 * (abs(logl) + 1.0) && next_logl > -1e50
         # the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         # scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        # converged   = scaled_norm < tol
+        # converged   = scaled_norm < tol && next_logl > -1e50
+
+        if maximum(v.b) >= 10
+            printstyled("estimated model has entries > 10 at iteration $mm_iter. Dividing all entries by 10...", color=:red)
+            v.b ./= 10
+            v.c ./= 10
+        end
 
         #print information about current iteration
         @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step))
+        # println(findall(x -> x!=0, v.idx))
 
         if converged && mm_iter > 1
             tot_time = time() - start_time
@@ -211,7 +221,7 @@ function L0_poisson_reg(
 
         if mm_iter == max_iter
             tot_time = time() - start_time
-            println("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k))
+            printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end

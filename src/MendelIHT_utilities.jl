@@ -124,9 +124,9 @@ function _poisson_backtrack(
     # maximum(v.b) > 10  ||
     # logl < -10e100
 
-    mu_step > nstep  && return false
+    mu_step >= nstep  && return false
     prev_logl > logl && return true
-    logl < -1e10     && return true
+    # logl < -1e100    && return true
 
     # prev_logl > logl && mu_step < nstep 
 end
@@ -315,8 +315,6 @@ function _poisson_stepsize(
 
     #compute denominator of step size
     denom = (v.xgk + v.zdf2)' * (v.p .* (v.xgk + v.zdf2))
-
-    isfinite(denom) || println("denominator blew up! it is $denom and max df is " * string(maximum(v.gk)))
 
     # compute step size. Note non-genetic covariates are separated from x
     μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
@@ -821,4 +819,53 @@ function regress(
     end
   end
   return (estimate, obj)
-end # function regress_old
+end # function regress
+
+function initialize_beta!(
+    b      :: AbstractVector{T},
+    x      :: SnpArray,
+    mean_y :: T
+) where {T <: Float}
+
+    n = size(x, 1)
+    snp_counts = zeros(n)
+    for i in 1:size(x, 2)
+        copyto!(snp_counts, @view x[:, i])
+        aa = sum(snp_counts .== 2) / n
+        bb = sum(snp_counts .== 1) / n
+        cc = sum(snp_counts .== 0) / n - (mean_y / exp(mean_y))
+
+        #solve ax^2 + bx + c = 0, or bx + c = 0, or if no minor allele present at all, b[i] = 0
+        if aa == 0 && bb == 0
+            b[i] = 0.0
+        elseif bb == -cc / bb
+            b[i] = -cc / bb
+        else 
+            b[i] = log(quasi_quadratic(aa, bb, cc))
+        end
+    end
+end
+
+function quasi_quadratic(
+    a :: T, 
+    b :: T, 
+    c :: T
+) where {T <: Float64}
+    discr = b^2 - 4*a*c
+    if discr < 0
+        return 1.0
+    else 
+        x1 = (-b + sqrt(discr)) / (2*a)
+        x2 = (-b - sqrt(discr)) / (2*a)
+
+        #if both solution positive, return smaller one. If both negative, return 1. Otherwise return positive solution
+        if x1 <= 0 && x2 <= 0
+            return 1.0
+        elseif xor(x1 <= 0, x2 <= 0)
+            return max(x1, x2)
+        else
+            return min(x1, x2)
+        end
+    end
+end
+

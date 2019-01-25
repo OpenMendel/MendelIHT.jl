@@ -187,11 +187,19 @@ using Distributions
 #set random seed
 Random.seed!(1111)
 
+#sizes that does not work (well):
+# n, p = 999, 10000
+# n, p = 2999, 10000
+n, p = 2000, 20001
+
 #simulat data
-n = 1000
-p = 20000 #20001 does not work!
+# n = 20000
+# p = 20000 #20001 does not work!
 k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
+
+#prevent rare alleles from entering model
+# clamp!(bernoulli_rates, 0.1, 1.0)
 x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
@@ -201,6 +209,9 @@ true_b      = zeros(p)                     # model vector
 true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
 shuffle!(true_b)                           # Shuffle the entries
 correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
+
+#check maf
+bernoulli_rates[correct_position]
 
 #simulate phenotypes under different noises by: y = Xb + noise
 y_temp = xbm * true_b
@@ -227,7 +238,6 @@ println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
 
 
-bernoulli_rates[correct_position]
 
 #how to get predicted response?
 xb = zeros(y_temp)

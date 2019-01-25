@@ -187,8 +187,8 @@ function L0_reg(
 
         if mm_iter == max_iter
             tot_time = time() - start_time
-            throw(error("Did not converge!!!!! The run time for IHT was " *
-                string(tot_time) * " seconds"))
+            printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
+            return gIHTResults(tot_time, next_loss, mm_iter, v.b, v.c, J, k, v.group)
         end
     end
 end #function L0_reg
