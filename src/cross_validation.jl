@@ -17,6 +17,7 @@ function iht_path(
     tol       :: T      = convert(T, 1e-4),
     max_iter  :: Int    = 100,
     max_step  :: Int    = 50,
+    debias    :: Bool   = false
 ) where {T <: Float}
 
     # size of problem?
@@ -47,11 +48,11 @@ function iht_path(
 
         # now compute current model
         if glm == "normal"
-            output = L0_reg(v, x_train, z_train, y_train, J, k, use_maf=use_maf)
+            output = L0_reg(x_train, z_train, y_train, J, k, use_maf=use_maf,debias=debias)
         elseif glm == "logistic"
-            output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm = "logistic")
+            output = L0_logistic_reg(x_train, z_train, y_train, J, k, glm="logistic",debias=debias)
         elseif glm == "poisson"
-            output = L0_poisson_reg(v, x, z, y, J, k, glm = "poisson")
+            output = L0_poisson_reg(x_train, z_train, y_train, J, k, glm="poisson", show_info=false,debias=debias)
         end
 
         # put model into sparse matrix of betas
@@ -81,6 +82,7 @@ function iht_path_threaded(
     tol       :: T      = convert(T, 1e-4),
     max_iter  :: Int    = 100,
     max_step  :: Int    = 50,
+    debias    :: Bool   = false
 ) where {T <: Float}
     
     # number of threads available?
@@ -117,11 +119,11 @@ function iht_path_threaded(
 
         # now compute current model
         if glm == "normal"
-            output = L0_reg(v, x_train, z_train, y_train, J, k, use_maf=use_maf)
+            output = L0_reg(x_train, z_train, y_train, J, k, use_maf=use_maf, debias=debias)
         elseif glm == "logistic"
-            output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm="logistic")
+            output = L0_logistic_reg(x_train, z_train, y_train, J, k, glm="logistic", show_info=false, debias=debias)
         elseif glm == "poisson"
-            output = L0_poisson_reg(v, x_train, z_train, y_train, J, k, glm = "poisson")
+            output = L0_poisson_reg(x_train, z_train, y_train, J, k, glm="poisson", show_info=false, debias=debias)
         end
 
         # put model into sparse matrix of betas in the corresponding thread
@@ -157,6 +159,7 @@ function one_fold(
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
+    debias   :: Bool = false
 ) where {T <: Float}
     # dimensions of problem
     n, p = size(x)
@@ -169,14 +172,13 @@ function one_fold(
 
     # allocate test model
     x_test = SnpArray(undef, sum(test_idx), p)
-    z_test = zeros(T, sum(test_idx), q)
     copyto!(x_test, @view(x[test_idx, :]))
-    copyto!(z_test, @view(z[test_idx, :]))
+    z_test = @view(z[test_idx, :])
     x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # compute the regularization path on the training set
-    betas, cs = iht_path_threaded(x, z, y, J, path, train_idx, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol)
-    # betas, cs = iht_path(x, z, y, J, path, train_idx, use_maf=use_maf, glm = glm, max_iter=max_iter, max_step=max_step, tol=tol)
+    betas, cs = iht_path_threaded(x, z, y, J, path, train_idx, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
+    # betas, cs = iht_path(x, z, y, J, path, train_idx, use_maf=use_maf, glm = glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
@@ -233,13 +235,14 @@ function pfold_naive(
     glm      :: String = "normal",
     max_iter :: Int  = 100,
     max_step :: Int  = 50,
+    debias   :: Bool = false,
 ) where {T <: Float}
 
     @assert num_fold >= 1 "number of folds must be positive integer"
 
     mses = zeros(T, length(path), num_fold)
     for fold in 1:num_fold
-        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf, glm = glm)
+        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf, glm=glm,debias=debias)
     end
     return vec(sum(mses, dims=2) ./ num_fold)
 end
@@ -268,17 +271,18 @@ function cv_iht(
     num_fold :: Int64;
     use_maf  :: Bool = false,
     glm      :: String = "normal",
+    debias   :: Bool = false
 ) where {T <: Float}
 
     # how many elements are in the path?
     nmodels = length(path)
 
     # compute folds
-    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf, glm = glm)
+    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf, glm=glm, debias=debias)
 
     # find best model size and print cross validation result
     k = path[argmin(mses)] :: Int
     print_cv_results(mses, path, k)
 
-    return nothing
+    return k
 end

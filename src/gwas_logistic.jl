@@ -109,7 +109,8 @@ function L0_logistic_reg(
     max_iter  :: Int = 1000,
     max_step  :: Int = 50,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
-    debias    :: Bool = true
+    debias    :: Bool = true,
+    show_info :: Bool = true
 ) where {T <: Float}
 
     start_time = time()
@@ -175,7 +176,7 @@ function L0_logistic_reg(
         converged = abs(next_logl - logl) < tol
 
         #print information about current iteration
-        @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
+        show_info && @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
 
         if converged && mm_iter > 1
             tot_time = time() - start_time

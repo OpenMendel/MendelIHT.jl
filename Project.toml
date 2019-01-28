@@ -1,3 +1,9 @@
+name = "IHT"
+uuid = "921c7187-1484-5754-b919-5d3ed9ac03c4"
+keywords = ["GWAS", "Genome-wide association studies", "feature selection", "high dimensional statistics", "generalized linear models", "structured sparsity"]
+authors = ["Benjamin Chu <biona001@ucla.edu>", "Kevin Keys <kevin.keys@ucsf.edu>"]
+version = "0.5.0"
+
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"

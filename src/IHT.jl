@@ -1,18 +1,17 @@
 module IHT
 
-using Distances: euclidean, chebyshev, sqeuclidean
-# using PLINK
-#using StatsFuns: logistic, logit, softplus  ## only for logistic IHT, not working right no
+import Distances: euclidean, chebyshev, sqeuclidean
 using DataFrames
 using Gadfly
 # using MendelBase
 using SnpArrays
 using StatsBase
-using StatsFuns: logistic
-using Random
+import StatsFuns: logistic
+import Random: seed!
 using LinearAlgebra
-using SpecialFunctions
+import SpecialFunctions: lfactorial
 using Distributions
+import SparseArrays: sparsevec
 
 ### idea from Julio Hoffimann Mendes to conditionally load OpenCL module
 # only load if Julia can find OpenCL module

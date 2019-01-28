@@ -451,12 +451,24 @@ function update_df!(
         @. v.ymp = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     elseif glm == "poisson"
-        @. v.p = exp(v.xb + v.zc)
-        clamp!(v.p, -1e100, 1e100)
+        _poisson_df!(v.p, v.xb + v.zc)
+        # @. v.p = exp(v.xb + v.zc)
+        # clamp!(v.p, -1e100, 1e100)
         @. v.ymp = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     else
         throw(error("computing gradient for an unsupport glm method: " * glm))
+    end
+end
+
+#normal approximation to large poisson rates
+function _poisson_df!(
+    Λ  :: AbstractVector{T}
+    xb :: AbstractVector{T}
+) where {T <: Float}
+    for i in eachindex(Λ)
+        λ = exp(xb[i])
+        λ >= 20 ? Λ[i] = xb : Λ[i] = λ 
     end
 end
 
@@ -509,7 +521,10 @@ function _poisson_logl(
 ) where {T <: Float64}
     logl = 0.0
     @inbounds for i in eachindex(y)
-        exp_xb = clamp(exp(xb[i]), -1e100, 1e100)
+
+        exp(xb[i]) >= 20 ? exp_xb = xb[i] : exp_xb = exp(xb[i])
+
+        # exp_xb = clamp(exp(xb[i]), -1e100, 1e100)
         increment = y[i]*xb[i] - exp_xb - lfactorial(Int(y[i]))
         logl += increment
         # print("$increment, ")
@@ -805,7 +820,7 @@ function regress(
       if old_obj < obj
         break
       else
-        estimate = estimate - increment
+        estimate = estimate - increment # revert back to old estimate
         increment = 0.5 * increment
       end
     end
@@ -821,51 +836,59 @@ function regress(
   return (estimate, obj)
 end # function regress
 
-function initialize_beta!(
-    b      :: AbstractVector{T},
-    x      :: SnpArray,
-    mean_y :: T
-) where {T <: Float}
+# function initialize_beta!(
+#     b      :: AbstractVector{T},
+#     x      :: SnpArray,
+#     mean_y :: T
+# ) where {T <: Float}
 
-    n = size(x, 1)
-    snp_counts = zeros(n)
-    for i in 1:size(x, 2)
-        copyto!(snp_counts, @view x[:, i])
-        aa = sum(snp_counts .== 2) / n
-        bb = sum(snp_counts .== 1) / n
-        cc = sum(snp_counts .== 0) / n - (mean_y / exp(mean_y))
+#     n = size(x, 1)
+#     snp_counts = zeros(n)
+#     for i in 1:size(x, 2)
+#         copyto!(snp_counts, @view x[:, i])
+#         aa = sum(snp_counts .== 2) / n
+#         bb = sum(snp_counts .== 1) / n
+#         cc = sum(snp_counts .== 0) / n - (mean_y / exp(mean_y))
 
-        #solve ax^2 + bx + c = 0, or bx + c = 0, or if no minor allele present at all, b[i] = 0
-        if aa == 0 && bb == 0
-            b[i] = 0.0
-        elseif bb == -cc / bb
-            b[i] = -cc / bb
-        else 
-            b[i] = log(quasi_quadratic(aa, bb, cc))
-        end
+#         #solve ax^2 + bx + c = 0, or bx + c = 0, or if no minor allele present at all, b[i] = 0
+#         if aa == 0 && bb == 0
+#             b[i] = 0.0
+#         elseif bb == -cc / bb
+#             b[i] = -cc / bb
+#         else 
+#             b[i] = log(quasi_quadratic(aa, bb, cc))
+#         end
+#     end
+# end
+
+# function quasi_quadratic(
+#     a :: T, 
+#     b :: T, 
+#     c :: T
+# ) where {T <: Float64}
+#     discr = b^2 - 4*a*c
+#     if discr < 0
+#         return 1.0
+#     else 
+#         x1 = (-b + sqrt(discr)) / (2*a)
+#         x2 = (-b - sqrt(discr)) / (2*a)
+
+#         #if both solution positive, return smaller one. If both negative, return 1. Otherwise return positive solution
+#         if x1 <= 0 && x2 <= 0
+#             return 1.0
+#         elseif xor(x1 <= 0, x2 <= 0)
+#             return max(x1, x2)
+#         else
+#             return min(x1, x2)
+#         end
+#     end
+# end
+
+function order_mag(n :: Float64)
+    order = 0
+    while abs(n) >= 1.0
+        n /= 10
+        order += 1
     end
+    return order
 end
-
-function quasi_quadratic(
-    a :: T, 
-    b :: T, 
-    c :: T
-) where {T <: Float64}
-    discr = b^2 - 4*a*c
-    if discr < 0
-        return 1.0
-    else 
-        x1 = (-b + sqrt(discr)) / (2*a)
-        x2 = (-b - sqrt(discr)) / (2*a)
-
-        #if both solution positive, return smaller one. If both negative, return 1. Otherwise return positive solution
-        if x1 <= 0 && x2 <= 0
-            return 1.0
-        elseif xor(x1 <= 0, x2 <= 0)
-            return max(x1, x2)
-        else
-            return min(x1, x2)
-        end
-    end
-end
-

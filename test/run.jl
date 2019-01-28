@@ -79,7 +79,7 @@ y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
 # v = IHTVariables(x, z, y, 1, k)
-result = L0_reg(x, z, y, 1, k, tol=1e-8, debias=false)
+result = L0_reg(x, z, y, 1, k, debias=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -175,6 +175,7 @@ xb = logistic.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
 
 
 # BELOW ARE POISSON SIMULATIONS
+using Revise
 using IHT
 using SnpArrays
 using DataFrames
@@ -190,12 +191,12 @@ Random.seed!(1111)
 #sizes that does not work (well):
 # n, p = 999, 10000
 # n, p = 2999, 10000
-n, p = 2000, 20001
+# n, p = 2000, 20001
 
 #simulat data
-# n = 20000
-# p = 20000 #20001 does not work!
-k = 10 # number of true predictors
+n = 1000
+p = 20000 #20001 does not work!
+k = 20 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 
 #prevent rare alleles from entering model
@@ -222,8 +223,7 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute poisson IHT result
-# result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson")
-result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=true)
+result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false)
 
 
 #check result
@@ -251,6 +251,7 @@ xb = exp.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
 
 
 ############## NORMAL CROSS VALIDATION SIMULATION
+using Revise
 using IHT
 using SnpArrays
 using DataFrames
@@ -263,15 +264,14 @@ using LinearAlgebra
 Random.seed!(1111)
 
 #simulat data
-n = 2000
-p = 10000
-d = Binomial(2, 0.2)
-# d = DiscreteUniform(0, 2)
-x = simulate_random_snparray(n, p, d)
+n = 3000
+p = 20000
+bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
+x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
-k = 5    # number of true predictors
+k = 12    # number of true predictors
 s = 0.1  # noise vector
 
 #construct covariates (intercept) and true model b
@@ -286,12 +286,25 @@ noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #specify path and folds
-path = collect(1:10)
-num_folds = 3
+path = collect(1:20)
+num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-result = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
+k_est = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
+
+#compute l0 result using best estimate for k
+l0_result = L0_reg(x, z, y, 1, k_est, debias=false)
+
+#check result
+estimated_models = l0_result.beta[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(l0_result.iter))
+println("Total time was " * string(l0_result.time))
 
 
 
@@ -308,19 +321,15 @@ using Random
 using LinearAlgebra
 
 #set random seed
-Random.seed!(11111)
+Random.seed!(1111)
 
 #simulat data
 n = 2000
-p = 10000
-d = Binomial(2, 0.2)
-# d = DiscreteUniform(0, 2)
-x = simulate_random_snparray(n, p, d)
+p = 20000
+k = 12    # number of true predictors
+bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
+x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-
-#specify true model size and noise of data
-k = 5    # number of true predictors
-s = 0.1  # noise vector
 
 #construct covariates (intercept) and true model b
 z = ones(n, 1)          # non-genetic covariates, just the intercept
@@ -329,22 +338,35 @@ true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
 shuffle!(true_b)        # Shuffle the entries
 correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
 
-#simulate phenotypes under different noises by: y = Xb + noise
-y_temp = zeros(n)
-mul!(y_temp, xbm, true_b)
+#simulate phenotypes: y = Xb
+y_temp = xbm * true_b
 
-# Apply inverse logit link to map y to {0, 1} 
-y = logistic.(y_temp)               #inverse logit link
-hi = rand(length(y))
-y = Float64.(hi .< y)  #map y to 0, 1
+# Apply inverse logit link and sample from the vector of distributions
+prob = logistic.(y_temp) #inverse logit link
+y = [rand(Bernoulli(x)) for x in prob]
+y = Float64.(y)
 
 #specify path and folds
-path = collect(1:10)
-num_folds = 3
+path = collect(1:20)
+num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic")
+k_est = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)
+
+
+#compute l0 result using best estimate for k
+l0_result = L0_logistic_reg(x, z, y, 1, k_est, glm = "logistic", debias=true, show_info=false)
+
+#check result
+estimated_models = l0_result.beta[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(l0_result.iter))
+println("Total time was " * string(l0_result.time))
 
 
 
@@ -356,57 +378,70 @@ using SnpArrays
 using DataFrames
 using Distributions
 using StatsFuns: logistic
+using BenchmarkTools
+using Random
+using LinearAlgebra
 
 #set random seed
-srand(1111) 
+Random.seed!(1111)
 
-#specify dimension and noise of data
-n = 2000                        # number of cases
-p = 10000                       # number of predictors
-d = Binomial(2, 0.2)
-# d = DiscreteUniform(0, 2)
-x = simulate_random_snparray(n, p, d)
+#sizes that does not work (well):
+# n, p = 999, 10000
+# n, p = 2999, 10000
+# n, p = 2000, 20001
+
+#simulat data
+n = 2000
+p = 20000 #20001 does not work!
+k = 5 # number of true predictors
+bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
+
+#prevent rare alleles from entering model
+# clamp!(bernoulli_rates, 0.1, 1.0)
+x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
-k = 10                          # number of true predictors per group
-# s = 0.1                         # noise vector, from very little noise to a lot of noise
-
 #construct snpmatrix, covariate files, and true model b
-x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
 z           = ones(n, 1)                   # non-genetic covariates, just the intercept
 true_b      = zeros(p)                     # model vector
 true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
 shuffle!(true_b)                           # Shuffle the entries
-correct_position = find(true_b)            # keep track of what the true entries are
-# noise = rand(Normal(0, s), n)              # noise vectors from N(0, s) where s ∈ S = {0.01, 0.1, 1, 10}s
+correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
 
-#compute mean and std used to standardize data to mean 0 variance 1
-mean_vec, minor_allele, = summarize(x)
-for i in 1:p
-    minor_allele[i] ? mean_vec[i] = 2.0 - 2.0mean_vec[i] : mean_vec[i] = 2.0mean_vec[i]
-end
-std_vec = std_reciprocal(x, mean_vec)
+#check maf
+bernoulli_rates[correct_position]
 
 #simulate phenotypes under different noises by: y = Xb + noise
-y_temp = zeros(n)
-SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
+y_temp = xbm * true_b
 
-# Apply inverse link
-y = zeros(n)
-y_temp = exp.(y_temp)                  #inverse log link
-for i in 1:n
-	dist = Poisson(y_temp[i])
-	y[i] = rand(dist)
-end
+# Simulate poisson data
+λ = exp.(y_temp) #inverse log link
+y = [rand(Poisson(x)) for x in λ]
+y = Float64.(y)
 
 #specify path and folds
-path = collect(1:5)
+path = collect(1:10)
 num_folds = 3
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "poisson")
+k_est = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf=false, glm="poisson", debias=false)
 
+
+
+#compute poisson IHT result
+result = L0_poisson_reg(x, z, y, 1, k_est, glm = "poisson", debias=false, show_info=true)
+
+#check result
+estimated_models = zeros(k)
+estimated_models .= result.beta[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
 
 
 

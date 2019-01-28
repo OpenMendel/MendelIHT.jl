@@ -175,9 +175,6 @@ function L0_reg(
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        println(scaled_norm)
-        # converged   = scaled_norm < tol
-        the_norm = sum(abs2, v.r)
         converged = the_norm < tol
 
         if converged && mm_iter > 1

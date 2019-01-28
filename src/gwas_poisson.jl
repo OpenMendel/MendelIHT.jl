@@ -51,8 +51,8 @@ function iht_poisson!(
     # update xb and zc with the new computed b and c, truncating bad guesses to avoid overflow
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-    # clamp!(v.xb, -20, 20)
-    # clamp!(v.zc, -20, 20)
+    clamp!(v.xb, -20, 20)
+    clamp!(v.zc, -20, 20)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, y, glm)
@@ -74,8 +74,8 @@ function iht_poisson!(
         # recompute xb
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-        # clamp!(v.xb, -20, 20)
-        # clamp!(v.zc, -20, 20)
+        clamp!(v.xb, -20, 20)
+        clamp!(v.zc, -20, 20)
 
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, y, glm)
@@ -133,7 +133,10 @@ function L0_poisson_reg(
     max_iter  :: Int = 1000,
     max_step  :: Int = 3,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
-    debias    :: Bool = true
+    debias    :: Bool = true,
+    scale     :: Bool = false,
+    convg     :: Bool = true, #use kevin's convergence criteria
+    show_info :: Bool = true
 ) where {T <: Float}
 
     start_time = time()
@@ -166,7 +169,7 @@ function L0_poisson_reg(
     v = IHTVariables(x, z, y, J, k)
 
     # Calculate the score 
-    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=scale);
     # x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true);
     # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
 
@@ -190,7 +193,7 @@ function L0_poisson_reg(
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)
             (β, obj) = regress(v.xk, y, glm)
-            if !all(β .≈ 0)
+            if !all(β .≈ 0) 
                 view(v.b, v.idx) .= β
             end
         end
@@ -198,21 +201,30 @@ function L0_poisson_reg(
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
 
-        # track convergence
-        converged = abs(next_logl - logl) < 1e-6 * (abs(logl) + 1.0) && next_logl > -1e50
-        # the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
-        # scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        # converged   = scaled_norm < tol && next_logl > -1e50
-
-        if maximum(v.b) >= 10
-            printstyled("estimated model has entries > 10 at iteration $mm_iter. Dividing all entries by 10...", color=:red)
-            v.b ./= 10
-            v.c ./= 10
+        # track convergence using kevin or ken's converegence criteria
+        if convg
+            the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
+            scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
+            converged   = scaled_norm < tol && next_logl > -1e50
+        else
+            convg = abs(next_logl - logl) < 1e-6 * (abs(logl) + 1.0) && next_logl > -1e50
         end
 
+        # if maximum(v.b) >= 10
+        #     show_info && printstyled("estimated model has entries > 10 at iteration $mm_iter. Dividing all entries by 10...\n", color=:red)
+        #     max_order = order_mag(maximum(v.b))
+        #     v.b ./= 10^max_order
+        #     v.c ./= 10^max_order
+        #     v.xb ./= 10^max_order
+        #     v.zc ./= 10^max_order
+        #     # v.b ./= 10
+        #     # v.c ./= 10
+        #     # v.xb ./= 10
+        #     # v.zc ./= 10
+        # end
+
         #print information about current iteration
-        @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step))
-        # println(findall(x -> x!=0, v.idx))
+        show_info && @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(round(next_logl, sigdigits=5)) * ", step size = " * string(round(μ, sigdigits=5)) * ", backtrack = " * string(μ_step))
 
         if converged && mm_iter > 1
             tot_time = time() - start_time
