@@ -451,9 +451,10 @@ function update_df!(
         @. v.ymp = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     elseif glm == "poisson"
-        _poisson_df!(v.p, v.xb + v.zc)
-        # @. v.p = exp(v.xb + v.zc)
-        # clamp!(v.p, -1e100, 1e100)
+        # _poisson_df!(v.p, v.xb + v.zc)
+        # println(maximum(v.p))
+        @. v.p = exp(v.xb + v.zc)
+        clamp!(v.p, -1e100, 1e100)
         @. v.ymp = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     else
@@ -463,12 +464,18 @@ end
 
 #normal approximation to large poisson rates
 function _poisson_df!(
-    Λ  :: AbstractVector{T}
+    Λ  :: AbstractVector{T},
     xb :: AbstractVector{T}
 ) where {T <: Float}
     for i in eachindex(Λ)
         λ = exp(xb[i])
-        λ >= 20 ? Λ[i] = xb : Λ[i] = λ 
+        if λ >= 20
+            Λ[i] = xb[i]
+            # println("original is " * string(exp(xb[i])) * " and approximated is " * string(xb[i]))
+        else
+            Λ[i] = λ
+        end
+        # λ >= 20 ? Λ[i] = xb[i] : Λ[i] = λ 
     end
 end
 
@@ -522,14 +529,18 @@ function _poisson_logl(
     logl = 0.0
     @inbounds for i in eachindex(y)
 
-        exp(xb[i]) >= 20 ? exp_xb = xb[i] : exp_xb = exp(xb[i])
+        #normal approximation to poisson for big lambda
+        # if exp(xb[i]) >= 20 
+        #     logl += -0.5*(y[i] - xb[i])^2 - 0.5log(2π)
+        #     # println(string((y[i] - xb[i])^2))
+        #     # println("original is " * string(y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))) * " and normal approx is " * string(-(y[i] - xb[i])^2 - 0.5log(2π)))
+        # else
+        #     logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
+        # end
 
-        # exp_xb = clamp(exp(xb[i]), -1e100, 1e100)
+        exp_xb = clamp(exp(xb[i]), -1e100, 1e100)
         increment = y[i]*xb[i] - exp_xb - lfactorial(Int(y[i]))
         logl += increment
-        # print("$increment, ")
-
-        # logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
     end
     return logl
 end

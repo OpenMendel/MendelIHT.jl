@@ -166,6 +166,9 @@ function L0_logistic_reg(
             view(v.b, v.idx) .= β
         end
 
+        #print information about current iteration
+        show_info && @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
+
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
 
@@ -174,9 +177,6 @@ function L0_logistic_reg(
         # scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         # converged   = scaled_norm < tol
         converged = abs(next_logl - logl) < tol
-
-        #print information about current iteration
-        show_info && @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step) * ", support unchanged for " * string(const_supp))
 
         if converged && mm_iter > 1
             tot_time = time() - start_time

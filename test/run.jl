@@ -196,7 +196,7 @@ Random.seed!(1111)
 #simulat data
 n = 1000
 p = 20000 #20001 does not work!
-k = 20 # number of true predictors
+k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 
 #prevent rare alleles from entering model
@@ -393,7 +393,7 @@ Random.seed!(1111)
 #simulat data
 n = 2000
 p = 20000 #20001 does not work!
-k = 5 # number of true predictors
+k = 14 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 
 #prevent rare alleles from entering model
@@ -420,8 +420,8 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #specify path and folds
-path = collect(1:10)
-num_folds = 3
+path = collect(1:20)
+num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation

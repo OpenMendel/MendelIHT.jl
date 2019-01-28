@@ -51,13 +51,13 @@ function iht_poisson!(
     # update xb and zc with the new computed b and c, truncating bad guesses to avoid overflow
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-    clamp!(v.xb, -20, 20)
-    clamp!(v.zc, -20, 20)
+    # clamp!(v.xb, -20, 20)
+    # clamp!(v.zc, -20, 20)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, y, glm)
 
-    μ_step = 1
+    μ_step = 0
     while _poisson_backtrack(v, new_logl, old_logl, μ_step, nstep)
 
         # stephalving
@@ -74,8 +74,8 @@ function iht_poisson!(
         # recompute xb
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-        clamp!(v.xb, -20, 20)
-        clamp!(v.zc, -20, 20)
+        # clamp!(v.xb, -20, 20)
+        # clamp!(v.zc, -20, 20)
 
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, y, glm)
@@ -84,7 +84,7 @@ function iht_poisson!(
         μ_step += 1
     end
 
-    isfinite(μ) || printstyled("step size weird! it is $μ and max df is " * string(maximum(v.gk)), color=:red)
+    isfinite(μ) || printstyled("step size weird! it is $μ and max df is " * string(maximum(v.gk)) * "!!\n", color=:red)
 
     #return machine precision if step size is smaller than that
     # if μ < eps(T)
@@ -198,6 +198,13 @@ function L0_poisson_reg(
             end
         end
 
+        #print information about current iteration
+        show_info && println("iter = " * string(mm_iter) * ", loglikelihood = " * string(round(next_logl, sigdigits=5)) * ", step size = " * string(round(μ, sigdigits=5)) * ", backtrack = " * string(μ_step))
+        show_info && μ_step == 3 && @info("backtracked 3 times! loglikelihood not guaranteed to increase")
+
+        # println(maximum(v.df))
+        # return ff
+
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
 
@@ -210,21 +217,21 @@ function L0_poisson_reg(
             convg = abs(next_logl - logl) < 1e-6 * (abs(logl) + 1.0) && next_logl > -1e50
         end
 
-        # if maximum(v.b) >= 10
-        #     show_info && printstyled("estimated model has entries > 10 at iteration $mm_iter. Dividing all entries by 10...\n", color=:red)
-        #     max_order = order_mag(maximum(v.b))
-        #     v.b ./= 10^max_order
-        #     v.c ./= 10^max_order
-        #     v.xb ./= 10^max_order
-        #     v.zc ./= 10^max_order
-        #     # v.b ./= 10
-        #     # v.c ./= 10
-        #     # v.xb ./= 10
-        #     # v.zc ./= 10
-        # end
+        if maximum(v.b) >= 10
+            show_info && printstyled("estimated model has entries > 10 at iteration $mm_iter. Scaling all entries downward...\n", color=:red)
+            max_order = order_mag(maximum(v.b))
+            v.b ./= 10^max_order
+            v.c ./= 10^max_order
+            v.xb ./= 10^max_order
+            v.zc ./= 10^max_order
+            # v.b ./= 10
+            # v.c ./= 10
+            # v.xb ./= 10
+            # v.zc ./= 10
+        end
 
-        #print information about current iteration
-        show_info && @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(round(next_logl, sigdigits=5)) * ", step size = " * string(round(μ, sigdigits=5)) * ", backtrack = " * string(μ_step))
+        # location = findall(x -> x!=0, v.b)
+        # println(v.b[location])
 
         if converged && mm_iter > 1
             tot_time = time() - start_time
