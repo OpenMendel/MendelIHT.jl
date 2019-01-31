@@ -157,8 +157,8 @@ function L0_logistic_reg(
 
         #calculate the step size μ and check loglikelihood is not NaN or Inf
         (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
-        !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
-        !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
+        isnan(next_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
+        isinf(next_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
 
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)

@@ -169,8 +169,8 @@ function L0_reg(
 
         # update loss, objective, gradient, and check objective is not NaN or Inf
         next_loss = sum(abs2, v.r) / 2
-        !isnan(next_loss) || throw(error("Objective function is NaN, aborting..."))
-        !isinf(next_loss) || throw(error("Objective function is Inf, aborting..."))
+        isnan(next_loss) && throw(error("Objective function is NaN, aborting..."))
+        isinf(next_loss) && throw(error("Objective function is Inf, aborting..."))
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))

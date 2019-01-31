@@ -1,48 +1,3 @@
-#BELOW BENCHMARK PERFORMANCE OF L0_reg 
-using IHT
-using SnpArrays
-using DataFrames
-using Distributions
-using BenchmarkTools
-using Random
-using LinearAlgebra
-
-#set random seed
-Random.seed!(1111)
-
-#simulat data
-n = 2000
-p = 10000
-x = simulate_random_snparray(n, p)
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-
-#specify true model size and noise of data
-k = 5              # number of true predictors
-s = 0.1            # noise vector
-
-#construct covariates (intercept) and true model b
-z = ones(n, 1)          # non-genetic covariates, just the intercept
-true_b = zeros(p)       # model vector
-true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
-shuffle!(true_b)        # Shuffle the entries
-correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
-noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s) 
-
-#simulate phenotypes (e.g. vector y) via: y = Xb + noise
-y = xbm * true_b + noise
-
-#compute IHT result for less noisy data
-k = 3
-v = IHTVariables(x, z, y, 1, k)
-result = L0_reg(v, x, z, y, 1, k)
-
-@benchmark L0_reg(v, x, z, y, 1, k) seconds = 30
-
-
-
-
-
-
 #BELOW ARE NORMAL SIMUATIONS
 using IHT
 using SnpArrays
@@ -78,7 +33,6 @@ noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-# v = IHTVariables(x, z, y, 1, k)
 result = L0_reg(x, z, y, 1, k, debias=false)
 
 #check result
@@ -123,7 +77,7 @@ Random.seed!(1111)
 
 #simulat data
 n = 2000
-p = 100000
+p = 10000
 k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
@@ -146,7 +100,7 @@ y = Float64.(y)
 
 #compute logistic IHT result
 # result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic")
-result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=false)
+result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info=false)
 
 # @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
 
@@ -183,7 +137,6 @@ using Distributions
 using StatsFuns: logistic
 using Random
 using LinearAlgebra
-using Distributions
 
 #set random seed
 Random.seed!(1111)
@@ -393,7 +346,7 @@ Random.seed!(1111)
 #simulat data
 n = 2000
 p = 20000 #20001 does not work!
-k = 14 # number of true predictors
+k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 
 #prevent rare alleles from entering model
