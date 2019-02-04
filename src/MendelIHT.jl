@@ -28,6 +28,7 @@ function MendelIHT(control_file = ""; args...)
     keyword["run_cross_validation"] = false
     keyword["model_sizes"] = ""
     keyword["cv_folds"] = ""
+    keyword["glm"] = "normal"
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -39,8 +40,8 @@ function MendelIHT(control_file = ""; args...)
     #
     # Import genotype/non-genetic/phenotype data
     #
-    info("Reading in data")
-    snpmatrix = SnpArray(keyword["plink_input_basename"]) #requires .bim .bed .fam files
+    @info("Reading in data")
+    snpmatrix = SnpArray(keyword["plink_input_basename"] * ".bed") #requires .bim .bed .fam files
     phenotype = readdlm(keyword["plink_input_basename"] * ".fam", header = false)[:, 6]
     non_genetic_cov = ones(size(snpmatrix, 1), 1) #defaults to just the intercept
     if keyword["non_genetic_covariates"] != ""
@@ -85,13 +86,13 @@ function MendelIHT(control_file = ""; args...)
             @assert typeof(num_folds) == Int "Please provide positive integer value for the number of folds for cross validation"
             @assert num_folds >= 1           "Please provide positive integer value for the number of folds for cross validation"
         end
-        info("Running " * string(num_folds) * "-fold cross validation on the following model sizes:\n" * keyword["model_sizes"] * ".\nIgnoring keyword predictors.")
+        @info("Running " * string(num_folds) * "-fold cross validation on the following model sizes:\n" * keyword["model_sizes"] * ".\nIgnoring keyword predictors.")
         folds = rand(1:num_folds, size(snpmatrix, 1))
-        return cv_iht(snpmatrix, non_genetic_cov, phenotype, 1, path, folds, num_folds, use_maf = maf_weights)
+        return cv_iht(snpmatrix, non_genetic_cov, phenotype, 1, path, folds, num_folds, use_maf=maf_weights, glm="normal", debias=false)
 
     elseif keyword["model_sizes"] != ""
         path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
-        info("Running the following model sizes: " * string(path))
+        @info("Running the following model sizes: " * string(path))
         @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
         #
         # Compute the various models and associated errors
@@ -102,22 +103,23 @@ function MendelIHT(control_file = ""; args...)
         # Define variables for group membership, max number of predictors for each group, and max number of groups
         # If no group_membership file is provided, defaults every predictor to the same group
         #
-        v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
-        if keyword["group_membership"] != ""
-            v.group = vec(readdlm(keyword["group_membership"], Int64))
-        end
+                # v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
+                # if keyword["group_membership"] != ""
+                #     v.group = vec(readdlm(keyword["group_membership"], Int64))
+                # end
         #
-        # Determine the type of analysis
+        # Determine the type of analysis and run IHT
         #
-        keyword["analysis_option"] == "" ? glm = "normal" : glm = lowercase(keyword["analysis_option"])
-        #
-        # Run IHT
-        #
-        info("Running " * string(glm) * " IHT for model size k = $k and groups J = $J") 
+        glm = keyword["glm"]
+        @info("Running " * string(glm) * " IHT for model size k = $k and groups J = $J") 
         if glm == "normal"
-            return L0_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, use_maf = maf_weights)
+            return L0_reg(snpmatrix, non_genetic_cov, phenotype, J, k, use_maf=maf_weights, debias=false)
         elseif glm == "logistic"
-            return L0_logistic_reg(v, snpmatrix, non_genetic_cov, phenotype, J, k, use_maf = maf_weights, glm = glm)
+            return L0_logistic_reg(snpmatrix, non_genetic_cov, phenotype, J, k, glm=glm, debias=true, show_info=false)
+        elseif glm == "poisson"
+            return L0_poisson_reg(snpmatrix, non_genetic_cov, phenotype, J, k, glm=glm, debias=false, convg=false)
+        else
+            throw(error("unsupported glm option: $glm"))
         end
     end
     #

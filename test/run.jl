@@ -147,8 +147,8 @@ Random.seed!(1111)
 # n, p = 2000, 20001
 
 #simulat data
-n = 1000
-p = 20000 #20001 does not work!
+n = 5000
+p = 100000 #20001 does not work!
 k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 

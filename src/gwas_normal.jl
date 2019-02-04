@@ -20,17 +20,10 @@ function iht!(
     y         :: Vector{T},
     J         :: Int,
     k         :: Int,
-    # mean_vec  :: Vector{T},
-    # std_vec   :: Vector{T},
-    # storage   :: Vector{Vector{T}},
     temp_vec  :: Vector{T},
     iter      :: Int,
     nstep     :: Int
 ) where {T <: Float}
-
-    # compute indices of nonzeroes in beta
-    # v.idx .= v.b .!= 0
-    # v.idc .= v.c .!= 0
 
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
     if iter == 1
@@ -101,7 +94,6 @@ end
 - `tol` and `max_iter` and `max_step` is self-explanatory.
 """
 function L0_reg(
-    # v        :: IHTVariable{T}, 
     x        :: SnpArray,
     z        :: Matrix{T},
     y        :: Vector{T},
@@ -141,13 +133,14 @@ function L0_reg(
     # initialize booleans
     converged = false             # scaled_norm < tol?
 
-    # Begin IHT calculations
+    # define IHTVariables and group membership vector
     v = IHTVariables(x, z, y, J, k)
-    # copyto!(v.r, y) #redisual = y-Xβ-zc = y since initially β = c = 0
+    # if keyword["group_membership"] != ""
+    #     v.group = vec(readdlm(keyword["group_membership"], Int64))
+    # end
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-    # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
     update_df!(glm, v, x_bitmatrix, z, y)
 
     for mm_iter = 1:max_iter
