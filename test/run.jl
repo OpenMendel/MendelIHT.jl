@@ -11,8 +11,8 @@ using LinearAlgebra
 Random.seed!(1111)
 
 #simulat data
-n = 2000
-p = 10000
+n = 5000
+p = 30000
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
@@ -72,12 +72,13 @@ using Random
 using LinearAlgebra
 using StatsFuns: logistic
 
-#set random seed
-Random.seed!(1111)
-
 #simulat data
 n = 2000
 p = 10000
+
+#set random seed
+Random.seed!(1111)
+
 k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
@@ -105,8 +106,7 @@ result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info
 # @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
 
 #check result
-estimated_models = zeros(k)
-estimated_models .= result.beta[correct_position]
+estimated_models = result.beta[correct_position]
 true_model = true_b[correct_position]
 compare_model = DataFrame(
     correct_position = correct_position, 
@@ -138,17 +138,20 @@ using StatsFuns: logistic
 using Random
 using LinearAlgebra
 
-#set random seed
-Random.seed!(1111)
 
 #sizes that does not work (well):
 # n, p = 999, 10000
 # n, p = 2999, 10000
 # n, p = 2000, 20001
+# n, p = 140, 420
 
 #simulat data
-n = 5000
-p = 100000 #20001 does not work!
+n = 2000
+p = 20001 #20001 does not work!
+
+#set random seed
+Random.seed!(1111)
+
 k = 10 # number of true predictors
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 
@@ -178,10 +181,14 @@ y = Float64.(y)
 #compute poisson IHT result
 result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false)
 
+#examine initial guess
+# initial_b = result[correct_position]
+# compare_model = DataFrame(
+#     true_β      = true_model, 
+#     init_β = initial_b)
 
 #check result
-estimated_models = zeros(k)
-estimated_models .= result.beta[correct_position]
+estimated_models = result.beta[correct_position]
 true_model = true_b[correct_position]
 compare_model = DataFrame(
     correct_position = correct_position, 

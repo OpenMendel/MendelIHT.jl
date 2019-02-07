@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8" />
-<title>Mendel_IHT_tutorialJSS</title>
+<title>Mendel_IHT_tutorial_julia1.0</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -11751,7 +11751,7 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="OpenMendel:-Iterative-Hard-Thresholding-Tutorial">OpenMendel: Iterative Hard Thresholding Tutorial<a class="anchor-link" href="#OpenMendel:-Iterative-Hard-Thresholding-Tutorial">&#182;</a></h1><h3 id="Last-update:-11/3/2018">Last update: 11/3/2018<a class="anchor-link" href="#Last-update:-11/3/2018">&#182;</a></h3>
+<h1 id="OpenMendel-Tutorial-on-Iterative-Hard-Thresholding-(IHT.jl)">OpenMendel Tutorial on Iterative Hard Thresholding (IHT.jl)<a class="anchor-link" href="#OpenMendel-Tutorial-on-Iterative-Hard-Thresholding-(IHT.jl)">&#182;</a></h1><h3 id="Last-update:-2/5/2019">Last update: 2/5/2019<a class="anchor-link" href="#Last-update:-2/5/2019">&#182;</a></h3>
 </div>
 </div>
 </div>
@@ -11760,8 +11760,22 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Julia-version">Julia version<a class="anchor-link" href="#Julia-version">&#182;</a></h3><p>For reproducibility, the computer spec and Julia version is listed below. Current code supports Julia version 0.6.4. It will not work in v0.7 or v1.0, but upgrade to v1.0 is very high on our TODO list.</p>
-<p>The IHT.jl module must be installed on your computer before running this tutorial.  Instructions on cloning and the latest IHT code can be found here: <a href="https://github.com/biona001/IHT.jl">https://github.com/biona001/IHT.jl</a></p>
+<h3 id="Installation-instructions:">Installation instructions:<a class="anchor-link" href="#Installation-instructions:">&#182;</a></h3><p><code>IHT.jl</code> supports Julia 1.0, but is currently an unregistered package. To install, press <code>]</code> to enter package manager mode, and then install the following packages:</p>
+
+<pre><code>(v1.0) pkg&gt; add https://github.com/OpenMendel/SnpArrays.jl/
+(v1.0) pkg&gt; add https://github.com/OpenMendel/MendelSearch.jl
+(v1.0) pkg&gt; add https://github.com/OpenMendel/MendelBase.jl
+(v1.0) pkg&gt; add https://github.com/biona001/IHT.jl</code></pre>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Julia-version">Julia version<a class="anchor-link" href="#Julia-version">&#182;</a></h3><p>For reproducibility, the computer spec and Julia version is listed below.</p>
 
 </div>
 </div>
@@ -11784,16 +11798,16 @@ div#notebook {
 
 <div class="output_area"><div class="prompt"></div>
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>Julia Version 0.6.4
-Commit 9d11f62bcb (2018-07-09 19:09 UTC)
+<pre>Julia Version 1.0.3
+Commit 099e826241 (2018-12-18 01:34 UTC)
 Platform Info:
   OS: macOS (x86_64-apple-darwin14.5.0)
   CPU: Intel(R) Core(TM) i7-3740QM CPU @ 2.70GHz
   WORD_SIZE: 64
-  BLAS: libopenblas (USE64BITINT DYNAMIC_ARCH NO_AFFINITY Sandybridge MAX_THREADS=16)
-  LAPACK: libopenblas64_
   LIBM: libopenlibm
-  LLVM: libLLVM-3.9.1 (ORCJIT, ivybridge)
+  LLVM: libLLVM-6.0.0 (ORCJIT, ivybridge)
+Environment:
+  JULIA_NUM_THREADS = 8
 </pre>
 </div>
 </div>
@@ -11807,7 +11821,7 @@ Platform Info:
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="When-to-use-Iterative-Hard-Thresholding">When to use Iterative Hard Thresholding<a class="anchor-link" href="#When-to-use-Iterative-Hard-Thresholding">&#182;</a></h3><p><em>Continuous</em> model selection is advantageous in situations where the multivariate nature of the regressors plays a significant role <em>together</em>. As an alternative to traditional SNP-by-SNP association testing, iterative hard-thresholing (IHT) performs continuous model selection on a GWAS dataset $\mathbf{X} \in \{0, 1, 2\}^{n \times p}$ and continuous phenotype vector $\mathbf{y}$ by minimizing the residual sum of squares $f(\beta) = \frac{1}{2}||\mathbf{y} - \mathbf{X}\beta||^2$ subject to the constraint that $\beta$ is $k-$sparse. This method has the edge over LASSO (which also provides continuous model selection) because IHT does not shrink estimated effect sizes. Parallel computing is offered through <code>q-</code>fold cross validation, and in the near future, dense (genotype matrix)-(dense vector) multiplication.</p>
+<h3 id="Control-files-for-beginning-users,-direct-function-calls-for-advanced-users">Control files for beginning users, direct function calls for advanced users<a class="anchor-link" href="#Control-files-for-beginning-users,-direct-function-calls-for-advanced-users">&#182;</a></h3><p>Numerous functions exist in IHT, which differ in input/output formats and optimization options. Users are encouraged to explore these functions as-is by directly calling them on imported data, demonstrated in the last few examples. For the less computer savvy, we also prepared the option of running analysis by constructing a 'control file' that specifies all analysis parameters. The later option is less flexible than the former to manipulate datasets, but less error prone.</p>
 
 </div>
 </div>
@@ -11817,7 +11831,17 @@ Platform Info:
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Appropriate-Datasets-and-Example-Inputs">Appropriate Datasets and Example Inputs<a class="anchor-link" href="#Appropriate-Datasets-and-Example-Inputs">&#182;</a></h3><p>All genotype data <strong>must</strong> be stored in the <a href="https://www.cog-genomics.org/plink2/formats#bed">PLINK binary genotype format</a>, where the triplets <code>.bim</code>, <code>.bed</code> and <code>.fam</code> must all be present. Additional non-genetic covariates should be stored in a separate file (e.g. comma separated file). In the first 3 examples of this tutorial, we use "gwas 1 data" (github repo: <a href="https://github.com/OpenMendel/MendelGWAS.jl/tree/master/docs">here</a>) to illustrate the basic usage and functionalities of MendelIHT. This dataset has 2200 people and a modest 10000 simulated SNPs, with 2 SNPs (<code>rs1935681</code> and <code>rs2256412</code>) contributing to the response. One can obtain this dataset from the first example input of <a href="https://openmendel.github.io/MendelGWAS.jl/">MendelGWAS.jl</a>, or via option 24a of the free application <a href="http://www.genetics.ucla.edu/software/mendel">Mendel version 16</a>. To examine the robustness and accuracy of IHT, examples 4 and 5 simulates data on the spot, and immediately calls IHT on the simulated data.</p>
+<h3 id="When-to-use-Iterative-Hard-Thresholding">When to use Iterative Hard Thresholding<a class="anchor-link" href="#When-to-use-Iterative-Hard-Thresholding">&#182;</a></h3><p>Continuous model selection is advantageous in situations where the multivariate nature of the regressors plays a significant role together. As an alternative to traditional SNP-by-SNP association testing, iterative hard-thresholing (IHT) performs continuous model selection on a GWAS dataset $\mathbf{X} \in \{0, 1, 2\}^{n \times p}$ and continuous phenotype vector $\mathbf{y}$ by minimizing the residual sum of squares $f(\beta) = \frac{1}{2}||\mathbf{y} - \mathbf{X}\beta||^2$ subject to the constraint that $\beta$ is $k-$sparse. This method has the edge over LASSO (which also provides continuous model selection) because IHT does not shrink estimated effect sizes. Parallel computing is offered through <code>q-</code>fold cross validation, and in the near future, dense (genotype matrix)-(dense vector) multiplication.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Appropriate-Datasets-and-Example-Inputs">Appropriate Datasets and Example Inputs<a class="anchor-link" href="#Appropriate-Datasets-and-Example-Inputs">&#182;</a></h3><p>All genotype data <strong>must</strong> be stored in the <a href="https://www.cog-genomics.org/plink2/formats#bed">PLINK binary genotype format</a>, where the triplets <code>.bim</code>, <code>.bed</code> and <code>.fam</code> must all be present. Additional non-genetic covariates should be stored in a separate file (e.g. comma separated file). In the first 3 examples of this tutorial, we use "gwas 1 data" (github repo: <a href="https://github.com/OpenMendel/MendelGWAS.jl/tree/master/docs">here</a>) to illustrate the basic usage and functionalities of MendelIHT. This dataset has 2200 people and a modest 10000 simulated SNPs, with 2 SNPs <code>rs1935681</code> and <code>rs2256412</code> (and an additional interaction term) contributing to the response . One can obtain this dataset from the first example input of <a href="https://openmendel.github.io/MendelGWAS.jl/">MendelGWAS.jl</a>, or via option 24a of the free application <a href="http://www.genetics.ucla.edu/software/mendel">Mendel version 16</a>. To examine the robustness and accuracy of IHT, examples 4 and 5 simulates data on the spot, and immediately calls IHT on the simulated data.</p>
 
 </div>
 </div>
@@ -11837,7 +11861,7 @@ Platform Info:
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Cross-Validation-and-Regularization-paths">Cross Validation and Regularization paths<a class="anchor-link" href="#Cross-Validation-and-Regularization-paths">&#182;</a></h3><p>We usually have very little information on how many SNPs are affecting the phenotype. In a typical GWAS study, anywhere between 1 to thousands of SNPs could play a role. Thus ideally, we can test many different models to find the best one. MendelIHT provides 2 ways for one to perform this automatically: user specified regulartization paths, and $q-$fold <a href="https://en.wikipedia.org/wiki/Cross-validation_(statistics">cross validation</a>. Users should know that, in the first method, increasing the number of predictors will almost always decrease the error, but as a result introduce overfitting. Therefore, in most practical situations, it is highly recommended to combine this method with cross validation. In $q-$fold cross validation, samples are divided into $q$ disjoint subsets, and IHT fits a model on $q-1$ of those sets data, then computes the <a href="https://en.wikipedia.org/wiki/Mean_squared_error">MSE</a> tested on the $qth$ samples. Each $q$ subsets are served as the test set exactly once. With noisy responses, IHT cross validation typically underestimates the true model size, as shown in the examples below.</p>
+<h3 id="Cross-Validation-and-Regularization-paths">Cross Validation and Regularization paths<a class="anchor-link" href="#Cross-Validation-and-Regularization-paths">&#182;</a></h3><p>We usually have very little information on how many SNPs are affecting the phenotype. In a typical GWAS study, anywhere between 1 to thousands of SNPs could play a role. Thus ideally, we can test many different models to find the best one. MendelIHT provides 2 ways for one to perform this automatically: user specified regulartization paths, and $q-$fold <a href="https://en.wikipedia.org/wiki/Cross-validation_(statistics">cross validation</a>. Users should know that, in the first method, increasing the number of predictors will almost always decrease the error, but as a result introduce overfitting. Therefore, in most practical situations, it is highly recommended to combine this method with cross validation. In $q-$fold cross validation, samples are divided into $q$ disjoint subsets, and IHT fits a model on $q-1$ of those sets data, then computes the <a href="https://en.wikipedia.org/wiki/Mean_squared_error">MSE</a> tested on the $qth$ samples. Each $q$ subsets are served as the test set exactly once. This functionality of <code>IHT.jl</code> supports natively supports parallel computing.</p>
 
 </div>
 </div>
@@ -11904,6 +11928,12 @@ Platform Info:
 <td>maf</td>
 <td>How to scale predictors based on different weights</td>
 </tr>
+<tr>
+<td><code>glm</code> (*)</td>
+<td>"normal"</td>
+<td>normal, logistic, poisson</td>
+<td>Running generalized linear models for cases when $y$ is normal, binary, or count data</td>
+</tr>
 </tbody>
 </table>
 <ul>
@@ -11963,7 +11993,7 @@ predictors = 2</pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Step-2:-Run-MendelIHT">Step 2: Run MendelIHT<a class="anchor-link" href="#Step-2:-Run-MendelIHT">&#182;</a></h3><p>To run <code>MendelIHT</code>, execute the following in the Julia REPL or in this notebook:</p>
+<h3 id="Step-2:-Run-MendelIHT">Step 2: Run MendelIHT<a class="anchor-link" href="#Step-2:-Run-MendelIHT">&#182;</a></h3><p>To run IHT with a control file, execute the following in the Julia REPL or in this notebook:</p>
 
 </div>
 </div>
@@ -11974,7 +12004,7 @@ predictors = 2</pre>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-julia"><pre><span></span><span class="k">using</span> <span class="n">IHT</span>
-<span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control basic.txt&quot;</span><span class="p">)</span> <span class="c"># change directory as necessary</span>
+<span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control basic.txt&quot;</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -11986,17 +12016,26 @@ predictors = 2</pre>
 
 
 <div class="output_area"><div class="prompt"></div>
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>┌ Info: Recompiling stale cache file /Users/biona001/.julia/compiled/v1.0/IHT/eaqWB.ji for IHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
+└ @ Base loading.jl:1190
+┌ Info: Loading DataFrames support into Gadfly.jl
+└ @ Gadfly /Users/biona001/.julia/packages/Gadfly/09PWZ/src/mapping.jl:228
+</pre>
+</div>
+</div>
+
+<div class="output_area"><div class="prompt"></div>
 <div class="output_subarea output_stream output_stdout output_text">
 <pre> 
  
      Welcome to OpenMendel&#39;s
       IHT analysis option
-        version 0.4.0
  
  
 Reading the data.
 
-The current working directory is &#34;/Users/biona001/.julia/v0.6/IHT/docs/MendelIHT_tutorial&#34;.
+The current working directory is &#34;/Users/biona001/.julia/dev/IHT/docs/MendelIHT_tutorial&#34;.
 
 Keywords modified by the user:
 
@@ -12014,10 +12053,11 @@ Keywords modified by the user:
 
 <div class="output_area"><div class="prompt"></div>
 <div class="output_subarea output_stream output_stderr output_text">
-<pre><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Reading in data
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">v1.0 BED file detected
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Analyzing the data for model size k = 2
-</span></pre>
+<pre>┌ Info: Reading in data
+└ @ IHT /Users/biona001/.julia/dev/IHT/src/MendelIHT.jl:43
+┌ Info: Running normal IHT for model size k = 2 and groups J = 1
+└ @ IHT /Users/biona001/.julia/dev/IHT/src/MendelIHT.jl:114
+</pre>
 </div>
 </div>
 
@@ -12027,17 +12067,18 @@ Keywords modified by the user:
 <div class="output_text output_subarea output_execute_result">
 <pre>IHT results:
 
-Compute time (sec):     1.477848303
-Final loss:             1183.6890803583537
+Compute time (sec):     1.2556431293487549
+Final loss:             1183.6890803570777
 Iterations:             4
 Max number of groups:   1
 Max predictors/group:   2
 IHT estimated 2 nonzero coefficients.
 2×3 DataFrames.DataFrame
 │ Row │ Group │ Predictor │ Estimated_β │
+│     │ <span class="ansi-black-intense-fg">Int64</span> │ <span class="ansi-black-intense-fg">Int64</span>     │ <span class="ansi-black-intense-fg">Float64</span>     │
 ├─────┼───────┼───────────┼─────────────┤
-│ 1   │ 1     │ 3981      │ 0.149073    │
-│ 2   │ 1     │ 7023      │ 0.272991    │
+│ 1   │ 1     │ 3981      │ 0.147624    │
+│ 2   │ 1     │ 7023      │ 0.269147    │
 
 Intercept of model = 0.0
 </pre>
@@ -12176,7 +12217,7 @@ predictors = 2</pre>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-julia"><pre><span></span><span class="k">using</span> <span class="n">IHT</span>
-<span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control nongen.txt&quot;</span><span class="p">)</span> <span class="c"># change directory as necessary</span>
+<span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control nongen.txt&quot;</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -12193,12 +12234,11 @@ predictors = 2</pre>
  
      Welcome to OpenMendel&#39;s
       IHT analysis option
-        version 0.4.0
  
  
 Reading the data.
 
-The current working directory is &#34;/Users/biona001/.julia/v0.6/IHT/docs/MendelIHT_tutorial&#34;.
+The current working directory is &#34;/Users/biona001/.julia/dev/IHT/docs/MendelIHT_tutorial&#34;.
 
 Keywords modified by the user:
 
@@ -12218,10 +12258,11 @@ Keywords modified by the user:
 
 <div class="output_area"><div class="prompt"></div>
 <div class="output_subarea output_stream output_stderr output_text">
-<pre><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Reading in data
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">v1.0 BED file detected
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Analyzing the data for model size k = 2
-</span></pre>
+<pre>┌ Info: Reading in data
+└ @ IHT /Users/biona001/.julia/dev/IHT/src/MendelIHT.jl:43
+┌ Info: Running normal IHT for model size k = 2 and groups J = 1
+└ @ IHT /Users/biona001/.julia/dev/IHT/src/MendelIHT.jl:114
+</pre>
 </div>
 </div>
 
@@ -12231,17 +12272,18 @@ Keywords modified by the user:
 <div class="output_text output_subarea output_execute_result">
 <pre>IHT results:
 
-Compute time (sec):     0.979895101
-Final loss:             1183.6890803583544
+Compute time (sec):     0.7931599617004395
+Final loss:             1183.6890803570777
 Iterations:             4
 Max number of groups:   1
 Max predictors/group:   2
 IHT estimated 2 nonzero coefficients.
 2×3 DataFrames.DataFrame
 │ Row │ Group │ Predictor │ Estimated_β │
+│     │ <span class="ansi-black-intense-fg">Int64</span> │ <span class="ansi-black-intense-fg">Int64</span>     │ <span class="ansi-black-intense-fg">Float64</span>     │
 ├─────┼───────┼───────────┼─────────────┤
-│ 1   │ 1     │ 3981      │ 0.149073    │
-│ 2   │ 1     │ 7023      │ 0.272991    │
+│ 1   │ 1     │ 3981      │ 0.147624    │
+│ 2   │ 1     │ 7023      │ 0.269147    │
 
 Intercept of model = 0.0
 </pre>
@@ -12383,7 +12425,7 @@ model_sizes = &#34;1,2,3,4,5,6,7,8,9,10&#34;
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-julia"><pre><span></span><span class="k">using</span> <span class="n">IHT</span>
-<span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control cv.txt&quot;</span><span class="p">)</span> <span class="c"># change directory as necessary</span>
+<span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control cv.txt&quot;</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -12400,12 +12442,11 @@ model_sizes = &#34;1,2,3,4,5,6,7,8,9,10&#34;
  
      Welcome to OpenMendel&#39;s
       IHT analysis option
-        version 0.4.0
  
  
 Reading the data.
 
-The current working directory is &#34;/Users/biona001/.julia/v0.6/IHT/docs/MendelIHT_tutorial&#34;.
+The current working directory is &#34;/Users/biona001/.julia/dev/IHT/docs/MendelIHT_tutorial&#34;.
 
 Keywords modified by the user:
 
@@ -12425,9 +12466,13 @@ Keywords modified by the user:
 
 <div class="output_area"><div class="prompt"></div>
 <div class="output_subarea output_stream output_stderr output_text">
-<pre><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Reading in data
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">v1.0 BED file detected
-</span></pre>
+<pre>┌ Info: Reading in data
+└ @ IHT /Users/biona001/.julia/dev/IHT/src/MendelIHT.jl:43
+┌ Info: Running 5-fold cross validation on the following model sizes:
+│ 1,2,3,4,5,6,7,8,9,10.
+│ Ignoring keyword predictors.
+└ @ IHT /Users/biona001/.julia/dev/IHT/src/MendelIHT.jl:89
+</pre>
 </div>
 </div>
 
@@ -12437,29 +12482,29 @@ Keywords modified by the user:
 
 Crossvalidation Results:
 k	MSE
-1	0.5546784765054349
-2	0.6004528460555323
-3	0.6660062486666182
-4	0.7124842256809767
-5	0.7284745101298649
-6	0.6771718567273666
-7	0.6298517451998119
-8	0.6174543457147491
-9	0.6406876914640967
-10	0.6628730245475413
+1	0.5482980579413379
+2	0.540387690843733
+3	0.5281201972176272
+4	0.5335837327042967
+5	0.5356074051685482
+6	0.5375158696185569
+7	0.5411121145103859
+8	0.5412006851572945
+9	0.5474087540872652
+10	0.5496115545514543
 
-The lowest MSE is achieved at k = 1
+The lowest MSE is achieved at k = 3
 </pre>
 </div>
 </div>
 
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stderr output_text">
-<pre><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Running 5-fold cross validation on the following model sizes:
-1,2,3,4,5,6,7,8,9,10.
-Ignoring keyword predictors.
-</span></pre>
+<div class="output_area"><div class="prompt output_prompt">Out[9]:</div>
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>3</pre>
 </div>
+
 </div>
 
 </div>
@@ -12471,7 +12516,7 @@ Ignoring keyword predictors.
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Step-5:-Re-run-ordinary-IHT-on-the-best-model-size">Step 5: Re-run ordinary IHT on the best model size<a class="anchor-link" href="#Step-5:-Re-run-ordinary-IHT-on-the-best-model-size">&#182;</a></h3><p>According to our cross validation result, the best model size that minimizes out-of-sample errors (i.e. MSE on the q-th subset of samples) is attained at $k = 1$. Using this information, one can re-run the IHT code to obtain the estimated model. Note importantly, that cross-validation in this case <strong>did not</strong> return the true model size $k = 2$. This reflects the general tendency for IHT to <em>under</em> estimate the true model size.</p>
+<h3 id="Step-5:-Re-run-ordinary-IHT-on-the-best-model-size">Step 5: Re-run ordinary IHT on the best model size<a class="anchor-link" href="#Step-5:-Re-run-ordinary-IHT-on-the-best-model-size">&#182;</a></h3><p>According to our cross validation result, the best model size that minimizes out-of-sample errors (i.e. MSE on the q-th subset of samples) is attained at $k = 3$. That is, cross validation likely detected that we need 3 SNPs, one being the interaction term incorrectly captured via the intercept (since we didn't explicitly include it in the non-genetic covariate file), to achieve the best model size. Using this information, one can re-run the IHT code to obtain the estimated model.</p>
 
 </div>
 </div>
@@ -12502,7 +12547,7 @@ plink_input_basename = gwas 1 data
 #
 # Analysis parameters for IHT option.
 #
-predictors = 1</pre>
+predictors = 3</pre>
 </div>
 </div>
 
@@ -12515,7 +12560,7 @@ predictors = 1</pre>
 <div class="prompt input_prompt">In&nbsp;[11]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-julia"><pre><span></span><span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control basic2.txt&quot;</span><span class="p">)</span> <span class="c"># change directory as necessary</span>
+<div class=" highlight hl-julia"><pre><span></span><span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control basic2.txt&quot;</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -12532,12 +12577,11 @@ predictors = 1</pre>
  
      Welcome to OpenMendel&#39;s
       IHT analysis option
-        version 0.4.0
  
  
 Reading the data.
 
-The current working directory is &#34;/Users/biona001/.julia/v0.6/IHT/docs/MendelIHT_tutorial&#34;.
+The current working directory is &#34;/Users/biona001/.julia/dev/IHT/docs/MendelIHT_tutorial&#34;.
 
 Keywords modified by the user:
 
@@ -12545,7 +12589,7 @@ Keywords modified by the user:
   control_file = gwas 1 Control basic2.txt
   pedigree_file = gwas 1 data.fam
   plink_input_basename = gwas 1 data
-  predictors = 1
+  predictors = 3
   snpdata_file = gwas 1 data.bed
   snpdefinition_file = gwas 1 data.bim
  
@@ -12555,10 +12599,11 @@ Keywords modified by the user:
 
 <div class="output_area"><div class="prompt"></div>
 <div class="output_subarea output_stream output_stderr output_text">
-<pre><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Reading in data
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">v1.0 BED file detected
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Analyzing the data for model size k = 1
-</span></pre>
+<pre>┌ Info: Reading in data
+└ @ IHT /Users/biona001/.julia/dev/IHT/src/MendelIHT.jl:43
+┌ Info: Running normal IHT for model size k = 3 and groups J = 1
+└ @ IHT /Users/biona001/.julia/dev/IHT/src/MendelIHT.jl:114
+</pre>
 </div>
 </div>
 
@@ -12568,180 +12613,21 @@ Keywords modified by the user:
 <div class="output_text output_subarea output_execute_result">
 <pre>IHT results:
 
-Compute time (sec):     0.897766462
-Final loss:             1208.1108390895013
-Iterations:             3
+Compute time (sec):     0.7756638526916504
+Final loss:             1161.9511204211908
+Iterations:             4
 Max number of groups:   1
-Max predictors/group:   1
-IHT estimated 1 nonzero coefficients.
-1×3 DataFrames.DataFrame
+Max predictors/group:   3
+IHT estimated 2 nonzero coefficients.
+2×3 DataFrames.DataFrame
 │ Row │ Group │ Predictor │ Estimated_β │
+│     │ <span class="ansi-black-intense-fg">Int64</span> │ <span class="ansi-black-intense-fg">Int64</span>     │ <span class="ansi-black-intense-fg">Float64</span>     │
 ├─────┼───────┼───────────┼─────────────┤
-│ 1   │ 1     │ 7023      │ 0.276275    │
+│ 1   │ 1     │ 3981      │ 0.147625    │
+│ 2   │ 1     │ 7023      │ 0.269147    │
 
-Intercept of model = 0.0
+Intercept of model = 0.14057571565526017
 </pre>
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Step-6-(optional):-Running-different-path-sizes-but-don't-run-cross-validation">Step 6 (optional): Running different path sizes but don't run cross validation<a class="anchor-link" href="#Step-6-(optional):-Running-different-path-sizes-but-don't-run-cross-validation">&#182;</a></h3><p>Instead of cutting your sample size into $q$ disjoint sets, IHT optionally allows users to run various models on all the samples. This happens if the user does not set <code>run_cross_validation</code> to true. An example is as follows:</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[12]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-julia"><pre><span></span><span class="p">;</span><span class="n">cat</span> <span class="s">&quot;gwas 1 Control userpath.txt&quot;</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>#
-# Input and Output files.
-#
-plink_input_basename = gwas 1 data
-#
-# Analysis parameters for IHT option.
-#
-predictors = 2
-model_sizes = &#34;1,2,3,4,5,6,7,8,9,10&#34;
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[13]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-julia"><pre><span></span><span class="k">using</span> <span class="n">IHT</span>
-<span class="n">models</span><span class="p">,</span> <span class="n">model_errors</span> <span class="o">=</span> <span class="n">MendelIHT</span><span class="p">(</span><span class="s">&quot;gwas 1 Control userpath.txt&quot;</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stdout output_text">
-<pre> 
- 
-     Welcome to OpenMendel&#39;s
-      IHT analysis option
-        version 0.4.0
- 
- 
-Reading the data.
-
-The current working directory is &#34;/Users/biona001/.julia/v0.6/IHT/docs/MendelIHT_tutorial&#34;.
-
-Keywords modified by the user:
-
-  affected_designator = 2
-  control_file = gwas 1 Control userpath.txt
-  model_sizes = 1,2,3,4,5,6,7,8,9,10
-  pedigree_file = gwas 1 data.fam
-  plink_input_basename = gwas 1 data
-  predictors = 2
-  snpdata_file = gwas 1 data.bed
-  snpdefinition_file = gwas 1 data.bim
- 
-</pre>
-</div>
-</div>
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stderr output_text">
-<pre><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Reading in data
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">v1.0 BED file detected
-</span><span class="ansi-cyan-intense-fg ansi-bold">INFO: </span><span class="ansi-cyan-fg">Running the following model sizes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-</span></pre>
-</div>
-</div>
-
-<div class="output_area"><div class="prompt output_prompt">Out[13]:</div>
-
-
-<div class="output_text output_subarea output_execute_result">
-<pre>([0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0; … ; 0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0], [0.0 0.0 … 0.140544 0.140545])</pre>
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><strong>Remark:</strong> We can check that IHT is stable given different sparsity constraints, in the sense that parameters selected with a sparser constraint will still be selected if given a weaker constraint. Below we list the 10 models in separate columns.</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[14]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-julia"><pre><span></span><span class="n">idx</span> <span class="o">=</span> <span class="n">find</span><span class="p">(</span><span class="n">models</span><span class="p">[:,</span> <span class="k">end</span><span class="p">])</span>
-<span class="n">full</span><span class="p">(</span><span class="n">models</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="p">:])</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt output_prompt">Out[14]:</div>
-
-
-<div class="output_text output_subarea output_execute_result">
-<pre>9×10 Array{Float64,2}:
- 0.0       0.0       0.0       …  -0.0756696  -0.0766181  -0.0782086
- 0.0       0.0       0.0          -0.0780773  -0.077302   -0.0787067
- 0.0       0.149073  0.149073      0.145485    0.144214    0.143389 
- 0.0       0.0       0.0           0.08293     0.080625    0.0810577
- 0.0       0.0       0.0          -0.087082   -0.0869424  -0.0890821
- 0.0       0.0       0.0       …   0.0866336   0.0857555   0.0875377
- 0.0       0.0       0.0           0.0        -0.0737263  -0.0751238
- 0.276275  0.272991  0.272991      0.265817    0.264556    0.2656   
- 0.0       0.0       0.0           0.0         0.0        -0.0832995</pre>
 </div>
 
 </div>
@@ -12776,7 +12662,7 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[15]:</div>
+<div class="prompt input_prompt">In&nbsp;[12]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-julia"><pre><span></span><span class="c">#load packages</span>
@@ -12784,37 +12670,36 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 <span class="k">using</span> <span class="n">SnpArrays</span>
 <span class="k">using</span> <span class="n">DataFrames</span>
 <span class="k">using</span> <span class="n">Distributions</span>
+<span class="k">using</span> <span class="n">BenchmarkTools</span>
+<span class="k">using</span> <span class="n">Random</span>
+<span class="k">using</span> <span class="n">LinearAlgebra</span>
 
 <span class="c">#set random seed</span>
-<span class="n">srand</span><span class="p">(</span><span class="mi">1111</span><span class="p">)</span> 
+<span class="n">Random</span><span class="o">.</span><span class="n">seed!</span><span class="p">(</span><span class="mi">1111</span><span class="p">)</span>
+
+<span class="c">#simulate data</span>
+<span class="n">n</span> <span class="o">=</span> <span class="mi">5000</span>
+<span class="n">p</span> <span class="o">=</span> <span class="mi">30000</span>
+<span class="n">bernoulli_rates</span> <span class="o">=</span> <span class="mf">0.5</span><span class="n">rand</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="c">#minor allele frequencies are drawn from uniform (0, 0.5)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">simulate_random_snparray</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">bernoulli_rates</span><span class="p">)</span>
+<span class="n">xbm</span> <span class="o">=</span> <span class="n">SnpBitMatrix</span><span class="p">{</span><span class="kt">Float64</span><span class="p">}(</span><span class="n">x</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">ADDITIVE_MODEL</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">true</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">true</span><span class="p">);</span> 
 
 <span class="c">#specify dimension and noise of data</span>
-<span class="n">n</span> <span class="o">=</span> <span class="mi">5000</span>                        <span class="c"># number of cases</span>
-<span class="n">p</span> <span class="o">=</span> <span class="mi">30000</span>                       <span class="c"># number of predictors</span>
 <span class="n">k</span> <span class="o">=</span> <span class="mi">10</span>                          <span class="c"># number of true predictors per group</span>
 <span class="n">S</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">]</span>      <span class="c"># noise vector, from very little noise to a lot of noise</span>
 
-<span class="c">#construct snpmatrix, covariate files, and true model b</span>
-<span class="n">x</span>           <span class="o">=</span> <span class="n">SnpArray</span><span class="p">(</span><span class="n">rand</span><span class="p">(</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">p</span><span class="p">))</span>    <span class="c"># a random snpmatrix</span>
+<span class="c">#construct non-genetic covariates and true model b</span>
 <span class="n">z</span>           <span class="o">=</span> <span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>                   <span class="c"># non-genetic covariates, just the intercept</span>
 <span class="n">true_b</span>      <span class="o">=</span> <span class="n">zeros</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>                     <span class="c"># model vector</span>
 <span class="n">true_b</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">randn</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>                     <span class="c"># Initialize k non-zero entries in the true model</span>
 <span class="n">shuffle!</span><span class="p">(</span><span class="n">true_b</span><span class="p">)</span>                           <span class="c"># Shuffle the entries</span>
-<span class="n">correct_position</span> <span class="o">=</span> <span class="n">find</span><span class="p">(</span><span class="n">true_b</span><span class="p">)</span>            <span class="c"># keep track of what the true entries are</span>
+<span class="n">correct_position</span> <span class="o">=</span> <span class="n">findall</span><span class="p">(</span><span class="n">x</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">true_b</span><span class="p">)</span> <span class="c"># keep track of what the true entries are</span>
 <span class="n">noise</span> <span class="o">=</span> <span class="p">[</span><span class="n">rand</span><span class="p">(</span><span class="n">Normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">s</span><span class="p">),</span> <span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="k">in</span> <span class="n">S</span><span class="p">]</span> <span class="c"># noise vectors from N(0, s) where s ∈ S = {0.01, 0.1, 1, 10}s</span>
 
-<span class="c">#compute mean and std used to standardize data to mean 0 variance 1</span>
-<span class="n">mean_vec</span><span class="p">,</span> <span class="n">minor_allele</span><span class="p">,</span> <span class="o">=</span> <span class="n">summarize</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="mi">1</span><span class="p">:</span><span class="n">p</span>
-    <span class="n">minor_allele</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">?</span> <span class="n">mean_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">-</span> <span class="mf">2.0</span><span class="n">mean_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">:</span> <span class="n">mean_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="n">mean_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-<span class="k">end</span>
-<span class="n">std_vec</span> <span class="o">=</span> <span class="n">std_reciprocal</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mean_vec</span><span class="p">)</span>
-
-<span class="c">#simulate phenotypes under different noises by: y = Xb + noise </span>
+<span class="c">#simulate phenotypes under different noises by: y = Xb + noise</span>
 <span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="mi">1</span><span class="p">:</span><span class="n">length</span><span class="p">(</span><span class="n">S</span><span class="p">)]</span>
 <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="mi">1</span><span class="p">:</span><span class="n">length</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
-    <span class="n">SnpArrays</span><span class="o">.</span><span class="n">A_mul_B!</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">x</span><span class="p">,</span> <span class="n">true_b</span><span class="p">,</span> <span class="n">mean_vec</span><span class="p">,</span> <span class="n">std_vec</span><span class="p">)</span>
-    <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">.+=</span> <span class="n">noise</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">xbm</span> <span class="o">*</span> <span class="n">true_b</span> <span class="o">+</span> <span class="n">noise</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
 <span class="k">end</span>
 </pre></div>
 
@@ -12835,7 +12720,7 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[16]:</div>
+<div class="prompt input_prompt">In&nbsp;[13]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-julia"><pre><span></span><span class="p">[</span><span class="n">y</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="n">y</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="n">y</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]]</span>
@@ -12849,37 +12734,37 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 <div class="output">
 
 
-<div class="output_area"><div class="prompt output_prompt">Out[16]:</div>
+<div class="output_area"><div class="prompt output_prompt">Out[13]:</div>
 
 
 <div class="output_text output_subarea output_execute_result">
 <pre>5000×4 Array{Float64,2}:
- -2.99018    -2.22532    -1.82439    6.86836
-  0.0639139  -0.369665    5.09387    5.69815
-  0.842478    0.752519   18.7169   -28.0052 
- -2.82943    -3.8914      9.95096    4.61981
- -1.67051    -0.116633   -4.05996  -33.7148 
- -0.514721   -1.95655    -6.08555  -36.0566 
- -0.801959   -1.37353    -7.47094  -16.0338 
-  2.96974     5.17726    -8.5696   -12.3472 
-  3.10826     2.3005      7.51206  -33.1643 
- -0.464412    0.4904     -5.58351   16.1176 
- -0.616762   -0.790245   10.3874   -21.1504 
-  0.626816    0.374474   -8.41267   31.0773 
- -2.15693    -1.69911   -10.2978    23.1543 
-  ⋮                                         
- -0.848227   -1.33377     6.24567  -25.5871 
-  1.77269     2.75435     1.8081   -14.2573 
-  3.28046     2.37263   -10.7767     2.74097
-  2.53484     3.85943   -14.6097   -27.4922 
- -0.28382     1.24455     6.40927  -20.1135 
-  2.57121     3.26019    10.9377   -28.2579 
-  0.720075    0.407501  -14.2108   -24.9081 
- -1.00212    -0.294159    2.86219  -22.3564 
-  1.99847     2.29386   -13.6361    -3.32973
- -1.07315    -1.60252    -6.62297   17.6574 
- -4.83795    -5.04249    -8.24915  -36.6602 
- -0.942096   -0.998835    7.73013   45.3044 </pre>
+  4.0369     5.57741    -4.36356    -9.6449  
+  0.191536  -1.04378    -2.07723   -47.0979  
+ -4.38938   -3.34411    -1.42214    24.8877  
+ -0.919674   0.399415  -11.4534    -41.1765  
+  2.97062    3.56937    -4.50204     4.03327 
+  2.02283    2.55848    13.8248     -4.50728 
+ -5.78682   -5.10249    10.6672      5.34934 
+ -2.31817   -1.59809     4.346       3.5354  
+ -8.3404    -9.37824   -25.9527    -39.9853  
+ -7.41212   -7.01681     3.36147   -10.8692  
+ -1.88005   -0.969617   -4.15115   -40.838   
+ -1.24192   -1.25763    -5.5715      6.39366 
+ -3.44554   -3.29327     7.4746     16.119   
+  ⋮                                          
+ -2.89109   -2.74476     2.29241    15.7058  
+ -5.08137   -4.66423    -7.16946   -11.6489  
+  9.61788    9.90731    28.5531    -23.4735  
+  8.41764    9.23892     8.4852    -19.3525  
+  6.27949    5.94512    18.3532      8.64536 
+ -1.43935   -3.03143   -11.0977     -0.475652
+ -4.25876   -3.34605   -26.7249     17.2168  
+ -1.69186   -1.10038   -10.5197    -50.997   
+ -8.41838   -8.01836    -0.631529  -39.2262  
+ -9.46627   -7.39698   -15.4205     15.1138  
+ -0.950841  -1.44118   -20.0629     -1.36569 
+  0.195906   1.01605     3.26032    11.6767  </pre>
 </div>
 
 </div>
@@ -12899,14 +12784,13 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[17]:</div>
+<div class="prompt input_prompt">In&nbsp;[14]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-julia"><pre><span></span><span class="c">#compute IHT result for less noisy data</span>
 <span class="n">estimated_models</span> <span class="o">=</span> <span class="p">[</span><span class="n">zeros</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="k">in</span> <span class="mi">1</span><span class="p">:</span><span class="n">length</span><span class="p">(</span><span class="n">y</span><span class="p">)]</span>
 <span class="k">for</span> <span class="n">i</span> <span class="k">in</span> <span class="mi">1</span><span class="p">:</span><span class="n">length</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
-    <span class="n">v</span> <span class="o">=</span> <span class="n">IHTVariables</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">L0_reg</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">L0_reg</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
     <span class="n">estimated_models</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">.=</span> <span class="n">result</span><span class="o">.</span><span class="n">beta</span><span class="p">[</span><span class="n">correct_position</span><span class="p">]</span>
 <span class="k">end</span>
 
@@ -12929,10 +12813,10 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 <div class="output">
 
 
-<div class="output_area"><div class="prompt output_prompt">Out[17]:</div>
+<div class="output_area"><div class="prompt output_prompt">Out[14]:</div>
 
 <div class="output_html rendered_html output_subarea output_execute_result">
-<table class="data-frame"><thead><tr><th></th><th>correct_position</th><th>true_β</th><th>noise_level_1</th><th>noise_level_2</th><th>noise_level_3</th><th>noise_level_4</th></tr></thead><tbody><tr><th>1</th><td>2012</td><td>0.20775</td><td>0.208856</td><td>0.205502</td><td>0.0</td><td>0.0</td></tr><tr><th>2</th><td>5685</td><td>0.372181</td><td>0.373598</td><td>0.357529</td><td>0.629893</td><td>0.0</td></tr><tr><th>3</th><td>7835</td><td>0.416006</td><td>0.414099</td><td>0.401277</td><td>0.0</td><td>0.0</td></tr><tr><th>4</th><td>9271</td><td>-0.160673</td><td>-0.161993</td><td>-0.168774</td><td>0.0</td><td>0.0</td></tr><tr><th>5</th><td>13188</td><td>-0.545489</td><td>-0.546157</td><td>-0.526095</td><td>0.0</td><td>0.0</td></tr><tr><th>6</th><td>19042</td><td>-0.695873</td><td>-0.696818</td><td>-0.714161</td><td>-0.672233</td><td>0.0</td></tr><tr><th>7</th><td>21966</td><td>-0.202504</td><td>-0.202652</td><td>-0.217099</td><td>0.0</td><td>0.0</td></tr><tr><th>8</th><td>23982</td><td>-0.489064</td><td>-0.489366</td><td>-0.495835</td><td>-0.56097</td><td>0.0</td></tr><tr><th>9</th><td>24758</td><td>0.551161</td><td>0.553689</td><td>0.529186</td><td>0.0</td><td>0.0</td></tr><tr><th>10</th><td>29481</td><td>-1.56535</td><td>-1.56519</td><td>-1.55339</td><td>-1.73005</td><td>-1.79669</td></tr></tbody></table>
+<table class="data-frame"><thead><tr><th></th><th>correct_position</th><th>true_β</th><th>noise_level_1</th><th>noise_level_2</th><th>noise_level_3</th><th>noise_level_4</th></tr><tr><th></th><th>Int64</th><th>Float64</th><th>Float64</th><th>Float64</th><th>Float64</th><th>Float64</th></tr></thead><tbody><p>10 rows × 6 columns</p><tr><th>1</th><td>5929</td><td>0.994762</td><td>0.995545</td><td>1.00746</td><td>0.957444</td><td>0.0</td></tr><tr><th>2</th><td>10164</td><td>0.426441</td><td>0.427758</td><td>0.468934</td><td>0.0</td><td>0.0</td></tr><tr><th>3</th><td>11676</td><td>-1.32497</td><td>-1.32341</td><td>-1.33334</td><td>-1.30104</td><td>-1.22798</td></tr><tr><th>4</th><td>14082</td><td>0.38481</td><td>0.386729</td><td>0.387764</td><td>0.0</td><td>0.0</td></tr><tr><th>5</th><td>17954</td><td>-0.628232</td><td>-0.62823</td><td>-0.647939</td><td>-0.83076</td><td>0.0</td></tr><tr><th>6</th><td>18967</td><td>-1.30452</td><td>-1.30594</td><td>-1.29257</td><td>-1.41359</td><td>0.0</td></tr><tr><th>7</th><td>19304</td><td>-1.37284</td><td>-1.37107</td><td>-1.37061</td><td>-1.29244</td><td>-1.54338</td></tr><tr><th>8</th><td>20792</td><td>0.920098</td><td>0.917775</td><td>0.904498</td><td>0.855185</td><td>1.28701</td></tr><tr><th>9</th><td>26349</td><td>-0.322137</td><td>-0.32181</td><td>-0.300086</td><td>0.0</td><td>0.0</td></tr><tr><th>10</th><td>27146</td><td>2.42516</td><td>2.42472</td><td>2.42196</td><td>2.30561</td><td>1.99963</td></tr></tbody></table>
 </div>
 
 </div>
@@ -12971,7 +12855,7 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[18]:</div>
+<div class="prompt input_prompt">In&nbsp;[15]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-julia"><pre><span></span><span class="n">Threads</span><span class="o">.</span><span class="n">nthreads</span><span class="p">()</span> <span class="c"># check that multiple threads are running</span>
@@ -12985,7 +12869,7 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 <div class="output">
 
 
-<div class="output_area"><div class="prompt output_prompt">Out[18]:</div>
+<div class="output_area"><div class="prompt output_prompt">Out[15]:</div>
 
 
 <div class="output_text output_subarea output_execute_result">
@@ -13009,16 +12893,19 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[19]:</div>
+<div class="prompt input_prompt">In&nbsp;[16]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-julia"><pre><span></span><span class="n">srand</span><span class="p">(</span><span class="mi">1111</span><span class="p">)</span> <span class="c">#reset seed</span>
+<div class=" highlight hl-julia"><pre><span></span><span class="c">#reset seed</span>
+<span class="n">Random</span><span class="o">.</span><span class="n">seed!</span><span class="p">(</span><span class="mi">1111</span><span class="p">)</span>
+
+<span class="c"># specify number of fold and the different model sizes (path)</span>
+<span class="n">path</span> <span class="o">=</span> <span class="n">collect</span><span class="p">(</span><span class="mi">1</span><span class="p">:</span><span class="mi">20</span><span class="p">)</span>
+<span class="n">num_folds</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">folds</span> <span class="o">=</span> <span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">:</span><span class="n">num_folds</span><span class="p">,</span> <span class="n">size</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 
 <span class="c">#run cross validation on not-so-noisy data</span>
-<span class="n">path</span>      <span class="o">=</span> <span class="n">collect</span><span class="p">(</span><span class="mi">2</span><span class="p">:</span><span class="mi">2</span><span class="p">:</span><span class="mi">20</span><span class="p">)</span> 
-<span class="n">num_folds</span> <span class="o">=</span> <span class="mi">3</span>
-<span class="n">folds</span>     <span class="o">=</span> <span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">:</span><span class="n">num_folds</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
-<span class="n">cv_iht</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">num_folds</span><span class="p">)</span>
+<span class="n">k_est</span> <span class="o">=</span> <span class="n">cv_iht</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">num_folds</span><span class="p">,</span> <span class="n">use_maf</span> <span class="o">=</span> <span class="n">false</span><span class="p">,</span> <span class="n">debias</span><span class="o">=</span><span class="n">false</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -13035,20 +12922,39 @@ $$s \in \{0.1, 1, 10, 25\}.$$</p>
 
 Crossvalidation Results:
 k	MSE
-2	3.1677822019919044
-4	2.8842864963598736
-6	2.831063934427872
-8	1.8713059507183205
-10	2.257791657013664
-12	2.2743936672699987
-14	2.2656904985204647
-16	2.263997497534819
-18	2.2599121194306795
-20	2.2535873590855027
+1	4.087386566654006
+2	3.098966748951411
+3	2.2352870505289295
+4	1.339816635425412
+5	0.8321683842106931
+6	0.42858643657640877
+7	0.23545809092694828
+8	0.13767612774618582
+9	0.06338033243816146
+10	0.010553704942775619
+11	0.013180928910864842
+12	0.013214835251653479
+13	0.013250433615176294
+14	0.013240247230540899
+15	0.013262809546279295
+16	0.013270360131044146
+17	0.013284663944783281
+18	0.013291806113597694
+19	0.013332956278152997
+20	0.01334434967198958
 
-The lowest MSE is achieved at k = 8
+The lowest MSE is achieved at k = 10
 </pre>
 </div>
+</div>
+
+<div class="output_area"><div class="prompt output_prompt">Out[16]:</div>
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>10</pre>
+</div>
+
 </div>
 
 </div>
@@ -13057,16 +12963,14 @@ The lowest MSE is achieved at k = 8
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[20]:</div>
+<div class="prompt input_prompt">In&nbsp;[17]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-julia"><pre><span></span><span class="n">srand</span><span class="p">(</span><span class="mi">1111</span><span class="p">)</span> <span class="c">#reset seed</span>
+<div class=" highlight hl-julia"><pre><span></span><span class="c">#reset seed</span>
+<span class="n">Random</span><span class="o">.</span><span class="n">seed!</span><span class="p">(</span><span class="mi">1111</span><span class="p">)</span>
 
-<span class="c">#run cross validation on quite noisy data</span>
-<span class="n">path</span>      <span class="o">=</span> <span class="n">collect</span><span class="p">(</span><span class="mi">2</span><span class="p">:</span><span class="mi">2</span><span class="p">:</span><span class="mi">20</span><span class="p">)</span> 
-<span class="n">num_folds</span> <span class="o">=</span> <span class="mi">3</span>
-<span class="n">folds</span>     <span class="o">=</span> <span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">:</span><span class="n">num_folds</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
-<span class="n">cv_iht</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">num_folds</span><span class="p">)</span>
+<span class="c">#run cross validation on pretty noisy data</span>
+<span class="n">k_est</span> <span class="o">=</span> <span class="n">cv_iht</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">num_folds</span><span class="p">,</span> <span class="n">use_maf</span> <span class="o">=</span> <span class="n">false</span><span class="p">,</span> <span class="n">debias</span><span class="o">=</span><span class="n">false</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -13083,22 +12987,41 @@ The lowest MSE is achieved at k = 8
 
 Crossvalidation Results:
 k	MSE
-2	53.6730684917142
-4	53.65755181959526
-6	53.93280154016717
-8	54.69513090164977
-10	54.86837034931569
-12	53.55242920512205
-14	53.83447900670268
-16	55.6527829783363
-18	56.986528750175154
-20	57.14268507459773
+1	54.45327294696108
+2	53.65021406820032
+3	52.773114558024716
+4	51.694369899657964
+5	51.3468565377382
+6	51.28393031860237
+7	50.71206265331604
+8	50.45521939456692
+9	50.61161567365859
+10	50.75060922467423
+11	50.89347222962764
+12	51.08645292766584
+13	51.13480057134317
+14	51.3303189104264
+15	51.48491768878349
+16	51.54583900164887
+17	51.7943953261189
+18	51.77244184199766
+19	52.117489225752514
+20	52.389099966438856
 
-The lowest MSE is achieved at k = 12
+The lowest MSE is achieved at k = 8
 </pre>
 </div>
 </div>
 
+<div class="output_area"><div class="prompt output_prompt">Out[17]:</div>
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>8</pre>
+</div>
+
+</div>
+
 </div>
 </div>
 
@@ -13108,7 +13031,7 @@ The lowest MSE is achieved at k = 12
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Step-3:-Interpreting-results-(recall-$k_{\text{true}}-=-10$)">Step 3: Interpreting results (recall $k_{\text{true}} = 10$)<a class="anchor-link" href="#Step-3:-Interpreting-results-(recall-$k_{\text{true}}-=-10$)">&#182;</a></h3><p>When noise $\epsilon \in N(0, 0.1)$, cross-validation slightly underestimates the true sparsity parameter: $k_{\text{estimate}} = 8$. For very noisy data $\epsilon \in N(0, 10)$, cross validation returns $k_{\text{estimate}} = 12$, which slightly over-estimates the true sparsity parameter.</p>
+<h3 id="Step-3:-Interpreting-results">Step 3: Interpreting results<a class="anchor-link" href="#Step-3:-Interpreting-results">&#182;</a></h3><p>With little noise $\epsilon \in N(0, 0.1)$, cross-validation finds the true sparsity parameter: $k_{\text{estimate}} = k_{\text{true}} = 10$. For very noisy data $\epsilon \in N(0, 10)$, cross validation returns $k_{\text{estimate}} = 12$, which slightly under-estimates the true sparsity parameter.</p>
 
 </div>
 </div>
@@ -13118,7 +13041,7 @@ The lowest MSE is achieved at k = 12
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Conclusion">Conclusion<a class="anchor-link" href="#Conclusion">&#182;</a></h1><p>This notebook demonstrated some of the basic features of IHT. For more examples (particularly on how to use IHT on numeric data), readers can visit our older notebooks <a href="https://github.com/klkeys/IHT.jl/blob/master/docs/IHT_tutorial_full.ipynb">here</a> and <a href="https://github.com/klkeys/IHT.jl/blob/master/docs/IHT_tutorial_brief.ipynb">here</a>. The first 3 examples illustrate the basic usage of IHT for general audiences. The last 2 examples illustrate how to make function calls directly and tests its robustness on reproducible simulated data. Notably, we selectively omitted several experimental features of IHT. In the near future, we will release a more detailed notebook that includes tutorials on all the experiemental features of IHT on GWAS data as well as motivations for them.</p>
+<h1 id="Conclusion">Conclusion<a class="anchor-link" href="#Conclusion">&#182;</a></h1><p>This notebook demonstrated some of the basic features of IHT. The first 3 examples illustrate the basic usage of IHT for general audiences. The last 2 examples illustrate how to make function calls directly and tests its robustness on reproducible simulated data. We selectively omitted several experimental features of IHT. In the near future, we will release a more detailed notebook that includes tutorials on all the experiemental features of IHT on GWAS data as well as motivations for them.</p>
 
 </div>
 </div>

@@ -1,5 +1,5 @@
 """
-    iht_logistic! calculates the IHT step β+ = P_k(β - μv) and returns step size (μ), 
+    iht_poisson! calculates the IHT step β+ = P_k(β + μv) and returns step size (μ), 
     number of times line search was done (μ_step), and the new loglikelihood (new_logl).
 
 - `v` is a IHTVariable that holds many variables in the current and previous iteration. 
@@ -8,9 +8,6 @@
 - `y` is the response (phenotype) vector
 - `J` is the maximum number of groups IHT should keep. When J = 1, we run normal IHT.  
 - `k` is the maximum number of predictors per group. 
-- `mean_vec` is a vector storing the mean of SNP frequency. Needed for standarization on-the-fly
-- `std_vec` is a vector storing the inverse standard deviation of each SNP. Needed for standarization on-the-fly
-- `storage` is a vector of matrices preallocated for (snpmatrix)-(dense vector) multiplication. This is needed for better garbage collection.
 - `iter` is an integer storing the number of full iht steps taken (i.e. negative gradient + projection)
 - `nstep` number of maximum backtracking. 
 """
@@ -84,7 +81,9 @@ function iht_poisson!(
         μ_step += 1
     end
 
-    isfinite(μ) || printstyled("step size weird! it is $μ and max df is " * string(maximum(v.gk)) * "!!\n", color=:red)
+    isnan(new_logl) && throw(error("Loglikelihood is NaN, aborting..."))
+    isinf(new_logl) && throw(error("Loglikelihood is Inf, aborting..."))
+    isinf(μ) && throw(error("step size weird! it is $μ and max df is " * string(maximum(v.gk)) * "!!\n", color=:red))
 
     #return machine precision if step size is smaller than that
     # if μ < eps(T)
@@ -170,12 +169,10 @@ function L0_poisson_reg(
 
     # Calculate the score 
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=scale);
-    # x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true);
-    # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
 
-    #initiliaze intercept and the model
-    v.c[1] = log(mean(y))
-    # initialize_beta!(v.b, x, v.c[1])
+    #initiliaze model and compute xb
+    initialize_beta!(v, y, x, glm)
+    A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
 
     #compute the gradient
     update_df!(glm, v, x_bitmatrix, z, y)
@@ -185,28 +182,27 @@ function L0_poisson_reg(
         save_prev!(v)
         logl = next_logl
 
-        #calculate the step size μ and check loglikelihood is not NaN or Inf
+        #take gradient step, return loglikelihood and step size
         (μ, μ_step, next_logl) = iht_poisson!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
-        !isnan(next_logl) || throw(error("Loglikelihood is NaN, aborting..."))
-        !isinf(next_logl) || throw(error("Loglikelihood is Inf, aborting..."))
 
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)
             (β, obj) = regress(v.xk, y, glm)
             if !all(β .≈ 0) 
                 view(v.b, v.idx) .= β
+                # println("successfully debiased!")
             end
         end
+
+        #if current model is very bad, we scale down everything
+        # maximum(v.b) >= 7 && adhoc_scale_down(v, mm_iter, show_info)
+
+        # update score (gradient) and p vector using stepsize μ 
+        update_df!(glm, v, x_bitmatrix, z, y)
 
         #print information about current iteration
         show_info && println("iter = " * string(mm_iter) * ", loglikelihood = " * string(round(next_logl, sigdigits=5)) * ", step size = " * string(round(μ, sigdigits=5)) * ", backtrack = " * string(μ_step))
         show_info && μ_step == 3 && @info("backtracked 3 times! loglikelihood not guaranteed to increase")
-
-        # println(maximum(v.df))
-        # return ff
-
-        # update score (gradient) and p vector using stepsize μ 
-        update_df!(glm, v, x_bitmatrix, z, y)
 
         # track convergence using kevin or ken's converegence criteria
         if convg
@@ -216,22 +212,6 @@ function L0_poisson_reg(
         else
             convg = abs(next_logl - logl) < 1e-6 * (abs(logl) + 1.0) && next_logl > -1e50
         end
-
-        if maximum(v.b) >= 10
-            show_info && printstyled("estimated model has entries > 10 at iteration $mm_iter. Scaling all entries downward...\n", color=:red)
-            max_order = order_mag(maximum(v.b))
-            v.b ./= 10^max_order
-            v.c ./= 10^max_order
-            v.xb ./= 10^max_order
-            v.zc ./= 10^max_order
-            # v.b ./= 10
-            # v.c ./= 10
-            # v.xb ./= 10
-            # v.zc ./= 10
-        end
-
-        # location = findall(x -> x!=0, v.b)
-        # println(v.b[location])
 
         if converged && mm_iter > 1
             tot_time = time() - start_time

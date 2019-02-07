@@ -126,7 +126,7 @@ function _poisson_backtrack(
 
     mu_step >= nstep  && return false
     prev_logl > logl && return true
-    # logl < -1e100    && return true
+    logl < -1e100    && return true
 
     # prev_logl > logl && mu_step < nstep 
 end
@@ -310,14 +310,17 @@ function _poisson_stepsize(
     # store relevant components of gradient
     v.gk .= view(v.df, v.idx)
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
-    # println(sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
-    # println(sum(abs2, v.xgk + v.zdf2))
 
-    #compute denominator of step size
+    #compute denominator and numerator of step size
     denom = (v.xgk + v.zdf2)' * (v.p .* (v.xgk + v.zdf2))
+    numer = (sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
+
+    # println("reached here!")
+    # println("denominator is $denom")
+    # println("numerator is $numer")
 
     # compute step size. Note non-genetic covariates are separated from x
-    μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
+    μ = (numer / denom) :: T
 end
 
 # function normalize!(
@@ -737,18 +740,18 @@ function regress(
     obj = - 0.5 * n * log(sum(abs2, y - z) / n) - 0.5 * n
     return (estimate, obj)
   end
-          # #
-          # # Prepare for logistic and Poisson regression by estimating the 
-          # # intercept.
-          # #
-          # if model == "logistic"
-          #   estimate[1] = log(mean(y) / (1.0 - mean(y)))
-          # elseif model == "poisson"
-          #   estimate[1] = log(mean(y))
-          # else
-          #   throw(ArgumentError(
-          #     "The only model choices are linear, logistic, and Poisson.\n \n"))
-          # end
+  #
+  # Prepare for logistic and Poisson regression by estimating the 
+  # intercept.
+  #
+  if model == "logistic"
+    estimate[1] = log(mean(y) / (1.0 - mean(y)))
+  elseif model == "poisson"
+    estimate[1] = log(mean(y))
+  else
+    throw(ArgumentError(
+      "The only model choices are linear, logistic, and Poisson.\n \n"))
+  end
   #
   # Initialize the loglikelihood and the convergence criterion.
   #
@@ -847,6 +850,25 @@ function regress(
   return (estimate, obj)
 end # function regress
 
+function initialize_beta!(
+    v :: IHTVariable{T},
+    y :: AbstractVector{T},
+    x :: SnpArray,
+    glm :: String,
+) where {T <: Float}
+    n, p = size(x)
+    temp_vec = zeros(n)
+    temp_matrix = ones(n, 2)
+    intercept = 0.0
+    for i in 1:p
+        copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
+        all(temp_matrix[:, 2] .== 0) && continue
+        (estimate, obj) = regress(temp_matrix, y, glm)
+        intercept += estimate[1]
+        v.b[i] = estimate[2]
+    end
+    v.c[1] = intercept / p
+end
 # function initialize_beta!(
 #     b      :: AbstractVector{T},
 #     x      :: SnpArray,
@@ -902,4 +924,42 @@ function order_mag(n :: Float64)
         order += 1
     end
     return order
+end
+
+function adhoc_scale_down(
+    v :: IHTVariable{T},
+    m :: Int64,
+    s :: Bool
+) where {T <: Float}
+    s && printstyled("estimated model has entries > 10 at iteration $m. Scaling all entries downward...\n", color=:red)
+    # max_order = order_mag(maximum(v.b))
+    # v.b ./= 10^max_order
+    # v.c ./= 10^max_order
+    # v.xb ./= 10^max_order
+    # v.zc ./= 10^max_order
+    # v.df ./= 10^max_order
+    # v.df2 ./= 10^max_order
+    # @. v.p = exp(v.xb + v.zc) #recompute mean function
+    # println("max v.p = " * string(maximum(v.p)))
+
+    # v.b ./= 10
+    # v.c ./= 10
+    # v.xb ./= 10
+    # v.zc ./= 10
+    # v.df ./= 10
+    # v.df2 ./= 10
+
+    # v.b ./= 10
+    # v.c ./= 10
+    # v.xb ./= 10
+    # v.zc ./= 10
+    # v.df ./= exp(0.1)
+    # v.df2 ./= exp(0.1)
+
+    v.b ./= 2
+    v.c ./= 2
+    v.xb ./= 2
+    v.zc ./= 2
+    v.df ./= exp(0.5)
+    v.df2 ./= exp(0.5)
 end
