@@ -32,7 +32,7 @@ function iht_poisson!(
     end
 
     # store relevant components of x
-    if (!isequal(v.idx, v.idx0) && !isequal(v.idc, v.idc0)) || iter < 2
+    if !isequal(v.idx, v.idx0) || iter < 2
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     end
 
@@ -48,8 +48,8 @@ function iht_poisson!(
     # update xb and zc with the new computed b and c, truncating bad guesses to avoid overflow
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-    # clamp!(v.xb, -20, 20)
-    # clamp!(v.zc, -20, 20)
+    clamp!(v.xb, -20, 20)
+    clamp!(v.zc, -20, 20)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, y, glm)
@@ -71,8 +71,8 @@ function iht_poisson!(
         # recompute xb
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-        # clamp!(v.xb, -20, 20)
-        # clamp!(v.zc, -20, 20)
+        clamp!(v.xb, -20, 20)
+        clamp!(v.zc, -20, 20)
 
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, y, glm)
@@ -135,7 +135,8 @@ function L0_poisson_reg(
     debias    :: Bool = true,
     scale     :: Bool = false,
     convg     :: Bool = true, #use kevin's convergence criteria
-    show_info :: Bool = true
+    show_info :: Bool = true,
+    true_beta :: Vector{T} = ones(size(x, 2)),  # temporary, should be removed soon
 ) where {T <: Float}
 
     start_time = time()
@@ -173,9 +174,17 @@ function L0_poisson_reg(
     #initiliaze model and compute xb
     initialize_beta!(v, y, x, glm)
     A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+    clamp!(v.xb, -20, 20)
+    clamp!(v.zc, -20, 20)
 
     #compute the gradient
     update_df!(glm, v, x_bitmatrix, z, y)
+
+    if show_info
+        # temp_df = DataFrame(β = v.b, gradient = v.df, true_β = true_beta)
+        temp_df = DataFrame(true_β = true_beta, initial_β = v.b, gradient = v.df)
+        @show sort(temp_df, rev=true, by=abs)[1:2k, :]
+    end
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
@@ -194,15 +203,19 @@ function L0_poisson_reg(
             end
         end
 
-        #if current model is very bad, we scale down everything
-        # maximum(v.b) >= 7 && adhoc_scale_down(v, mm_iter, show_info)
-
-        # update score (gradient) and p vector using stepsize μ 
-        update_df!(glm, v, x_bitmatrix, z, y)
-
         #print information about current iteration
         show_info && println("iter = " * string(mm_iter) * ", loglikelihood = " * string(round(next_logl, sigdigits=5)) * ", step size = " * string(round(μ, sigdigits=5)) * ", backtrack = " * string(μ_step))
         show_info && μ_step == 3 && @info("backtracked 3 times! loglikelihood not guaranteed to increase")
+        if show_info
+            temp_df = DataFrame(current_β = v.b0, ηv = μ.*v.df, true_β = true_beta, grad=v.df)
+            @show sort(temp_df, rev=true, by=abs)[1:2k, :]
+        end
+
+        #if current model is very bad, we scale down everything
+        # maximum(v.b) >= 7 && adhoc_scale_down(v, mm_iter, show_info)
+
+        # update score (gradient) and p vector for next iteration using stepsize μ 
+        update_df!(glm, v, x_bitmatrix, z, y)
 
         # track convergence using kevin or ken's converegence criteria
         if convg

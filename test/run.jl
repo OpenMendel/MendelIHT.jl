@@ -63,6 +63,7 @@ SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
 
 #BELOW ARE LOGISTIC SIMUATIONS
 #load packages
+using Revise
 using IHT
 using SnpArrays
 using DataFrames
@@ -74,7 +75,7 @@ using StatsFuns: logistic
 
 #simulat data
 n = 2000
-p = 10000
+p = 20000
 
 #set random seed
 Random.seed!(1111)
@@ -101,7 +102,7 @@ y = Float64.(y)
 
 #compute logistic IHT result
 # result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic")
-result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info=false)
+result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info=true)
 
 # @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
 
@@ -147,7 +148,7 @@ using LinearAlgebra
 
 #simulat data
 n = 2000
-p = 20001 #20001 does not work!
+p = 10001 #20001 does not work!
 
 #set random seed
 Random.seed!(1111)
@@ -179,7 +180,7 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute poisson IHT result
-result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false)
+result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=true, true_beta=true_b)
 
 #examine initial guess
 # initial_b = result[correct_position]

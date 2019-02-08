@@ -36,20 +36,11 @@ function init_iht_indices!(
     k :: Int;
     temp_vec :: Vector{T} = zeros(length(v.df) + length(v.df2))
 ) where {T <: Float}
-##
-    length_df = length(v.df)
-    temp_vec[1:length_df] .= v.df
-    temp_vec[length_df+1:end] .= v.df2
-    project_group_sparse!(temp_vec, v.group, J, k)
-    v.df .= view(temp_vec, 1:length_df)
-    v.df2 .= view(temp_vec, length_df+1:length(temp_vec))
-##
-    v.idx .= v.df .!= 0                        # find new indices of new beta that are nonzero
-    v.idc .= v.df2 .!= 0
 
+    a = sort([v.df; v.df2], rev=true)[k * J]
+    v.idx .= v.df .>= a
+    v.idc .= v.df2 .>= a
     @assert sum(v.idx) + sum(v.idc) <= J * k "Did not initialize IHT correctly: more non-zero entries in model than J*k"
-
-    return nothing
 end
 
 """
@@ -126,7 +117,7 @@ function _poisson_backtrack(
 
     mu_step >= nstep  && return false
     prev_logl > logl && return true
-    logl < -1e100    && return true
+    # logl < -1e100    && return true
 
     # prev_logl > logl && mu_step < nstep 
 end
@@ -457,7 +448,7 @@ function update_df!(
         # _poisson_df!(v.p, v.xb + v.zc)
         # println(maximum(v.p))
         @. v.p = exp(v.xb + v.zc)
-        clamp!(v.p, -1e100, 1e100)
+        # clamp!(v.p, -1e100, 1e100)
         @. v.ymp = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     else
@@ -541,7 +532,8 @@ function _poisson_logl(
         #     logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
         # end
 
-        exp_xb = clamp(exp(xb[i]), -1e100, 1e100)
+        exp_xb = exp(xb[i])
+        # exp_xb = clamp(exp_xb), -1e100, 1e100)
         increment = y[i]*xb[i] - exp_xb - lfactorial(Int(y[i]))
         logl += increment
     end

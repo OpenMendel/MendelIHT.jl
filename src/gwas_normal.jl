@@ -32,7 +32,7 @@ function iht!(
     end
 
     # store relevant columns of x.
-    if (!isequal(v.idx, v.idx0) && !isequal(v.idc, v.idc0)) || iter < 2
+    if !isequal(v.idx, v.idx0) || iter < 2
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     end
 
