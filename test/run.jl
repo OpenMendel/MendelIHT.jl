@@ -1,32 +1,11 @@
-using IHT, BenchmarkTools
-@benchmark x = MendelIHT("gwas 1 Control.txt") seconds = 100
-
-using MendelIterHardThreshold
-x = IterHardThreshold("gwas 1 Control.txt")
-
-x = MendelIHT("test_control.txt")
-
-
-using IHT, BenchmarkTools
-@benchmark MendelIHT("gwas 1 Control userpath.txt")
-# x, y = MendelIHT("gwas 1 Control userpath.txt")
-
-
-using IHT, PLINK
-# MendelIHT("gwas 1 Control.txt")
-(xbed, ybed) = read_plink_data("gwas 1 data_kevin", delim = ',')
-output = L0_reg(xbed, ybed, 10)
-
-MendelIHT("gwas 1 Control userpath.txt")
-nmodels = 20
-pathidx = collect(1:nmodels)        # the model sizes to test: 1, 2, ..., nmodels
-# ihtbetas = iht_path(xbed, ybed, pathidx) # note that ihtpath is a sparse matrix...
-# full(ihtbetas[bidx,:])
-
-
-
-using IHT
-MendelIHT("gwas 1 Control.txt")
+#BELOW ARE NORMAL SIMUATIONS
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
 
 
 using IHT
@@ -142,7 +121,8 @@ end
 
 #BELOW ARE LOGISTIC SIMUATIONS
 #load packages
-using IHT
+using Revise
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -213,7 +193,8 @@ println("Total iteration number was " * string(result.iter))
 
 
 # BELOW ARE POISSON SIMULATIONS
-using IHT
+using Revise
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -279,8 +260,11 @@ println("Total iteration number was " * string(result.iter))
 
 
 
-########### LOGISTIC CROSS VALIDATION SIMULATION CODE##############
-using IHT
+
+
+############## NORMAL CROSS VALIDATION SIMULATION
+using Revise
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -333,8 +317,10 @@ cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic")
 
 
 
-############## POISSON CROSS VALIDATION SIMULATION
-using IHT
+
+
+########### LOGISTIC CROSS VALIDATION SIMULATION CODE##############
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -389,8 +375,11 @@ cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "poisson")
 
 
 
-############## NORMAL CROSS VALIDATION SIMULATION
-using IHT
+
+
+
+############## POISSON CROSS VALIDATION SIMULATION
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -643,3 +632,156 @@ end
 
 
 
+
+
+
+#load packages
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+p = 100000
+k = 10
+s = 0.1
+n = 1000
+
+#construct snpmatrix, covariate files, and true model b
+x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
+z           = ones(n, 1)                   # non-genetic covariates, just the intercept
+true_b      = zeros(p)                     # model vector
+true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
+shuffle!(true_b)                           # Shuffle the entries
+correct_position = find(true_b)            # keep track of what the true entries are
+noise = rand(Normal(0, s), n)              # noise
+
+#compute mean and std used to standardize data to mean 0 variance 1
+mean_vec, minor_allele, = summarize(x)
+update_mean!(mean_vec, minor_allele, p)
+std_vec = std_reciprocal(x, mean_vec)
+
+#simulate phenotypes under different noises by: y = Xb + noise
+y_temp = zeros(n)
+SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
+y = y_temp + noise
+
+#compute IHT result for less noisy data
+v = IHTVariables(x, z, y, 1, k)
+hi = @benchmark L0_reg(v, x, z, y, 1, k)
+
+
+
+
+using LinearAlgebra
+using BenchmarkTools
+function old_logl(x :: Vector{Float64}, y :: Vector{Float64})
+	return dot(x, y) - sum(log.(1.0 .+ exp.(y))) 
+end
+function new_logl(x :: Vector{Float64}, y :: Vector{Float64})
+	logl = 0.0
+	for i in eachindex(x)
+		logl += x[i]*y[i] - log(1.0 + exp(y[i]))
+	end
+	return logl
+end
+x = rand(1000)
+y = rand(1000)
+old_logl(x, y) ≈ new_logl(x, y)
+@benchmark old_logl(x, y) #median = 33.845 μs
+@benchmark new_logl(x, y) #median = 34.986 μs
+
+
+
+using LinearAlgebra, SnpArrays, BenchmarkTools
+x = SnpArray(undef, 10000, 10000)
+xbm = SnpBitMatrix{Float64}(x, center=true, scale=true)
+Base.summarysize(x)   # 25640152
+Base.summarysize(xbm) # 25320360
+z = zeros(10000)
+y = rand(10000)
+@benchmark mul!(z, xbm, y) # 187.767 ms
+
+hi = @view x[1:1000, 1:1000]
+hibm = SnpBitMatrix{Float64}(hi) #this should work
+hibm = SnpBitMatrix{Float64}(hi, center=true) 
+
+x_mask = @view x[1:9999, 1:9999]
+xbm_mask = SnpBitMatrix{Float64}(x_mask, center=true, scale=true)
+Base.summarysize(x_mask)   # 25640152
+Base.summarysize(xbm_mask) # 25320360
+z = zeros(9999)
+y = rand(9999)
+@benchmark mul!(z, x_mask, y) # 187.767 ms
+
+
+
+using LinearAlgebra, SnpArrays, BenchmarkTools
+x = SnpArray(undef, 10000, 10000)
+x_subset = x[1:1000, 1:1000]
+x_subsetbm = SnpBitMatrix{Float64}(x_subset, center=true, scale=true)
+
+
+
+xbm = SnpBitMatrix{Float64}(x, center=true, scale=true);
+
+
+
+
+# testing _poisson_logl correctness
+using LinearAlgebra
+using SpecialFunctions
+using BenchmarkTools
+
+function old_poisson(y, xb)
+    return dot(y, xb) - sum(exp.(xb)) - sum(lfactorial.(Int.(y)))
+end
+
+function _poisson_logl(
+    y      :: Vector{T}, 
+    xb     :: Vector{T};
+) where {T <: Float64}
+    logl = 0.0
+    @inbounds for i in eachindex(y)
+        logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
+    end
+    return logl
+end
+
+y = rand(1.0:100.0, 1000)
+xb = rand(1000)
+
+# old_poisson(y, xb)
+@benchmark _poisson_logl($y, $xb)
+
+
+
+
+
+function simulate_random_snparray(
+    n :: Int64,
+    p :: Int64,
+    d :: Distribution
+)
+    x_tmp = rand(dist, n, p)
+    x = SnpArray(undef, n, p)
+    for i in 1:(n*p)
+        if x_tmp[i] == 0
+            x[i] = 0x00
+        elseif x_tmp[i] == 1
+            x[i] = 0x02
+        else
+            x[i] = 0x03
+        end
+    end
+    return x
+end
+
+using Random, SnpArrays, Distributions
+Random.seed!(1111)
+
+x = simulate_random_snparray(1000, 1, Binomial(2, 0.5))
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+xbm_vector = convert(Matrix{Float64}, x)
+
+xbm.σinv
+1 / std(xbm_vector)
