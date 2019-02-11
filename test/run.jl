@@ -1,5 +1,5 @@
 #BELOW ARE NORMAL SIMUATIONS
-using IHT
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -64,7 +64,7 @@ SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
 #BELOW ARE LOGISTIC SIMUATIONS
 #load packages
 using Revise
-using IHT
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -131,7 +131,7 @@ xb = logistic.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
 
 # BELOW ARE POISSON SIMULATIONS
 using Revise
-using IHT
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -222,7 +222,7 @@ abs.(y-result) .> abs.(y-xb)
 
 ############## NORMAL CROSS VALIDATION SIMULATION
 using Revise
-using IHT
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -281,7 +281,7 @@ println("Total time was " * string(l0_result.time))
 
 
 ########### LOGISTIC CROSS VALIDATION SIMULATION CODE##############
-using IHT
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -343,7 +343,7 @@ println("Total time was " * string(l0_result.time))
 
 
 ############## POISSON CROSS VALIDATION SIMULATION
-using IHT
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
@@ -572,7 +572,7 @@ p = rand(1000)
 
 
 #load packages
-using IHT
+using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions

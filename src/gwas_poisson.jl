@@ -216,10 +216,7 @@ function L0_poisson_reg(
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)
             (β, obj) = regress(v.xk, y, glm)
-            if !all(β .≈ 0) 
-                view(v.b, v.idx) .= β
-                # println("successfully debiased!")
-            end
+            all(β .≈ 0) || view(v.b, v.idx) .= β
         end
 
         #print information about current iteration
