@@ -10,7 +10,6 @@ function IHT(control_file = ""; args...)
     println("      IHT analysis option")
     print(" \n \n")
     println("Reading the data.\n")
-    initial_directory = pwd()
     #
     # The user specifies the analysis to perform via a set of keywords.
     # Start the keywords at their default values.
@@ -122,11 +121,4 @@ function IHT(control_file = ""; args...)
             throw(error("unsupported glm option: $glm"))
         end
     end
-    #
-    # Finish up by closing, and thus flushing, any output files.
-    # Return to the initial directory.
-    #
-    close(keyword["output_unit"])
-    cd(initial_directory)
-    return nothing
 end #function IHT

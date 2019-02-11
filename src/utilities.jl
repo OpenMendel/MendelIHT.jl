@@ -10,7 +10,7 @@ function _iht_gradstep(
     temp_vec :: Vector{T}
 ) where {T <: Float}
     #currently v.df is dense. We should only keep top 2k entries according to GraSP
-    println(sum(v.df .!= 0))
+    # println(sum(v.df .!= 0))
     BLAS.axpy!(μ, v.df, v.b)  # take gradient step: b = b + μv, v = score
     BLAS.axpy!(μ, v.df2, v.c) # take gradient step: b = b + μv, v = score
 ##
