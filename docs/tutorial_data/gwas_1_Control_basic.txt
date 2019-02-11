@@ -1,0 +1,9 @@
+#
+# Input and Output files.
+#
+plink_input_basename = gwas_1_data
+
+#
+# Analysis parameters for IHT option.
+#
+predictors = 2

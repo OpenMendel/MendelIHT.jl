@@ -6,19 +6,18 @@ The additional optional arguments are:
 - `mask_n`, a `Bool` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of trues.
 """
 function iht_path(
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    J        :: Int64,
-    path     :: DenseVector{Int};
-    use_maf  :: Bool = false,
-    glm      :: String = "normal",
-    mask_n   :: BitArray = trues(size(y)),
-    tol      :: T    = convert(T, 1e-4),
-    max_iter :: Int  = 100,
-    max_step :: Int  = 50,
-    #pids     :: Vector{Int} = procs(x),
-    #quiet    :: Bool = true
+    x         :: SnpArray,
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
+    J         :: Int64,
+    path      :: DenseVector{Int},
+    train_idx :: BitArray;
+    use_maf   :: Bool   = false,
+    glm       :: String = "normal",
+    tol       :: T      = convert(T, 1e-4),
+    max_iter  :: Int    = 100,
+    max_step  :: Int    = 50,
+    debias    :: Bool   = false
 ) where {T <: Float}
 
     # size of problem?
@@ -28,9 +27,15 @@ function iht_path(
     # how many models will we compute?
     nmodels = length(path)
 
-    # also preallocate matrix to store betas and errors
+    # preallocate matrix to store betas and errors
     betas  = spzeros(T, p, nmodels) # a sparse matrix to store calculated models
     cs     = zeros(T, q, nmodels)   # matrix of models of non-genetic covariates
+
+    # Construct the training datas
+    x_train = SnpArray(undef, sum(train_idx), p)
+    copyto!(x_train, @view x[train_idx, :])
+    y_train = y[train_idx]
+    z_train = z[train_idx, :]
 
     # compute the specified paths
     @inbounds for i = 1:nmodels
@@ -38,25 +43,16 @@ function iht_path(
         # current model size?
         k = path[i]
 
-        #define the IHTVariable used for cleaner code
-        v = IHTVariables(x, z, y, J, k)
+        #define the IHTVariable used to store intermediate variables in IHT calculations
+        v = IHTVariables(x_train, z_train, y_train, J, k)
 
         # now compute current model
         if glm == "normal"
-            v = IHTVariables(x, z, y, J, k)
-            output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+            output = L0_reg(x_train, z_train, y_train, J, k, use_maf=use_maf,debias=debias)
         elseif glm == "logistic"
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm = "logistic")
+            output = L0_logistic_reg(x_train, z_train, y_train, J, k, glm="logistic",debias=debias)
         elseif glm == "poisson"
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_poisson_reg(v, x_train, z_train, y_train, J, k, glm = "poisson")
+            output = L0_poisson_reg(x_train, z_train, y_train, J, k, glm="poisson", show_info=false,debias=debias)
         end
 
         # put model into sparse matrix of betas
@@ -75,19 +71,18 @@ increases linearly with the number of paths, which is negligible as long as the 
 paths is reasonable (e.g. less than 100). 
 """
 function iht_path_threaded(
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
-    J        :: Int64,
-    path     :: DenseVector{Int};
-    use_maf  :: Bool = false,
-    glm      :: String = "normal",    
-    mask_n   :: BitArray = trues(size(y)),
-    tol      :: T    = convert(T, 1e-4),
-    max_iter :: Int  = 100,
-    max_step :: Int  = 50,
-    #pids     :: Vector{Int} = procs(x),
-    #quiet    :: Bool = true
+    x         :: SnpArray,
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
+    J         :: Int64,
+    path      :: DenseVector{Int},
+    train_idx :: BitArray;
+    use_maf   :: Bool   = false,
+    glm       :: String = "normal",    
+    tol       :: T      = convert(T, 1e-4),
+    max_iter  :: Int    = 100,
+    max_step  :: Int    = 50,
+    debias    :: Bool   = false
 ) where {T <: Float}
     
     # number of threads available?
@@ -113,22 +108,22 @@ function iht_path_threaded(
         # current model size?
         k = path[i]
 
+        # Construct the training datas (it appears I must make the training data sets inside this for loop. Not sure why. Perhaps to avoid thread access issues)
+        x_train = SnpArray(undef, sum(train_idx), p)
+        copyto!(x_train, @view x[train_idx, :])
+        y_train = y[train_idx]
+        z_train = z[train_idx, :]
+
+        #define the IHTVariable used to store intermediate variables in IHT calculations
+        v = IHTVariables(x_train, z_train, y_train, J, k)
+
         # now compute current model
         if glm == "normal"
-            v = IHTVariables(x, z, y, J, k)
-            output = L0_reg(v, x, z, y, J, k, use_maf=use_maf, mask_n=mask_n)
+            output = L0_reg(x_train, z_train, y_train, J, k, use_maf=use_maf, debias=debias)
         elseif glm == "logistic"
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_logistic_reg(v, x_train, z_train, y_train, J, k, glm = "logistic")
+            output = L0_logistic_reg(x_train, z_train, y_train, J, k, glm="logistic", show_info=false, debias=debias)
         elseif glm == "poisson"
-            x_train = x[mask_n, :]
-            y_train = y[mask_n]
-            z_train = z[mask_n, :]
-            v = IHTVariables(x_train, z_train, y_train, J, k)
-            output = L0_poisson_reg(v, x_train, z_train, y_train, J, k, glm = "poisson")
+            output = L0_poisson_reg(x_train, z_train, y_train, J, k, glm="poisson", show_info=false, debias=debias)
         end
 
         # put model into sparse matrix of betas in the corresponding thread
@@ -150,12 +145,11 @@ returns the out-of-sample errors in a vector.
 - `path` , a vector of various model sizes
 - `folds`, a vector indicating which of the q fold each sample belongs to. 
 - `fold` , the current fold that is being used as test set. 
-- `pids` , a vector of process IDs. Defaults to `procs(x)`.
 """
 function one_fold(
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
+    x        :: SnpArray,
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int}, 
@@ -165,8 +159,7 @@ function one_fold(
     tol      :: T    = convert(T, 1e-4),
     max_iter :: Int  = 1000,
     max_step :: Int  = 50,
-    #pids     :: Vector{Int} = procs(x),
-    # quiet    :: Bool = true
+    debias   :: Bool = false
 ) where {T <: Float}
     # dimensions of problem
     n, p = size(x)
@@ -177,29 +170,25 @@ function one_fold(
     train_idx = .!test_idx
     test_size = sum(test_idx)
 
-    # allocate test model, this can be avoided with view(x, test_idx, :), but SnpArray code needs to gets fixed first 
-    x_test = x[test_idx, :]
-    z_test = z[test_idx, :]
-
-    # compute some statistics needed to standardize x_test
-    mean_vec, minor_allele, = summarize(x_test)
-    people, snps = size(x)
-    update_mean!(mean_vec, minor_allele, snps)
-    std_vec = std_reciprocal(x, mean_vec)
+    # allocate test model
+    x_test = SnpArray(undef, sum(test_idx), p)
+    copyto!(x_test, @view(x[test_idx, :]))
+    z_test = @view(z[test_idx, :])
+    x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # compute the regularization path on the training set
-    betas, cs = iht_path_threaded(x, z, y, J, path, use_maf=use_maf, glm=glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
-    # betas, cs = iht_path(x, z, y, J, path, use_maf=use_maf, glm=glm, mask_n=train_idx, max_iter=max_iter, max_step=max_step, tol=tol)
+    betas, cs = iht_path_threaded(x, z, y, J, path, train_idx, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
+    # betas, cs = iht_path(x, z, y, J, path, train_idx, use_maf=use_maf, glm = glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
 
     # allocate the arrays for the test set
-    xb = zeros(test_size,)
-    zc = zeros(test_size,)
-    r  = zeros(test_size,)
-    b  = zeros(p,)
-    c  = zeros(q,)
+    xb = zeros(T, test_size,)
+    zc = zeros(T, test_size,)
+    r  = zeros(T, test_size,)
+    b  = zeros(T, p,)
+    c  = zeros(T, q,)
 
     # for each computed model in regularization path, compute the mean out-of-sample error for the TEST set
     for i = 1:size(betas,2)
@@ -208,9 +197,8 @@ function one_fold(
         b .= betas[:, i]
         c .= cs[:, i] 
 
-        # compute estimated response Xb with $(path[i]) nonzeroes
-        SnpArrays.A_mul_B!(xb, x_test, b, mean_vec, std_vec) 
-        BLAS.A_mul_B!(zc, z_test, c)
+        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] with $(path[i]) nonzeroes
+        A_mul_B!(xb, zc, x_testbm, z_test, b, c) 
 
         # compute residuals. For glm, recall E(Y) = g^-1(Xβ) where g^-1 is the inverse link
         if glm == "normal"
@@ -236,26 +224,27 @@ mse[i, j] stores the ith model size for fold j. Thus to obtain the mean mse for 
 we take average along the rows and find the minimum.  
 """
 function pfold_naive(
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
+    x        :: SnpArray,
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
     num_fold :: Int64;
     use_maf  :: Bool = false,
     glm      :: String = "normal",
-    # max_iter :: Int  = 100,
-    # max_step :: Int  = 50,
+    max_iter :: Int  = 100,
+    max_step :: Int  = 50,
+    debias   :: Bool = false,
 ) where {T <: Float}
 
     @assert num_fold >= 1 "number of folds must be positive integer"
 
-    mses = zeros(length(path), num_fold)
+    mses = zeros(T, length(path), num_fold)
     for fold in 1:num_fold
-        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf, glm=glm)
+        mses[:, fold] = one_fold(x, z, y, J, path, folds, fold, use_maf=use_maf, glm=glm,debias=debias)
     end
-    return vec(sum(mses, 2) ./ num_fold)
+    return vec(sum(mses, dims=2) ./ num_fold)
 end
 
 """
@@ -273,32 +262,27 @@ Important arguments and defaults include:
 - `use_maf` whether IHT wants to scale predictors using their minor allele frequency. This is experimental feature
 """
 function cv_iht(
-    x        :: SnpLike{2},
-    z        :: Matrix{T},
-    y        :: Vector{T},
+    x        :: SnpArray,
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
     num_fold :: Int64;
     use_maf  :: Bool = false,
     glm      :: String = "normal",
-    # pids     :: Vector{Int} = procs(),
-    # tol      :: Float = convert(T, 1e-4),
-    # max_iter :: Int   = 100,
-    # max_step :: Int   = 50,
-    # quiet    :: Bool  = true,
-    # header   :: Bool  = false
+    debias   :: Bool = false
 ) where {T <: Float}
 
     # how many elements are in the path?
     nmodels = length(path)
 
     # compute folds
-    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf, glm=glm)
+    mses = pfold_naive(x, z, y, J, path, folds, num_fold, use_maf=use_maf, glm=glm, debias=debias)
 
     # find best model size and print cross validation result
-    k = path[indmin(mses)] :: Int
+    k = path[argmin(mses)] :: Int
     print_cv_results(mses, path, k)
 
-    return nothing
+    return k
 end

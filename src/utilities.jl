@@ -569,23 +569,21 @@ function simulate_random_snparray(
     r :: Vector{Float64}, #minor allele frequencies
 )
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
-    x_tmp = zeros(UInt8, n, p)
-    sample_genotype = Vector{UInt8}(undef, p)
-    for j in 1:p
-        for i in 1:n
-            x_tmp[i, j] = convert(UInt8, rand(Binomial(2, r[j])))
-        end
+    x_tmp = zeros(n, p)
+    for i in 1:n
+        sample_genotype = [rand(Binomial(2, x)) for x in r]
+        x_tmp[i, :] .= sample_genotype
     end
 
     #fill the SnpArray with the corresponding x_tmp entry
-    return _make_snparray(x_tmp)
+    return make_snparray(x_tmp)
 end
 
 """
 Make a random SnpArray based on given Matrix{Float64} of 0~2.
 This is for testing purposes only. 
 """
-function _make_snparray(
+function make_snparray(
     x_temp :: Matrix{Float64}
 )
     n, p = size(x_temp)
@@ -597,7 +595,7 @@ function _make_snparray(
             x[i] = 0x02
         elseif x_temp[i] == 2
             x[i] = 0x03
-        else 
+        else
             throw(error("matrix shouldn't have missing values!"))
         end
     end
@@ -605,19 +603,20 @@ function _make_snparray(
 end
 
 """
-Make a SnpArray from a matrix of UInt8. This is for testing purposes only. 
+Make a SnpArray from a matrix of UInt8 (which arises from subsetting a SnpArray). 
+This is for testing purposes only. 
 """
-function _make_snparray(
-    x_temp :: AbstractMatrix{UInt8}
+function make_snparray(
+    x_temp :: Matrix{UInt8}
 )
     n, p = size(x_temp)
     x = SnpArray(undef, n, p)
     for i in 1:(n*p)
         if x_temp[i] == 0x00
             x[i] = 0x00
-        elseif x_temp[i] == 0x01
-            x[i] = 0x02
         elseif x_temp[i] == 0x02
+            x[i] = 0x02
+        elseif x_temp[i] == 0x03
             x[i] = 0x03
         else
             throw(error("matrix shouldn't have missing values!"))

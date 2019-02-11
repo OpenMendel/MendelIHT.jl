@@ -14,52 +14,46 @@
 - `iter` is an integer storing the number of full iht steps taken (i.e. negative gradient + projection)
 - `nstep` number of maximum backtracking. 
 """
-
 function iht_logistic!(
     v         :: IHTVariable{T},
-    x         :: SnpLike{2},
-    z         :: Matrix{T},
-    y         :: Vector{T},
+    x         :: SnpArray,
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
     J         :: Int,
     k         :: Int,
-    mean_vec  :: Vector{T},
-    std_vec   :: Vector{T},
     glm       :: String,
     old_logl  :: T,
-    storage   :: Vector{Vector{T}},
-    temp_vec  :: Vector{T},
+    temp_vec  :: AbstractVector{T},
     iter      :: Int,
-    nstep     :: Int
+    nstep     :: Int;
 ) where {T <: Float}
 
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
     if iter == 1
         init_iht_indices!(v, J, k, temp_vec = temp_vec)
-        check_covariate_supp!(v, storage) # make necessary resizing
+        check_covariate_supp!(v) # make necessary resizing
+    end
+
+    # store relevant components of x
+    if !isequal(v.idx, v.idx0) || iter < 2
+        copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     end
 
     # calculate step size 
-    μ = _logistic_stepsize(v, x, z, mean_vec, std_vec)
+    μ = _logistic_stepsize(v, z)
 
     # update b and c by taking gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
 
-    # perform debiasing (i.e. fit b on its support)
-    # if all(v.idx .== v.idx0)
-    #     xk = convert(Matrix{Float64}, v.xk)
-    #     (estimate, obj) = regress(xk, y, glm)
-    #     view(v.b, v.idx) .= estimate
-    # end
-
     # make necessary resizing since grad step might include/exclude non-genetic covariates
-    check_covariate_supp!(v, storage) 
+    check_covariate_supp!(v) 
 
     # update xb and zc with the new computed b and c
-    v.xk .= view(x, :, v.idx)
-    A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+    copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+    A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
 
     # calculate current loglikelihood with the new computed xb and zc
-    new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
+    new_logl = compute_logl(v, y, glm)
 
     μ_step = 0
     while _logistic_backtrack(new_logl, old_logl, μ_step, nstep)
@@ -68,26 +62,19 @@ function iht_logistic!(
         μ /= 2
 
         # recompute gradient step
-        copy!(v.b, v.b0)
-        copy!(v.c, v.c0)
+        copyto!(v.b, v.b0)
+        copyto!(v.c, v.c0)
         _iht_gradstep(v, μ, J, k, temp_vec)
 
-        # perform debiasing (i.e. fit b on its support)
-        # if all(v.idx .== v.idx0)
-        #     xk = convert(Matrix{Float64}, v.xk)
-        #     (estimate, obj) = regress(xk, y, glm)
-        #     view(v.b, v.idx) .= estimate
-        # end
-
         # make necessary resizing since grad step might include/exclude non-genetic covariates
-        check_covariate_supp!(v, storage) 
+        check_covariate_supp!(v) 
 
         # recompute xb
-        v.xk .= view(x, :, v.idx)
-        A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c, view(mean_vec, v.idx), view(std_vec, v.idx), storage)
+        copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+        A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
 
         # compute new loglikelihood again to see if we're now increasing
-        new_logl = compute_logl(v, x, z, y, glm, mean_vec, std_vec, storage)
+        new_logl = compute_logl(v, y, glm)
 
         # increment the counter
         μ_step += 1
@@ -108,27 +95,25 @@ end
 - `k` is the maximum number of predictors per group. 
 - `glm` is the generalized linear model option. Can be either logistic, poisson, normal = default
 - `use_maf` is a boolean. If true, IHT will scale each SNP using their minor allele frequency.
-- `mask_n` is a bit masking vector of booleans. It is used in cross-validation where certain samples are excluded from the model
 - `tol` and `max_iter` and `max_step` is self-explanatory.
 """
 function L0_logistic_reg(
-    v         :: IHTVariable, 
-    x         :: SnpLike{2},
-    z         :: Matrix{T},
-    y         :: Vector{T},
+    x         :: SnpArray,
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
     J         :: Int,
     k         :: Int;
     use_maf   :: Bool = false,
     glm       :: String = "normal",
-    mask_n    :: BitArray = trues(size(y)),
     tol       :: T = 1e-4,
-    max_iter  :: Int = 200, # up from 100 for sometimes weighting takes more
+    max_iter  :: Int = 1000,
     max_step  :: Int = 50,
-    temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2))
+    temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
+    debias    :: Bool = true,
+    show_info :: Bool = true
 ) where {T <: Float}
 
-    # start timer
-    tic()
+    start_time = time()
 
     # first handle errors
     @assert J >= 0        "Value of J (max number of groups) must be nonnegative!\n"
@@ -141,52 +126,33 @@ function L0_logistic_reg(
     check_y_content(y, glm)
 
     # initialize return values
-    mm_iter   = 0                 # number of iterations of L0_reg
-    mm_time   = 0.0               # compute time *within* L0_reg
+    mm_iter   = 0                 # number of iterations of L0_logistic_reg
+    tot_time  = 0.0               # compute time *within* L0_logistic_reg
     next_logl = oftype(tol,-Inf)  # loglikelihood
 
     # initialize floats
     the_norm    = 0.0             # norm(b - b0)
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
-    μ           = 0.0             # Landweber step size, 0 < tau < 2/rho_max^2
 
     # initialize integers
     mu_step = 0                   # counts number of backtracking steps for mu
 
     # initialize booleans
     converged = false             # scaled_norm < tol?
-
-    # initialize empty vectors to facilitate garbage collection in (snpmatrix)-(vector) computation
-    store = Vector{Vector{T}}(3)
-    store[1] = zeros(T, size(v.df))  # length p 
-    store[2] = zeros(T, size(v.xgk)) # length n
-    store[3] = zeros(T, size(v.gk))  # length J * k
-
-    # compute some summary statistics for our snpmatrix
-    mean_vec, minor_allele, = summarize(x)
-    people, snps = size(x)
-
-    #weight snps based on maf or other user defined weights
-    if use_maf
-        maf = deepcopy(mean_vec) 
-        my_snpMAF, my_snpweights = calculate_snp_weights(x,y,k,v,use_maf,maf)
-        hold_std_vec = deepcopy(std_vec)
-        Base.A_mul_B!(std_vec, diagm(hold_std_vec), my_snpweights[1,:])
-    end
     
-    #precompute mean and standard deviations for each snp. 
-    update_mean!(mean_vec, minor_allele, snps)
-    std_vec = std_reciprocal(x, mean_vec)
-    
-    #
     # Begin IHT calculations
-    #
-    fill!(v.xb, 0.0)       #initialize β = 0 vector, so Xβ = 0
-    # copy!(v.r, y)          #redisual = y-Xβ-zc = y since initially β = c = 0
-    # v.r[mask_n .== 0] .= 0 #bit masking, for cross validation only
+    v = IHTVariables(x, z, y, J, k)
+    # fill!(v.xb, 0.0)     #initialize β = 0 vector, so Xβ = 0
 
-    # Calculate the score 
-    update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
+    # make the bit matrix 
+    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    
+    #initiliaze model and compute xb
+    # initialize_beta!(v, y, x, glm)
+    # A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+
+    # Calculate the score
+    update_df!(glm, v, x_bitmatrix, z, y)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
@@ -194,33 +160,41 @@ function L0_logistic_reg(
         logl = next_logl
 
         #calculate the step size μ and check loglikelihood is not NaN or Inf
-        (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, mean_vec, std_vec, glm, logl, store, temp_vec, mm_iter, max_step)
-        !isnan(next_logl) || throw(error("Loglikelihood function is NaN, aborting..."))
-        !isinf(next_logl) || throw(error("Loglikelihood function is Inf, aborting..."))
+        (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
+        isnan(next_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
+        isinf(next_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
 
-        # iht! gives us an updated x*b. Use it to recompute residuals and gradient
-        # v.r .= y .- v.xb .- v.zc 
-        # v.r[mask_n .== 0] .= 0 #bit masking, used for cross validation
+        #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
+        if debias && sum(v.idx) == size(v.xk, 2)
+            (β, obj) = regress(v.xk, y, glm)
+            view(v.b, v.idx) .= β
+        end
+
+        #print information about current iteration
+        show_info && @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step))
+        if show_info
+            temp_df = DataFrame(β = v.b, gradient = v.df)
+            @show sort(temp_df, rev=true, by=abs)[1:2k, :]
+        end
 
         # update score (gradient) and p vector using stepsize μ 
-        update_df!(glm, v, x, z, y, mean_vec, std_vec, store)
+        update_df!(glm, v, x_bitmatrix, z, y)
 
         # track convergence
-        the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
-        scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        converged   = scaled_norm < tol
-
-        # info("current iteration is " * string(mm_iter) * ", loglikelihood is " * string(next_logl) * " and scaled norm is " * string(scaled_norm))
+        # the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
+        # scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
+        # converged   = scaled_norm < tol
+        converged = abs(next_logl - logl) < tol
 
         if converged && mm_iter > 1
-            mm_time = toq()   # stop time
-            return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+            tot_time = time() - start_time
+            return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
-            mm_time = toq() # stop time
-            println("Did not converge!!!!! The run time for IHT was " * string(mm_time) * "seconds")
-            return gIHTResults(mm_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+            tot_time = time() - start_time
+            printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
+            return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end
 end #function L0_logistic_reg

@@ -1,0 +1,20 @@
+name = "MendelIHT"
+uuid = "921c7187-1484-5754-b919-5d3ed9ac03c4"
+keywords = ["GWAS", "Genome-wide association studies", "feature selection", "high dimensional statistics", "generalized linear models", "structured sparsity"]
+authors = ["Benjamin Chu <biona001@ucla.edu>", "Kevin Keys <kevin.keys@ucsf.edu>"]
+version = "0.5.0"
+
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+Gadfly = "c91e804a-d5a3-530f-b6f0-dfbca275c004"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+StatsFuns = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
+SnpArrays = "4e780e97-f5bf-4111-9dc4-b70aaf691b06"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+MendelBase = "4fb2d825-8540-5432-a3a3-b9ff66df2cb5"
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
