@@ -1,132 +1,36 @@
-"""
-This is the wrapper function for the Iterative Hard Thresholding analysis option in Open Mendel.
-"""
-function MendelIHT(control_file = ""; args...)
-    #
-    # Print the logo. Store the initial directory.
-    #
-    print(" \n \n")
-    println("     Welcome to OpenMendel's")
-    println("      IHT analysis option")
-    print(" \n \n")
-    println("Reading the data.\n")
-    initial_directory = pwd()
-    #
-    # The user specifies the analysis to perform via a set of keywords.
-    # Start the keywords at their default values.
-    #
-    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
-    #
-    # Define some keywords unique to this analysis option.
-    #
-    keyword["predictors"] = 0
-    keyword["max_groups"] = 1
-    keyword["group_membership"] = ""
-    keyword["maf_weights"] = ""
-    keyword["pw_algorithm_value"] = 1.0     # not user defined at this time
-    keyword["non_genetic_covariates"] = ""
-    keyword["run_cross_validation"] = false
-    keyword["model_sizes"] = ""
-    keyword["cv_folds"] = ""
-    keyword["glm"] = "normal"
-    #
-    # Process the run-time user-specified keywords that will control the analysis.
-    # This will also initialize the random number generator.
-    #
-    process_keywords!(keyword, control_file, args)
-    @assert typeof(keyword["max_groups"]) == Int "Number of groups must be an integer. Set as 1 to run normal IHT"
-    @assert typeof(keyword["predictors"]) == Int "Sparsity constraint must be positive integer"
-    @assert 0 <= keyword["predictors"]           "Need positive number of predictors per group"
-    #
-    # Import genotype/non-genetic/phenotype data
-    #
-    @info("Reading in data")
-    snpmatrix = SnpArray(keyword["plink_input_basename"] * ".bed") #requires .bim .bed .fam files
-    phenotype = readdlm(keyword["plink_input_basename"] * ".fam", header = false)[:, 6]
-    non_genetic_cov = ones(size(snpmatrix, 1), 1) #defaults to just the intercept
-    if keyword["non_genetic_covariates"] != ""
-        non_genetic_cov = readdlm(keyword["non_genetic_covariates"], keyword["field_separator"], Float64)
-    end
-    #
-    # Determine what weighting (if any) the user specified for each predictors
-    #
-    keyword["maf_weights"] == "maf" ? maf_weights = true : maf_weights = false
-    #
-    # Determine the maximum number of groups and max number of predictors per group_membership.
-    # Defaults to only 1 group containing 10 predictors
-    #
-    J = 1
-    k = 10
-    if keyword["max_groups"] != 0
-        J = keyword["max_groups"]
-    end
-    if keyword["predictors"] != 0 
-        k = keyword["predictors"]
-    end
-    @assert k >= 1 "Number of predictors must be positive integer"
-    @assert J >= 1 "Number of predictors must be positive integer"
-    #
-    # Execute the specified analysis.
-    #
-    if keyword["run_cross_validation"]
-        #
-        # Find the model sizes the user wants. Defaults to 1~10
-        #
-        path = collect(1:10)
-        if keyword["model_sizes"] != ""
-            path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
-            @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
-        end
-        #
-        # Specify how many folds of cross validation the user wants. Defaults to 5
-        #
-        num_folds = 5
-        if keyword["cv_folds"] != "" 
-            num_folds = keyword["cv_folds"]
-            @assert typeof(num_folds) == Int "Please provide positive integer value for the number of folds for cross validation"
-            @assert num_folds >= 1           "Please provide positive integer value for the number of folds for cross validation"
-        end
-        @info("Running " * string(num_folds) * "-fold cross validation on the following model sizes:\n" * keyword["model_sizes"] * ".\nIgnoring keyword predictors.")
-        folds = rand(1:num_folds, size(snpmatrix, 1))
-        return cv_iht(snpmatrix, non_genetic_cov, phenotype, 1, path, folds, num_folds, use_maf=maf_weights, glm="normal", debias=false)
+module MendelIHT
 
-    elseif keyword["model_sizes"] != ""
-        path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
-        @info("Running the following model sizes: " * string(path))
-        @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
-        #
-        # Compute the various models and associated errors
-        #
-        return iht_path_threaded(snpmatrix, non_genetic_cov, phenotype, J, path, use_maf = maf_weights)
-    else
-        #
-        # Define variables for group membership, max number of predictors for each group, and max number of groups
-        # If no group_membership file is provided, defaults every predictor to the same group
-        #
-                # v = IHTVariables(snpmatrix, non_genetic_cov, phenotype, J, k)
-                # if keyword["group_membership"] != ""
-                #     v.group = vec(readdlm(keyword["group_membership"], Int64))
-                # end
-        #
-        # Determine the type of analysis and run IHT
-        #
-        glm = keyword["glm"]
-        @info("Running " * string(glm) * " IHT for model size k = $k and groups J = $J") 
-        if glm == "normal"
-            return L0_reg(snpmatrix, non_genetic_cov, phenotype, J, k, use_maf=maf_weights, debias=false)
-        elseif glm == "logistic"
-            return L0_logistic_reg(snpmatrix, non_genetic_cov, phenotype, J, k, glm=glm, debias=true, show_info=false)
-        elseif glm == "poisson"
-            return L0_poisson_reg(snpmatrix, non_genetic_cov, phenotype, J, k, glm=glm, debias=false, convg=false)
-        else
-            throw(error("unsupported glm option: $glm"))
-        end
-    end
-    #
-    # Finish up by closing, and thus flushing, any output files.
-    # Return to the initial directory.
-    #
-    close(keyword["output_unit"])
-    cd(initial_directory)
-    return nothing
-end #function MendelIHT
+import Distances: euclidean, chebyshev, sqeuclidean
+import StatsFuns: logistic
+import SpecialFunctions: lfactorial
+import Base.show
+import Gadfly.plot
+using SnpArrays
+using MendelBase
+using DataFrames
+using Gadfly
+using StatsBase
+using Random
+using LinearAlgebra
+using Distributions
+using SparseArrays
+using DelimitedFiles
+
+export L0_reg, iht_path, cv_iht, MendelIHT, L0_logistic_reg, L0_poisson_reg
+export IHTVariables, use_A2_as_minor_allele, make_snparray, regress
+export project_k!, std_reciprocal, project_group_sparse!
+export update_df!, At_mul_B!, A_mul_B!, check_y_content
+export save_prev!, update_mean!, normalize!, simulate_random_snparray
+
+# IHT will only work on single/double precision floats!
+const Float = Union{Float64,Float32}
+
+include("data_structures.jl")
+include("MendelIHT_utilities.jl")
+include("MendelIHT.jl")
+include("gwas_normal.jl")
+include("gwas_logistic.jl")
+include("gwas_poisson.jl")
+include("cross_validation.jl")
+
+end # end module
