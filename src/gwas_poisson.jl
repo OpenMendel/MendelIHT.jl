@@ -48,8 +48,8 @@ function iht_poisson!(
     # update xb and zc with the new computed b and c, truncating bad guesses to avoid overflow
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-    clamp!(v.xb, -20, 20)
-    clamp!(v.zc, -20, 20)
+    clamp!(v.xb, -100, 100)
+    clamp!(v.zc, -100, 100)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, y, glm)
@@ -71,8 +71,8 @@ function iht_poisson!(
         # recompute xb
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-        clamp!(v.xb, -20, 20)
-        clamp!(v.zc, -20, 20)
+        clamp!(v.xb, -100, 100)
+        clamp!(v.zc, -100, 100)
 
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, y, glm)
@@ -168,23 +168,25 @@ function L0_poisson_reg(
     # Begin IHT calculations
     v = IHTVariables(x, z, y, J, k)
 
-    # Calculate the score 
+    # make the bit matrix 
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=scale);
 
     #initiliaze model and compute xb
     initialize_beta!(v, y, x, glm)
     A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
-    clamp!(v.xb, -20, 20)
-    clamp!(v.zc, -20, 20)
+    clamp!(v.xb, -100, 100)
+    clamp!(v.zc, -100, 100)
 
     #compute the gradient
     update_df!(glm, v, x_bitmatrix, z, y)
 
     if show_info
         # temp_df = DataFrame(β = v.b, gradient = v.df, true_β = true_beta)
-        temp_df = DataFrame(true_β = true_beta, initial_β = v.b, gradient = v.df)
+        temp_df = DataFrame(true_β = true_beta, gradient = v.df, initial_β = v.b)
         @show sort(temp_df, rev=true, by=abs)[1:2k, :]
     end
+
+    # return ffff
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood

@@ -144,9 +144,14 @@ function L0_logistic_reg(
     v = IHTVariables(x, z, y, J, k)
     # fill!(v.xb, 0.0)     #initialize β = 0 vector, so Xβ = 0
 
-    # Calculate the score
+    # make the bit matrix 
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-    # x_bitmatrix.σinv .= std_reciprocal(x_bitmatrix, x_bitmatrix.μ) #change σinv from MLE to sample estimate
+    
+    #initiliaze model and compute xb
+    # initialize_beta!(v, y, x, glm)
+    # A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+
+    # Calculate the score
     update_df!(glm, v, x_bitmatrix, z, y)
 
     for mm_iter = 1:max_iter

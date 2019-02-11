@@ -9,6 +9,8 @@ function _iht_gradstep(
     k :: Int,
     temp_vec :: Vector{T}
 ) where {T <: Float}
+    #currently v.df is dense. We should only keep top 2k entries according to GraSP
+    println(sum(v.df .!= 0))
     BLAS.axpy!(μ, v.df, v.b)  # take gradient step: b = b + μv, v = score
     BLAS.axpy!(μ, v.df2, v.c) # take gradient step: b = b + μv, v = score
 ##
@@ -306,13 +308,28 @@ function _poisson_stepsize(
     denom = (v.xgk + v.zdf2)' * (v.p .* (v.xgk + v.zdf2))
     numer = (sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
 
-    # println("reached here!")
-    # println("denominator is $denom")
-    # println("numerator is $numer")
-
     # compute step size. Note non-genetic covariates are separated from x
     μ = (numer / denom) :: T
 end
+
+# function _poisson_stepsize_full(
+#     v :: IHTVariable{T},
+#     x :: SnpArray,
+#     z :: AbstractMatrix{T},
+# ) where {T <: Float}
+
+#     xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+
+#     #compute full [X Z] * [df; df2]
+#     A_mul_B!(v.xgk, v.zdf2, xbm, z, v.df, v.df2)
+
+#     #compute denominator and numerator of step size
+#     denom = Transpose(v.xgk + v.zdf2) * (Diagonal(v.p) * (v.xgk + v.zdf2))
+#     numer = sum(abs2, v.gk) + sum(abs2, v.df2)
+
+#     # compute step size. Note non-genetic covariates are separated from x
+#     μ = (numer / denom) :: T
+# end
 
 # function normalize!(
 #     X        :: AbstractMatrix{T},
@@ -499,6 +516,7 @@ function compute_logl(
     if glm == "logistic"
         return _logistic_logl(y, v.xb + v.zc)
     elseif glm == "poisson"
+        # println(v.c)
         return _poisson_logl(y, v.xb + v.zc)
     else 
         error("compute_logl: currently only supports logistic and poisson")
@@ -534,8 +552,9 @@ function _poisson_logl(
 
         exp_xb = exp(xb[i])
         # exp_xb = clamp(exp_xb), -1e100, 1e100)
-        increment = y[i]*xb[i] - exp_xb - lfactorial(Int(y[i]))
+        increment = y[i]*xb[i] - exp_xb #- lfactorial(Int(y[i]))
         logl += increment
+        # println(exp_xb)
     end
     return logl
 end
@@ -764,7 +783,7 @@ function regress(
     # Compute the score, information, and loglikelihood (obj).
     #
     BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
-    clamp!(z, -20.0, 20.0) 
+    clamp!(z, -100.0, 100.0) 
     if model == "logistic"
       z = exp.(-z)
       z = 1.0 ./ (1.0 .+ z)
@@ -800,7 +819,7 @@ function regress(
       obj = 0.0
       estimate = estimate + increment
       BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
-      clamp!(z, -20.0, 20.0)
+      clamp!(z, -100.0, 100.0)
       #
       # Compute the loglikelihood under the appropriate model.
       #
@@ -860,6 +879,17 @@ function initialize_beta!(
         v.b[i] = estimate[2]
     end
     v.c[1] = intercept / p
+    # v.b .= zeros(p)
+    # v.b[366] = 1.4
+    # v.b[1323] = -0.8
+    # v.b[1447] = -0.1
+    # v.b[1686] = -2.7
+    # v.b[2531] = 0.3
+    # v.b[3293] = 1.4 
+    # v.b[4951] = 0.4
+    # v.b[5078] = 0.1
+    # v.b[6180] = 0.5
+    # v.b[7048] = 0.2
 end
 # function initialize_beta!(
 #     b      :: AbstractVector{T},

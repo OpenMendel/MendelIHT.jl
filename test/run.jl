@@ -11,14 +11,14 @@ using LinearAlgebra
 Random.seed!(1111)
 
 #simulat data
-n = 5000
-p = 30000
+n = 2000
+p = 10000
 bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
 x = simulate_random_snparray(n, p, bernoulli_rates)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
 #specify true model size and noise of data
-k = 10              # number of true predictors
+k = 40              # number of true predictors
 s = 0.1            # noise vector
 
 #construct covariates (intercept) and true model b
@@ -75,7 +75,7 @@ using StatsFuns: logistic
 
 #simulat data
 n = 2000
-p = 20000
+p = 10100
 
 #set random seed
 Random.seed!(1111)
@@ -180,13 +180,7 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute poisson IHT result
-result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=true, true_beta=true_b)
-
-#examine initial guess
-# initial_b = result[correct_position]
-# compare_model = DataFrame(
-#     true_β      = true_model, 
-#     init_β = initial_b)
+result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=false, true_beta=true_b)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -201,11 +195,26 @@ println("Total time was " * string(result.time))
 
 
 #how to get predicted response?
-xb = zeros(y_temp)
-SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
+b = zeros(p)
+b[366] = 1.4
+b[1323] = -0.8
+b[1447] = -0.1
+b[1686] = -2.7
+b[2531] = 0.3
+b[3293] = 1.4 
+b[4951] = 0.4
+b[5078] = 0.1
+b[6180] = 0.5
+b[7048] = 0.2
+xb = xbm * b
 xb = exp.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
-[y xb]
 
+result = xbm * result.beta
+result = exp.(result)
+[y result xb]
+[y-result y-xb]
+sum(abs2, y-result), sum(abs2, y-xb) 
+abs.(y-result) .> abs.(y-xb)
 
 
 
