@@ -23,9 +23,7 @@ function _iht_gradstep(
 ##
     v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
     v.idc .= v.c .!= 0
-
-    # If the k'th largest component is not unique, warn the user.
-    sum(v.idx) <= J*k || warn("More than J*k components of b is non-zero! Need: VERY DANGEROUS DARK SIDE HACK!")
+    _choose!(v, J, k) # if more than J*k entries are selected, randomly choose J*k of them
 end
 
 """
@@ -42,7 +40,26 @@ function init_iht_indices!(
     a = sort([v.df; v.df2], rev=true)[k * J]
     v.idx .= v.df .>= a
     v.idc .= v.df2 .>= a
-    @assert sum(v.idx) + sum(v.idc) <= J * k "Did not initialize IHT correctly: more non-zero entries in model than J*k"
+    _choose!(v, J, k) # if more than J*k entries are selected, randomly choose J*k of them
+end
+
+"""
+randomly select top k entries if more than k entries are selected after projection (which happens when entries of b are equal to each other)
+"""
+function _choose!(
+    v :: IHTVariable{T},
+    J :: Int,
+    k :: Int;
+) where {T <: Float}
+    while sum(v.idx) + sum(v.idc) > J * k
+        num = sum(v.idx) + sum(v.idc) - J * k
+        idx_length = length(v.idx)
+        temp = [v.idx; v.idc]
+
+        nonzero_idx = findall(x -> x == true, temp)
+        pos = nonzero_idx[rand(1:length(nonzero_idx))] #randomly choose 1 to set to 0
+        pos > idx_length ? v.idc[pos - idx_length] = 0 : v.idx[pos] = 0
+    end
 end
 
 """
