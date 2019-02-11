@@ -1,14 +1,15 @@
 # IHT
 
 A Julia module that implements the (normalized) [iterative hard thresholding algorithm](http://eprints.soton.ac.uk/142499/1/BD_NIHT09.pdf) (IHT) of Blumensath and Davies.
-IHT performs [feature selection](https://en.wikipedia.org/wiki/Feature_selection) akin to [LASSO](https://en.wikipedia.org/wiki/Lasso_(statistics))- or [MCP](http://arxiv.org/pdf/1002.4734.pdf)-penalized regression using a greedy selection approach.
+IHT performs [feature selection](https://en.wikipedia.org/wiki/Feature_selection) akin to [LASSO](https://en.wikipedia.org/wiki/Lasso_(statistics)). Code for GLM models and structured regression is under development.
 
 ## Installation
 
-IHT.jl supports Julia 1.0. but is currently an unregistered package. To install, press `]` to enter package manager mode, and then install the following packages:
+IHT.jl supports Julia 1.0 and 1.1, but is currently an unregistered package. To install, press `]` to enter package manager mode, and then install the following packages:
 
 ```
-(v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl/
+(v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
 (v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
 (v1.0) pkg> add https://github.com/biona001/IHT.jl
 ```
@@ -17,7 +18,7 @@ The order of installation is important!
 
 ## Tutorials
 
-Detailed tutorials on the functionalities of IHT can be found inside the [docs](https://github.com/biona001/IHT.jl/tree/master/docs) folder. Open Mendel users should read the MendelIHT tutorial for a more focused demonstration. 
+A brief tutorial can be found in the [OpenMendel Tutorials](https://github.com/OpenMendel/Tutorials/blob/master/IHT/Mendel_IHT_tutorial.ipynb). More advanced functionalities does not have documentation yet, because they are still under development as of 2/11/2019.
 
 ## MISSING GENOTYPE:
 
