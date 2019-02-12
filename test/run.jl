@@ -421,303 +421,143 @@ println("Total time was " * string(result.time))
 
 
 
+#Below attempts to tests lasso against models that does not work with poisson
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function test(
-	p :: AbstractVector{Float64}, 
-	x :: SnpLike{2},
-	z :: AbstractMatrix{Float64},
-	b :: AbstractVector{Float64},
-	c :: AbstractVector{Float64}
-)
-	@inbounds @simd for i in eachindex(p)
-        xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
-        p[i] = e^xβ / (1 + e^xβ)
-    end
-end
-
-p = rand(100)
-x = SnpArray(rand(0:2, 100, 100))
-z = rand(100, 100)
-b = rand(100)
-c = rand(100)
-test(p, x, z, b, c)
-
-function test()
-	p = 1000000
-	k = 1000
-	x = rand(0:2, p)
-	β = zeros(p)
-	β[1:100] = randn(100)
-	shuffle!(β)
-	e^dot(x, β) / (1 + e^dot(x, β))
-end
-
-using BenchmarkTools
-srand(111)
-function test()
-	n = 100
-	M = zeros(n, n)
-	V = [rand(n, n) for _ in 1:40]
-	for i in 1:40
-		M = M + V[i]
-	end
-end
-@benchmark test()
-
-n = 100
-M = zeros(n, n)
-V = [rand(n, n) for _ in 1:40]
-function test(hi::Matrix{Float64}, hii::Vector{Matrix{Float64}})
-	for i in 1:40
-		hi = hi + hii[i]
-	end
-end
-test(M, V)
-
-n = 100
-M = zeros(n, n)
-V = [rand(n, n) for _ in 1:40]
-function test2(hi::Matrix{Float64}, hii::Vector{Matrix{Float64}})
-	for i in 1:40
-		hi .+= hii[i]
-	end
-end
-test2(M, V)
-
-
-using BenchmarkTools
-srand(111)
-function test2()
-	n = 100
-	M = zeros(n, n)
-	V = [rand(n, n) for _ in 1:40]
-	for i in 1:size(V, 1)
-		M .+= V[i]
-	end
-end
-@benchmark test2()
-
-
-
-using StatsFuns: logistic
-X = randn(1000, 2)
-Y = X * [2, 3] .+ 1
-p = logistic.(Y)
-y = Float64.(rand(length(p)) .< p)
-
-
-
-
-
-function inverse_link!{T <: Float64}(
-    p :: Vector{T},
-    xb :: Vector{T}
-)
-    @inbounds @simd for i in eachindex(p)
-        p[i] = 1.0 / (1.0 + e^(-xb[i]))
-    end
-end
-
-using StatsFuns: logistic
-p = zeros(1000000)
-xb = randn(1000000)
-inverse_link!(p, xb)
-p2 = logistic.(xb)
-
-all(p2 .== p)
-
-@benchmark inverse_link!(p, xb)
-@benchmark logistic.(xb)
-
-
-function test(x::Union{Vector{Int}, Vector{Float64}})
-	return sum(x)
-end
-
-z = zeros(1000)
-zz = zeros(1000)
-y = rand(1000)
-p = rand(1000)
-@benchmark z .= y - p
-@benchmark zz .= y .- p
-
-
-
-
-
-#load packages
+using Revise
+using Lasso
+using Distributions
+using DataFrames
+using Random
+using LinearAlgebra
+using GLMNet
 using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
-using BenchmarkTools
-p = 100000
+using StatsFuns: logistic
+using Random
+using LinearAlgebra
+
+#models that work well
+n, p = 1770, 10620
+
+#models that doesn't work (well)
+n, p = 1154, 5770 
+n, p = 1847, 3694
+n, p = 570, 2280
+
+Random.seed!(1111)
+
+#define maf and true model size
+bernoulli_rates = 0.5rand(p)
 k = 10
-s = 0.1
-n = 1000
 
 #construct snpmatrix, covariate files, and true model b
-x           = SnpArray(rand(0:2, n, p))    # a random snpmatrix
+x = simulate_random_snparray(n, p, bernoulli_rates)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z           = ones(n, 1)                   # non-genetic covariates, just the intercept
 true_b      = zeros(p)                     # model vector
 true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
 shuffle!(true_b)                           # Shuffle the entries
-correct_position = find(true_b)            # keep track of what the true entries are
-noise = rand(Normal(0, s), n)              # noise
+correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
 
-#compute mean and std used to standardize data to mean 0 variance 1
-mean_vec, minor_allele, = summarize(x)
-update_mean!(mean_vec, minor_allele, p)
-std_vec = std_reciprocal(x, mean_vec)
+# Simulate poisson data
+y_temp = xbm * true_b
+λ = exp.(y_temp) #inverse log link
+y = [rand(Poisson(x)) for x in λ]
+y = Float64.(y)
 
-#simulate phenotypes under different noises by: y = Xb + noise
-y_temp = zeros(n)
-SnpArrays.A_mul_B!(y_temp, x, true_b, mean_vec, std_vec)
-y = y_temp + noise
+#compute poisson IHT result
+iht_result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=false, true_beta=true_b)
 
-#compute IHT result for less noisy data
-v = IHTVariables(x, z, y, 1, k)
-hi = @benchmark L0_reg(v, x, z, y, 1, k)
+#compute poisson lasso result
+x_float = [convert(Matrix{Float64}, x, center=true, scale=true) z]
+path = glmnet(x_float, y, Poisson())
+cv = glmnetcv(x_float, y, Poisson())
+best = argmin(cv.meanloss)
+lasso_result = cv.path.betas[:, best]
 
-
-
-
-using LinearAlgebra
-using BenchmarkTools
-function old_logl(x :: Vector{Float64}, y :: Vector{Float64})
-	return dot(x, y) - sum(log.(1.0 .+ exp.(y))) 
-end
-function new_logl(x :: Vector{Float64}, y :: Vector{Float64})
-	logl = 0.0
-	for i in eachindex(x)
-		logl += x[i]*y[i] - log(1.0 + exp(y[i]))
-	end
-	return logl
-end
-x = rand(1000)
-y = rand(1000)
-old_logl(x, y) ≈ new_logl(x, y)
-@benchmark old_logl(x, y) #median = 33.845 μs
-@benchmark new_logl(x, y) #median = 34.986 μs
-
-
-
-using LinearAlgebra, SnpArrays, BenchmarkTools
-x = SnpArray(undef, 10000, 10000)
-xbm = SnpBitMatrix{Float64}(x, center=true, scale=true)
-Base.summarysize(x)   # 25640152
-Base.summarysize(xbm) # 25320360
-z = zeros(10000)
-y = rand(10000)
-@benchmark mul!(z, xbm, y) # 187.767 ms
-
-hi = @view x[1:1000, 1:1000]
-hibm = SnpBitMatrix{Float64}(hi) #this should work
-hibm = SnpBitMatrix{Float64}(hi, center=true) 
-
-x_mask = @view x[1:9999, 1:9999]
-xbm_mask = SnpBitMatrix{Float64}(x_mask, center=true, scale=true)
-Base.summarysize(x_mask)   # 25640152
-Base.summarysize(xbm_mask) # 25320360
-z = zeros(9999)
-y = rand(9999)
-@benchmark mul!(z, x_mask, y) # 187.767 ms
-
-
-
-using LinearAlgebra, SnpArrays, BenchmarkTools
-x = SnpArray(undef, 10000, 10000)
-x_subset = x[1:1000, 1:1000]
-x_subsetbm = SnpBitMatrix{Float64}(x_subset, center=true, scale=true)
-
-
-
-xbm = SnpBitMatrix{Float64}(x, center=true, scale=true);
-
-
-
-
-# testing _poisson_logl correctness
-using LinearAlgebra
-using SpecialFunctions
-using BenchmarkTools
-
-function old_poisson(y, xb)
-    return dot(y, xb) - sum(exp.(xb)) - sum(lfactorial.(Int.(y)))
-end
-
-function _poisson_logl(
-    y      :: Vector{T}, 
-    xb     :: Vector{T};
-) where {T <: Float64}
-    logl = 0.0
-    @inbounds for i in eachindex(y)
-        logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
-    end
-    return logl
-end
-
-y = rand(1.0:100.0, 1000)
-xb = rand(1000)
-
-# old_poisson(y, xb)
-@benchmark _poisson_logl($y, $xb)
+#check result
+IHT_model = iht_result.beta[correct_position]
+lasso_model = lasso_result[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    iht_β      		 = IHT_model,
+    lasso_β			 = lasso_model)
 
 
 
 
 
-function simulate_random_snparray(
-    n :: Int64,
-    p :: Int64,
-    d :: Distribution
-)
-    x_tmp = rand(dist, n, p)
-    x = SnpArray(undef, n, p)
-    for i in 1:(n*p)
-        if x_tmp[i] == 0
-            x[i] = 0x00
-        elseif x_tmp[i] == 1
-            x[i] = 0x02
-        else
-            x[i] = 0x03
-        end
-    end
-    return x
-end
 
-using Random, SnpArrays, Distributions
-Random.seed!(1111)
 
-x = simulate_random_snparray(1000, 1, Binomial(2, 0.5))
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-xbm_vector = convert(Matrix{Float64}, x)
 
-xbm.σinv
-1 / std(xbm_vector)
+
+
+
+
+
+#below are normal simulation for lasso
+n = 100
+p = 1000
+x = rand(n, p)
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+noise = rand(Normal(0, 0.1), n)
+y = x * true_b + noise
+
+#tried using Lasso.jl -> does not work due to POOR documentation
+# result = fit(LassoPath, x, y, Normal()) 
+
+#try using GLMNet now
+path = glmnet(x, y)
+cv = glmnetcv(x, y)
+best = argmin(cv.meanloss)
+result = cv.path.betas[:, best]
+
+estimated_models = result[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+
+
+
+
+
+
+
+
+#below are poisson simulation for lasso
+Random.seed!(2019)
+n = 120
+p = 1030
+x = rand(n, p)
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+
+y_temp = x * true_b
+λ = exp.(y_temp) #inverse log link
+y = [rand(Poisson(x)) for x in λ]
+y = Float64.(y)
+
+path = glmnet(x, y, Poisson())
+cv = glmnetcv(x, y, Poisson())
+best = argmin(cv.meanloss)
+result = cv.path.betas[:, best]
+
+estimated_models = result[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+
+
