@@ -49,27 +49,11 @@ function iht_poisson!(
     # update xb and zc with the new computed b and c, truncating bad guesses to avoid overflow
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-    clamp!(v.xb, -100, 100)
-    clamp!(v.zc, -100, 100)
-
-    # to prevent overflow of loglikelihood, we don't allow xβ to have entries larger than 20
-    # for i in eachindex(v.xb)
-    #     if v.xb[i] > 20.0
-    #         v.xb[i] = 20.0
-    #     end
-    # end
+    clamp!(v.xb, -20, 20)
+    clamp!(v.zc, -20, 20)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = compute_logl(v, y, glm)
-
-    # println(new_logl)
-    # println(μ)
-    # println(maximum(v.b))
-    # println(maximum(v.c))
-    # println(sum(v.df))
-    # println(sum(v.df2))
-    # println(sum(v.b))
-    # println(sum(v.c))
 
     μ_step = 0
     while _poisson_backtrack(v, new_logl, old_logl, μ_step, nstep)
@@ -88,8 +72,8 @@ function iht_poisson!(
         # recompute xb
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
         A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-        clamp!(v.xb, -100, 100)
-        clamp!(v.zc, -100, 100)
+        clamp!(v.xb, -20, 20)
+        clamp!(v.zc, -20, 20)
 
         # compute new loglikelihood again to see if we're now increasing
         new_logl = compute_logl(v, y, glm)
@@ -101,23 +85,6 @@ function iht_poisson!(
     isnan(new_logl) && throw(error("Loglikelihood is NaN, aborting..."))
     isinf(new_logl) && throw(error("Loglikelihood is Inf, aborting..."))
     isinf(μ) && throw(error("step size weird! it is $μ and max df is " * string(maximum(v.gk)) * "!!\n", color=:red))
-
-    #return machine precision if step size is smaller than that
-    # if μ < eps(T)
-    #     μ = eps(T) 
-    # end
-
-        # println(maximum(v.p))
-        # println(maximum(abs.(v.ymp)))
-        # println(maximum(v.b))
-        # println(maximum(v.c))
-        # println(maximum(v.xb))
-        # println(μ)
-        # println(μ_step)
-        # println(new_logl)
-        # println(size(findall(v.b .> 100)))
-        # println("reached here!")
-        # return ff
 
     return μ::T, μ_step::Int, new_logl::T
 end
@@ -153,7 +120,8 @@ function L0_poisson_reg(
     scale     :: Bool = false,
     convg     :: Bool = true, #use kevin's convergence criteria
     show_info :: Bool = true,
-    true_beta :: Vector{T} = ones(size(x, 2)),  # temporary, should be removed soon
+    init      :: Bool = false,
+    true_beta :: Vector{T} = ones(size(x, 2)), # temporary, should be removed soon
 ) where {T <: Float}
 
     start_time = time()
@@ -188,22 +156,21 @@ function L0_poisson_reg(
     # make the bit matrix 
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=scale);
 
-    #initiliaze model and compute xb
-    initialize_beta!(v, y, x, glm)
-    A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
-    clamp!(v.xb, -100, 100)
-    clamp!(v.zc, -100, 100)
+    #initialiaze model and compute xb
+    if init
+        initialize_beta!(v, y, x, glm)
+        A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+        clamp!(v.xb, -20, 20)
+        clamp!(v.zc, -20, 20)
+    end
 
     #compute the gradient
     update_df!(glm, v, x_bitmatrix, z, y)
 
     if show_info
-        # temp_df = DataFrame(β = v.b, gradient = v.df, true_β = true_beta)
         temp_df = DataFrame(true_β = true_beta, gradient = v.df, initial_β = v.b)
         @show sort(temp_df, rev=true, by=abs)[1:2k, :]
     end
-
-    # return ffff
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
@@ -239,7 +206,7 @@ function L0_poisson_reg(
             scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
             converged   = scaled_norm < tol && next_logl > -1e50
         else
-            convg = abs(next_logl - logl) < 1e-6 * (abs(logl) + 1.0) && next_logl > -1e50
+            convg = abs(next_logl - logl) < 1e-6 * (abs(logl) + 1.0)
         end
 
         if converged && mm_iter > 1
@@ -249,7 +216,7 @@ function L0_poisson_reg(
 
         if mm_iter == max_iter
             tot_time = time() - start_time
-            printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
+            show_info && printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * " seconds and model size was " * string(k), color=:red)
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end

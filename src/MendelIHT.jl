@@ -17,6 +17,7 @@ module MendelIHT
 	using Distributions
 	using SparseArrays
 	using DelimitedFiles
+	using GLM
 
 	export L0_reg, iht_path, cv_iht, MendelIHT, L0_logistic_reg, L0_poisson_reg
 	export IHTVariables, use_A2_as_minor_allele, make_snparray, regress

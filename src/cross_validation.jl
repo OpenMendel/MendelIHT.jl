@@ -282,7 +282,7 @@ function cv_iht(
 
     # find best model size and print cross validation result
     k = path[argmin(mses)] :: Int
-    print_cv_results(mses, path, k)
+    # print_cv_results(mses, path, k)
 
     return k
 end

@@ -9,19 +9,20 @@ function _iht_gradstep(
     k :: Int,
     temp_vec :: Vector{T}
 ) where {T <: Float}
-    #currently v.df is dense. We should only keep top 2k entries according to GraSP
-    # println(sum(v.df .!= 0))
+    #v.df is dense
     BLAS.axpy!(μ, v.df, v.b)  # take gradient step: b = b + μv, v = score
     BLAS.axpy!(μ, v.df2, v.c) # take gradient step: b = b + μv, v = score
-##
+
+    # copy v.b and v,c to temp_vec and project temp_vec
     length_b = length(v.b)
     temp_vec[1:length_b] .= v.b
     temp_vec[length_b+1:end] .= v.c
     project_group_sparse!(temp_vec, v.group, J, k) # project [v.b; v.c] to sparse vector
     v.b .= view(temp_vec, 1:length_b)
     v.c .= view(temp_vec, length_b+1:length(temp_vec))
-##
-    v.idx .= v.b .!= 0                        # find new indices of new beta that are nonzero
+
+    #recompute current support
+    v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
     _choose!(v, J, k) # if more than J*k entries are selected, randomly choose J*k of them
 end
@@ -44,7 +45,8 @@ function init_iht_indices!(
 end
 
 """
-randomly select top k entries if more than k entries are selected after projection (which happens when entries of b are equal to each other)
+if more than k entries are selected after projection, randomly select top k entries.
+This can happen if entries of b are equal to each other.
 """
 function _choose!(
     v :: IHTVariable{T},
@@ -398,29 +400,28 @@ uncompressed (float64) matrix. This means that they cannot be stored in the same
 structure. 
 """
 function At_mul_B!(
-    C1       :: AbstractVector{T},
-    C2       :: AbstractVector{T},
-    A1       :: SnpBitMatrix{T},
-    A2       :: AbstractMatrix{T},
-    B1       :: AbstractVector{T},
-    B2       :: AbstractVector{T},
+    C1 :: AbstractVector{T},
+    C2 :: AbstractVector{T},
+    A1 :: SnpBitMatrix{T},
+    A2 :: AbstractMatrix{T},
+    B1 :: AbstractVector{T},
+    B2 :: AbstractVector{T},
 ) where {T <: Float}
     SnpArrays.mul!(C1, A1', B1)
     LinearAlgebra.mul!(C2, A2', B2)
 end
 
 function At_mul_B!(
-    C1       :: AbstractVector{T},
-    C2       :: AbstractVector{T},
-    A1       :: AbstractMatrix{T},
-    A2       :: AbstractMatrix{T},
-    B1       :: AbstractVector{T},
-    B2       :: AbstractVector{T},
+    C1 :: AbstractVector{T},
+    C2 :: AbstractVector{T},
+    A1 :: AbstractMatrix{T},
+    A2 :: AbstractMatrix{T},
+    B1 :: AbstractVector{T},
+    B2 :: AbstractVector{T},
 ) where {T <: Float}
     LinearAlgebra.mul!(C1, A1', B1)
     LinearAlgebra.mul!(C2, A2', B2)
 end
-
 
 """
 This function calculates the score (gradient) for different glm models, and stores the
@@ -447,10 +448,7 @@ function update_df!(
         @. v.ymp = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     elseif glm == "poisson"
-        # _poisson_df!(v.p, v.xb + v.zc)
-        # println(maximum(v.p))
         @. v.p = exp(v.xb + v.zc)
-        # clamp!(v.p, -1e100, 1e100)
         @. v.ymp = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
     else
@@ -458,40 +456,8 @@ function update_df!(
     end
 end
 
-#normal approximation to large poisson rates
-function _poisson_df!(
-    Λ  :: AbstractVector{T},
-    xb :: AbstractVector{T}
-) where {T <: Float}
-    for i in eachindex(Λ)
-        λ = exp(xb[i])
-        if λ >= 20
-            Λ[i] = xb[i]
-            # println("original is " * string(exp(xb[i])) * " and approximated is " * string(xb[i]))
-        else
-            Λ[i] = λ
-        end
-        # λ >= 20 ? Λ[i] = xb[i] : Λ[i] = λ 
-    end
-end
-
-# """
-# This function calculates the inverse link of a glm model: p = g^{-1}( Xβ )
-
-# In poisson and logistic, the score (gradient) direction is X'(Y - P) where 
-# p_i depends on x and β. This function updates this P vector. 
-# """
-# function inverse_link!{T <: Float}(
-#     v :: IHTVariable{T}
-# )
-#     @inbounds @simd for i in eachindex(v.p)
-#         # xβ = dot(view(x.A1, i, :), b) + dot(view(x.A2, i, :), b) + dot(view(z, i, :), c)
-#         v.p[i] = 1.0 / (1.0 + e^(-v.xb[i] - v.zc[i])) #logit link
-#     end
-# end
-
 """
-This function computes the loglikelihood of a model β for a given glm response
+`compute_logl` computes the loglikelihood of a model β for a given glm response
 """
 function compute_logl(
     v      :: IHTVariable{T},
@@ -501,7 +467,6 @@ function compute_logl(
     if glm == "logistic"
         return _logistic_logl(y, v.xb + v.zc)
     elseif glm == "poisson"
-        # println(v.c)
         return _poisson_logl(y, v.xb + v.zc)
     else 
         error("compute_logl: currently only supports logistic and poisson")
@@ -525,21 +490,7 @@ function _poisson_logl(
 ) where {T <: Float64}
     logl = 0.0
     @inbounds for i in eachindex(y)
-
-        #normal approximation to poisson for big lambda
-        # if exp(xb[i]) >= 20 
-        #     logl += -0.5*(y[i] - xb[i])^2 - 0.5log(2π)
-        #     # println(string((y[i] - xb[i])^2))
-        #     # println("original is " * string(y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))) * " and normal approx is " * string(-(y[i] - xb[i])^2 - 0.5log(2π)))
-        # else
-        #     logl += y[i]*xb[i] - exp(xb[i]) - lfactorial(Int(y[i]))
-        # end
-
-        exp_xb = exp(xb[i])
-        # exp_xb = clamp(exp_xb), -1e100, 1e100)
-        increment = y[i]*xb[i] - exp_xb #- lfactorial(Int(y[i]))
-        logl += increment
-        # println(exp_xb)
+        logl += y[i]*xb[i] - exp(xb[i])
     end
     return logl
 end
@@ -661,18 +612,18 @@ function regress(
     obj = - 0.5 * n * log(sum(abs2, y - z) / n) - 0.5 * n
     return (estimate, obj)
   end
-  #
-  # Prepare for logistic and Poisson regression by estimating the 
-  # intercept.
-  #
-  if model == "logistic"
-    estimate[1] = log(mean(y) / (1.0 - mean(y)))
-  elseif model == "poisson"
-    estimate[1] = log(mean(y))
-  else
-    throw(ArgumentError(
-      "The only model choices are linear, logistic, and Poisson.\n \n"))
-  end
+          # #
+          # # Prepare for logistic and Poisson regression by estimating the 
+          # # intercept.
+          # #
+          # if model == "logistic"
+          #   estimate[1] = log(mean(y) / (1.0 - mean(y)))
+          # elseif model == "poisson"
+          #   estimate[1] = log(mean(y))
+          # else
+          #   throw(ArgumentError(
+          #     "The only model choices are linear, logistic, and Poisson.\n \n"))
+          # end
   #
   # Initialize the loglikelihood and the convergence criterion.
   #
@@ -693,7 +644,7 @@ function regress(
     # Compute the score, information, and loglikelihood (obj).
     #
     BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
-    clamp!(z, -100.0, 100.0) 
+    clamp!(z, -20.0, 20.0) 
     if model == "logistic"
       z = exp.(-z)
       z = 1.0 ./ (1.0 .+ z)
@@ -729,7 +680,7 @@ function regress(
       obj = 0.0
       estimate = estimate + increment
       BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
-      clamp!(z, -100.0, 100.0)
+      clamp!(z, -20.0, 20.0)
       #
       # Compute the loglikelihood under the appropriate model.
       #
@@ -771,6 +722,11 @@ function regress(
   return (estimate, obj)
 end # function regress
 
+"""
+When initilizing the model β, we fit a bivariate regression with the given covariate and 
+the intercept. Fitting is done using scoring (newton) algorithm. The average of the 
+intercept is used as the its own initial guess. 
+"""
 function initialize_beta!(
     v :: IHTVariable{T},
     y :: AbstractVector{T},
@@ -778,120 +734,14 @@ function initialize_beta!(
     glm :: String,
 ) where {T <: Float}
     n, p = size(x)
-    temp_vec = zeros(n)
-    temp_matrix = ones(n, 2)
+    temp_matrix = ones(n, 2) #2 by p matrix of the intercept + the covariate
     intercept = 0.0
     for i in 1:p
         copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
-        all(temp_matrix[:, 2] .== 0) && continue
+        # all(temp_matrix[:, 2] .== 0) && continue
         (estimate, obj) = regress(temp_matrix, y, glm)
         intercept += estimate[1]
         v.b[i] = estimate[2]
     end
     v.c[1] = intercept / p
-    # v.b .= zeros(p)
-    # v.b[366] = 1.4
-    # v.b[1323] = -0.8
-    # v.b[1447] = -0.1
-    # v.b[1686] = -2.7
-    # v.b[2531] = 0.3
-    # v.b[3293] = 1.4 
-    # v.b[4951] = 0.4
-    # v.b[5078] = 0.1
-    # v.b[6180] = 0.5
-    # v.b[7048] = 0.2
-end
-# function initialize_beta!(
-#     b      :: AbstractVector{T},
-#     x      :: SnpArray,
-#     mean_y :: T
-# ) where {T <: Float}
-
-#     n = size(x, 1)
-#     snp_counts = zeros(n)
-#     for i in 1:size(x, 2)
-#         copyto!(snp_counts, @view x[:, i])
-#         aa = sum(snp_counts .== 2) / n
-#         bb = sum(snp_counts .== 1) / n
-#         cc = sum(snp_counts .== 0) / n - (mean_y / exp(mean_y))
-
-#         #solve ax^2 + bx + c = 0, or bx + c = 0, or if no minor allele present at all, b[i] = 0
-#         if aa == 0 && bb == 0
-#             b[i] = 0.0
-#         elseif bb == -cc / bb
-#             b[i] = -cc / bb
-#         else 
-#             b[i] = log(quasi_quadratic(aa, bb, cc))
-#         end
-#     end
-# end
-
-# function quasi_quadratic(
-#     a :: T, 
-#     b :: T, 
-#     c :: T
-# ) where {T <: Float64}
-#     discr = b^2 - 4*a*c
-#     if discr < 0
-#         return 1.0
-#     else 
-#         x1 = (-b + sqrt(discr)) / (2*a)
-#         x2 = (-b - sqrt(discr)) / (2*a)
-
-#         #if both solution positive, return smaller one. If both negative, return 1. Otherwise return positive solution
-#         if x1 <= 0 && x2 <= 0
-#             return 1.0
-#         elseif xor(x1 <= 0, x2 <= 0)
-#             return max(x1, x2)
-#         else
-#             return min(x1, x2)
-#         end
-#     end
-# end
-
-function order_mag(n :: Float64)
-    order = 0
-    while abs(n) >= 1.0
-        n /= 10
-        order += 1
-    end
-    return order
-end
-
-function adhoc_scale_down(
-    v :: IHTVariable{T},
-    m :: Int64,
-    s :: Bool
-) where {T <: Float}
-    s && printstyled("estimated model has entries > 10 at iteration $m. Scaling all entries downward...\n", color=:red)
-    # max_order = order_mag(maximum(v.b))
-    # v.b ./= 10^max_order
-    # v.c ./= 10^max_order
-    # v.xb ./= 10^max_order
-    # v.zc ./= 10^max_order
-    # v.df ./= 10^max_order
-    # v.df2 ./= 10^max_order
-    # @. v.p = exp(v.xb + v.zc) #recompute mean function
-    # println("max v.p = " * string(maximum(v.p)))
-
-    # v.b ./= 10
-    # v.c ./= 10
-    # v.xb ./= 10
-    # v.zc ./= 10
-    # v.df ./= 10
-    # v.df2 ./= 10
-
-    # v.b ./= 10
-    # v.c ./= 10
-    # v.xb ./= 10
-    # v.zc ./= 10
-    # v.df ./= exp(0.1)
-    # v.df2 ./= exp(0.1)
-
-    v.b ./= 2
-    v.c ./= 2
-    v.xb ./= 2
-    v.zc ./= 2
-    v.df ./= exp(0.5)
-    v.df2 ./= exp(0.5)
 end

@@ -165,9 +165,11 @@ function L0_logistic_reg(
         isinf(next_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
 
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
-        if debias && sum(v.idx) == size(v.xk, 2)
+        if debias && sum(v.idx) == size(v.xk, 2) && mm_iter >= 10
             (β, obj) = regress(v.xk, y, glm)
             view(v.b, v.idx) .= β
+            # test_result = GLM.glm(v.xk, y, Binomial(), LogitLink()) #GLM package doesn't work idk why
+            # test_result = test_result.pp.beta0
         end
 
         #print information about current iteration

@@ -74,8 +74,8 @@ using LinearAlgebra
 using StatsFuns: logistic
 
 #simulat data
-n = 2000
-p = 10100
+n = 20
+p = 100
 
 #set random seed
 Random.seed!(1111)
@@ -139,48 +139,31 @@ using StatsFuns: logistic
 using Random
 using LinearAlgebra
 
-
-#sizes that does not work (well):
-# n, p = 999, 10000
-# n, p = 2999, 10000
-# n, p = 2000, 20001
-# n, p = 140, 420
-
 #simulat data
 n = 2000
-p = 10001 #20001 does not work!
+p = 20000
+k = 10 # number of true predictors
 
 #set random seed
 Random.seed!(1111)
 
-k = 10 # number of true predictors
-bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
-
-#prevent rare alleles from entering model
-# clamp!(bernoulli_rates, 0.1, 1.0)
-x = simulate_random_snparray(n, p, bernoulli_rates)
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-
 #construct snpmatrix, covariate files, and true model b
-z           = ones(n, 1)                   # non-genetic covariates, just the intercept
-true_b      = zeros(p)                     # model vector
-true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
-shuffle!(true_b)                           # Shuffle the entries
-correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
-
-#check maf
-bernoulli_rates[correct_position]
-
-#simulate phenotypes under different noises by: y = Xb + noise
-y_temp = xbm * true_b
+x, maf = simulate_random_snparray(n, p)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = rand(Normal(0, 0.25), k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
 
 # Simulate poisson data
+y_temp = xbm * true_b
 λ = exp.(y_temp) #inverse log link
 y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute poisson IHT result
-result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=false, true_beta=true_b)
+result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=true, convg=true, show_info=false, true_beta=true_b, scale=false, init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -191,31 +174,6 @@ compare_model = DataFrame(
     estimated_β      = estimated_models)
 println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
-
-
-
-#how to get predicted response?
-b = zeros(p)
-b[366] = 1.4
-b[1323] = -0.8
-b[1447] = -0.1
-b[1686] = -2.7
-b[2531] = 0.3
-b[3293] = 1.4 
-b[4951] = 0.4
-b[5078] = 0.1
-b[6180] = 0.5
-b[7048] = 0.2
-xb = xbm * b
-xb = exp.(xb) #apply inverse link: E(Y) = g^-1(Xβ)
-
-result = xbm * result.beta
-result = exp.(result)
-[y result xb]
-[y-result y-xb]
-sum(abs2, y-result), sum(abs2, y-xb) 
-abs.(y-result) .> abs.(y-xb)
-
 
 
 
@@ -390,8 +348,8 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #specify path and folds
-path = collect(1:20)
-num_folds = 5
+path = collect(5:15)
+num_folds = 3
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
@@ -533,10 +491,19 @@ compare_model = DataFrame(
 
 
 
+using Revise
+using Lasso
+using Distributions
+using DataFrames
+using Random
+using LinearAlgebra
+using GLMNet
+
 #below are poisson simulation for lasso
 Random.seed!(2019)
-n = 120
+n = 500
 p = 1030
+k = 10
 x = rand(n, p)
 true_b = zeros(p)
 true_b[1:k] = randn(k)
@@ -548,8 +515,8 @@ y_temp = x * true_b
 y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
-path = glmnet(x, y, Poisson())
-cv = glmnetcv(x, y, Poisson())
+path = glmnet(x, y, Poisson(), dfmax=20)
+cv = glmnetcv(x, y, Poisson(), dfmax=20, nfolds=5)
 best = argmin(cv.meanloss)
 result = cv.path.betas[:, best]
 
@@ -559,5 +526,5 @@ compare_model = DataFrame(
     correct_position = correct_position, 
     true_β           = true_model, 
     estimated_β      = estimated_models)
-
+println("best model has " * string(length(findall(!iszero, result))) * " predictors")
 
