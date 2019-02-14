@@ -66,9 +66,7 @@ end
 In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
 included/excluded, we must resize xk, gk, store2, and store3. 
 """
-function check_covariate_supp!(
-    v       :: IHTVariable{T},
-) where {T <: Float}
+function check_covariate_supp!(v :: IHTVariable{T}) where {T <: Float}
     if sum(v.idx) != size(v.xk, 2)
         v.xk = zeros(T, size(v.xk, 1), sum(v.idx))
         v.gk = zeros(T, sum(v.idx))
@@ -78,9 +76,7 @@ end
 """
 this function calculates the omega (here a / b) used for determining backtracking
 """
-function _iht_omega(
-    v :: IHTVariable{T}
-) where {T <: Float}
+function _iht_omega(v :: IHTVariable{T}) where {T <: Float}
     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
     b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
     return a, b
@@ -128,17 +124,8 @@ function _poisson_backtrack(
     mu_step   :: Int,
     nstep     :: Int
 ) where {T <: Float}
-    # mu_step < nstep    &&
-    # prev_logl > logl   ||
-    # maximum(v.c) > 10  ||
-    # maximum(v.b) > 10  ||
-    # logl < -10e100
-
     mu_step >= nstep  && return false
     prev_logl > logl && return true
-    # logl < -1e100    && return true
-
-    # prev_logl > logl && mu_step < nstep 
 end
 
 """
@@ -328,25 +315,6 @@ function _poisson_stepsize(
     # compute step size. Note non-genetic covariates are separated from x
     μ = (numer / denom) :: T
 end
-
-# function _poisson_stepsize_full(
-#     v :: IHTVariable{T},
-#     x :: SnpArray,
-#     z :: AbstractMatrix{T},
-# ) where {T <: Float}
-
-#     xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-
-#     #compute full [X Z] * [df; df2]
-#     A_mul_B!(v.xgk, v.zdf2, xbm, z, v.df, v.df2)
-
-#     #compute denominator and numerator of step size
-#     denom = Transpose(v.xgk + v.zdf2) * (Diagonal(v.p) * (v.xgk + v.zdf2))
-#     numer = sum(abs2, v.gk) + sum(abs2, v.df2)
-
-#     # compute step size. Note non-genetic covariates are separated from x
-#     μ = (numer / denom) :: T
-# end
 
 # function normalize!(
 #     X        :: AbstractMatrix{T},
@@ -583,28 +551,43 @@ This is for testing purposes only.
 function simulate_random_snparray(
     n :: Int64,
     p :: Int64,
-    r :: Vector{Float64}, #minor allele frequencies
 )
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
     x_tmp = zeros(UInt8, n, p)
-    sample_genotype = Vector{UInt8}(undef, p)
+    snps = zeros(UInt8, n)
+    mafs = zeros(Float64, p)
     for j in 1:p
-        for i in 1:n
-            x_tmp[i, j] = convert(UInt8, rand(Binomial(2, r[j])))
-        end
+        mafs[j] = _generate_binomials!(snps)
+        x_tmp[:, j] .= snps
     end
 
-     #fill the SnpArray with the corresponding x_tmp entry
-    return _make_snparray(x_tmp)
+    #fill the SnpArray with the corresponding x_tmp entry
+    return _make_snparray(x_tmp), mafs
 end
 
- """
+"""
+For each sample, generate a minor allele count of {0, 1, 2} with maf ∈ (0, 0.5).
+If 5 or less minor allele is present in whole sample, regenerate with a different maf. 
+"""
+function _generate_binomials!(snps :: Vector{UInt8})
+    n = length(snps)
+    minor_alleles = 0
+    maf = 0
+    while minor_alleles <= 5
+        maf = 0.5rand()
+        for i in 1:n
+            snps[i] = convert(UInt8, rand(Binomial(2, maf)))
+        end
+        minor_alleles = sum(snps)
+    end
+    return maf
+end
+
+"""
 Make a random SnpArray based on given Matrix{Float64} of 0~2.
 This is for testing purposes only. 
 """
-function _make_snparray(
-    x_temp :: Matrix{Float64}
-)
+function _make_snparray(x_temp :: Matrix{Float64})
     n, p = size(x_temp)
     x = SnpArray(undef, n, p)
     for i in 1:(n*p)
@@ -621,12 +604,10 @@ function _make_snparray(
     return x
 end
 
- """
+"""
 Make a SnpArray from a matrix of UInt8. This is for testing purposes only. 
 """
-function _make_snparray(
-    x_temp :: AbstractMatrix{UInt8}
-)
+function _make_snparray(x_temp :: AbstractMatrix{UInt8})
     n, p = size(x_temp)
     x = SnpArray(undef, n, p)
     for i in 1:(n*p)
@@ -642,95 +623,6 @@ function _make_snparray(
     end
     return x
 end
-
-# """
-# This code belongs to MendelBase in v0.7. 
-# 
-# Performs generalized linear regression. X is the design matrix, y is 
-# the response vector, meanf is the value and derivative of the inverse 
-# link, and varf is the variance function of the mean.
-# """
-# function fitglm(
-#     X             :: Matrix{T}, 
-#     y             :: Vector{T}, 
-#     meanf         :: Function, 
-#     varf          :: Function,
-#     loglikelihood :: Function
-# ) where {T <: Float}
-# #
-#   (n, p) = size(X)
-#   @assert n == length(y)
-#   (score, inform, β) = (zeros(p), zeros(p, p), zeros(p))
-#   (x, z) = (zeros(p), zeros(n))
-#   ybar = mean(y)
-#   for iteration = 1:20 # find the intercept by Newton's method
-#     g = meanf(β[1])
-#     β[1] = β[1] - clamp((g[1] - ybar) / g[2], -1.0, 1.0)
-#     if abs(g[1] - ybar) < 1e-10
-#       break
-#     end
-#   end
-#   (obj, old_obj, c, v) = (0.0, 0.0, 0.0, 0.0)
-#   epsilon = 1e-8
-#   for iteration = 1:100 # scoring algorithm
-#     fill!(score, 0.0)
-#     fill!(inform, 0.0)
-#     mul!(z, X, β) # z = X * β
-#     for i = 1:n
-#       f = meanf(z[i])
-#       v = varf(f[1])
-#       c = ((y[i] - f[1]) / v) * f[2]
-#       copyto!(x, X[i, :])
-#       BLAS.axpy!(c, x, score) # score = score + c * x
-#       c = f[2]^2 / v
-#       BLAS.ger!(c, x, x, inform) # inform = inform + c * x * x'
-#     end
-#     increment = inform \ score
-#     β = β + increment
-#     steps = -1
-#     fill!(score, 0.0)
-#     for step_halve = 0:3 # step halving
-#       obj = 0.0
-#       mul!(z, X, β) # z = X * β
-#       steps = steps + 1
-#       for i = 1:n
-#         f = meanf(z[i])
-#         v = varf(f[1])
-#         c = ((y[i] - f[1]) / v) * f[2]
-#         copyto!(x, X[i, :])
-#         BLAS.axpy!(c, x, score) # score = score + c * x
-#         obj = obj + loglikelihood(y[i], f[1]) 
-#       end
-#       if obj > old_obj
-#         break
-#       else
-#         β = β - increment
-#         increment = 0.5 * increment
-#       end
-#     end
-#     # println(iteration," ",old_obj," ",obj," ",steps)
-#     if iteration > 1 && abs(obj - old_obj) < epsilon * (abs(old_obj) + 1.0)
-#         println("completed fitting")
-#       return β, obj
-#     else
-#       old_obj = obj
-#     end
-#   end
-#   return β, obj
-# end # function glm
-
-# function PoissonMean(u)
-#   p = exp(u)
-#   return [p, p]
-# end
-
-# function PoissonVar(mu)
-#   return mu
-# end
-
-# function PoissonLoglikelihood(y, mu)
-#   y * log(mu) - mu 
-# end
 
 """
 Performs generalized linear regression. X is the design matrix, y is 
