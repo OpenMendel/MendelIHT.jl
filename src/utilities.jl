@@ -445,12 +445,12 @@ function update_df!(
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     elseif glm == "logistic"
         @. v.p = logistic(v.xb + v.zc)
-        @. v.ymp = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
+        @. v.r = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     elseif glm == "poisson"
         @. v.p = exp(v.xb + v.zc)
-        @. v.ymp = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, v.ymp, v.ymp)
+        @. v.r = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     else
         throw(error("computing gradient for an unsupport glm method: " * glm))
     end
@@ -738,7 +738,6 @@ function initialize_beta!(
     intercept = 0.0
     for i in 1:p
         copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
-        # all(temp_matrix[:, 2] .== 0) && continue
         (estimate, obj) = regress(temp_matrix, y, glm)
         intercept += estimate[1]
         v.b[i] = estimate[2]

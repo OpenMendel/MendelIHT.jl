@@ -13,7 +13,7 @@ mutable struct IHTVariable{T <: Float}
     idx0  :: BitVector     # previous iterate of idx
     idc   :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
     idc0  :: BitVector     # previous iterate of idc
-    r     :: Vector{T}     # n-vector of residuals
+    r     :: Vector{T}     # y - g^-1(Xβ), denoting the residuals. Arise as calculation in fisher's information matrix
     df    :: Vector{T}     # the gradient portion of the genotype part: df = ∇f(β) = snpmatrix * (y - xb - zc)
     df2   :: Vector{T}     # the gradient portion of the non-genetic covariates: covariate matrix * (y - xb - zc)
     c     :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
@@ -23,7 +23,6 @@ mutable struct IHTVariable{T <: Float}
     zdf2  :: Vector{T}     # z * df2. needed to calculate non-genetic covariate contribution for denomicator of step size 
     group :: Vector{Int64} # vector denoting group membership
     p     :: Vector{T}     # vector storing the mean of a glm: p = g^{-1}( Xβ )
-    ymp   :: Vector{T}     # y - p, arises as calculation in fisher's information matrix
 end
 
 function IHTVariables(
@@ -59,9 +58,8 @@ function IHTVariables(
     zdf2  = zeros(T, n)
     group = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
     p     = zeros(T, n)
-    ymp   = zeros(T, n)
 
-    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p, ymp)
+    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p)
 end
 
 """
