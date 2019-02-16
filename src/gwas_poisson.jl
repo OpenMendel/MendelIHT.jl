@@ -183,7 +183,9 @@ function L0_poisson_reg(
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)
             (β, obj) = regress(v.xk, y, glm)
-            all(β .≈ 0) || view(v.b, v.idx) .= β
+            if !all(β .≈ 0)
+                view(v.b, v.idx) .= β
+            end
         end
 
         #print information about current iteration
@@ -194,9 +196,6 @@ function L0_poisson_reg(
             @show sort(temp_df, rev=true, by=abs)[1:2k, :]
         end
 
-        #if current model is very bad, we scale down everything
-        # maximum(v.b) >= 7 && adhoc_scale_down(v, mm_iter, show_info)
-
         # update score (gradient) and p vector for next iteration using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
 
@@ -204,9 +203,9 @@ function L0_poisson_reg(
         if convg
             the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
             scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-            converged   = scaled_norm < tol && next_logl > -1e50
+            converged   = scaled_norm < tol
         else
-            convg = abs(next_logl - logl) < 1e-6 * (abs(logl) + 1.0)
+            converged = abs(next_logl - logl) < tol
         end
 
         if converged && mm_iter > 1

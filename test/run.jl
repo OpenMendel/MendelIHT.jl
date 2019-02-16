@@ -74,37 +74,30 @@ using LinearAlgebra
 using StatsFuns: logistic
 
 #simulat data
-n = 20
-p = 100
+n = 2000
+p = 10000
+k = 10 # number of true predictors
 
 #set random seed
 Random.seed!(1111)
 
-k = 10 # number of true predictors
-bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
-x = simulate_random_snparray(n, p, bernoulli_rates)
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
 
-#construct covariates (intercept) and true model b
-z = ones(n, 1)          # non-genetic covariates, just the intercept
-true_b = zeros(p)       # model vector
-true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
-shuffle!(true_b)        # Shuffle the entries
-correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
-
-#simulate phenotypes (e.g. vector y) via: y = Xb
+#simulate bernoulli data
 y_temp = xbm * true_b
-
-# Apply inverse logit link and sample from the vector of distributions
 prob = logistic.(y_temp) #inverse logit link
 y = [rand(Bernoulli(x)) for x in prob]
 y = Float64.(y)
 
 #compute logistic IHT result
-# result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic")
-result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info=true)
-
-# @benchmark L0_logistic_reg(v, x, z, y, 1, k, glm = "logistic") seconds = 30
+result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info=false, convg=true,init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -142,7 +135,7 @@ using LinearAlgebra
 #simulat data
 n = 2000
 p = 20000
-k = 10 # number of true predictors
+k = 30 # number of true predictors
 
 #set random seed
 Random.seed!(1111)
@@ -152,7 +145,7 @@ x, maf = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # non-genetic covariates, just the intercept
 true_b = zeros(p)
-true_b[1:k] = rand(Normal(0, 0.25), k)
+true_b[1:k] = rand(Normal(0, 0.4), k)
 shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 
@@ -163,7 +156,7 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute poisson IHT result
-result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=true, convg=true, show_info=false, true_beta=true_b, scale=false, init=false)
+result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=true, convg=false, show_info=false, true_beta=true_b, scale=false, init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -248,28 +241,26 @@ using BenchmarkTools
 using Random
 using LinearAlgebra
 
-#set random seed
-Random.seed!(1111)
 
 #simulat data
 n = 2000
 p = 20000
 k = 12    # number of true predictors
-bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
-x = simulate_random_snparray(n, p, bernoulli_rates)
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
-#construct covariates (intercept) and true model b
-z = ones(n, 1)          # non-genetic covariates, just the intercept
-true_b = zeros(p)       # model vector
-true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
-shuffle!(true_b)        # Shuffle the entries
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z           = ones(n, 1)                   # non-genetic covariates, just the intercept
+true_b      = zeros(p)                     # model vector
+true_b[1:k] = rand(Normal(0, 0.25), k)     # k true response
+shuffle!(true_b)                           # Shuffle the entries
 correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
 
-#simulate phenotypes: y = Xb
+#simulate bernoulli data
 y_temp = xbm * true_b
-
-# Apply inverse logit link and sample from the vector of distributions
 prob = logistic.(y_temp) #inverse logit link
 y = [rand(Bernoulli(x)) for x in prob]
 y = Float64.(y)
@@ -281,7 +272,6 @@ folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
 k_est = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)
-
 
 #compute l0 result using best estimate for k
 l0_result = L0_logistic_reg(x, z, y, 1, k_est, glm = "logistic", debias=true, show_info=false)
@@ -295,6 +285,9 @@ compare_model = DataFrame(
     estimated_β      = estimated_models)
 println("Total iteration number was " * string(l0_result.iter))
 println("Total time was " * string(l0_result.time))
+
+
+
 
 
 

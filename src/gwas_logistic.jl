@@ -80,6 +80,10 @@ function iht_logistic!(
         μ_step += 1
     end
 
+    isnan(new_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
+    isinf(new_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
+    isinf(μ) && throw(error("step size weird! it is $μ and max df is " * string(maximum(v.gk)) * "!!\n", color=:red))
+
     return μ::T, μ_step::Int, new_logl::T
 end
 
@@ -107,10 +111,12 @@ function L0_logistic_reg(
     glm       :: String = "normal",
     tol       :: T = 1e-4,
     max_iter  :: Int = 1000,
-    max_step  :: Int = 50,
+    max_step  :: Int = 3,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
-    debias    :: Bool = true,
-    show_info :: Bool = true
+    debias    :: Bool = false,
+    show_info :: Bool = false,
+    init      :: Bool = false,
+    convg     :: Bool = false,
 ) where {T <: Float}
 
     start_time = time()
@@ -142,14 +148,15 @@ function L0_logistic_reg(
     
     # Begin IHT calculations
     v = IHTVariables(x, z, y, J, k)
-    # fill!(v.xb, 0.0)     #initialize β = 0 vector, so Xβ = 0
 
     # make the bit matrix 
     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
     
     #initiliaze model and compute xb
-    # initialize_beta!(v, y, x, glm)
-    # A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+    if init
+        initialize_beta!(v, y, x, glm)
+        A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+    end
 
     # Calculate the score
     update_df!(glm, v, x_bitmatrix, z, y)
@@ -161,13 +168,13 @@ function L0_logistic_reg(
 
         #calculate the step size μ and check loglikelihood is not NaN or Inf
         (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
-        isnan(next_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
-        isinf(next_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
 
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
-        if debias && sum(v.idx) == size(v.xk, 2) && mm_iter >= 10
+        if debias && sum(v.idx) == size(v.xk, 2)
             (β, obj) = regress(v.xk, y, glm)
-            view(v.b, v.idx) .= β
+            if !all(β .≈ 0)
+                view(v.b, v.idx) .= β
+            end
             # test_result = GLM.glm(v.xk, y, Binomial(), LogitLink()) #GLM package doesn't work idk why
             # test_result = test_result.pp.beta0
         end
@@ -182,11 +189,14 @@ function L0_logistic_reg(
         # update score (gradient) and p vector using stepsize μ 
         update_df!(glm, v, x_bitmatrix, z, y)
 
-        # track convergence
-        # the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
-        # scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        # converged   = scaled_norm < tol
-        converged = abs(next_logl - logl) < tol
+        # track convergence using kevin or ken's converegence criteria
+        if convg
+            the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
+            scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
+            converged   = scaled_norm < tol
+        else
+            converged = abs(next_logl - logl) < tol
+        end
 
         if converged && mm_iter > 1
             tot_time = time() - start_time
