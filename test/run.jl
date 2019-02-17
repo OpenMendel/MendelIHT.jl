@@ -1,4 +1,5 @@
 #BELOW ARE NORMAL SIMUATIONS
+using Revise
 using MendelIHT
 using SnpArrays
 using DataFrames
@@ -7,33 +8,29 @@ using BenchmarkTools
 using Random
 using LinearAlgebra
 
+#simulat data
+n = 4000
+p = 1010
+k = 7 # number of true predictors
+
 #set random seed
 Random.seed!(1111)
 
-#simulat data
-n = 2000
-p = 10000
-bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
-x = simulate_random_snparray(n, p, bernoulli_rates)
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-
-#specify true model size and noise of data
-k = 40              # number of true predictors
-s = 0.1            # noise vector
-
-#construct covariates (intercept) and true model b
-z = ones(n, 1)          # non-genetic covariates, just the intercept
-true_b = zeros(p)       # model vector
-true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
-shuffle!(true_b)        # Shuffle the entries
-correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
-noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s) 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s) 
 
 #simulate phenotypes (e.g. vector y) via: y = Xb + noise
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-result = L0_reg(x, z, y, 1, k, debias=false)
+result = L0_normal_reg(x, z, y, 1, k, debias=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -44,6 +41,24 @@ compare_model = DataFrame(
     estimated_β      = estimated_models)
 println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
+
+
+
+
+result = L0_reg(x, z, y, 1, k, debias=false)
+#check result
+estimated_models = result.beta[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
+
+
+
+
 
 #how to get predicted response?
 xb = zeros(y_temp)
@@ -75,7 +90,7 @@ using StatsFuns: logistic
 
 #simulat data
 n = 2000
-p = 10000
+p = 20000
 k = 10 # number of true predictors
 
 #set random seed
@@ -135,7 +150,7 @@ using LinearAlgebra
 #simulat data
 n = 2000
 p = 20000
-k = 30 # number of true predictors
+k = 10 # number of true predictors
 
 #set random seed
 Random.seed!(1111)

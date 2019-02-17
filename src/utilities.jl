@@ -101,6 +101,15 @@ function _normal_backtrack(
     mu_step < nstep
 end
 
+function _normal_backtrack2(
+    logl      :: T, 
+    prev_logl :: T,
+    mu_step   :: Int,
+    nstep     :: Int
+) where {T <: Float}
+    prev_logl > logl && mu_step < nstep 
+end
+
 """
 this function for determining whether or not to backtrack for logistic regression. True = backtrack
 """
@@ -257,6 +266,25 @@ end
 """
 This function computes the best step size μ for normal responses. 
 """
+function _normal_stepsize(
+    v        :: IHTVariable{T},
+    z        :: AbstractMatrix{T},
+) where {T <: Float}
+    # store relevant components of gradient (gk is numerator of step size). 
+    v.gk .= view(v.df, v.idx)
+
+    # compute the denominator of step size using only relevant components
+    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
+
+    # warn if xgk only contains zeros
+    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+
+    # compute step size. Note non-genetic covariates are separated from x
+    μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
+
+    return μ
+end
+
 function _iht_stepsize(
     v        :: IHTVariable{T},
     z        :: AbstractMatrix{T},
@@ -270,11 +298,8 @@ function _iht_stepsize(
     # warn if xgk only contains zeros
     all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
 
-    # compute step size. Note intercept is separated from x, so gk & xgk is missing an extra entry equal to 1^T (y-Xβ-intercept) = sum(v.r)
+    # compute step size. Note non-genetic covariates are separated from x
     μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
-
-    # check for finite stepsize
-    isfinite(μ) || throw(error("Step size is not finite, check if active set is all zero or if your SnpArray have missing values."))
 
     return μ
 end
@@ -292,11 +317,12 @@ function _logistic_stepsize(
     v.gk .= view(v.df, v.idx)
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
-    #compute denominator of step size
+    #compute denominator of step size. Note non-genetic covariates are separated from x
     denom = (v.xgk + v.zdf2)' * ((v.p .* (1 .- v.p)) .* (v.xgk + v.zdf2))
+    numer = (sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
 
-    # compute step size. Note non-genetic covariates are separated from x
-    μ = ((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / denom) :: T
+    # compute step size. 
+    μ = (numer / denom) :: T
 
     return μ
 end
@@ -310,12 +336,14 @@ function _poisson_stepsize(
     v.gk .= view(v.df, v.idx)
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
-    #compute denominator and numerator of step size
+    #compute denominator and numerator of step size. Note non-genetic covariates are separated from x
     denom = (v.xgk + v.zdf2)' * (v.p .* (v.xgk + v.zdf2))
     numer = (sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
 
-    # compute step size. Note non-genetic covariates are separated from x
+    # compute step size. 
     μ = (numer / denom) :: T
+
+    return μ
 end
 
 # function normalize!(
@@ -464,7 +492,9 @@ function compute_logl(
     y      :: AbstractVector{T},
     glm    :: String;
 ) where {T <: Float}
-    if glm == "logistic"
+    if glm == "normal"
+        return -0.5 * sum(abs2, v.r)
+    elseif glm == "logistic"
         return _logistic_logl(y, v.xb + v.zc)
     elseif glm == "poisson"
         return _poisson_logl(y, v.xb + v.zc)
