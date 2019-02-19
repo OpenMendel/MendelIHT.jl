@@ -507,77 +507,48 @@ function _poisson_logl(
 end
 
 """
-Simple function for simulating a random SnpArray without missing value.
-This is for testing purposes only. 
+Simple function for simulating a random SnpArray without missing value, and each SNP
+has at least 5 minor alleles. This is for testing purposes only. 
 """
 function simulate_random_snparray(
     n :: Int64,
     p :: Int64,
 )
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
-    x_tmp = zeros(UInt8, n, p)
-    snps = zeros(UInt8, n)
+    A1 = BitArray(undef, n, p)
+    A2 = BitArray(undef, n, p)
     mafs = zeros(Float64, p)
     for j in 1:p
-        mafs[j] = _generate_binomials!(snps)
-        x_tmp[:, j] .= snps
+        minor_alleles = 0
+        maf = 0
+        while minor_alleles <= 5
+            maf = 0.5rand()
+            for i in 1:n
+                A1[i, j] = rand(Bernoulli(maf))
+                A2[i, j] = rand(Bernoulli(maf))
+            end
+            minor_alleles = sum(view(A1, :, j)) + sum(view(A2, :, j))
+        end
+        mafs[j] = maf
     end
 
     #fill the SnpArray with the corresponding x_tmp entry
-    return _make_snparray(x_tmp), mafs
+    return _make_snparray(A1, A2), mafs
 end
 
 """
-For each sample, generate a minor allele count of {0, 1, 2} with maf ∈ (0, 0.5).
-If 5 or less minor allele is present in whole sample, regenerate with a different maf. 
+Make a SnpArray from a 2 BitArrays. This is for testing purposes only. 
 """
-function _generate_binomials!(snps :: Vector{UInt8})
-    n = length(snps)
-    minor_alleles = 0
-    maf = 0
-    while minor_alleles <= 5
-        maf = 0.5rand()
-        for i in 1:n
-            snps[i] = convert(UInt8, rand(Binomial(2, maf)))
-        end
-        minor_alleles = sum(snps)
-    end
-    return maf
-end
-
-"""
-Make a random SnpArray based on given Matrix{Float64} of 0~2.
-This is for testing purposes only. 
-"""
-function _make_snparray(x_temp :: Matrix{Float64})
-    n, p = size(x_temp)
+function _make_snparray(A1 :: BitArray, A2 :: BitArray)
+    n, p = size(A1)
     x = SnpArray(undef, n, p)
     for i in 1:(n*p)
-        if x_temp[i] == 0
+        c = A1[i] + A2[i]
+        if c == 0
             x[i] = 0x00
-        elseif x_temp[i] == 1
+        elseif c == 1
             x[i] = 0x02
-        elseif x_temp[i] == 2
-            x[i] = 0x03
-        else 
-            throw(error("matrix shouldn't have missing values!"))
-        end
-    end
-    return x
-end
-
-"""
-Make a SnpArray from a matrix of UInt8. This is for testing purposes only. 
-"""
-function _make_snparray(x_temp :: AbstractMatrix{UInt8})
-    n, p = size(x_temp)
-    x = SnpArray(undef, n, p)
-    for i in 1:(n*p)
-        if x_temp[i] == 0x00
-            x[i] = 0x00
-        elseif x_temp[i] == 0x01
-            x[i] = 0x02
-        elseif x_temp[i] == 0x02
+        elseif c == 2
             x[i] = 0x03
         else
             throw(error("matrix shouldn't have missing values!"))

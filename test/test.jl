@@ -355,3 +355,49 @@ histogram(y)
 
 
 
+
+function simulate_random_snparray(
+    n :: Int64,
+    p :: Int64,
+)
+    #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
+    A1 = BitArray(undef, n, p)
+    A2 = BitArray(undef, n, p)
+    mafs = zeros(Float64, p)
+    for j in 1:p
+        minor_alleles = 0
+        maf = 0
+        while minor_alleles <= 5
+            maf = 0.5rand()
+            for i in 1:n
+                A1[i, j] = rand(Bernoulli(maf))
+                A2[i, j] = rand(Bernoulli(maf))
+            end
+            minor_alleles = sum(view(A1, :, j)) + sum(view(A2, :, j))
+        end
+        mafs[j] = maf
+    end
+
+    #fill the SnpArray with the corresponding x_tmp entry
+    return _make_snparray(A1, A2), mafs
+end
+
+function _make_snparray(A1 :: BitArray, A2 :: BitArray)
+    n, p = size(A1)
+    x = SnpArray(undef, n, p)
+    for i in 1:(n*p)
+        c = A1[i] + A2[i]
+        if c == 0
+            x[i] = 0x00
+        elseif c == 1
+            x[i] = 0x02
+        elseif c == 2
+            x[i] = 0x03
+        else
+            throw(error("matrix shouldn't have missing values!"))
+        end
+    end
+    return x
+end
+
+

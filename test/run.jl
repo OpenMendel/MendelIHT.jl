@@ -135,15 +135,15 @@ using Random
 using LinearAlgebra
 
 #simulat data
-n = 10000
-p = 100000
+n = 5000
+p = 10000
 k = 10 # number of true predictors
 
 #set random seed
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p)
+x, maf = simulate_random_snparray2(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # non-genetic covariates, just the intercept
 true_b = zeros(p)
