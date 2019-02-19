@@ -19,11 +19,12 @@ module MendelIHT
 	using DelimitedFiles
 	using GLM
 
-	export L0_reg, L0_normal_reg, iht_path, cv_iht, MendelIHT, L0_logistic_reg, L0_poisson_reg
+	export L0_normal_reg, L0_logistic_reg, L0_poisson_reg
+	export iht_path, cv_iht, MendelIHT, simulate_random_snparray
 	export IHTVariables, use_A2_as_minor_allele, make_snparray, regress
 	export project_k!, std_reciprocal, project_group_sparse!
 	export update_df!, At_mul_B!, A_mul_B!, check_y_content, IHT
-	export save_prev!, update_mean!, normalize!, simulate_random_snparray
+	export save_prev!, update_mean!, normalize!
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}

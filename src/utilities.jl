@@ -285,25 +285,6 @@ function _normal_stepsize(
     return μ
 end
 
-function _iht_stepsize(
-    v        :: IHTVariable{T},
-    z        :: AbstractMatrix{T},
-) where {T <: Float}
-    # store relevant components of gradient (gk is numerator of step size). 
-    v.gk .= view(v.df, v.idx)
-
-    # compute the denominator of step size using only relevant components
-    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
-
-    # warn if xgk only contains zeros
-    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
-
-    # compute step size. Note non-genetic covariates are separated from x
-    μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
-
-    return μ
-end
-
 """
 This function computes the best step size μ for bernoulli responses. Here the computation
 is done on the n by k support set of the SNP matrix. 

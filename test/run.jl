@@ -9,9 +9,9 @@ using Random
 using LinearAlgebra
 
 #simulat data
-n = 4000
-p = 1010
-k = 7 # number of true predictors
+n = 1000
+p = 10000
+k = 10 # number of true predictors
 
 #set random seed
 Random.seed!(1111)
@@ -30,7 +30,7 @@ noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-result = L0_normal_reg(x, z, y, 1, k, debias=false)
+result = L0_normal_reg(x, z, y, 1, k, debias=true)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -42,19 +42,6 @@ compare_model = DataFrame(
 println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
 
-
-
-
-result = L0_reg(x, z, y, 1, k, debias=false)
-#check result
-estimated_models = result.beta[correct_position]
-true_model = true_b[correct_position]
-compare_model = DataFrame(
-    correct_position = correct_position, 
-    true_β           = true_model, 
-    estimated_β      = estimated_models)
-println("Total iteration number was " * string(result.iter))
-println("Total time was " * string(result.time))
 
 
 
@@ -89,8 +76,8 @@ using LinearAlgebra
 using StatsFuns: logistic
 
 #simulat data
-n = 2000
-p = 20000
+n = 5000
+p = 30000
 k = 10 # number of true predictors
 
 #set random seed
@@ -148,8 +135,8 @@ using Random
 using LinearAlgebra
 
 #simulat data
-n = 2000
-p = 20000
+n = 10000
+p = 100000
 k = 10 # number of true predictors
 
 #set random seed
