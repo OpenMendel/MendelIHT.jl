@@ -87,7 +87,7 @@ end
 """
 this function for determining whether or not to backtrack for normal least squares. True = backtrack
 """
-function _normal_backtrack(
+function _normal_backtrack2(
     v       :: IHTVariable{T},
     ot      :: T,
     ob      :: T,
@@ -101,7 +101,7 @@ function _normal_backtrack(
     mu_step < nstep
 end
 
-function _normal_backtrack2(
+function _normal_backtrack(
     logl      :: T, 
     prev_logl :: T,
     mu_step   :: Int,
@@ -443,6 +443,29 @@ The following summarizes the score direction for different responses.
     Count  = ∇L(β) = X^T (Y - Λ)
 """
 function update_df!(
+    glm    :: String,
+    v      :: IHTVariable{T}, 
+    x      :: SnpBitMatrix{T},
+    z      :: AbstractMatrix{T},
+    y      :: AbstractVector{T};
+) where {T <: Float}
+    if glm == "normal"
+        @. v.r = y - v.xb - v.zc
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+    elseif glm == "logistic"
+        @. v.p = logistic(v.xb + v.zc)
+        @. v.r = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+    elseif glm == "poisson"
+        @. v.p = exp(v.xb + v.zc)
+        @. v.r = y - v.p
+        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+    else
+        throw(error("computing gradient for an unsupport glm method: " * glm))
+    end
+end
+
+function update_df2!(
     glm    :: String,
     v      :: IHTVariable{T}, 
     x      :: SnpBitMatrix{T},

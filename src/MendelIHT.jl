@@ -26,6 +26,8 @@ module MendelIHT
 	export update_df!, At_mul_B!, A_mul_B!, check_y_content, IHT
 	export save_prev!, update_mean!, normalize!
 
+	export L0_normal_reg2
+
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}
 

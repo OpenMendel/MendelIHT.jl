@@ -30,7 +30,23 @@ noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-result = L0_normal_reg(x, z, y, 1, k, debias=true)
+result = L0_normal_reg(x, z, y, 1, k, debias=false)
+
+#check result
+estimated_models = result.beta[correct_position]
+true_model = true_b[correct_position]
+compare_model = DataFrame(
+    correct_position = correct_position, 
+    true_β           = true_model, 
+    estimated_β      = estimated_models)
+println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
+
+
+
+
+
+result = L0_normal_reg2(x, z, y, 1, k, debias=true)
 
 #check result
 estimated_models = result.beta[correct_position]
