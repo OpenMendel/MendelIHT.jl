@@ -48,7 +48,7 @@ function iht_path(
 
         # now compute current model
         if glm == "normal"
-            output = L0_reg(x_train, z_train, y_train, J, k, use_maf=use_maf,debias=debias)
+            output = L0_normal_reg(x_train, z_train, y_train, J, k, use_maf=use_maf,debias=debias)
         elseif glm == "logistic"
             output = L0_logistic_reg(x_train, z_train, y_train, J, k, glm="logistic",debias=debias)
         elseif glm == "poisson"
@@ -119,7 +119,7 @@ function iht_path_threaded(
 
         # now compute current model
         if glm == "normal"
-            output = L0_reg(x_train, z_train, y_train, J, k, use_maf=use_maf, debias=debias)
+            output = L0_normal_reg(x_train, z_train, y_train, J, k, use_maf=use_maf, debias=debias)
         elseif glm == "logistic"
             output = L0_logistic_reg(x_train, z_train, y_train, J, k, glm="logistic", show_info=false, debias=debias)
         elseif glm == "poisson"
@@ -282,7 +282,7 @@ function cv_iht(
 
     # find best model size and print cross validation result
     k = path[argmin(mses)] :: Int
-    # print_cv_results(mses, path, k)
+    print_cv_results(mses, path, k)
 
-    return k
+    return mses
 end

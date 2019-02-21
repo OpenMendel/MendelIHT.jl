@@ -115,7 +115,7 @@ y = [rand(Bernoulli(x)) for x in prob]
 y = Float64.(y)
 
 #compute logistic IHT result
-result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info=false, convg=true,init=false)
+result = L0_logistic_reg2(x, z, y, 1, k, glm = "logistic", debias=true, show_info=false, convg=true,init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -174,7 +174,7 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute poisson IHT result
-result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=true, convg=false, show_info=false, true_beta=true_b, scale=false, init=false)
+result = L0_poisson_reg2(x, z, y, 1, k, glm = "poisson", debias=true, convg=false, show_info=false, true_beta=true_b, scale=false, init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -199,27 +199,23 @@ using BenchmarkTools
 using Random
 using LinearAlgebra
 
+#simulat data
+n = 1000
+p = 10000
+k = 10 # number of true predictors
+
 #set random seed
 Random.seed!(1111)
 
-#simulat data
-n = 3000
-p = 20000
-bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
-x = simulate_random_snparray(n, p, bernoulli_rates)
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-
-#specify true model size and noise of data
-k = 12    # number of true predictors
-s = 0.1  # noise vector
-
-#construct covariates (intercept) and true model b
-z = ones(n, 1)          # non-genetic covariates, just the intercept
-true_b = zeros(p)       # model vector
-true_b[1:k] = randn(k)  # Initialize k non-zero entries in the true model
-shuffle!(true_b)        # Shuffle the entries
-correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
-noise = rand(Normal(0, s), n)                   # noise vectors from N(0, s) 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s) 
 
 #simulate phenotypes (e.g. vector y) via: y = Xb + noise
 y = xbm * true_b + noise
@@ -230,7 +226,7 @@ num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-k_est = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
+mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
 
 #compute l0 result using best estimate for k
 l0_result = L0_reg(x, z, y, 1, k_est, debias=false)
@@ -263,7 +259,7 @@ using LinearAlgebra
 #simulat data
 n = 2000
 p = 20000
-k = 12    # number of true predictors
+k = 10    # number of true predictors
 
 #set random seed
 Random.seed!(1111)
@@ -289,7 +285,7 @@ num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-k_est = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)
+mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)
 
 #compute l0 result using best estimate for k
 l0_result = L0_logistic_reg(x, z, y, 1, k_est, glm = "logistic", debias=true, show_info=false)
@@ -321,50 +317,36 @@ using BenchmarkTools
 using Random
 using LinearAlgebra
 
+#simulat data
+n = 5000
+p = 10000
+k = 10 # number of true predictors
+
 #set random seed
 Random.seed!(1111)
 
-#sizes that does not work (well):
-# n, p = 999, 10000
-# n, p = 2999, 10000
-# n, p = 2000, 20001
-
-#simulat data
-n = 2000
-p = 20000 #20001 does not work!
-k = 10 # number of true predictors
-bernoulli_rates = 0.5rand(p) #minor allele frequencies are drawn from uniform (0, 0.5)
-
-#prevent rare alleles from entering model
-# clamp!(bernoulli_rates, 0.1, 1.0)
-x = simulate_random_snparray(n, p, bernoulli_rates)
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-
 #construct snpmatrix, covariate files, and true model b
-z           = ones(n, 1)                   # non-genetic covariates, just the intercept
-true_b      = zeros(p)                     # model vector
-true_b[1:k] = randn(k)                     # Initialize k non-zero entries in the true model
-shuffle!(true_b)                           # Shuffle the entries
-correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
-
-#check maf
-bernoulli_rates[correct_position]
-
-#simulate phenotypes under different noises by: y = Xb + noise
-y_temp = xbm * true_b
+x, maf = simulate_random_snparray(n, p)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = rand(Normal(0, 0.4), k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
 
 # Simulate poisson data
+y_temp = xbm * true_b
 λ = exp.(y_temp) #inverse log link
 y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #specify path and folds
-path = collect(5:15)
-num_folds = 3
+path = collect(1:20)
+num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-k_est = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf=false, glm="poisson", debias=false)
+mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf=false, glm="poisson", debias=false)
 
 
 

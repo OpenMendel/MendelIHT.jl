@@ -111,9 +111,9 @@ function L0_poisson_reg(
     J         :: Int,
     k         :: Int;
     use_maf   :: Bool = false,
-    glm       :: String = "normal",
+    glm       :: String = "poisson",
     tol       :: T = 1e-4,
-    max_iter  :: Int = 1000,
+    max_iter  :: Int = 200,
     max_step  :: Int = 3,
     temp_vec  :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
     debias    :: Bool = true,

@@ -112,7 +112,7 @@ function print_cv_results(
     for i = 1:length(errors)
         println(io, path[i], "\t", errors[i])
     end
-    println(io, "\nThe lowest MSE is achieved at k = ", k)
+    println(io, "\nThe lowest MSE is achieved at k = $k \n")
 end
 
 # default IO for print_cv_results is STDOUT
