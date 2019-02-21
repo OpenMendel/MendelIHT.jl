@@ -92,12 +92,12 @@ function run_normal(n :: Int64, p :: Int64)
     y = xbm * true_b + noise
 
     #compute poisson IHT result
-    result = L0_normal_reg(x, z, y, 1, k, debias=true)
-    result2 = L0_normal_reg2(x, z, y, 1, k, debias=true)
+    result = L0_normal_reg(x, z, y, 1, k, debias=false)
+    result2 = L0_normal_reg2(x, z, y, 1, k, debias=false)
 
     #check result
-    old_beta = result.beta[correct_position]
-    new_beta = result2.beta[correct_position]
+    old_beta = result2.beta[correct_position]
+    new_beta = result.beta[correct_position]
     true_model = true_b[correct_position]
     compare_model = DataFrame(
         true_β           = true_model, 
@@ -106,15 +106,15 @@ function run_normal(n :: Int64, p :: Int64)
     
     #display results
     @show compare_model
-    println("Old iteration number was " * string(result.iter))
-    println("Old time was " * string(result.time))
-    println("New iteration number was " * string(result2.iter))
-    println("New time was " * string(result2.time) * "\n\n")
+    println("Old iteration number was " * string(result2.iter))
+    println("Old time was " * string(result2.time))
+    println("New iteration number was " * string(result.iter))
+    println("New time was " * string(result.time) * "\n\n")
 
     found_new_backtract = length(findall(!iszero, new_beta))
     found_old_backtract = length(findall(!iszero, old_beta))
-    new_backtract_iter = result2.iter
-    old_backtract_iter = result.iter
+    new_backtract_iter = result.iter
+    old_backtract_iter = result2.iter
 
     return found_new_backtract, found_old_backtract, new_backtract_iter, old_backtract_iter
 end
@@ -140,6 +140,10 @@ function test_normal()
     println("Old backtrack: found a total of $total_found_old_backtract predictors and total iteration was $total_iter_old_backtract")
 end
 test_normal()
+
+
+
+
 
 
 function run_logistic(n :: Int64, p :: Int64)

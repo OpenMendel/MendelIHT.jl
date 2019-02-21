@@ -23,7 +23,6 @@ mutable struct IHTVariable{T <: Float}
     zdf2  :: Vector{T}     # z * df2. needed to calculate non-genetic covariate contribution for denomicator of step size 
     group :: Vector{Int64} # vector denoting group membership
     p     :: Vector{T}     # vector storing the mean of a glm: p = g^{-1}( Xβ )
-    p0    :: Vector{T}     # p in the previous iteration
 end
 
 function IHTVariables(
@@ -57,9 +56,8 @@ function IHTVariables(
     zdf2  = zeros(T, n)
     group = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
     p     = zeros(T, n)
-    p0    = zeros(T, n)
 
-    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p, p0)
+    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p)
 end
 
 """

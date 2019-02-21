@@ -99,7 +99,7 @@ end
 """
 this function for determining whether or not to backtrack for normal least squares. True = backtrack
 """
-function _normal_backtrack2(
+function _normal_backtrack(
     v       :: IHTVariable{T},
     ot      :: T,
     ob      :: T,
@@ -113,7 +113,7 @@ function _normal_backtrack2(
     mu_step < nstep
 end
 
-function _normal_backtrack(
+function _normal_backtrack2(
     logl      :: T, 
     prev_logl :: T,
     mu_step   :: Int,
@@ -134,19 +134,19 @@ function _logistic_backtrack(
     prev_logl > logl && mu_step < nstep 
 end
 
-function _logistic_backtrack2(
-    v       :: IHTVariable{T},
-    ot      :: T,
-    ob      :: T,
-    mu      :: T,
-    mu_step :: Int,
-    nstep   :: Int
-) where {T <: Float}
-    mu*ob > 0.99*ot              &&
-    sum(v.idx) != 0              &&
-    sum(xor.(v.idx,v.idx0)) != 0 &&
-    mu_step < nstep
-end
+# function _logistic_backtrack2(
+#     v       :: IHTVariable{T},
+#     ot      :: T,
+#     ob      :: T,
+#     mu      :: T,
+#     mu_step :: Int,
+#     nstep   :: Int
+# ) where {T <: Float}
+#     mu*ob > 0.99*ot              &&
+#     sum(v.idx) != 0              &&
+#     sum(xor.(v.idx,v.idx0)) != 0 &&
+#     mu_step < nstep
+# end
 
 """
 this function for determining whether or not to backtrack for poisson regression. True = backtrack
@@ -154,20 +154,6 @@ this function for determining whether or not to backtrack for poisson regression
 Note we require the model coefficients to be "small"  (that is, max entry not greater than 10) to 
 prevent loglikelihood blowing up in first few iteration.
 """
-function _poisson_backtrack2(
-    v       :: IHTVariable{T},
-    ot      :: T,
-    ob      :: T,
-    mu      :: T,
-    mu_step :: Int,
-    nstep   :: Int
-) where {T <: Float}
-    mu*ob > 0.99*ot              &&
-    sum(v.idx) != 0              &&
-    sum(xor.(v.idx,v.idx0)) != 0 &&
-    mu_step < nstep
-end
-
 function _poisson_backtrack(
     v         :: IHTVariable{T},
     logl      :: T, 
@@ -178,6 +164,20 @@ function _poisson_backtrack(
     mu_step >= nstep  && return false
     prev_logl > logl && return true
 end
+
+# function _poisson_backtrack2(
+#     v       :: IHTVariable{T},
+#     ot      :: T,
+#     ob      :: T,
+#     mu      :: T,
+#     mu_step :: Int,
+#     nstep   :: Int
+# ) where {T <: Float}
+#     mu*ob > 0.99*ot              &&
+#     sum(v.idx) != 0              &&
+#     sum(xor.(v.idx,v.idx0)) != 0 &&
+#     mu_step < nstep
+# end
 
 """
 Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs are not missing.
@@ -297,7 +297,6 @@ function save_prev!(
 ) where {T <: Float}
     copyto!(v.b0, v.b)     # b0 = b
     copyto!(v.xb0, v.xb)   # Xb0 = Xb
-    copyto!(v.p0, v.p)
     copyto!(v.idx0, v.idx) # idx0 = idx
     copyto!(v.idc0, v.idc) # idc0 = idc
     copyto!(v.c0, v.c)     # c0 = c
@@ -506,28 +505,28 @@ function update_df!(
     end
 end
 
-function update_df2!(
-    glm    :: String,
-    v      :: IHTVariable{T}, 
-    x      :: SnpBitMatrix{T},
-    z      :: AbstractMatrix{T},
-    y      :: AbstractVector{T};
-) where {T <: Float}
-    if glm == "normal"
-        @. v.r = y - v.xb - v.zc
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-    elseif glm == "logistic"
-        # @. v.p = logistic(v.xb + v.zc)
-        @. v.r = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-    elseif glm == "poisson"
-        # @. v.p = exp(v.xb + v.zc)
-        @. v.r = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-    else
-        throw(error("computing gradient for an unsupport glm method: " * glm))
-    end
-end
+# function update_df2!(
+#     glm    :: String,
+#     v      :: IHTVariable{T}, 
+#     x      :: SnpBitMatrix{T},
+#     z      :: AbstractMatrix{T},
+#     y      :: AbstractVector{T};
+# ) where {T <: Float}
+#     if glm == "normal"
+#         @. v.r = y - v.xb - v.zc
+#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+#     elseif glm == "logistic"
+#         # @. v.p = logistic(v.xb + v.zc)
+#         @. v.r = y - v.p
+#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+#     elseif glm == "poisson"
+#         # @. v.p = exp(v.xb + v.zc)
+#         @. v.r = y - v.p
+#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+#     else
+#         throw(error("computing gradient for an unsupport glm method: " * glm))
+#     end
+# end
 
 """
 `compute_logl` computes the loglikelihood of a model β for a given glm response
