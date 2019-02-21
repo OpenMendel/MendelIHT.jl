@@ -43,9 +43,6 @@ function iht_path(
         # current model size?
         k = path[i]
 
-        #define the IHTVariable used to store intermediate variables in IHT calculations
-        v = IHTVariables(x_train, z_train, y_train, J, k)
-
         # now compute current model
         if glm == "normal"
             output = L0_normal_reg(x_train, z_train, y_train, J, k, use_maf=use_maf,debias=debias)
@@ -81,7 +78,7 @@ function iht_path_threaded(
     glm       :: String = "normal",    
     tol       :: T      = convert(T, 1e-4),
     max_iter  :: Int    = 100,
-    max_step  :: Int    = 50,
+    max_step  :: Int    = 3,
     debias    :: Bool   = false
 ) where {T <: Float}
     
@@ -113,9 +110,6 @@ function iht_path_threaded(
         copyto!(x_train, @view x[train_idx, :])
         y_train = y[train_idx]
         z_train = z[train_idx, :]
-
-        #define the IHTVariable used to store intermediate variables in IHT calculations
-        v = IHTVariables(x_train, z_train, y_train, J, k)
 
         # now compute current model
         if glm == "normal"
@@ -157,8 +151,8 @@ function one_fold(
     use_maf  :: Bool = false,
     glm      :: String = "normal",
     tol      :: T    = convert(T, 1e-4),
-    max_iter :: Int  = 1000,
-    max_step :: Int  = 50,
+    max_iter :: Int  = 100,
+    max_step :: Int  = 3,
     debias   :: Bool = false
 ) where {T <: Float}
     # dimensions of problem
@@ -176,7 +170,14 @@ function one_fold(
     z_test = @view(z[test_idx, :])
     x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
+    # allocate training datas
+    # x_train = SnpArray(undef, sum(train_idx), p)
+    # copyto!(x_train, @view x[train_idx, :])
+    # y_train = y[train_idx]
+    # z_train = z[train_idx, :]
+
     # compute the regularization path on the training set
+    # betas, cs = iht_path_threaded(x_train, z_train, y_train, J, path, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
     betas, cs = iht_path_threaded(x, z, y, J, path, train_idx, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
     # betas, cs = iht_path(x, z, y, J, path, train_idx, use_maf=use_maf, glm = glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
 
@@ -218,6 +219,42 @@ function one_fold(
     return myerrors :: Vector{T}
 end
 
+# function one_fold_advanced(
+#     x        :: SnpArray,
+#     z        :: AbstractMatrix{T},
+#     y        :: AbstractVector{T},
+#     J        :: Int64,
+#     path     :: DenseVector{Int},
+#     folds    :: DenseVector{Int}, 
+#     fold     :: Int;
+#     use_maf  :: Bool = false,
+#     glm      :: String = "normal",
+#     tol      :: T    = convert(T, 1e-4),
+#     max_iter :: Int  = 100,
+#     max_step :: Int  = 3,
+#     debias   :: Bool = false,
+#     parallel :: Bool = false
+# ) where {T <: Float}
+#     # dimensions of problem
+#     n, p = size(x)
+#     q    = size(z, 2)
+
+#     # find entries that are for test sets and train sets
+#     test_idx  = folds .== fold
+#     train_idx = .!test_idx
+#     test_size = sum(test_idx)
+
+#     fits = (parallel ? pmap : map)(1:fold) do i
+#         f = folds .== i
+#         holdoutidx = findall(f)
+#         modelidx = findall(!, f)
+#         g = L0_normal_reg!(X[modelidx, :], y[modelidx], z[modelidx, :];
+#                     weights=weights[modelidx], lambda=path.lambda, kw...)
+#         loss(g, X[holdoutidx, :], isa(y, AbstractVector) ? y[holdoutidx] : y[holdoutidx, :],
+#              weights[holdoutidx])
+#     end
+# end
+
 """
 Wrapper function for one_fold. Returns the averaged MSE for each fold of cross validation.
 mse[i, j] stores the ith model size for fold j. Thus to obtain the mean mse for each fold, 
@@ -234,7 +271,7 @@ function pfold_naive(
     use_maf  :: Bool = false,
     glm      :: String = "normal",
     max_iter :: Int  = 100,
-    max_step :: Int  = 50,
+    max_step :: Int  = 3,
     debias   :: Bool = false,
 ) where {T <: Float}
 
