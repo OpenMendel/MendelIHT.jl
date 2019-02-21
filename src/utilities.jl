@@ -84,6 +84,18 @@ function _iht_omega(v :: IHTVariable{T}) where {T <: Float}
     return a, b
 end
 
+function _iht_omega_logistic(v :: IHTVariable{T}) where {T <: Float}
+    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
+    b = sqeuclidean(v.p, v.p0::Vector{T}) :: T
+    return a, b
+end
+
+function _iht_omega_poisson(v :: IHTVariable{T}) where {T <: Float}
+    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
+    b = sqeuclidean(v.p, v.p0::Vector{T}) :: T
+    return a, b
+end
+
 """
 this function for determining whether or not to backtrack for normal least squares. True = backtrack
 """
@@ -122,12 +134,40 @@ function _logistic_backtrack(
     prev_logl > logl && mu_step < nstep 
 end
 
+function _logistic_backtrack2(
+    v       :: IHTVariable{T},
+    ot      :: T,
+    ob      :: T,
+    mu      :: T,
+    mu_step :: Int,
+    nstep   :: Int
+) where {T <: Float}
+    mu*ob > 0.99*ot              &&
+    sum(v.idx) != 0              &&
+    sum(xor.(v.idx,v.idx0)) != 0 &&
+    mu_step < nstep
+end
+
 """
 this function for determining whether or not to backtrack for poisson regression. True = backtrack
 
 Note we require the model coefficients to be "small"  (that is, max entry not greater than 10) to 
 prevent loglikelihood blowing up in first few iteration.
 """
+function _poisson_backtrack2(
+    v       :: IHTVariable{T},
+    ot      :: T,
+    ob      :: T,
+    mu      :: T,
+    mu_step :: Int,
+    nstep   :: Int
+) where {T <: Float}
+    mu*ob > 0.99*ot              &&
+    sum(v.idx) != 0              &&
+    sum(xor.(v.idx,v.idx0)) != 0 &&
+    mu_step < nstep
+end
+
 function _poisson_backtrack(
     v         :: IHTVariable{T},
     logl      :: T, 
@@ -257,6 +297,7 @@ function save_prev!(
 ) where {T <: Float}
     copyto!(v.b0, v.b)     # b0 = b
     copyto!(v.xb0, v.xb)   # Xb0 = Xb
+    copyto!(v.p0, v.p)
     copyto!(v.idx0, v.idx) # idx0 = idx
     copyto!(v.idc0, v.idc) # idc0 = idc
     copyto!(v.c0, v.c)     # c0 = c
@@ -476,11 +517,11 @@ function update_df2!(
         @. v.r = y - v.xb - v.zc
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     elseif glm == "logistic"
-        @. v.p = logistic(v.xb + v.zc)
+        # @. v.p = logistic(v.xb + v.zc)
         @. v.r = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     elseif glm == "poisson"
-        @. v.p = exp(v.xb + v.zc)
+        # @. v.p = exp(v.xb + v.zc)
         @. v.r = y - v.p
         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
     else
