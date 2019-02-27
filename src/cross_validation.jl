@@ -129,7 +129,6 @@ function iht_path_threaded(
     return sum(betas), sum(cs)
 end
 
-
 """
 In cross validation we separate samples into `q` disjoint subsets. This function fits a model on 
 q-1 of those sets (indexed by train_idx), and then tests the model's performance on the 
@@ -170,14 +169,7 @@ function one_fold(
     z_test = @view(z[test_idx, :])
     x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
-    # allocate training datas
-    # x_train = SnpArray(undef, sum(train_idx), p)
-    # copyto!(x_train, @view x[train_idx, :])
-    # y_train = y[train_idx]
-    # z_train = z[train_idx, :]
-
     # compute the regularization path on the training set
-    # betas, cs = iht_path_threaded(x_train, z_train, y_train, J, path, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
     betas, cs = iht_path_threaded(x, z, y, J, path, train_idx, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
     # betas, cs = iht_path(x, z, y, J, path, train_idx, use_maf=use_maf, glm = glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
 

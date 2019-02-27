@@ -1,0 +1,58 @@
+Job 453641 started on:    n7159
+Job 453641 started on:    Sat Feb 23 13:21:42 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 1
+/u/home/b/biona001/benchmark
+Job 453641 started on:    n7141
+Job 453641 started on:    Sat Feb 23 13:27:11 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 2
+/u/home/b/biona001/benchmark
+Job 453641 started on:    n6099
+Job 453641 started on:    Sat Feb 23 13:30:12 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 3
+/u/home/b/biona001/benchmark
+Job 453641 started on:    n6085
+Job 453641 started on:    Sat Feb 23 13:31:12 PST 2019
+Job 453641 started on:    Sat Feb 23 13:31:12 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 4
+/u/home/b/biona001/benchmark
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 453641 ended on:    n7159
+Job #JOB_ID ended on:    Sat Feb 23 16:18:42 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 453641 ended on:    n6099
+Job #JOB_ID ended on:    Sat Feb 23 16:26:57 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 453641 ended on:    n6085
+Job #JOB_ID ended on:    Sat Feb 23 16:27:28 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 453641 ended on:    n7141
+Job #JOB_ID ended on:    Sat Feb 23 16:28:07 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 453641 ended on:    n6090
+Job #JOB_ID ended on:    Sat Feb 23 16:28:36 PST 2019

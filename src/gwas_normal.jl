@@ -80,6 +80,8 @@ function iht_normal!(
         μ_step += 1
     end
 
+    any(isnan.(v.b)) && throw(error("model contains NaN!"))
+    any(isnan.(v.c)) && throw(error("model contains NaN!"))
     isinf(μ) && throw(error("step size weird! it is $μ and max df is " * string(maximum(v.gk)) * "!!\n"))
 
     return μ::T, μ_step::Int
@@ -109,7 +111,8 @@ function L0_normal_reg(
     max_iter :: Int = 200,
     max_step :: Int = 3,
     temp_vec :: Vector{T} = zeros(size(x, 2) + size(z, 2)),
-    debias   :: Bool = true
+    debias   :: Bool = true,
+    show_info:: Bool = true
 ) where {T <: Float}
 
     start_time = time()
@@ -173,13 +176,27 @@ function L0_normal_reg(
         converged = the_norm < tol
 
         if converged && mm_iter > 1
+            if any(isnan.(v.b))
+                # sleep(10rand())
+                println("something is NaN!")
+            else
+                # sleep(10rand())
+                println("nothing is NaN!")
+            end
             tot_time = time() - start_time
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
+            if any(isnan.(v.b))
+                # sleep(10rand())
+                println("something is NaN!")
+            else
+                # sleep(10rand())
+                println("nothing is NaN!")
+            end
             tot_time = time() - start_time
-            printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
+            show_info && printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
     end

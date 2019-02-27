@@ -17,7 +17,7 @@ k = 10 # number of true predictors
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p)
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # non-genetic covariates, just the intercept
 true_b = zeros(p)
@@ -30,7 +30,8 @@ noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-result = L0_normal_reg(x, z, y, 1, k, debias=false)
+result = L0_normal_reg(x, z, y, 1, k, debias=true)
+
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -42,10 +43,10 @@ compare_model = DataFrame(
 println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
 
+rm("tmp.bed", force=true)
 
 
-
-
+#this code backtracks when loglikelihood decreases
 result = L0_normal_reg2(x, z, y, 1, k, debias=true)
 
 #check result
@@ -60,20 +61,6 @@ println("Total time was " * string(result.time))
 
 
 
-
-
-
-#how to get predicted response?
-xb = zeros(y_temp)
-SnpArrays.A_mul_B!(xb, x, result.beta, mean_vec, std_vec)
-[y xb]
-
-
-
-# path = collect(1:20)
-# num_folds = 5
-# folds = rand(1:num_folds, size(x, 1))
-# cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal")
 
 
 
@@ -92,8 +79,8 @@ using LinearAlgebra
 using StatsFuns: logistic
 
 #simulat data
-n = 1000
-p = 10000
+n = 1200
+p = 20000
 k = 10 # number of true predictors
 
 #set random seed
@@ -115,7 +102,7 @@ y = [rand(Bernoulli(x)) for x in prob]
 y = Float64.(y)
 
 #compute logistic IHT result
-result = L0_logistic_reg2(x, z, y, 1, k, glm = "logistic", debias=true, show_info=false, convg=true,init=false)
+result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info=false, convg=true, init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -151,7 +138,7 @@ using Random
 using LinearAlgebra
 
 #simulat data
-n = 5000
+n = 1000
 p = 10000
 k = 10 # number of true predictors
 
@@ -174,7 +161,7 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute poisson IHT result
-result = L0_poisson_reg2(x, z, y, 1, k, glm = "poisson", debias=true, convg=false, show_info=false, true_beta=true_b, scale=false, init=false)
+result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=false, true_beta=true_b, scale=false, init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -222,11 +209,13 @@ y = xbm * true_b + noise
 
 #specify path and folds
 path = collect(1:20)
-num_folds = 5
+num_folds = 3
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
 mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
+# mses = cv_iht_test(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
+
 
 #compute l0 result using best estimate for k
 l0_result = L0_reg(x, z, y, 1, k_est, debias=false)
@@ -257,8 +246,8 @@ using LinearAlgebra
 
 
 #simulat data
-n = 2000
-p = 20000
+n = 1000
+p = 10000
 k = 10    # number of true predictors
 
 #set random seed
@@ -269,7 +258,7 @@ x, maf = simulate_random_snparray(n, p)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z           = ones(n, 1)                   # non-genetic covariates, just the intercept
 true_b      = zeros(p)                     # model vector
-true_b[1:k] = rand(Normal(0, 0.25), k)     # k true response
+true_b[1:k] = randn(k)     				   # k true response
 shuffle!(true_b)                           # Shuffle the entries
 correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
 

@@ -317,7 +317,7 @@ function _normal_stepsize(
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
     # warn if xgk only contains zeros
-    all(v.xgk .== zero(T)) && warn("Entire active set has values equal to 0")
+    # all(v.xgk .== zero(T)) && @warn("Entire active set has values equal to 0")
 
     # compute step size. Note non-genetic covariates are separated from x
     μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
@@ -570,16 +570,21 @@ function _poisson_logl(
 end
 
 """
-Simple function for simulating a random SnpArray without missing value, and each SNP
-has at least 5 minor alleles. This is for testing purposes only. 
+This function will create a random SnpArray in the current directory without missing value, 
+where each SNP has at least 5 minor alleles. 
+
+n = number of samples
+p = number of SNPs
+s = name of the simulated SnpArray. 
 """
 function simulate_random_snparray(
     n :: Int64,
     p :: Int64,
+    s :: String
 )
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
-    A1 = BitArray(undef, n, p)
-    A2 = BitArray(undef, n, p)
+    A1 = BitArray(undef, n, p) 
+    A2 = BitArray(undef, n, p) 
     mafs = zeros(Float64, p)
     for j in 1:p
         minor_alleles = 0
@@ -596,15 +601,15 @@ function simulate_random_snparray(
     end
 
     #fill the SnpArray with the corresponding x_tmp entry
-    return _make_snparray(A1, A2), mafs
+    return _make_snparray(A1, A2, s), mafs
 end
 
 """
-Make a SnpArray from a 2 BitArrays. This is for testing purposes only. 
+Make a SnpArray from a 2 BitArrays.
 """
-function _make_snparray(A1 :: BitArray, A2 :: BitArray)
+function _make_snparray(A1 :: BitArray, A2 :: BitArray, s :: String)
     n, p = size(A1)
-    x = SnpArray(undef, n, p)
+    x = SnpArray(s, n, p)
     for i in 1:(n*p)
         c = A1[i] + A2[i]
         if c == 0

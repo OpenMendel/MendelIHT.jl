@@ -401,3 +401,252 @@ function _make_snparray(A1 :: BitArray, A2 :: BitArray)
 end
 
 
+
+
+
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+
+#run directly
+function should_be_slow(n :: Int64, p :: Int64)
+    #set random seed
+    Random.seed!(1111)
+    simulate_random_snparray(n, p)
+end
+@time should_be_slow(10000, 100000)
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+
+#run once with super small data
+function should_be_fast(n :: Int64, p :: Int64)
+    #set random seed
+    Random.seed!(1111)
+    simulate_random_snparray(n, p)
+end
+should_be_fast(10, 10)
+@time should_be_fast(10000, 100000)
+
+
+
+
+
+
+
+function sum_random(x :: Vector{Float64})
+   s = 0.0
+   for i in x
+       s += i
+   end
+   return s
+end
+
+#lets say I really want to sum 10 million random numbers
+x = rand(3 * 10^8)
+@time sum_random(x) # 2.419125 seconds (22.48 k allocations: 1.161 MiB)
+
+
+#Can I first run the code on a small problem, and then my larger problem?
+x = rand(3 * 10^8)
+y = rand(10)
+@time sum_random(y) # 0.010076 seconds (22.48 k allocations: 1.161 MiB)
+@time sum_random(x) # 0.324422 seconds (5 allocations: 176 bytes)
+
+
+
+
+
+
+
+
+
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using StatsFuns: logistic
+
+function time_normal_response(
+    n :: Int64,  # number of cases
+    p :: Int64,  # number of predictors (SNPs)
+    k :: Int64,  # number of true predictors per group
+    debias :: Bool # whether to debias
+)
+    Random.seed!(1111)
+
+    #construct snpmatrix, covariate files, and true model b
+    x, maf = simulate_random_snparray(n, p)
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    z = ones(n, 1) # non-genetic covariates, just the intercept
+    true_b = zeros(p)
+    true_b[1:k] = randn(k)
+    shuffle!(true_b)
+    correct_position = findall(x -> x != 0, true_b)
+    noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s) 
+
+    #simulate phenotypes (e.g. vector y) via: y = Xb + noise
+    y = xbm * true_b + noise
+
+    #free memory from xbm.... does this work like I think it works?
+    xbm = nothing
+    GC.gc()
+
+    #time the result and return
+    result = @timed L0_normal_reg(x, z, y, 1, k, debias=debias)
+    iter = result[1].iter
+    runtime = result[2]      # seconds
+    memory = result[3] / 1e6 # MB
+
+    return iter, runtime, memory
+end
+
+
+#time directly:
+n = 10000
+p = 30000
+k = 10
+debias = false
+iter, runtime, memory = time_normal_response(n, p, k, debias)
+#(7, 17.276706309, 119.911048)
+
+#run small example first:
+n = 10000
+p = 30000
+k = 10
+debias = false
+iter, runtime, memory = time_normal_response(100, 100, 10, debias)
+iter, runtime, memory = time_normal_response(n, p, k, debias)
+#(14, 2.47283539, 37.778872)
+#(7, 12.801054742, 82.478688)
+
+#run same example twice:
+n = 10000
+p = 30000
+k = 10
+debias = false
+iter, runtime, memory = time_normal_response(n, p, k, debias)
+iter, runtime, memory = time_normal_response(n, p, k, debias)
+#(7, 15.82780056, 119.911048)
+#(7, 13.610244645, 82.478688)
+
+#no GC.gc():
+n = 10000
+p = 30000
+k = 10
+debias = false
+iter, runtime, memory = time_normal_response(100, 100, 10, debias)
+iter, runtime, memory = time_normal_response(n, p, k, debias)
+#(14, 2.661537431, 37.778872)
+#(7, 12.977118564, 82.478688)
+
+
+
+
+
+#NORMAL CROSS VALIDATION USING MEMORY MAPPED SNPARRAY - does it fix my problem?
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+
+#simulat data
+n = 1000
+p = 10000
+k = 10 # number of true predictors
+
+#set random seed
+Random.seed!(2019)
+
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s) 
+
+#simulate phenotypes (e.g. vector y) via: y = Xb + noise
+y = xbm * true_b + noise
+
+#specify path and folds
+path = collect(1:20)
+num_folds = 3
+folds = rand(1:num_folds, size(x, 1))
+
+#compute cross validation
+# mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
+mses = cv_iht_test(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false, showinfo=false)
+
+
+
+
+########### LOGISTIC CROSS VALIDATION SIMULATION CODE##############
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using StatsFuns: logistic
+using BenchmarkTools
+using Random
+using LinearAlgebra
+
+
+#simulat data
+n = 1000
+p = 10000
+k = 10    # number of true predictors
+
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z           = ones(n, 1)                   # non-genetic covariates, just the intercept
+true_b      = zeros(p)                     # model vector
+true_b[1:k] = randn(k)                     # k true response
+shuffle!(true_b)                           # Shuffle the entries
+correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
+
+#simulate bernoulli data
+y_temp = xbm * true_b
+prob = logistic.(y_temp) #inverse logit link
+y = [rand(Bernoulli(x)) for x in prob]
+y = Float64.(y)
+
+#specify path and folds
+path = collect(1:20)
+num_folds = 3
+folds = rand(1:num_folds, size(x, 1))
+
+#compute cross validation
+mses = cv_iht_test(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)

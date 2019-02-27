@@ -1,4 +1,3 @@
-
 function run_poisson(n :: Int64, p :: Int64)
     k = 10
 
@@ -92,52 +91,54 @@ function run_normal(n :: Int64, p :: Int64)
     y = xbm * true_b + noise
 
     #compute poisson IHT result
-    result = L0_normal_reg(x, z, y, 1, k, debias=false)
-    result2 = L0_normal_reg2(x, z, y, 1, k, debias=false)
+    result = L0_normal_reg(x, z, y, 1, k, debias=true)
+    # result2 = L0_normal_reg2(x, z, y, 1, k, debias=false)
 
     #check result
-    old_beta = result2.beta[correct_position]
+    # old_beta = result2.beta[correct_position]
     new_beta = result.beta[correct_position]
     true_model = true_b[correct_position]
     compare_model = DataFrame(
         true_β           = true_model, 
-        β_old_backtract  = old_beta,
+        # β_old_backtract  = old_beta,
         β_new_backtract  = new_beta)
     
     #display results
     @show compare_model
-    println("Old iteration number was " * string(result2.iter))
-    println("Old time was " * string(result2.time))
+    # println("Old iteration number was " * string(result2.iter))
+    # println("Old time was " * string(result2.time))
     println("New iteration number was " * string(result.iter))
     println("New time was " * string(result.time) * "\n\n")
 
     found_new_backtract = length(findall(!iszero, new_beta))
-    found_old_backtract = length(findall(!iszero, old_beta))
+    # found_old_backtract = length(findall(!iszero, old_beta))
     new_backtract_iter = result.iter
-    old_backtract_iter = result2.iter
+    # old_backtract_iter = result2.iter
 
-    return found_new_backtract, found_old_backtract, new_backtract_iter, old_backtract_iter
+    # return found_new_backtract, found_old_backtract, new_backtract_iter, old_backtract_iter
+    return found_new_backtract, new_backtract_iter
 end
 
 Random.seed!(2019)
 function test_normal()
     total_found_new_backtract = 0
-    total_found_old_backtract = 0
+    # total_found_old_backtract = 0
     total_iter_new_backtract = 0
-    total_iter_old_backtract = 0
+    # total_iter_old_backtract = 0
     for i = 1:25
         @info("running the $i th model")
         n = rand(500:2000) 
         p = rand(1:10)n
         println("n, p = " * string(n) * ", " * string(p))
-        fnb, fob, nbi, obi = run_normal(n, p)
+        # fnb, fob, nbi, obi = run_normal(n, p)
+        fnb, nbi = run_normal(n, p)
         total_found_new_backtract += fnb
-        total_found_old_backtract += fob
+        # total_found_old_backtract += fob
         total_iter_new_backtract += nbi
-        total_iter_old_backtract += obi
+        # total_iter_old_backtract += obi
     end
     println("New backtrack: found a total of $total_found_new_backtract predictors and total iteration was $total_iter_new_backtract")
-    println("Old backtrack: found a total of $total_found_old_backtract predictors and total iteration was $total_iter_old_backtract")
+    # println("Old backtrack: found a total of $total_found_old_backtract predictors and total iteration was $total_iter_old_backtract")
 end
 test_normal()
 
