@@ -18,6 +18,7 @@ module MendelIHT
 	using SparseArrays
 	using DelimitedFiles
 	using GLM
+	using Distributed
 
 	export L0_normal_reg, L0_logistic_reg, L0_poisson_reg
 	export iht_path, cv_iht, MendelIHT, simulate_random_snparray
@@ -26,7 +27,7 @@ module MendelIHT
 	export update_df!, At_mul_B!, A_mul_B!, check_y_content, IHT
 	export save_prev!, update_mean!, normalize!
 
-	export L0_normal_reg2, L0_poisson_reg2, L0_logistic_reg2, cv_iht_test
+	export L0_normal_reg2, L0_poisson_reg2, L0_logistic_reg2, cv_iht_test, cv_iht_distributed, meanloss
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}

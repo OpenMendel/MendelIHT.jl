@@ -176,25 +176,25 @@ function L0_normal_reg(
         converged = the_norm < tol
 
         if converged && mm_iter > 1
-            if any(isnan.(v.b))
-                # sleep(10rand())
-                println("something is NaN!")
-            else
-                # sleep(10rand())
-                println("nothing is NaN!")
-            end
+            # if any(isnan.(v.b))
+            #     # sleep(10rand())
+            #     println("something is NaN!")
+            # else
+            #     # sleep(10rand())
+            #     println("nothing is NaN!")
+            # end
             tot_time = time() - start_time
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
-            if any(isnan.(v.b))
-                # sleep(10rand())
-                println("something is NaN!")
-            else
-                # sleep(10rand())
-                println("nothing is NaN!")
-            end
+            # if any(isnan.(v.b))
+            #     # sleep(10rand())
+            #     println("something is NaN!")
+            # else
+            #     # sleep(10rand())
+            #     println("nothing is NaN!")
+            # end
             tot_time = time() - start_time
             show_info && printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
