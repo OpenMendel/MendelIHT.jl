@@ -101,6 +101,7 @@ end
 """
 function L0_normal_reg(
     x        :: SnpArray,
+    xbm      :: SnpBitMatrix,
     z        :: Matrix{T},
     y        :: Vector{T},
     J        :: Int,
@@ -147,8 +148,8 @@ function L0_normal_reg(
     # end
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
-    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-    update_df!(glm, v, x_bitmatrix, z, y)
+    # xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    update_df!(glm, v, xbm, z, y)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loss
@@ -165,7 +166,7 @@ function L0_normal_reg(
         end
 
         # iht! gives us an updated x*b. Use it to recompute gradient: v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
-        update_df!(glm, v, x_bitmatrix, z, y)
+        update_df!(glm, v, xbm, z, y)
 
         #compute loglikelihood
         next_logl = compute_logl(v, y, glm)
@@ -176,25 +177,11 @@ function L0_normal_reg(
         converged = the_norm < tol
 
         if converged && mm_iter > 1
-            # if any(isnan.(v.b))
-            #     # sleep(10rand())
-            #     println("something is NaN!")
-            # else
-            #     # sleep(10rand())
-            #     println("nothing is NaN!")
-            # end
             tot_time = time() - start_time
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
         end
 
         if mm_iter == max_iter
-            # if any(isnan.(v.b))
-            #     # sleep(10rand())
-            #     println("something is NaN!")
-            # else
-            #     # sleep(10rand())
-            #     println("nothing is NaN!")
-            # end
             tot_time = time() - start_time
             show_info && printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
@@ -331,8 +318,8 @@ function L0_normal_reg2(
     # end
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
-    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-    update_df!(glm, v, x_bitmatrix, z, y)
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    update_df!(glm, v, xbm, z, y)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loss
@@ -349,7 +336,7 @@ function L0_normal_reg2(
         end
 
         # iht! gives us an updated x*b. Use it to recompute gradient: v.df = [ X'(y - Xβ - zc) ; Z'(y - Xβ - zc) ]
-        update_df!(glm, v, x_bitmatrix, z, y)
+        update_df!(glm, v, xbm, z, y)
 
         # track convergence
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))

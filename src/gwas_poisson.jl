@@ -106,6 +106,7 @@ end
 """
 function L0_poisson_reg(
     x         :: SnpArray,
+    xbm       :: SnpBitMatrix,
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
     J         :: Int,
@@ -154,18 +155,18 @@ function L0_poisson_reg(
     v = IHTVariables(x, z, y, J, k)
 
     # make the bit matrix 
-    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=scale);
+    # xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=scale);
 
     #initialiaze model and compute xb
     if init
         initialize_beta!(v, y, x, glm)
-        A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+        A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
         clamp!(v.xb, -20, 20)
         clamp!(v.zc, -20, 20)
     end
 
     #compute the gradient
-    update_df!(glm, v, x_bitmatrix, z, y)
+    update_df!(glm, v, xbm, z, y)
 
     if show_info
         temp_df = DataFrame(true_β = true_beta, gradient = v.df, initial_β = v.b)
@@ -197,7 +198,7 @@ function L0_poisson_reg(
         end
 
         # update score (gradient) and p vector for next iteration using stepsize μ 
-        update_df!(glm, v, x_bitmatrix, z, y)
+        update_df!(glm, v, xbm, z, y)
 
         # track convergence using kevin or ken's converegence criteria
         if convg
@@ -354,18 +355,18 @@ end #function L0_poisson_reg
 #     v = IHTVariables(x, z, y, J, k)
 
 #     # make the bit matrix 
-#     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=scale);
+#     xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=scale);
 
 #     #initialiaze model and compute xb
 #     if init
 #         initialize_beta!(v, y, x, glm)
-#         A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+#         A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
 #         clamp!(v.xb, -20, 20)
 #         clamp!(v.zc, -20, 20)
 #     end
 
 #     #compute the gradient
-#     update_df2!(glm, v, x_bitmatrix, z, y)
+#     update_df2!(glm, v, xbm, z, y)
 #     @. v.p = exp(v.xb + v.zc)
 
 #     if show_info
@@ -398,7 +399,7 @@ end #function L0_poisson_reg
 #         end
 
 #         # update score (gradient) and p vector for next iteration using stepsize μ 
-#         update_df2!(glm, v, x_bitmatrix, z, y)
+#         update_df2!(glm, v, xbm, z, y)
 
 #         # calculate current loglikelihood with the new computed xb and zc
 #         next_logl = compute_logl(v, y, glm)

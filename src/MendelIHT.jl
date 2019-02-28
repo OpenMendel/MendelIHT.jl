@@ -39,6 +39,7 @@ module MendelIHT
 	include("gwas_logistic.jl")
 	include("gwas_poisson.jl")
 	include("cross_validation.jl")
+	include("cross_validation_distributed.jl")
 	include("cross_validation_test.jl")
 
 end # end module

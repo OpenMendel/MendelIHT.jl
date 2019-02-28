@@ -103,6 +103,7 @@ end
 """
 function L0_logistic_reg(
     x         :: SnpArray,
+    xbm       :: SnpBitMatrix,
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
     J         :: Int,
@@ -150,16 +151,16 @@ function L0_logistic_reg(
     v = IHTVariables(x, z, y, J, k)
 
     # make the bit matrix 
-    x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+    # xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
     
     #initiliaze model and compute xb
     if init
         initialize_beta!(v, y, x, glm)
-        A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+        A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
     end
 
     # Calculate the score
-    update_df!(glm, v, x_bitmatrix, z, y)
+    update_df!(glm, v, xbm, z, y)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
@@ -187,7 +188,7 @@ function L0_logistic_reg(
         end
 
         # update score (gradient) and p vector using stepsize μ 
-        update_df!(glm, v, x_bitmatrix, z, y)
+        update_df!(glm, v, xbm, z, y)
 
         # track convergence using kevin or ken's converegence criteria
         if convg
@@ -292,6 +293,7 @@ end #function L0_logistic_reg
 # """
 # function L0_logistic_reg2(
 #     x         :: SnpArray,
+#.    xbm       :: SnpBitMatrix,
 #     z         :: AbstractMatrix{T},
 #     y         :: AbstractVector{T},
 #     J         :: Int,
@@ -339,16 +341,16 @@ end #function L0_logistic_reg
 #     v = IHTVariables(x, z, y, J, k)
 
 #     # make the bit matrix 
-#     x_bitmatrix = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+#     xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
     
 #     #initiliaze model and compute xb
 #     if init
 #         initialize_beta!(v, y, x, glm)
-#         A_mul_B!(v.xb, v.zc, x_bitmatrix, z, v.b, v.c)
+#         A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
 #     end
 
 #     # Calculate the score
-#     update_df2!(glm, v, x_bitmatrix, z, y)
+#     update_df2!(glm, v, xbm, z, y)
 #     @. v.p = logistic(v.xb + v.zc)
 
 #     for mm_iter = 1:max_iter
@@ -377,7 +379,7 @@ end #function L0_logistic_reg
 #         end
 
 #         # update score (gradient) and p vector using stepsize μ 
-#         update_df2!(glm, v, x_bitmatrix, z, y)
+#         update_df2!(glm, v, xbm, z, y)
 
 #         # calculate current loglikelihood with the new computed xb and zc
 #         next_logl = compute_logl(v, y, glm)
