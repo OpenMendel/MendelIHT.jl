@@ -1,9 +1,6 @@
 """
-This function computes and stores different models in each column of the matrix `betas` and 
-matrix `cs`. 
-
-The additional optional arguments are:
-- `mask_n`, a `Bool` vector used as a bitmask for crossvalidation purposes. Defaults to a vector of trues.
+Single threaded version of iht_path_threaded. This function computes and stores different 
+models in each column of the matrix `betas` and matrix `cs`. 
 """
 function iht_path(
     x         :: SnpArray,
@@ -11,6 +8,7 @@ function iht_path(
     y         :: AbstractVector{T},
     J         :: Int64,
     path      :: DenseVector{Int},
+    fold      :: Int64,
     train_idx :: BitArray;
     use_maf   :: Bool   = false,
     glm       :: String = "normal",
@@ -73,6 +71,7 @@ function iht_path_threaded(
     y         :: AbstractVector{T},
     J         :: Int64,
     path      :: DenseVector{Int},
+    fold      :: Int64,
     train_idx :: BitArray;
     use_maf   :: Bool   = false,
     glm       :: String = "normal",    
@@ -106,23 +105,28 @@ function iht_path_threaded(
         k = path[i]
 
         # Construct the training datas (it appears I must make the training data sets inside this for loop. Not sure why. Perhaps to avoid thread access issues)
-        x_train = SnpArray(undef, sum(train_idx), p)
+        tmp_bed_file = "x_train_fold$fold" * "_thread$cur_thread.bed"
+        x_train = SnpArray(tmp_bed_file, sum(train_idx), p)
         copyto!(x_train, @view x[train_idx, :])
         y_train = y[train_idx]
         z_train = z[train_idx, :]
+        x_trainbm = SnpBitMatrix{Float64}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
 
         # now compute current model
         if glm == "normal"
-            output = L0_normal_reg(x_train, z_train, y_train, J, k, use_maf=use_maf, debias=debias)
+            output = L0_normal_reg(x_train, x_trainbm, z_train, y_train, J, k, use_maf=use_maf, debias=debias)
         elseif glm == "logistic"
-            output = L0_logistic_reg(x_train, z_train, y_train, J, k, glm="logistic", show_info=false, debias=debias)
+            output = L0_logistic_reg(x_train, x_trainbm, z_train, y_train, J, k, glm="logistic", show_info=false, debias=debias)
         elseif glm == "poisson"
-            output = L0_poisson_reg(x_train, z_train, y_train, J, k, glm="poisson", show_info=false, debias=debias)
+            output = L0_poisson_reg(x_train, x_trainbm, z_train, y_train, J, k, glm="poisson", show_info=false, debias=debias)
         end
 
         # put model into sparse matrix of betas in the corresponding thread
         betas[cur_thread][:, i] = output.beta
         cs[cur_thread][:, i]    = output.c
+
+        #clean up
+        rm(tmp_bed_file, force=true)
     end
 
     # reduce the vector of matrix into a single matrix, where each column stores a different model 
@@ -164,14 +168,17 @@ function one_fold(
     test_size = sum(test_idx)
 
     # allocate test model
-    x_test = SnpArray(undef, sum(test_idx), p)
+    x_test = SnpArray("x_test_fold$fold.bed", sum(test_idx), p)
     copyto!(x_test, @view(x[test_idx, :]))
     z_test = @view(z[test_idx, :])
     x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # compute the regularization path on the training set
-    betas, cs = iht_path_threaded(x, z, y, J, path, train_idx, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
-    # betas, cs = iht_path(x, z, y, J, path, train_idx, use_maf=use_maf, glm = glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
+    if Threads.nthreads() > 1
+        betas, cs = iht_path_threaded(x, z, y, J, path, fold, train_idx, use_maf=use_maf, glm=glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
+    else
+        betas, cs = iht_path(x, z, y, J, path, fold, train_idx, use_maf=use_maf, glm = glm, max_iter=max_iter, max_step=max_step, tol=tol, debias=debias)
+    end
 
     # preallocate vector for output
     myerrors = zeros(T, length(path))
@@ -208,44 +215,11 @@ function one_fold(
         myerrors[i] = sum(abs2, r) / test_size / 2
     end
 
+    #clean up
+    rm("x_test_fold$fold.bed", force=true)
+
     return myerrors :: Vector{T}
 end
-
-# function one_fold_advanced(
-#     x        :: SnpArray,
-#     z        :: AbstractMatrix{T},
-#     y        :: AbstractVector{T},
-#     J        :: Int64,
-#     path     :: DenseVector{Int},
-#     folds    :: DenseVector{Int}, 
-#     fold     :: Int;
-#     use_maf  :: Bool = false,
-#     glm      :: String = "normal",
-#     tol      :: T    = convert(T, 1e-4),
-#     max_iter :: Int  = 100,
-#     max_step :: Int  = 3,
-#     debias   :: Bool = false,
-#     parallel :: Bool = false
-# ) where {T <: Float}
-#     # dimensions of problem
-#     n, p = size(x)
-#     q    = size(z, 2)
-
-#     # find entries that are for test sets and train sets
-#     test_idx  = folds .== fold
-#     train_idx = .!test_idx
-#     test_size = sum(test_idx)
-
-#     fits = (parallel ? pmap : map)(1:fold) do i
-#         f = folds .== i
-#         holdoutidx = findall(f)
-#         modelidx = findall(!, f)
-#         g = L0_normal_reg!(X[modelidx, :], y[modelidx], z[modelidx, :];
-#                     weights=weights[modelidx], lambda=path.lambda, kw...)
-#         loss(g, X[holdoutidx, :], isa(y, AbstractVector) ? y[holdoutidx] : y[holdoutidx, :],
-#              weights[holdoutidx])
-#     end
-# end
 
 """
 Wrapper function for one_fold. Returns the averaged MSE for each fold of cross validation.
