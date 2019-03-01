@@ -1,9 +1,12 @@
 """
 This function performs q-fold cross validation for Iterative hard thresholding to determine 
-the best model size k. To use this function, start julia using 4 (or more) processors by
+the best model size k. Each fold is distributed to a different core (CPU). 
 
-IMPORTANT: The user must manually ensure each processor has sufficient memory.
+To use this function, start julia using 2 (or more) processors by
 
+    julia -p 2
+
+Some description of variables: 
 `path`: Vector storing different model sizes
 `folds`: Vector that separates the sample into q disjoint subsets.
 """
@@ -14,9 +17,9 @@ function cv_iht_distributed(
     J        :: Int64,
     path     :: DenseVector{Int},
     folds    :: DenseVector{Int},
-    num_fold :: Int64;
+    num_fold :: Int64,
+    glm      :: String;
     use_maf  :: Bool = false,
-    glm      :: String = "normal",
     debias   :: Bool = false,
     showinfo :: Bool = false,
     parallel :: Bool = false
@@ -40,6 +43,12 @@ function cv_iht_distributed(
     return mse
 end
 
+"""
+This function trains a bunch of models using the training set, where each model has a 
+different sparsity parameter, k, which is specified in the variable `path`. The trained model 
+is stored in each column of betas (coefficients for each SNP) and cs (coefficients for 
+intercept and non genetic covariates). 
+"""
 function pfold_train(
     train_idx :: BitArray,
     x         :: SnpArray,
@@ -63,11 +72,11 @@ function pfold_train(
     cs = zeros(q, nmodels)
 
     # allocate training datas
-    x_train = SnpArray("x_train_fold$fold.bed", sum(train_idx), p)
-    # x_train = SnpArray(undef, sum(train_idx), p)
+    # x_train = SnpArray("x_train_fold$fold.bed", sum(train_idx), p)
+    x_train = SnpArray(undef, sum(train_idx), p)
     copyto!(x_train, @view x[train_idx, :])
-    y_train = y[train_idx]
-    z_train = z[train_idx, :]
+    y_train = @view(y[train_idx])
+    z_train = @view(z[train_idx, :])
     x_trainbm = SnpBitMatrix{Float64}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     for i in 1:length(path)
@@ -84,11 +93,16 @@ function pfold_train(
     end
 
     #clean up
-    rm("x_train_fold$fold.bed", force=true)   
+    # rm("x_train_fold$fold.bed", force=true)   
 
     return betas, cs
 end
 
+"""
+This function takes a trained model, and returns the mean squared error (mse) of that model 
+on the test set. A vector of mse is returned, where each entry corresponds to the training
+set on each fold with different sparsity parameter. 
+"""
 function pfold_validate(
     test_idx :: BitArray,
     betas    :: AbstractMatrix{T},
@@ -111,15 +125,15 @@ function pfold_validate(
     p, q = size(x, 2), size(z, 2)
     test_size = sum(test_idx)
     mse = zeros(T, length(path))
-    xb = zeros(T, test_size,)
-    zc = zeros(T, test_size,)
-    r  = zeros(T, test_size,)
-    b  = zeros(T, p,)
-    c  = zeros(T, q,)
+    xb = zeros(T, test_size)
+    zc = zeros(T, test_size)
+    r  = zeros(T, test_size)
+    b  = zeros(T, p)
+    c  = zeros(T, q)
 
     # allocate test model
-    x_test = SnpArray("x_test_fold$fold.bed", sum(test_idx), p)
-    # x_test = SnpArray(undef, sum(test_idx), p)
+    # x_test = SnpArray("x_test_fold$fold.bed", sum(test_idx), p)
+    x_test = SnpArray(undef, sum(test_idx), p)
     copyto!(x_test, @view(x[test_idx, :]))
     y_test = @view(y[test_idx])
     z_test = @view(z[test_idx, :])
@@ -151,7 +165,7 @@ function pfold_validate(
     end
 
     #clean up
-    rm("x_test_fold$fold.bed", force=true)
+    # rm("x_test_fold$fold.bed", force=true)
 
     return mse
 end
@@ -181,4 +195,36 @@ function meanloss(
     end
 
     return loss
+end
+
+function iht_run_many_models(
+    x        :: SnpArray,
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
+    J        :: Int64,
+    path     :: DenseVector{Int},
+    glm      :: String;
+    use_maf  :: Bool = false,
+    debias   :: Bool = false,
+    showinfo :: Bool = false,
+    parallel :: Bool = false
+) where {T <: Float}
+
+    # for each k, run L0_reg and return the loglikelihoods
+    results = (parallel ? pmap : map)(path) do k
+        xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+        if glm == "normal"
+            return L0_normal_reg(x, xbm, z, y, J, k, use_maf=use_maf, debias=debias, show_info=showinfo)
+        elseif glm == "logistic"
+            return L0_logistic_reg(x, xbm, z, y, J, k, glm="logistic", show_info=showinfo, debias=debias)
+        elseif glm == "poisson"
+            return L0_poisson_reg(x, xbm, z, y, J, k, glm="poisson", show_info=showinfo, debias=debias)
+        end
+    end
+
+    loglikelihoods = zeros(size(path, 1))
+    for i in 1:length(results)
+        loglikelihoods[i] = results[i].logl
+    end
+    return DataFrame(model_size = path, loglikelihood = loglikelihoods)
 end
