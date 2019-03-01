@@ -566,7 +566,6 @@ iter, runtime, memory = time_normal_response(n, p, k, debias)
 
 
 #NORMAL CROSS VALIDATION USING MEMORY MAPPED SNPARRAY - does it fix my problem?
-using Revise
 using MendelIHT
 using SnpArrays
 using DataFrames
@@ -574,6 +573,8 @@ using Distributions
 using BenchmarkTools
 using Random
 using LinearAlgebra
+using BenchmarkTools
+using Distributed
 
 #simulat data
 n = 1000
@@ -598,14 +599,16 @@ y = xbm * true_b + noise
 
 #specify path and folds
 path = collect(1:20)
-num_folds = 3
+num_folds = 4
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
 # mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
-mses = cv_iht_test(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false, showinfo=false)
+# @time cv_iht_distributed(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false, showinfo=false, parallel=true);
 
+@benchmark cv_iht_distributed(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false, showinfo=false, parallel=true) seconds=60
 
+rm("tmp.bed", force=true)
 
 
 ########### LOGISTIC CROSS VALIDATION SIMULATION CODE##############
@@ -650,3 +653,53 @@ folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
 mses = cv_iht_test(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)
+
+
+K = collect(1:2:10)
+errors = map(K) do k
+    return k
+end
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using BenchmarkTools
+using Distributed
+
+
+#simulat data
+n = 1000
+p = 10000
+k = 10 # number of true predictors
+
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s) 
+
+#simulate phenotypes (e.g. vector y) via: y = Xb + noise
+y = xbm * true_b + noise
+
+#run k = 1,2,....,20
+path = collect(1:20)
+
+#compute IHT result for each k in path
+iht_run_many_models(x, z, y, 1, path, "normal", use_maf = false, debias=false, showinfo=false, parallel=true)
+
+

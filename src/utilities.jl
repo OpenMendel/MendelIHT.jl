@@ -317,7 +317,7 @@ function _normal_stepsize(
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
     # warn if xgk only contains zeros
-    # all(v.xgk .== zero(T)) && @warn("Entire active set has values equal to 0")
+    all(v.xgk .== zero(T)) && @warn("Entire active set has values equal to 0")
 
     # compute step size. Note non-genetic covariates are separated from x
     μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T

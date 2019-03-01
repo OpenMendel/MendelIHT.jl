@@ -16,8 +16,8 @@
 function iht_normal!(
     v         :: IHTVariable{T},
     x         :: SnpArray,
-    z         :: Matrix{T},
-    y         :: Vector{T},
+    z         :: AbstractMatrix{T},
+    y         :: AbstractVector{T},
     J         :: Int,
     k         :: Int,
     glm       :: String,
@@ -102,8 +102,8 @@ end
 function L0_normal_reg(
     x        :: SnpArray,
     xbm      :: SnpBitMatrix,
-    z        :: Matrix{T},
-    y        :: Vector{T},
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
     J        :: Int,
     k        :: Int;
     use_maf  :: Bool = false,

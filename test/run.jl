@@ -9,8 +9,8 @@ using Random
 using LinearAlgebra
 
 #simulat data
-n = 1000
-p = 10000
+n = 5000
+p = 30000
 k = 10 # number of true predictors
 
 #set random seed
@@ -30,7 +30,8 @@ noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s)
 y = xbm * true_b + noise
 
 #compute IHT result for less noisy data
-result = L0_normal_reg(x, z, y, 1, k, debias=true)
+result = L0_normal_reg(x, xbm, z, y, 1, k, debias=false)
+# @benchmark L0_normal_reg(x, xbm, z, y, 1, k, debias=false)
 
 
 #check result
@@ -47,17 +48,17 @@ rm("tmp.bed", force=true)
 
 
 #this code backtracks when loglikelihood decreases
-result = L0_normal_reg2(x, z, y, 1, k, debias=true)
+# result = L0_normal_reg2(x, z, y, 1, k, debias=true)
 
-#check result
-estimated_models = result.beta[correct_position]
-true_model = true_b[correct_position]
-compare_model = DataFrame(
-    correct_position = correct_position, 
-    true_β           = true_model, 
-    estimated_β      = estimated_models)
-println("Total iteration number was " * string(result.iter))
-println("Total time was " * string(result.time))
+# #check result
+# estimated_models = result.beta[correct_position]
+# true_model = true_b[correct_position]
+# compare_model = DataFrame(
+#     correct_position = correct_position, 
+#     true_β           = true_model, 
+#     estimated_β      = estimated_models)
+# println("Total iteration number was " * string(result.iter))
+# println("Total time was " * string(result.time))
 
 
 
@@ -87,7 +88,7 @@ k = 10 # number of true predictors
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p)
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # non-genetic covariates, just the intercept
 true_b = zeros(p)
@@ -102,7 +103,7 @@ y = [rand(Bernoulli(x)) for x in prob]
 y = Float64.(y)
 
 #compute logistic IHT result
-result = L0_logistic_reg(x, z, y, 1, k, glm = "logistic", debias=true, show_info=false, convg=true, init=false)
+result = L0_logistic_reg(x, xbm, z, y, 1, k, glm = "logistic", debias=false, show_info=false, convg=true, init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -113,6 +114,9 @@ compare_model = DataFrame(
     estimated_β      = estimated_models)
 println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
+
+rm("tmp.bed", force=true)
+
 
 
 #how to get predicted response?
@@ -146,7 +150,7 @@ k = 10 # number of true predictors
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p)
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # non-genetic covariates, just the intercept
 true_b = zeros(p)
@@ -161,7 +165,7 @@ y = [rand(Poisson(x)) for x in λ]
 y = Float64.(y)
 
 #compute poisson IHT result
-result = L0_poisson_reg(x, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=false, true_beta=true_b, scale=false, init=false)
+result = L0_poisson_reg(x, xbm, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=false, true_beta=true_b, scale=false, init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -173,7 +177,7 @@ compare_model = DataFrame(
 println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
 
-
+rm("tmp.bed", force=true)
 
 
 ############## NORMAL CROSS VALIDATION SIMULATION
@@ -185,6 +189,8 @@ using Distributions
 using BenchmarkTools
 using Random
 using LinearAlgebra
+using BenchmarkTools
+using Distributed
 
 #simulat data
 n = 1000
@@ -192,10 +198,10 @@ p = 10000
 k = 10 # number of true predictors
 
 #set random seed
-Random.seed!(1111)
+Random.seed!(2019)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p)
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # non-genetic covariates, just the intercept
 true_b = zeros(p)
@@ -209,12 +215,17 @@ y = xbm * true_b + noise
 
 #specify path and folds
 path = collect(1:20)
-num_folds = 3
+num_folds = 4
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
-# mses = cv_iht_test(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
+# mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
+# mses = cv_iht_distributed(x, z, y, 1, path, folds, num_folds, "normal", use_maf = false, debias=false, showinfo=false, parallel=false)
+# @benchmark cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false) seconds=60
+@benchmark cv_iht_distributed($x, $z, $y, 1, $path, $folds, $num_folds, "normal", use_maf = false, debias=false, showinfo=false, parallel=false) seconds=60
+# @time cv_iht_distributed(x, z, y, 1, path, folds, num_folds, "normal", use_maf = false, debias=false, showinfo=false, parallel=true)
+
+rm("tmp.bed", force=true)
 
 
 #compute l0 result using best estimate for k
@@ -229,6 +240,8 @@ compare_model = DataFrame(
     estimated_β      = estimated_models)
 println("Total iteration number was " * string(l0_result.iter))
 println("Total time was " * string(l0_result.time))
+
+
 
 
 

@@ -104,9 +104,10 @@ function iht_path_threaded(
         # current model size?
         k = path[i]
 
-        # Construct the training datas (it appears I must make the training data sets inside this for loop. Not sure why. Perhaps to avoid thread access issues)
-        tmp_bed_file = "x_train_fold$fold" * "_thread$cur_thread.bed"
-        x_train = SnpArray(tmp_bed_file, sum(train_idx), p)
+        # Construct the training datas (it appears I must make the training data sets inside this for loop. Not sure why. Perhaps to avoid thread access issues even though I shouldn't have any)
+        # tmp_bed_file = "x_train_fold$fold" * "_thread$cur_thread.bed"
+        # x_train = SnpArray(tmp_bed_file, sum(train_idx), p)
+        x_train = SnpArray(undef, sum(train_idx), p)
         copyto!(x_train, @view x[train_idx, :])
         y_train = y[train_idx]
         z_train = z[train_idx, :]
@@ -126,7 +127,7 @@ function iht_path_threaded(
         cs[cur_thread][:, i]    = output.c
 
         #clean up
-        rm(tmp_bed_file, force=true)
+        # rm(tmp_bed_file, force=true)
     end
 
     # reduce the vector of matrix into a single matrix, where each column stores a different model 
@@ -168,7 +169,8 @@ function one_fold(
     test_size = sum(test_idx)
 
     # allocate test model
-    x_test = SnpArray("x_test_fold$fold.bed", sum(test_idx), p)
+    # x_test = SnpArray("x_test_fold$fold.bed", sum(test_idx), p)
+    x_test = SnpArray(undef, sum(test_idx), p)
     copyto!(x_test, @view(x[test_idx, :]))
     z_test = @view(z[test_idx, :])
     x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
