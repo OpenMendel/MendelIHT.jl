@@ -192,6 +192,10 @@ using LinearAlgebra
 using BenchmarkTools
 using Distributed
 
+#add workers
+addprocs(4)
+nprocs()
+
 #simulat data
 n = 1000
 p = 10000
@@ -220,10 +224,9 @@ folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
 # mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false)
-# mses = cv_iht_distributed(x, z, y, 1, path, folds, num_folds, "normal", use_maf = false, debias=false, showinfo=false, parallel=false)
+mses = cv_iht_distributed(x, z, y, 1, path, folds, num_folds, "normal", use_maf = false, debias=false, showinfo=false, parallel=false)
 # @benchmark cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "normal", debias=false) seconds=60
-@benchmark cv_iht_distributed($x, $z, $y, 1, $path, $folds, $num_folds, "normal", use_maf = false, debias=false, showinfo=false, parallel=false) seconds=60
-# @time cv_iht_distributed(x, z, y, 1, path, folds, num_folds, "normal", use_maf = false, debias=false, showinfo=false, parallel=true)
+# @benchmark cv_iht_distributed($x, $z, $y, 1, $path, $folds, $num_folds, "normal", use_maf = false, debias=false, showinfo=false, parallel=false) seconds=60
 
 rm("tmp.bed", force=true)
 
@@ -248,6 +251,7 @@ println("Total time was " * string(l0_result.time))
 
 
 ########### LOGISTIC CROSS VALIDATION SIMULATION CODE##############
+using Revise
 using MendelIHT
 using SnpArrays
 using DataFrames
@@ -256,24 +260,30 @@ using StatsFuns: logistic
 using BenchmarkTools
 using Random
 using LinearAlgebra
+using BenchmarkTools
+using Distributed
 
+#add workers
+# addprocs(4)
+# nprocs()
 
 #simulat data
 n = 1000
 p = 10000
 k = 10    # number of true predictors
+glm = "logistic"
 
 #set random seed
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p)
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-z           = ones(n, 1)                   # non-genetic covariates, just the intercept
-true_b      = zeros(p)                     # model vector
-true_b[1:k] = randn(k)     				   # k true response
-shuffle!(true_b)                           # Shuffle the entries
-correct_position = findall(x -> x != 0, true_b) # keep track of what the true entries are
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
 
 #simulate bernoulli data
 y_temp = xbm * true_b
@@ -288,6 +298,10 @@ folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
 mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)
+# mses = cv_iht_distributed(x, z, y, 1, path, folds, num_folds, glm, use_maf = false, debias=true)
+
+rm("tmp.bed", force=true)
+
 
 #compute l0 result using best estimate for k
 l0_result = L0_logistic_reg(x, z, y, 1, k_est, glm = "logistic", debias=true, show_info=false)
@@ -310,6 +324,7 @@ println("Total time was " * string(l0_result.time))
 
 
 ############## POISSON CROSS VALIDATION SIMULATION
+using Revise
 using MendelIHT
 using SnpArrays
 using DataFrames
@@ -318,21 +333,28 @@ using StatsFuns: logistic
 using BenchmarkTools
 using Random
 using LinearAlgebra
+using BenchmarkTools
+using Distributed
+
+# add workers
+addprocs(4)
+nprocs()
 
 #simulat data
 n = 5000
 p = 10000
 k = 10 # number of true predictors
+glm="poisson"
 
 #set random seed
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p)
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # non-genetic covariates, just the intercept
 true_b = zeros(p)
-true_b[1:k] = rand(Normal(0, 0.4), k)
+true_b[1:k] = rand(Normal(0, 0.3), k)
 shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 
@@ -348,7 +370,10 @@ num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf=false, glm="poisson", debias=false)
+# mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf=false, glm="poisson", debias=false)
+mses = cv_iht_distributed(x, z, y, 1, path, folds, num_folds, glm, use_maf=false, debias=true)
+
+rm("tmp.bed", force=true)
 
 
 

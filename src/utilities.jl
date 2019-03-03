@@ -209,8 +209,8 @@ assumes there are no unknown or overlaping group membership.
 TODO: check if sortperm can be replaced by something that doesn't sort the whole array
 """
 function project_group_sparse!(
-    y     :: Vector{T},
-    group :: Vector{Int64},
+    y     :: AbstractVector{T},
+    group :: AbstractVector{Int64},
     J     :: Int64,
     k     :: Int64
 ) where {T <: Float}
@@ -386,7 +386,7 @@ For logistic regression, checks whether y[i] == 1 or y[i] == 0.
 For poisson regression, checks whether y is a vector of integer 
 """
 function check_y_content(
-    y   :: Vector{T},
+    y   :: AbstractVector{T},
     glm :: String
 ) where {T <: Float}
     if glm == "poisson"
@@ -548,8 +548,8 @@ function compute_logl(
 end
 
 function _logistic_logl(
-    y      :: Vector{T}, 
-    xb     :: Vector{T};
+    y      :: AbstractVector{T}, 
+    xb     :: AbstractVector{T};
 ) where {T <: Float64}
     logl = 0.0
     @inbounds for i in eachindex(y)
@@ -559,8 +559,8 @@ function _logistic_logl(
 end
 
 function _poisson_logl(
-    y      :: Vector{T}, 
-    xb     :: Vector{T};
+    y      :: AbstractVector{T}, 
+    xb     :: AbstractVector{T};
 ) where {T <: Float64}
     logl = 0.0
     @inbounds for i in eachindex(y)
