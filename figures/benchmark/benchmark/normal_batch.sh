@@ -3,7 +3,7 @@
 # error = Merged with joblog
 #$ -o joblog.$JOB_ID
 #$ -j y
-#$ -l arch=intel-E5-2670,exclusive,h_rt=10:00:00,h_data=62G
+#$ -l arch=intel-E5-2670,exclusive,h_rt=24:00:00,h_data=62G
 # Email address to notify
 ## $ -M $USER@mal
 # Notify when:
@@ -23,8 +23,8 @@ which julia
 #$ -t 1-5:1
 
 # run julia code
-echo "julia benchmark_normal.jl, where debias = true, n = 10000, run = $SGE_TASK_ID"
-pwd; julia /u/home/b/biona001/benchmark/benchmark_normal.jl 10000 $SGE_TASK_ID
+echo "julia benchmark_normal.jl, where debias = true, n = 110000, run = $SGE_TASK_ID"
+pwd; julia /u/home/b/biona001/benchmark/benchmark_normal.jl 110000 $SGE_TASK_ID
 
 #echo job info on joblog:
 echo "Job $JOB_ID ended on:   " `hostname -s`

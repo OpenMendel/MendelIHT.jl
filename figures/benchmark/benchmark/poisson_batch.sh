@@ -23,8 +23,8 @@ which julia
 #$ -t 1-5:1
 
 # run julia code
-echo "julia benchmark_poisson_nodebias.jl, where debias = false, n = 120000, run = $SGE_TASK_ID"
-pwd; julia /u/home/b/biona001/benchmark/benchmark_poisson_nodebias.jl 120000 $SGE_TASK_ID
+echo "julia benchmark_poisson.jl, where debias = true, n = 110300, run = $SGE_TASK_ID"
+pwd; julia /u/home/b/biona001/benchmark/benchmark_poisson.jl 110300 $SGE_TASK_ID
 
 #echo job info on joblog:
 echo "Job $JOB_ID ended on:   " `hostname -s`
