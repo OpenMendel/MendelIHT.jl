@@ -505,28 +505,12 @@ function update_df!(
     end
 end
 
-# function update_df2!(
-#     glm    :: String,
-#     v      :: IHTVariable{T}, 
-#     x      :: SnpBitMatrix{T},
-#     z      :: AbstractMatrix{T},
-#     y      :: AbstractVector{T};
-# ) where {T <: Float}
-#     if glm == "normal"
-#         @. v.r = y - v.xb - v.zc
-#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-#     elseif glm == "logistic"
-#         # @. v.p = logistic(v.xb + v.zc)
-#         @. v.r = y - v.p
-#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-#     elseif glm == "poisson"
-#         # @. v.p = exp(v.xb + v.zc)
-#         @. v.r = y - v.p
-#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-#     else
-#         throw(error("computing gradient for an unsupport glm method: " * glm))
-#     end
-# end
+function update_df!(v::IHTVariable{T}, x::SnpBitMatrix{T}, z::AbstractMatrix{T},
+    y :: AbstractVector{T}, l::Link = canonicallink(d)) where {T <: Float}
+    @. v.p = linkinv.(l, v.xb + v.zc)
+    @. v.r = y - v.p
+    At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+end
 
 """
 `compute_logl` computes the loglikelihood of a model β for a given glm response
@@ -789,6 +773,25 @@ function initialize_beta!(
     for i in 1:p
         copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
         (estimate, obj) = regress(temp_matrix, y, glm)
+        intercept += estimate[1]
+        v.b[i] = estimate[2]
+    end
+    v.c[1] = intercept / p
+end
+
+function initialize_beta!(
+    v :: IHTVariable{T},
+    y :: AbstractVector{T},
+    x :: SnpArray,
+    d :: Distribution,
+    l :: Link
+) where {T <: Float}
+    n, p = size(x)
+    temp_matrix = ones(n, 2) #2 by p matrix of the intercept + the covariate
+    intercept = 0.0
+    for i in 1:p
+        copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
+        model = GLM.fit(GeneralizedLinearModel, x, temp_matrix, d, l)
         intercept += estimate[1]
         v.b[i] = estimate[2]
     end

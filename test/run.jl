@@ -1,3 +1,43 @@
+#BELOW ARE SIMULATION FOR ANY GLM model
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using GLM
+
+#simulat data
+n = 1000
+p = 10000
+k = 10 # number of true predictors
+d = Bernoulli
+l = canonicallink(d())
+
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+
+#simulate phenotypes (e.g. vector y) via: y = Xb + noise
+y_temp = xbm * true_b
+prob = linkinv.(l, y_temp)
+y = [rand(d(i)) for i in prob]
+y = Float64.(y)
+
+#clean up
+rm("tmp.bed", force=true)
+
+
 #BELOW ARE NORMAL SIMUATIONS
 using Revise
 using MendelIHT

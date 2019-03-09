@@ -757,3 +757,32 @@ writedlm("folds", folds)
 
 
 
+
+
+
+
+
+
+
+
+# trying GLM's fitting function
+Random.seed!(2019)
+n = 1000000
+p = 10
+x = randn(n, p)
+b = randn(p)
+L = LogitLink()
+
+#simulate bernoulli data
+y_temp = x * b
+prob = linkinv.(L, y_temp) #inverse logit link
+y = [rand(Bernoulli(i)) for i in prob]
+y = Float64.(y)
+
+glm_result = fit(GeneralizedLinearModel, x, y, Bernoulli(), L)
+hi = glm_result.pp.beta0
+
+glm_result_old = regress(x, y, "logistic")
+hii = glm_result_old[1]
+
+

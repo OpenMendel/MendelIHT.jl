@@ -148,7 +148,6 @@ function L0_normal_reg(
     # end
 
     # Calculate the gradient v.df = -[X' ; Z']'(y - Xβ - Zc) = [X' ; Z'](-1*(Y-Xb - Zc))
-    # xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
     update_df!(glm, v, xbm, z, y)
 
     for mm_iter = 1:max_iter
