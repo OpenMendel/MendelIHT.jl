@@ -38,7 +38,7 @@ function cv_iht_distributed(
 
     # find best model size and print cross validation result
     k = path[argmin(mse)] :: Int
-    print_cv_results(mse, path, k)
+    showinfo && print_cv_results(mse, path, k)
 
     return mse
 end

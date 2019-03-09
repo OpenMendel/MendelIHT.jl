@@ -703,3 +703,57 @@ path = collect(1:20)
 iht_run_many_models(x, z, y, 1, path, "normal", use_maf = false, debias=false, showinfo=false, parallel=true)
 
 
+
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using BenchmarkTools
+using Distributed
+using DelimitedFiles
+
+#simulat data
+n = 1000
+p = 10000
+k = 10 # number of true predictors
+
+#set random seed
+Random.seed!(2019)
+
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p, "normal.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # non-genetic covariates, just the intercept
+true_b = zeros(p)
+true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s) 
+
+#simulate phenotypes (e.g. vector y) via: y = Xb + noise
+y = xbm * true_b + noise
+
+#specify path and folds
+path = collect(1:20)
+num_folds = 5
+folds = rand(1:num_folds, size(x, 1))
+
+# convert and save floating point version of the genotype matrix for glmnet
+x_float = [convert(Matrix{Float64}, x, center=true, scale=true) z]
+writedlm("x_float", x_float)
+writedlm("y", y)
+writedlm("folds", folds)
+
+
+
+
+
+

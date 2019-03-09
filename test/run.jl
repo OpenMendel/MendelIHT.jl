@@ -7,10 +7,11 @@ using Distributions
 using BenchmarkTools
 using Random
 using LinearAlgebra
+using GLM
 
 #simulat data
-n = 5000
-p = 30000
+n = 1000
+p = 10000
 k = 10 # number of true predictors
 
 #set random seed
@@ -24,7 +25,7 @@ true_b = zeros(p)
 true_b[1:k] = randn(k)
 shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
-noise = rand(Normal(0, 0.1), n) # noise vectors from N(0, s) 
+noise = rand(Normal(0, 1.0), n) # noise vectors from N(0, s) 
 
 #simulate phenotypes (e.g. vector y) via: y = Xb + noise
 y = xbm * true_b + noise
@@ -80,8 +81,8 @@ using LinearAlgebra
 using StatsFuns: logistic
 
 #simulat data
-n = 1200
-p = 20000
+n = 2000
+p = 10000
 k = 10 # number of true predictors
 
 #set random seed
@@ -103,7 +104,7 @@ y = [rand(Bernoulli(x)) for x in prob]
 y = Float64.(y)
 
 #compute logistic IHT result
-result = L0_logistic_reg(x, xbm, z, y, 1, k, glm = "logistic", debias=false, show_info=false, convg=true, init=false)
+result = L0_logistic_reg(x, xbm, z, y, 1, k, glm = "logistic", debias=true, show_info=false, convg=true, init=false)
 
 #check result
 estimated_models = result.beta[correct_position]
@@ -232,7 +233,8 @@ rm("tmp.bed", force=true)
 
 
 #compute l0 result using best estimate for k
-l0_result = L0_reg(x, z, y, 1, k_est, debias=false)
+k_est = argmin(mses)
+l0_result = L0_normal_reg(x, xbm, z, y, 1, k, debias=false)
 
 #check result
 estimated_models = l0_result.beta[correct_position]
@@ -297,14 +299,16 @@ num_folds = 5
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)
-# mses = cv_iht_distributed(x, z, y, 1, path, folds, num_folds, glm, use_maf = false, debias=true)
+# mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf = false, glm = "logistic", debias=true)
+mses = cv_iht_distributed(x, z, y, 1, path, folds, num_folds, glm, use_maf = false, debias=true)
+
+k_est = argmin(mses)
 
 rm("tmp.bed", force=true)
 
 
 #compute l0 result using best estimate for k
-l0_result = L0_logistic_reg(x, z, y, 1, k_est, glm = "logistic", debias=true, show_info=false)
+l0_result = L0_logistic_reg(x, xbm, z, y, 1, k_est, glm = "logistic", debias=false, show_info=false, convg=true, init=false)
 
 #check result
 estimated_models = l0_result.beta[correct_position]
@@ -373,12 +377,14 @@ folds = rand(1:num_folds, size(x, 1))
 # mses = cv_iht(x, z, y, 1, path, folds, num_folds, use_maf=false, glm="poisson", debias=false)
 mses = cv_iht_distributed(x, z, y, 1, path, folds, num_folds, glm, use_maf=false, debias=true)
 
+k_est = argmin(mses)
+
 rm("tmp.bed", force=true)
 
 
 
 #compute poisson IHT result
-result = L0_poisson_reg(x, z, y, 1, k_est, glm = "poisson", debias=false, show_info=true)
+result = L0_poisson_reg(x, xbm, z, y, 1, k, glm = "poisson", debias=false, convg=false, show_info=false, true_beta=true_b, scale=false, init=false)
 
 #check result
 estimated_models = zeros(k)
