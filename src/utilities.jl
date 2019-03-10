@@ -306,6 +306,20 @@ end
 """
 This function computes the best step size μ for normal responses. 
 """
+
+function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T}, 
+                      d::UnivariateDistribution, link::Link) where {T <: Float}
+    
+    # first store relevant components of gradient
+    v.gk .= view(v.df, v.idx)
+    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
+    
+    # now compute and return step size. Note non-genetic covariates are separated from x
+    denom = Transpose(v.xgk + v.zdf2) * Diagonal(glmvar.(d, v.p)) * (v.xgk + v.zdf2)
+    numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
+    return (numer / denom) :: T
+end
+
 function _normal_stepsize(
     v        :: IHTVariable{T},
     z        :: AbstractMatrix{T},
@@ -791,7 +805,7 @@ function initialize_beta!(
     intercept = 0.0
     for i in 1:p
         copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
-        model = GLM.fit(GeneralizedLinearModel, x, temp_matrix, d, l)
+        model = fit(GeneralizedLinearModel, x, temp_matrix, d, l)
         intercept += estimate[1]
         v.b[i] = estimate[2]
     end

@@ -7,6 +7,7 @@ module MendelIHT
 	import SpecialFunctions: lfactorial
 	import Base.show
 	import Gadfly.plot
+	import GLM: glmvar, fit, linkinv
 	using SnpArrays
 	using MendelBase
 	using DataFrames
@@ -17,7 +18,6 @@ module MendelIHT
 	using Distributions
 	using SparseArrays
 	using DelimitedFiles
-	using GLM
 	using Distributed
 
 	export L0_normal_reg, L0_logistic_reg, L0_poisson_reg
@@ -35,6 +35,7 @@ module MendelIHT
 	include("IHT_wrapper.jl")
 	include("data_structures.jl")
 	include("utilities.jl")
+	include("iht.jl")
 	include("gwas_normal.jl")
 	include("gwas_logistic.jl")
 	include("gwas_poisson.jl")

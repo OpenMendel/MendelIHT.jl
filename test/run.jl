@@ -9,10 +9,10 @@ using Random
 using LinearAlgebra
 using GLM
 
-#simulat data
+#simulat data with k true predictors, from distribution d and with link l.
 n = 1000
 p = 10000
-k = 10 # number of true predictors
+k = 10
 d = Bernoulli
 l = canonicallink(d())
 
@@ -34,8 +34,13 @@ prob = linkinv.(l, y_temp)
 y = [rand(d(i)) for i in prob]
 y = Float64.(y)
 
+#run IHT
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+
 #clean up
 rm("tmp.bed", force=true)
+
+
 
 
 #BELOW ARE NORMAL SIMUATIONS

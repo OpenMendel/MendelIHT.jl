@@ -28,7 +28,7 @@ function L0_reg(
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
 
     # make sure response data is in the form we need it to be 
-    check_y_content(y, glm)
+    # check_y_content(y, glm)
 
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_logistic_reg
@@ -57,16 +57,16 @@ function L0_reg(
     # Calculate the score
     update_df!(v, xbm, z, y, l)
 
-    println("reached here!")
-    return fff
-
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
         save_prev!(v)
         logl = next_logl
 
         #calculate the step size μ and check loglikelihood is not NaN or Inf
-        (μ, μ_step, next_logl) = iht_logistic!(v, x, z, y, J, k, glm, logl, temp_vec, mm_iter, max_step)
+        (μ, μ_step, next_logl) = iht!(v, x, z, y, J, k, d, l, logl, temp_vec, mm_iter, max_step)
+
+        println("reached here!")
+        return fff
 
         #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)
@@ -113,7 +113,7 @@ function L0_reg(
 end #function L0_reg
 
 function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T},
-    J::Int, k::Int, d::UnivariateDistribution, link::Link, old_logl::T, 
+    J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
     temp_vec::AbstractVector{T}, iter::Int, nstep::Int) where {T <: Float}
 
     #initialize indices (idx and idc) based on biggest entries of v.df and v.df2
@@ -128,7 +128,10 @@ function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractV
     end
 
     # calculate step size 
-    μ = _logistic_stepsize(v, z)
+    μ = iht_stepsize(v, z, d, l)
+
+    println("hi")
+    return ff
 
     # update b and c by taking gradient step v.b = P_k(β + μv) where v is the score direction
     _iht_gradstep(v, μ, J, k, temp_vec)
