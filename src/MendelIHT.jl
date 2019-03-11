@@ -6,8 +6,7 @@ module MendelIHT
 	import StatsFuns: logistic
 	import SpecialFunctions: lfactorial
 	import Base.show
-	import Gadfly.plot
-	import GLM: glmvar, fit, linkinv
+	import GLM: glmvar, fit, linkinv, Link, loglikelihood
 	using SnpArrays
 	using MendelBase
 	using DataFrames

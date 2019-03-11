@@ -1,17 +1,12 @@
 """
-This function computes the gradient step v.b = P_k(β + μ∇f(β)) and updates idx and idc. It is an
+This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. It is an
 addition here because recall that v.df stores an extra negative sign.
 """
-function _iht_gradstep(
-    v :: IHTVariable{T},
-    μ :: T,
-    J :: Int,
-    k :: Int,
-    temp_vec :: Vector{T}
-) where {T <: Float}
+function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int, 
+                       temp_vec::Vector{T}) where {T <: Float}
     #v.df is dense
-    BLAS.axpy!(μ, v.df, v.b)  # take gradient step: b = b + μv, v = score
-    BLAS.axpy!(μ, v.df2, v.c) # take gradient step: b = b + μv, v = score
+    BLAS.axpy!(η, v.df, v.b)  # take gradient step: b = b + μv, v = score
+    BLAS.axpy!(η, v.df2, v.c) # take gradient step: b = b + μv, v = score
 
     # copy v.b and v,c to temp_vec and project temp_vec
     length_b = length(v.b)
@@ -29,14 +24,13 @@ end
 
 """
 When initializing the IHT algorithm, take largest elements of each group of df as nonzero
-components of b. This function set v.idx = 1 for those indices.
+components of b. This function set v.idx = 1 for those indices. 
+
+`J` is the maximum number of active groups, and `k` is the maximum number of predictors per
+group. `temp_vec` is some preallocated vector for efficiency. 
 """
-function init_iht_indices!(
-    v :: IHTVariable{T},
-    J :: Int,
-    k :: Int;
-    temp_vec :: Vector{T} = zeros(length(v.df) + length(v.df2))
-) where {T <: Float}
+function init_iht_indices!(v::IHTVariable{T}, J::Int, k::Int;
+        temp_vec :: Vector{T} = zeros(length(v.df) + length(v.df2))) where {T <: Float}
 
     a = sort([v.df; v.df2], rev=true)[k * J]
     v.idx .= v.df .>= a
@@ -48,11 +42,7 @@ end
 if more than k entries are selected after projection, randomly select top k entries.
 This can happen if entries of b are equal to each other.
 """
-function _choose!(
-    v :: IHTVariable{T},
-    J :: Int,
-    k :: Int;
-) where {T <: Float}
+function _choose!(v::IHTVariable{T}, J::Int, k::Int) where {T <: Float}
     while sum(v.idx) + sum(v.idc) > J * k
         num = sum(v.idx) + sum(v.idc) - J * k
         idx_length = length(v.idx)
@@ -66,9 +56,9 @@ end
 
 """
 In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
-included/excluded, we must resize xk, gk, store2, and store3. 
+included/excluded, we must resize xk and gk
 """
-function check_covariate_supp!(v :: IHTVariable{T}) where {T <: Float}
+function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
     if sum(v.idx) != size(v.xk, 2)
         v.xk = zeros(T, size(v.xk, 1), sum(v.idx))
         v.gk = zeros(T, sum(v.idx))
@@ -78,74 +68,72 @@ end
 """
 this function calculates the omega (here a / b) used for determining backtracking
 """
-function _iht_omega(v :: IHTVariable{T}) where {T <: Float}
+function _iht_omega(v::IHTVariable{T}) where {T <: Float}
     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
     b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
     return a, b
 end
 
-function _iht_omega_logistic(v :: IHTVariable{T}) where {T <: Float}
-    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
-    b = sqeuclidean(v.p, v.p0::Vector{T}) :: T
-    return a, b
-end
+# function _iht_omega_logistic(v :: IHTVariable{T}) where {T <: Float}
+#     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
+#     b = sqeuclidean(v.μ, v.μ0::Vector{T}) :: T
+#     return a, b
+# end
 
-function _iht_omega_poisson(v :: IHTVariable{T}) where {T <: Float}
-    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
-    b = sqeuclidean(v.p, v.p0::Vector{T}) :: T
-    return a, b
-end
+# function _iht_omega_poisson(v :: IHTVariable{T}) where {T <: Float}
+#     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
+#     b = sqeuclidean(v.μ, v.μ0::Vector{T}) :: T
+#     return a, b
+# end
 
 """
 this function for determining whether or not to backtrack for normal least squares. True = backtrack
 """
-function _normal_backtrack(
-    v       :: IHTVariable{T},
-    ot      :: T,
-    ob      :: T,
-    mu      :: T,
-    mu_step :: Int,
-    nstep   :: Int
+function _normal_backtrack(v::IHTVariable{T}, ot::T, ob::T, η::T, η_step::Int, nstep::Int
 ) where {T <: Float}
-    mu*ob > 0.99*ot              &&
+    η*ob > 0.99*ot              &&
     sum(v.idx) != 0              &&
     sum(xor.(v.idx,v.idx0)) != 0 &&
-    mu_step < nstep
+    η_step < nstep
 end
 
-function _normal_backtrack2(
-    logl      :: T, 
-    prev_logl :: T,
-    mu_step   :: Int,
-    nstep     :: Int
-) where {T <: Float}
-    prev_logl > logl && mu_step < nstep 
-end
+# function _normal_backtrack2(
+#     logl      :: T, 
+#     prev_logl :: T,
+#     η_step    :: Int,
+#     nstep     :: Int
+# ) where {T <: Float}
+#     prev_logl > logl && η_step < nstep 
+# end
 
-"""
-this function for determining whether or not to backtrack for logistic regression. True = backtrack
-"""
-function _logistic_backtrack(
-    logl      :: T, 
-    prev_logl :: T,
-    mu_step   :: Int,
-    nstep     :: Int
-) where {T <: Float}
-    prev_logl > logl && mu_step < nstep 
+# """
+# this function for determining whether or not to backtrack for logistic regression. True = backtrack
+# """
+# function _logistic_backtrack(
+#     logl      :: T, 
+#     prev_logl :: T,
+#     η_step    :: Int,
+#     nstep     :: Int
+# ) where {T <: Float}
+#     prev_logl > logl && η_step < nstep 
+# end
+
+function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
+    prev_logl > logl && η_step < nstep 
 end
 
 # function _logistic_backtrack2(
 #     v       :: IHTVariable{T},
 #     ot      :: T,
 #     ob      :: T,
-#     mu      :: T,
-#     mu_step :: Int,
+#     η      :: T,
+#     η_step :: Int,
 #     nstep   :: Int
 # ) where {T <: Float}
-#     mu*ob > 0.99*ot              &&
+#     η*ob > 0.99*ot              &&
 #     sum(v.idx) != 0              &&
 #     sum(xor.(v.idx,v.idx0)) != 0 &&
-#     mu_step < nstep
+#     η_step < nstep
 # end
 
 """
@@ -158,10 +146,10 @@ function _poisson_backtrack(
     v         :: IHTVariable{T},
     logl      :: T, 
     prev_logl :: T,
-    mu_step   :: Int,
+    η_step    :: Int,
     nstep     :: Int
 ) where {T <: Float}
-    mu_step >= nstep  && return false
+    η_step >= nstep  && return false
     prev_logl > logl && return true
 end
 
@@ -169,24 +157,21 @@ end
 #     v       :: IHTVariable{T},
 #     ot      :: T,
 #     ob      :: T,
-#     mu      :: T,
-#     mu_step :: Int,
+#     η       :: T,
+#     η_step  :: Int,
 #     nstep   :: Int
 # ) where {T <: Float}
-#     mu*ob > 0.99*ot              &&
+#     η*ob > 0.99*ot              &&
 #     sum(v.idx) != 0              &&
 #     sum(xor.(v.idx,v.idx0)) != 0 &&
-#     mu_step < nstep
+#     η_step < nstep
 # end
 
 """
-Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs are not missing.
-Otherwise, the inner loop should only add if data not missing.
+Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs 
+are not missing. Otherwise, the inner loop should only add if data not missing.
 """
-function std_reciprocal(
-    x        :: SnpBitMatrix, 
-    mean_vec :: Vector{T}
-) where {T <: Float}
+function std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T}) where {T <: Float}
     m, n = size(x)
     @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
     std_vector = zeros(T, n)
@@ -208,14 +193,9 @@ assumes there are no unknown or overlaping group membership.
 
 TODO: check if sortperm can be replaced by something that doesn't sort the whole array
 """
-function project_group_sparse!(
-    y     :: AbstractVector{T},
-    group :: AbstractVector{Int64},
-    J     :: Int64,
-    k     :: Int64
-) where {T <: Float}
+function project_group_sparse!(y::AbstractVector{T},group::AbstractVector{Int64},
+    J::Int64, k::Int64) where {T <: Float}
     @assert length(group) == length(y) "group membership vector does not have the same length as the vector to be projected on"
-
     groups = maximum(group)
     group_count = zeros(Int, groups)         #counts number of predictors in each group
     group_norm = zeros(groups)               #l2 norm of each group
@@ -292,9 +272,7 @@ end
 """
 Function that saves `b`, `xb`, `idx`, `idc`, `c`, and `zc` after each iteration. 
 """
-function save_prev!(
-    v :: IHTVariable{T}
-) where {T <: Float}
+function save_prev!(v::IHTVariable{T}) where {T <: Float}
     copyto!(v.b0, v.b)     # b0 = b
     copyto!(v.xb0, v.xb)   # Xb0 = Xb
     copyto!(v.idx0, v.idx) # idx0 = idx
@@ -306,80 +284,79 @@ end
 """
 This function computes the best step size μ for normal responses. 
 """
-
 function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T}, 
-                      d::UnivariateDistribution, link::Link) where {T <: Float}
+                      d::UnivariateDistribution) where {T <: Float}
     
     # first store relevant components of gradient
     v.gk .= view(v.df, v.idx)
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
     
     # now compute and return step size. Note non-genetic covariates are separated from x
-    denom = Transpose(v.xgk + v.zdf2) * Diagonal(glmvar.(d, v.p)) * (v.xgk + v.zdf2)
+    denom = Transpose(v.xgk + v.zdf2) * Diagonal(glmvar.(d, v.μ)) * (v.xgk + v.zdf2)
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
     return (numer / denom) :: T
 end
 
-function _normal_stepsize(
-    v        :: IHTVariable{T},
-    z        :: AbstractMatrix{T},
-) where {T <: Float}
-    # store relevant components of gradient (gk is numerator of step size). 
-    v.gk .= view(v.df, v.idx)
+# function _normal_stepsize(
+#     v        :: IHTVariable{T},
+#     z        :: AbstractMatrix{T},
+# ) where {T <: Float}
+#     # store relevant components of gradient (gk is numerator of step size). 
+#     v.gk .= view(v.df, v.idx)
 
-    # compute the denominator of step size using only relevant components
-    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
+#     # compute the denominator of step size using only relevant components
+#     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
-    # warn if xgk only contains zeros
-    all(v.xgk .== zero(T)) && @warn("Entire active set has values equal to 0")
+#     # warn if xgk only contains zeros
+#     all(v.xgk .== zero(T)) && @warn("Entire active set has values equal to 0")
 
-    # compute step size. Note non-genetic covariates are separated from x
-    μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
+#     # compute step size. Note non-genetic covariates are separated from x
+#     μ = (((sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc))) / (sum(abs2, v.xgk) + sum(abs2, v.zdf2)))) :: T
 
-    return μ
-end
+#     return μ
+# end
 
-"""
-This function computes the best step size μ for bernoulli responses. Here the computation
-is done on the n by k support set of the SNP matrix. 
-"""
-function _logistic_stepsize(
-    v :: IHTVariable{T},
-    z :: AbstractMatrix{T},
-) where {T <: Float}
+# """
+# This function computes the best step size μ for bernoulli responses. Here the computation
+# is done on the n by k support set of the SNP matrix. 
+# """
+# function _logistic_stepsize(
+#     v :: IHTVariable{T},
+#     z :: AbstractMatrix{T},
+# ) where {T <: Float}
 
-    # store relevant components of gradient 
-    v.gk .= view(v.df, v.idx)
-    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
+#     # store relevant components of gradient 
+#     v.gk .= view(v.df, v.idx)
+#     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
-    #compute denominator of step size. Note non-genetic covariates are separated from x
-    denom = (v.xgk + v.zdf2)' * ((v.p .* (1 .- v.p)) .* (v.xgk + v.zdf2))
-    numer = (sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
+#     #compute denominator of step size. Note non-genetic covariates are separated from x
+#     denom = (v.xgk + v.zdf2)' * ((v.μ .* (1 .- v.μ)) .* (v.xgk + v.zdf2))
+#     numer = (sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
 
-    # compute step size. 
-    μ = (numer / denom) :: T
+#     # compute step size. 
+#     μ = (numer / denom) :: T
 
-    return μ
-end
+#     return μ
+# end
 
-function _poisson_stepsize(
-    v :: IHTVariable{T},
-    z :: AbstractMatrix{T},
-) where {T <: Float}
+# function _poisson_stepsize(
+#     v :: IHTVariable{T},
+#     z :: AbstractMatrix{T},
+# ) where {T <: Float}
 
-    # store relevant components of gradient
-    v.gk .= view(v.df, v.idx)
-    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
+#     # store relevant components of gradient
+#     v.gk .= view(v.df, v.idx)
+#     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
 
-    #compute denominator and numerator of step size. Note non-genetic covariates are separated from x
-    denom = (v.xgk + v.zdf2)' * (v.p .* (v.xgk + v.zdf2))
-    numer = (sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
+#     #compute denominator and numerator of step size. Note non-genetic covariates are separated from x
+#     denom = (v.xgk + v.zdf2)' * (v.μ .* (v.xgk + v.zdf2))
+#     numer = (sum(abs2, v.gk) + sum(abs2, view(v.df2, v.idc)))
 
-    # compute step size. 
-    μ = (numer / denom) :: T
+#     # compute step size. 
+#     μ = (numer / denom) :: T
 
-    return μ
-end
+#     return μ
+# end
 
 # function normalize!(
 #     X        :: AbstractMatrix{T},
@@ -496,76 +473,81 @@ The following summarizes the score direction for different responses.
     Binary = ∇L(β) = -X^T (Y - P) (using logit link)
     Count  = ∇L(β) = X^T (Y - Λ)
 """
-function update_df!(
-    glm    :: String,
-    v      :: IHTVariable{T}, 
-    x      :: SnpBitMatrix{T},
-    z      :: AbstractMatrix{T},
-    y      :: AbstractVector{T};
-) where {T <: Float}
-    if glm == "normal"
-        @. v.r = y - v.xb - v.zc
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-    elseif glm == "logistic"
-        @. v.p = logistic(v.xb + v.zc)
-        @. v.r = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-    elseif glm == "poisson"
-        @. v.p = exp(v.xb + v.zc)
-        @. v.r = y - v.p
-        At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-    else
-        throw(error("computing gradient for an unsupport glm method: " * glm))
-    end
-end
-
 function update_df!(v::IHTVariable{T}, x::SnpBitMatrix{T}, z::AbstractMatrix{T},
     y :: AbstractVector{T}, l::Link = canonicallink(d)) where {T <: Float}
-    @. v.p = linkinv.(l, v.xb + v.zc)
-    @. v.r = y - v.p
+    @. v.μ = linkinv(l, v.xb + v.zc)
+    @. v.r = y - v.μ
     At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
 end
 
-"""
-`compute_logl` computes the loglikelihood of a model β for a given glm response
-"""
-function compute_logl(
-    v      :: IHTVariable{T},
-    y      :: AbstractVector{T},
-    glm    :: String;
-) where {T <: Float}
-    if glm == "normal"
-        return -0.5 * sum(abs2, v.r)
-    elseif glm == "logistic"
-        return _logistic_logl(y, v.xb + v.zc)
-    elseif glm == "poisson"
-        return _poisson_logl(y, v.xb + v.zc)
-    else 
-        error("compute_logl: currently only supports logistic and poisson")
-    end
-end
+# function update_df!(
+#     glm    :: String,
+#     v      :: IHTVariable{T}, 
+#     x      :: SnpBitMatrix{T},
+#     z      :: AbstractMatrix{T},
+#     y      :: AbstractVector{T};
+# ) where {T <: Float}
+#     if glm == "normal"
+#         @. v.r = y - v.xb - v.zc
+#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+#     elseif glm == "logistic"
+#         @. v.μ = logistic(v.xb + v.zc)
+#         @. v.r = y - v.μ
+#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+#     elseif glm == "poisson"
+#         @. v.μ = exp(v.xb + v.zc)
+#         @. v.r = y - v.μ
+#         At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+#     else
+#         throw(error("computing gradient for an unsupport glm method: " * glm))
+#     end
+# end
 
-function _logistic_logl(
-    y      :: AbstractVector{T}, 
-    xb     :: AbstractVector{T};
-) where {T <: Float64}
-    logl = 0.0
-    @inbounds for i in eachindex(y)
-        logl += y[i]*xb[i] - log(1.0 + exp(xb[i]))
-    end
-    return logl
-end
+function loglikelihood end
+loglikelihood(::Normal, y, xb) = -0.5 * sum(abs2, y .- xb)
+loglikelihood(::Bernoulli, y, xb) = sum(y .* xb .- log.(1.0 .+ exp.(xb)))
+loglikelihood(::Poisson, y, xb) = sum(y .* xb .- exp.(xb))
 
-function _poisson_logl(
-    y      :: AbstractVector{T}, 
-    xb     :: AbstractVector{T};
-) where {T <: Float64}
-    logl = 0.0
-    @inbounds for i in eachindex(y)
-        logl += y[i]*xb[i] - exp(xb[i])
-    end
-    return logl
-end
+# """
+# `compute_logl` computes the loglikelihood of a model β for a given glm response
+# """
+# function compute_logl(
+#     v      :: IHTVariable{T},
+#     y      :: AbstractVector{T},
+#     glm    :: String;
+# ) where {T <: Float}
+#     if glm == "normal"
+#         return -0.5 * sum(abs2, v.r)
+#     elseif glm == "logistic"
+#         return _logistic_logl(y, v.xb + v.zc)
+#     elseif glm == "poisson"
+#         return _poisson_logl(y, v.xb + v.zc)
+#     else 
+#         error("compute_logl: currently only supports logistic and poisson")
+#     end
+# end
+
+# function _logistic_logl(
+#     y      :: AbstractVector{T}, 
+#     xb     :: AbstractVector{T};
+# ) where {T <: Float64}
+#     logl = 0.0
+#     @inbounds for i in eachindex(y)
+#         logl += y[i]*xb[i] - log(1.0 + exp(xb[i]))
+#     end
+#     return logl
+# end
+
+# function _poisson_logl(
+#     y      :: AbstractVector{T}, 
+#     xb     :: AbstractVector{T};
+# ) where {T <: Float64}
+#     logl = 0.0
+#     @inbounds for i in eachindex(y)
+#         logl += y[i]*xb[i] - exp(xb[i])
+#     end
+#     return logl
+# end
 
 """
 This function will create a random SnpArray in the current directory without missing value, 
@@ -603,7 +585,7 @@ function simulate_random_snparray(
 end
 
 """
-Make a SnpArray from a 2 BitArrays.
+Make a SnpArray from 2 BitArrays.
 """
 function _make_snparray(A1 :: BitArray, A2 :: BitArray, s :: String)
     n, p = size(A1)
@@ -623,191 +605,186 @@ function _make_snparray(A1 :: BitArray, A2 :: BitArray, s :: String)
     return x
 end
 
-"""
-Performs generalized linear regression. X is the design matrix, y is 
-the response vector. This function is used as the debiasing step. 
-"""
-function regress(
-    X     :: AbstractMatrix{T}, 
-    y     :: AbstractVector{T}, 
-    model :: AbstractString
-) where {T <: Float}
+# """
+# Performs generalized linear regression. X is the design matrix, y is 
+# the response vector. This function is used as the debiasing step. 
+# """
+# function regress(
+#     X     :: AbstractMatrix{T}, 
+#     y     :: AbstractVector{T}, 
+#     model :: AbstractString
+# ) where {T <: Float}
 
-  if model != "normal" && model != "logistic" && model != "poisson"
-    throw(ArgumentError(
-      "The only model choices are linear, logistic, and poisson.\n \n"))
-  end
-  #
-  # Create the score vector, information matrix, estimate, a work
-  # vector z, and the loglikelihood.
-  #
-  (n, p) = size(X)
-  @assert n == length(y)
-  score = zeros(p)
-  information = zeros(p, p)
-  estimate = zeros(p)
-  z = zeros(n)
-  #
-  # Handle linear regression separately.
-  #
-  if model == "normal"
-    BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
-    BLAS.axpy!(-1.0, y, z) # z = z - y
-    score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
-    information = BLAS.gemm('T', 'N', X, X) # information = X' * X
-    estimate = information \ score
-    BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
-    obj = - 0.5 * n * log(sum(abs2, y - z) / n) - 0.5 * n
-    return (estimate, obj)
-  end
-          # #
-          # # Prepare for logistic and Poisson regression by estimating the 
-          # # intercept.
-          # #
-          # if model == "logistic"
-          #   estimate[1] = log(mean(y) / (1.0 - mean(y)))
-          # elseif model == "poisson"
-          #   estimate[1] = log(mean(y))
-          # else
-          #   throw(ArgumentError(
-          #     "The only model choices are linear, logistic, and Poisson.\n \n"))
-          # end
-  #
-  # Initialize the loglikelihood and the convergence criterion.
-  #
-  v = zeros(p)
-  obj = 0.0
-  old_obj = 0.0
-  epsilon = 1e-6
-  # 
-  #  Estimate parameters by the scoring algorithm.
-  #
-  for iteration = 1:10
-    #
-    # Initialize the score and information.
-    #
-    fill!(score, 0.0)
-    fill!(information, 0.0)
-    #
-    # Compute the score, information, and loglikelihood (obj).
-    #
-    BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
-    clamp!(z, -20.0, 20.0) 
-    if model == "logistic"
-      z = exp.(-z)
-      z = 1.0 ./ (1.0 .+ z)
-      w = z .* (1.0 .- z)
-      BLAS.axpy!(-1.0, y, z) # z = z - y
-      score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
-      w = sqrt.(w)
-      lmul!(Diagonal(w), X) # diag(w) * X
-      information = BLAS.gemm('T', 'N', X, X) # information = X' * W * X
-      w = 1.0 ./ w
-      lmul!(Diagonal(w), X)
-    elseif model == "poisson"
-      z = exp.(z)
-      w = copy(z)
-      BLAS.axpy!(-1.0, y, z) # z = z - y
-      score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
-      w = sqrt.(w)
-      lmul!(Diagonal(w), X) # diag(w) * X
-      information = BLAS.gemm('T', 'N', X, X) # information = X' * W * X
-      w = 1.0 ./ w
-      lmul!(Diagonal(w), X)
-    end
-    #
-    # Compute the scoring increment.
-    #
-    increment = information \ score
-    #
-    # Step halve to produce an increase in the loglikelihood.
-    #
-    steps = -1
-    for step_halve = 0:3
-      steps = steps + 1
-      obj = 0.0
-      estimate = estimate + increment
-      BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
-      clamp!(z, -20.0, 20.0)
-      #
-      # Compute the loglikelihood under the appropriate model.
-      #
-      if model == "logistic"
-        z = exp.(-z)
-        z = 1.0 ./ (1.0 .+ z)
-        for i = 1:n
-          if y[i] > 0.0
-            obj = obj + log(z[i])
-          else
-            obj = obj + log(1.0 - z[i])
-          end
-        end
-      elseif model == "poisson"
-        for i = 1:n
-          q = exp(z[i])
-          obj = obj + y[i] * z[i] - q
-        end  
-      end
-      #
-      # Check for an increase in the loglikelihood.
-      #
-      if old_obj < obj
-        break
-      else
-        estimate = estimate - increment # revert back to old estimate
-        increment = 0.5 * increment
-      end
-    end
-    #
-    # Check for convergence.
-    # 
-    if iteration > 1 && abs(obj - old_obj) < epsilon * (abs(old_obj) + 1.0)
-      return (estimate, obj)
-    else
-      old_obj = obj
-    end
-  end
-  return (estimate, obj)
-end # function regress
+#   if model != "normal" && model != "logistic" && model != "poisson"
+#     throw(ArgumentError(
+#       "The only model choices are linear, logistic, and poisson.\n \n"))
+#   end
+#   #
+#   # Create the score vector, information matrix, estimate, a work
+#   # vector z, and the loglikelihood.
+#   #
+#   (n, p) = size(X)
+#   @assert n == length(y)
+#   score = zeros(p)
+#   information = zeros(p, p)
+#   estimate = zeros(p)
+#   z = zeros(n)
+#   #
+#   # Handle linear regression separately.
+#   #
+#   if model == "normal"
+#     BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
+#     BLAS.axpy!(-1.0, y, z) # z = z - y
+#     score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
+#     information = BLAS.gemm('T', 'N', X, X) # information = X' * X
+#     estimate = information \ score
+#     BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
+#     obj = - 0.5 * n * log(sum(abs2, y - z) / n) - 0.5 * n
+#     return (estimate, obj)
+#   end
+#           # #
+#           # # Prepare for logistic and Poisson regression by estimating the 
+#           # # intercept.
+#           # #
+#           # if model == "logistic"
+#           #   estimate[1] = log(mean(y) / (1.0 - mean(y)))
+#           # elseif model == "poisson"
+#           #   estimate[1] = log(mean(y))
+#           # else
+#           #   throw(ArgumentError(
+#           #     "The only model choices are linear, logistic, and Poisson.\n \n"))
+#           # end
+#   #
+#   # Initialize the loglikelihood and the convergence criterion.
+#   #
+#   v = zeros(p)
+#   obj = 0.0
+#   old_obj = 0.0
+#   epsilon = 1e-6
+#   # 
+#   #  Estimate parameters by the scoring algorithm.
+#   #
+#   for iteration = 1:10
+#     #
+#     # Initialize the score and information.
+#     #
+#     fill!(score, 0.0)
+#     fill!(information, 0.0)
+#     #
+#     # Compute the score, information, and loglikelihood (obj).
+#     #
+#     BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
+#     clamp!(z, -20.0, 20.0) 
+#     if model == "logistic"
+#       z = exp.(-z)
+#       z = 1.0 ./ (1.0 .+ z)
+#       w = z .* (1.0 .- z)
+#       BLAS.axpy!(-1.0, y, z) # z = z - y
+#       score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
+#       w = sqrt.(w)
+#       lmul!(Diagonal(w), X) # diag(w) * X
+#       information = BLAS.gemm('T', 'N', X, X) # information = X' * W * X
+#       w = 1.0 ./ w
+#       lmul!(Diagonal(w), X)
+#     elseif model == "poisson"
+#       z = exp.(z)
+#       w = copy(z)
+#       BLAS.axpy!(-1.0, y, z) # z = z - y
+#       score = BLAS.gemv('T', -1.0, X, z) # score = - X' * (z - y)
+#       w = sqrt.(w)
+#       lmul!(Diagonal(w), X) # diag(w) * X
+#       information = BLAS.gemm('T', 'N', X, X) # information = X' * W * X
+#       w = 1.0 ./ w
+#       lmul!(Diagonal(w), X)
+#     end
+#     #
+#     # Compute the scoring increment.
+#     #
+#     increment = information \ score
+#     #
+#     # Step halve to produce an increase in the loglikelihood.
+#     #
+#     steps = -1
+#     for step_halve = 0:3
+#       steps = steps + 1
+#       obj = 0.0
+#       estimate = estimate + increment
+#       BLAS.gemv!('N', 1.0, X, estimate, 0.0, z) # z = X * estimate
+#       clamp!(z, -20.0, 20.0)
+#       #
+#       # Compute the loglikelihood under the appropriate model.
+#       #
+#       if model == "logistic"
+#         z = exp.(-z)
+#         z = 1.0 ./ (1.0 .+ z)
+#         for i = 1:n
+#           if y[i] > 0.0
+#             obj = obj + log(z[i])
+#           else
+#             obj = obj + log(1.0 - z[i])
+#           end
+#         end
+#       elseif model == "poisson"
+#         for i = 1:n
+#           q = exp(z[i])
+#           obj = obj + y[i] * z[i] - q
+#         end  
+#       end
+#       #
+#       # Check for an increase in the loglikelihood.
+#       #
+#       if old_obj < obj
+#         break
+#       else
+#         estimate = estimate - increment # revert back to old estimate
+#         increment = 0.5 * increment
+#       end
+#     end
+#     #
+#     # Check for convergence.
+#     # 
+#     if iteration > 1 && abs(obj - old_obj) < epsilon * (abs(old_obj) + 1.0)
+#       return (estimate, obj)
+#     else
+#       old_obj = obj
+#     end
+#   end
+#   return (estimate, obj)
+# end # function regress
 
 """
-When initilizing the model β, we fit a bivariate regression with the given covariate and 
-the intercept. Fitting is done using scoring (newton) algorithm. The average of the 
-intercept is used as the its own initial guess. 
+When initilizing the model β, for each covariate we fit a bivariate regression with 
+itself and the intercept. Fitting is done using scoring (newton) algorithm in GLM.jl. 
+The average of the intercept over all fits is used as the its initial guess. 
 """
-function initialize_beta!(
-    v :: IHTVariable{T},
-    y :: AbstractVector{T},
-    x :: SnpArray,
-    glm :: String,
-) where {T <: Float}
+function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::SnpArray,
+                          d::Distribution, l::Link) where {T <: Float}
     n, p = size(x)
-    temp_matrix = ones(n, 2) #2 by p matrix of the intercept + the covariate
+    temp_matrix = ones(n, 2) #n by 2 matrix of the intercept + 1 single covariate
     intercept = 0.0
     for i in 1:p
-        copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
-        (estimate, obj) = regress(temp_matrix, y, glm)
-        intercept += estimate[1]
-        v.b[i] = estimate[2]
+        copyto!(@view(temp_matrix[:, 2]), @view(x[:, i]), center=true, scale=true)
+        estimate = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
+        intercept += estimate.pp.beta0[1]
+        v.b[i] = estimate.pp.beta0[2]
     end
     v.c[1] = intercept / p
 end
 
-function initialize_beta!(
-    v :: IHTVariable{T},
-    y :: AbstractVector{T},
-    x :: SnpArray,
-    d :: Distribution,
-    l :: Link
-) where {T <: Float}
-    n, p = size(x)
-    temp_matrix = ones(n, 2) #2 by p matrix of the intercept + the covariate
-    intercept = 0.0
-    for i in 1:p
-        copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
-        model = fit(GeneralizedLinearModel, x, temp_matrix, d, l)
-        intercept += estimate[1]
-        v.b[i] = estimate[2]
-    end
-    v.c[1] = intercept / p
-end
+# function initialize_beta!(
+#     v :: IHTVariable{T},
+#     y :: AbstractVector{T},
+#     x :: SnpArray,
+#     glm :: String,
+# ) where {T <: Float}
+#     n, p = size(x)
+#     temp_matrix = ones(n, 2) #2 by p matrix of the intercept + the covariate
+#     intercept = 0.0
+#     for i in 1:p
+#         copyto!(@view(temp_matrix[:, 2]), view(x, :, i), center=true, scale=true)
+#         (estimate, obj) = regress(temp_matrix, y, glm)
+#         intercept += estimate[1]
+#         v.b[i] = estimate[2]
+#     end
+#     v.c[1] = intercept / p
+# end

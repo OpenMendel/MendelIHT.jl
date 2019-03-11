@@ -13,7 +13,7 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Bernoulli
+d = Poisson
 l = canonicallink(d())
 
 #set random seed
@@ -36,6 +36,13 @@ y = Float64.(y)
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+
+#check result
+compare_model = DataFrame(
+    true_β      = true_b[correct_position], 
+    estimated_β = result.beta[correct_position])
+println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
 
 #clean up
 rm("tmp.bed", force=true)

@@ -13,16 +13,16 @@ mutable struct IHTVariable{T <: Float}
     idx0  :: BitVector     # previous iterate of idx
     idc   :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
     idc0  :: BitVector     # previous iterate of idc
-    r     :: Vector{T}     # y - g^-1(Xβ), denoting the residuals. Arise as calculation in fisher's information matrix
-    df    :: Vector{T}     # the gradient portion of the genotype part: df = ∇f(β) = snpmatrix * (y - xb - zc)
-    df2   :: Vector{T}     # the gradient portion of the non-genetic covariates: covariate matrix * (y - xb - zc)
+    r     :: Vector{T}     # y - g^-1(xb), denoting the residuals. Arise as calculation in fisher's information matrix
+    df    :: Vector{T}     # genotype portion of the score
+    df2   :: Vector{T}     # non-genetic covariates portion of the score
     c     :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
     c0    :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
     zc    :: Vector{T}     # z * c (covariate matrix times c)
     zc0   :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
-    zdf2  :: Vector{T}     # z * df2. needed to calculate non-genetic covariate contribution for denomicator of step size 
+    zdf2  :: Vector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
     group :: Vector{Int64} # vector denoting group membership
-    p     :: Vector{T}     # vector storing the mean of a glm: p = g^{-1}( Xβ )
+    μ     :: Vector{T}     # mean of the current model: μ = g^{-1}(xb)
 end
 
 function IHTVariables(
@@ -32,32 +32,32 @@ function IHTVariables(
     J :: Int64,
     k :: Int64;
 ) where {T <: Float}
-    n, p  = size(x)
-    q     = size(z, 2)
+    n, p = size(x)
+    q    = size(z, 2)
 
-    b     = zeros(T, p)
-    b0    = zeros(T, p)
-    xb    = zeros(T, n)
-    xb0   = zeros(T, n)
-    xk    = zeros(T, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    gk    = zeros(T, J * k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
-    xgk   = zeros(T, n)
-    idx   = falses(p)
-    idx0  = falses(p)
-    idc   = falses(q)
-    idc0  = falses(q)
-    r     = zeros(T, n)
-    df    = zeros(T, p)
-    df2   = zeros(T, q)
-    c     = zeros(T, q)
-    c0    = zeros(T, q)
-    zc    = zeros(T, n)
-    zc0   = zeros(T, n)
-    zdf2  = zeros(T, n)
-    group = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
-    p     = zeros(T, n)
+    b      = zeros(T, p)
+    b0     = zeros(T, p)
+    xb     = zeros(T, n)
+    xb0    = zeros(T, n)
+    xk     = zeros(T, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    gk     = zeros(T, J * k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
+    xgk    = zeros(T, n)
+    idx    = falses(p)
+    idx0   = falses(p)
+    idc    = falses(q)
+    idc0   = falses(q)
+    r      = zeros(T, n)
+    df     = zeros(T, p)
+    df2    = zeros(T, q)
+    c      = zeros(T, q)
+    c0     = zeros(T, q)
+    zc     = zeros(T, n)
+    zc0    = zeros(T, n)
+    zdf2   = zeros(T, n)
+    group  = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
+    μ      = zeros(T, n)
 
-    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p)
+    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, μ)
 end
 
 """

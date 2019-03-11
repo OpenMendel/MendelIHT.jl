@@ -40,7 +40,7 @@ function L0_reg(
     scaled_norm = 0.0             # the_norm / (norm(b0) + 1)
 
     # initialize integers
-    mu_step = 0                   # counts number of backtracking steps for mu
+    η_step = 0                   # counts number of backtracking steps for η
 
     # initialize booleans
     converged = false             # scaled_norm < tol?
@@ -49,10 +49,10 @@ function L0_reg(
     v = IHTVariables(x, z, y, J, k)
 
     #initiliaze model and compute xb
-    # if init
-    #     initialize_beta!(v, y, x, d, l)
-    #     A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
-    # end
+    if init
+        initialize_beta!(v, y, x, d, l)
+        A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
+    end
 
     # Calculate the score
     update_df!(v, xbm, z, y, l)
@@ -62,33 +62,24 @@ function L0_reg(
         save_prev!(v)
         logl = next_logl
 
-        #calculate the step size μ and check loglikelihood is not NaN or Inf
-        (μ, μ_step, next_logl) = iht!(v, x, z, y, J, k, d, l, logl, temp_vec, mm_iter, max_step)
+        #calculate the step size η and check loglikelihood is not NaN or Inf
+        (η, η_step, next_logl) = iht!(v, x, z, y, J, k, d, l, logl, temp_vec, mm_iter, max_step)
 
-        println("reached here!")
-        return fff
-
-        #perform debiasing (after v.b have been updated via iht_logistic) whenever possible
+        #perform debiasing (after v.b have been updated via iht!) whenever possible
         if debias && sum(v.idx) == size(v.xk, 2)
-            (β, obj) = regress(v.xk, y, glm)
-            if !all(β .≈ 0)
-                view(v.b, v.idx) .= β
-            end
-            # test_result = GLM.glm(v.xk, y, Binomial(), LogitLink()) #GLM package doesn't work idk why
-            # test_result = test_result.pp.beta0
+            test_result = fit(GeneralizedLinearModel, v.xk, y, d, l)
+            all(test_result.pp.beta0 .≈ 0) || (view(v.b, v.idx) .= test_result.pp.beta0)
         end
 
         #print information about current iteration
-        show_info && @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(μ) * ", backtrack = " * string(μ_step))
+        show_info && @info("iter = " * string(mm_iter) * ", loglikelihood = " * string(next_logl) * ", step size = " * string(η) * ", backtrack = " * string(η_step))
         if show_info
             temp_df = DataFrame(β = v.b, gradient = v.df)
             @show sort(temp_df, rev=true, by=abs)[1:2k, :]
         end
 
-        # update score (gradient) and p vector using stepsize μ 
-        update_df!(glm, v, xbm, z, y)
-
-        return ff
+        # update mean vector, residual, and score (gradient)
+        update_df!(v, xbm, z, y, l)
 
         # track convergence using kevin or ken's converegence criteria
         if convg
@@ -128,13 +119,10 @@ function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractV
     end
 
     # calculate step size 
-    μ = iht_stepsize(v, z, d, l)
+    η = iht_stepsize(v, z, d)
 
-    println("hi")
-    return ff
-
-    # update b and c by taking gradient step v.b = P_k(β + μv) where v is the score direction
-    _iht_gradstep(v, μ, J, k, temp_vec)
+    # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
+    _iht_gradstep(v, η, J, k, temp_vec)
 
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
@@ -144,18 +132,18 @@ function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractV
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
 
     # calculate current loglikelihood with the new computed xb and zc
-    new_logl = compute_logl(v, y, glm)
+    new_logl = loglikelihood(d, y, v.xb .+ v.zc)
 
-    μ_step = 0
-    while _logistic_backtrack(new_logl, old_logl, μ_step, nstep)
+    η_step = 0
+    while _iht_backtrack_(new_logl, old_logl, η_step, nstep)
 
         # stephalving
-        μ /= 2
+        η /= 2
 
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
-        _iht_gradstep(v, μ, J, k, temp_vec)
+        _iht_gradstep(v, η, J, k, temp_vec)
 
         # make necessary resizing since grad step might include/exclude non-genetic covariates
         check_covariate_supp!(v) 
@@ -165,15 +153,15 @@ function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractV
         A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
 
         # compute new loglikelihood again to see if we're now increasing
-        new_logl = compute_logl(v, y, glm)
+        new_logl = loglikelihood(d, y, v.xb .+ v.zc)
 
         # increment the counter
-        μ_step += 1
+        η_step += 1
     end
 
     isnan(new_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
     isinf(new_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
-    isinf(μ) && throw(error("step size weird! it is $μ and max df is " * string(maximum(v.gk)) * "!!\n"))
+    isinf(η) && throw(error("step size not finite! it is $η and max df is " * string(maximum(v.gk)) * "!!\n"))
 
-    return μ::T, μ_step::Int, new_logl::T
+    return η::T, η_step::Int, new_logl::T
 end
