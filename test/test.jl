@@ -755,16 +755,6 @@ writedlm("folds", folds)
 
 
 
-
-
-
-
-
-
-
-
-
-
 # trying GLM's fitting function
 Random.seed!(2019)
 n = 1000000
@@ -785,4 +775,96 @@ hi = glm_result.pp.beta0
 glm_result_old = regress(x, y, "logistic")
 hii = glm_result_old[1]
 
+[b hi hii]
 
+
+
+
+
+
+#deviance residual vs y - xb
+
+function run_once()
+    n = 1000
+    p = 10000
+    k = 10
+    d = Poisson
+    l = canonicallink(d())
+
+    #construct snpmatrix, covariate files, and true model b
+    x, maf = simulate_random_snparray(n, p, "tmp.bed")
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    z = ones(n, 1) # the intercept
+    true_b = zeros(p)
+    d == Poisson ? true_b[1:k] = rand(Normal(0, 0.3), k) : true_b[1:k] = randn(k)
+    shuffle!(true_b)
+    correct_position = findall(x -> x != 0, true_b)
+
+    #simulate phenotypes (e.g. vector y) via: y = Xb + noise
+    y_temp = xbm * true_b
+    prob = linkinv.(l, y_temp)
+    y = [rand(d(i)) for i in prob]
+    y = Float64.(y)
+
+    #run IHT
+    result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true)
+
+    #clean up
+    rm("tmp.bed", force=true)
+
+    found = length(findall(!iszero, result.beta[correct_position]))
+    runtime = result.time
+
+    return found, runtime
+end
+
+#set random seed
+Random.seed!(1111)
+function run()
+    total_found = 0
+    total_time = 0
+    for i in 1:30
+        f, t = run_once()
+        total_found += f
+        total_time += t
+        println("finished $i run")
+    end
+    avg_found = total_found / 30
+    avg_time = total_time / 30
+    println(avg_found)
+    println(avg_time)
+end
+run()
+
+
+
+
+
+function loglik_obs(::Normal, y, μ, wt, ϕ) #this is wrong
+    return wt*logpdf(Normal(μ, sqrt(ϕ)), y)
+end
+
+function test()
+    y, mu = rand(1000), rand(1000)
+    ϕ = MendelIHT.deviance(Normal(), y, mu)/length(y)
+    ϕ = 1.0
+    logl = 0.0
+    for i in eachindex(y, mu)
+        logl += loglik_obs(Normal(), y[i], mu[i], 1, ϕ)
+    end
+    println(logl)
+
+    println(loglikelihood(Normal(), y, mu))
+end
+test() 
+
+
+
+
+
+
+b = result.beta
+μ = linkinv.(l, xbm*b)
+# sum(logpdf.(Poisson.(μ), y))
+loglikelihood(Poisson(), y, xbm*b)
+loglikelihood_test(Poisson(), y, μ)

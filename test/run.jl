@@ -13,7 +13,7 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Poisson
+d = Bernoulli
 l = canonicallink(d())
 
 #set random seed
@@ -22,9 +22,9 @@ Random.seed!(1111)
 #construct snpmatrix, covariate files, and true model b
 x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-z = ones(n, 1) # non-genetic covariates, just the intercept
+z = ones(n, 1) # the intercept
 true_b = zeros(p)
-true_b[1:k] = randn(k)
+d == Poisson ? true_b[1:k] = rand(Normal(0, 0.3), k) : true_b[1:k] = randn(k)
 shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 
@@ -35,7 +35,8 @@ y = [rand(d(i)) for i in prob]
 y = Float64.(y)
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true)
+# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true) seconds = 60
 
 #check result
 compare_model = DataFrame(
@@ -43,6 +44,7 @@ compare_model = DataFrame(
     estimated_β = result.beta[correct_position])
 println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
+println("Total found predictors = " * string(length(findall(!iszero, result.beta[correct_position]))))
 
 #clean up
 rm("tmp.bed", force=true)

@@ -1,10 +1,81 @@
 """
-This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. It is an
-addition here because recall that v.df stores an extra negative sign.
+    loglikelihood(y::AbstractVector, xb::AbstractVector, d::UnivariateDistribution)
+
+This function calculates the loglikelihood of observing `y` given `μ` = g^{-1}(xb). 
+
+Additional input(s) are required for the following distributions: 
++ `Binomial`: A vector `n` denoting the number of trials for each entry in `y`. That is, we assume that y[i] = rand(Binomial(n[i], p[i])) for which we are estimating the vector `p`. 
++ `Gamma`: A vector `ν` denoting the scale parameter for each observation `y`. In practice, this can be found using newton's method https://en.wikipedia.org/wiki/Gamma_distribution#Parameter_estimation.
+"""
+function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
+                       μ::AbstractVector{T}) where {T <: Float}
+    logl = zero(T)
+    ϕ = MendelIHT.deviance(d, y, μ) / length(y)
+    @inbounds for i in eachindex(y)
+        logl += loglik_obs(d, y[i], μ[i], 1, ϕ) #currently IHT don't support weights
+    end
+    return logl
+end
+
+function loglikelihood(v::IHTVariable{T}, y::AbstractVector{T}, xb::AbstractVector{T},
+                       d::UnivariateDistribution, l::Link = canonicallink(d)) where {T <: Float}
+    @. v.μ = linkinv(l, v.xb + v.zc)
+    return loglikelihood(d, y, v.μ)
+end
+
+# loglikelihood(::Normal, y::AbstractVector, xb::AbstractVector) = -0.5 * sum(abs2, y .- xb)
+# loglikelihood(::Bernoulli, y::AbstractVector, xb::AbstractVector) = sum(y .* xb .- log.(1.0 .+ exp.(xb)))
+# loglikelihood(::Binomial, y::AbstractVector, xb::AbstractVector, n::AbstractVector) = sum(y .* xb .- n .* log.(1.0 .+ exp.(xb)))
+# loglikelihood(::Poisson, y::AbstractVector, xb::AbstractVector) = sum(y .* xb .- exp.(xb) .- lfactorial.(Int.(y)))
+# loglikelihood(::Gamma, y::AbstractVector, xb::AbstractVector, ν::AbstractVector) = sum((y .* xb .+ log.(xb)) .* ν) + (ν .- 1) .* log.(y) .- ν .* (log.(1 ./ ν)) .- log.(SpecialFunctions.gamma.(ν))
+
+"""
+The deviance of a GLM can be evaluated as the sum of the squared deviance residuals.
+"""
+function deviance end
+deviance(d::UnivariateDistribution, y::AbstractVector, μ::AbstractVector) = sum(devresid.(d, y, μ))
+
+"""
+This function calculates the score (gradient) for different glm models, and stores the
+result in v.df and v.df2. The former stores the gradient associated with the snpmatrix
+direction and the latter associates with the intercept + other non-genetic covariates. 
+
+    score = X^T * (y - g^{-1}(xb))
+"""
+function score!(v::IHTVariable{T}, x::SnpBitMatrix{T}, z::AbstractMatrix{T},
+    y :: AbstractVector{T}, d::UnivariateDistribution, l::Link = canonicallink(d)) where {T <: Float}
+    @. v.μ = linkinv(l, v.xb + v.zc)
+    @. v.r = y - v.μ
+    At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+end
+
+"""
+This function is taken from GLM.jl from : 
+
+https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
+
+Putting it here because it was not exported.
+"""
+function loglik_obs end
+
+loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
+loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
+loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
+loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
+loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
+loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
+# We use the following parameterization for the Negative Binomial distribution:
+#    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
+# The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
+#    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
+# Hence, p = θ/(μ+θ)
+loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
+
+"""
+This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int, 
                        temp_vec::Vector{T}) where {T <: Float}
-    #v.df is dense
     BLAS.axpy!(η, v.df, v.b)  # take gradient step: b = b + μv, v = score
     BLAS.axpy!(η, v.df2, v.c) # take gradient step: b = b + μv, v = score
 
@@ -118,6 +189,16 @@ end
 #     prev_logl > logl && η_step < nstep 
 # end
 
+"""
+This function returns true if backtracking condition is met. Currently, backtracking condition
+includes either one of the following:
+    1. New loglikelihood is smaller than the old one
+    2. Current backtrack exceeds maximum allowed backtracking (default = 3)
+
+Note, for Posison, we require the model coefficients to be "small" to prevent 
+loglikelihood blowing up in first few iteration. This is accomplished by clamping
+xb values to be in (-30, 30)
+"""
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
     prev_logl > logl && η_step < nstep 
 end
@@ -136,22 +217,22 @@ end
 #     η_step < nstep
 # end
 
-"""
-this function for determining whether or not to backtrack for poisson regression. True = backtrack
+# """
+# this function for determining whether or not to backtrack for poisson regression. True = backtrack
 
-Note we require the model coefficients to be "small"  (that is, max entry not greater than 10) to 
-prevent loglikelihood blowing up in first few iteration.
-"""
-function _poisson_backtrack(
-    v         :: IHTVariable{T},
-    logl      :: T, 
-    prev_logl :: T,
-    η_step    :: Int,
-    nstep     :: Int
-) where {T <: Float}
-    η_step >= nstep  && return false
-    prev_logl > logl && return true
-end
+# Note we require the model coefficients to be "small"  (that is, max entry not greater than 10) to 
+# prevent loglikelihood blowing up in first few iteration.
+# """
+# function _poisson_backtrack(
+#     v         :: IHTVariable{T},
+#     logl      :: T, 
+#     prev_logl :: T,
+#     η_step    :: Int,
+#     nstep     :: Int
+# ) where {T <: Float}
+#     η_step >= nstep  && return false
+#     prev_logl > logl && return true
+# end
 
 # function _poisson_backtrack2(
 #     v       :: IHTVariable{T},
@@ -463,23 +544,6 @@ function At_mul_B!(
     LinearAlgebra.mul!(C2, A2', B2)
 end
 
-"""
-This function calculates the score (gradient) for different glm models, and stores the
-result in v.df and v.df2. The former stores the gradient associated with the snpmatrix
-direction and the latter associates with the intercept + other non-genetic covariates. 
-
-The following summarizes the score direction for different responses.
-    Normal = ∇f(β) = -X^T (Y - Xβ)
-    Binary = ∇L(β) = -X^T (Y - P) (using logit link)
-    Count  = ∇L(β) = X^T (Y - Λ)
-"""
-function update_df!(v::IHTVariable{T}, x::SnpBitMatrix{T}, z::AbstractMatrix{T},
-    y :: AbstractVector{T}, l::Link = canonicallink(d)) where {T <: Float}
-    @. v.μ = linkinv(l, v.xb + v.zc)
-    @. v.r = y - v.μ
-    At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-end
-
 # function update_df!(
 #     glm    :: String,
 #     v      :: IHTVariable{T}, 
@@ -502,11 +566,6 @@ end
 #         throw(error("computing gradient for an unsupport glm method: " * glm))
 #     end
 # end
-
-function loglikelihood end
-loglikelihood(::Normal, y, xb) = -0.5 * sum(abs2, y .- xb)
-loglikelihood(::Bernoulli, y, xb) = sum(y .* xb .- log.(1.0 .+ exp.(xb)))
-loglikelihood(::Poisson, y, xb) = sum(y .* xb .- exp.(xb))
 
 # """
 # `compute_logl` computes the loglikelihood of a model β for a given glm response
@@ -758,7 +817,7 @@ itself and the intercept. Fitting is done using scoring (newton) algorithm in GL
 The average of the intercept over all fits is used as the its initial guess. 
 """
 function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::SnpArray,
-                          d::Distribution, l::Link) where {T <: Float}
+                          d::UnivariateDistribution, l::Link) where {T <: Float}
     n, p = size(x)
     temp_matrix = ones(n, 2) #n by 2 matrix of the intercept + 1 single covariate
     intercept = 0.0

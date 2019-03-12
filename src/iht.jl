@@ -28,7 +28,7 @@ function L0_reg(
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
 
     # make sure response data is in the form we need it to be 
-    # check_y_content(y, glm)
+    checky(y, d)
 
     # initialize return values
     mm_iter   = 0                 # number of iterations of L0_logistic_reg
@@ -54,8 +54,8 @@ function L0_reg(
         A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
     end
 
-    # Calculate the score
-    update_df!(v, xbm, z, y, l)
+    # update mean vector, residual, and score (gradient)
+    score!(v, xbm, z, y, d, l)
 
     for mm_iter = 1:max_iter
         # save values from previous iterate and update loglikelihood
@@ -79,7 +79,7 @@ function L0_reg(
         end
 
         # update mean vector, residual, and score (gradient)
-        update_df!(v, xbm, z, y, l)
+        score!(v, xbm, z, y, d, l)
 
         # track convergence using kevin or ken's converegence criteria
         if convg
@@ -127,12 +127,14 @@ function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractV
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
 
-    # update xb and zc with the new computed b and c
+    # update xb and zc with the new computed b and c, clamping because might overflow for poisson
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
+    clamp!(v.xb, -30, 30)
+    clamp!(v.zc, -30, 30)
 
     # calculate current loglikelihood with the new computed xb and zc
-    new_logl = loglikelihood(d, y, v.xb .+ v.zc)
+    new_logl = loglikelihood(v, y, v.xb .+ v.zc, d, l)
 
     η_step = 0
     while _iht_backtrack_(new_logl, old_logl, η_step, nstep)
@@ -151,9 +153,11 @@ function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractV
         # recompute xb
         copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
         A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
+        clamp!(v.xb, -30, 30)
+        clamp!(v.zc, -30, 30)
 
         # compute new loglikelihood again to see if we're now increasing
-        new_logl = loglikelihood(d, y, v.xb .+ v.zc)
+        new_logl = loglikelihood(v, y, v.xb .+ v.zc, d, l)
 
         # increment the counter
         η_step += 1

@@ -6,7 +6,7 @@ module MendelIHT
 	import StatsFuns: logistic
 	import SpecialFunctions: lfactorial
 	import Base.show
-	import GLM: glmvar, fit, linkinv, Link, loglikelihood
+	import GLM: glmvar, fit, linkinv, Link, loglikelihood, GeneralizedLinearModel, devresid, checky
 	using SnpArrays
 	using MendelBase
 	using DataFrames
@@ -27,6 +27,7 @@ module MendelIHT
 	export save_prev!, update_mean!, normalize!
 
 	export cv_iht_distributed, iht_run_many_models, L0_reg
+	export loglikelihood, devi, score!, loglikelihood_test
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}

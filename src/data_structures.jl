@@ -13,7 +13,7 @@ mutable struct IHTVariable{T <: Float}
     idx0  :: BitVector     # previous iterate of idx
     idc   :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
     idc0  :: BitVector     # previous iterate of idc
-    r     :: Vector{T}     # y - g^-1(xb), denoting the residuals. Arise as calculation in fisher's information matrix
+    r     :: Vector{T}     # The difference between the observed and predicted response. For linear model this is the residual
     df    :: Vector{T}     # genotype portion of the score
     df2   :: Vector{T}     # non-genetic covariates portion of the score
     c     :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
