@@ -54,7 +54,8 @@ function L0_reg(
         A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
     end
 
-    # update mean vector, residual, and score (gradient)
+    # update mean vector, residual, then use them to compute score (gradient)
+    update_mean!(v.μ, v.xb .+ v.zc, l)
     score!(v, xbm, z, y, d, l)
 
     for mm_iter = 1:max_iter
@@ -78,7 +79,7 @@ function L0_reg(
             @show sort(temp_df, rev=true, by=abs)[1:2k, :]
         end
 
-        # update mean vector, residual, and score (gradient)
+        # compute score, where the mean have been updated in iht!
         score!(v, xbm, z, y, d, l)
 
         # track convergence using kevin or ken's converegence criteria
@@ -134,7 +135,8 @@ function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractV
     clamp!(v.zc, -30, 30)
 
     # calculate current loglikelihood with the new computed xb and zc
-    new_logl = loglikelihood(v, y, v.xb .+ v.zc, d, l)
+    update_mean!(v.μ, v.xb .+ v.zc, l)
+    new_logl = loglikelihood(d, y, v.μ)
 
     η_step = 0
     while _iht_backtrack_(new_logl, old_logl, η_step, nstep)
@@ -157,7 +159,8 @@ function iht!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}, y::AbstractV
         clamp!(v.zc, -30, 30)
 
         # compute new loglikelihood again to see if we're now increasing
-        new_logl = loglikelihood(v, y, v.xb .+ v.zc, d, l)
+        update_mean!(v.μ, v.xb .+ v.zc, l)
+        new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter
         η_step += 1
