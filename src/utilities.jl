@@ -25,12 +25,13 @@ function update_mean!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) whe
 end
 
 """
-The deviance of a GLM can be evaluated as the sum of the squared deviance residuals.
+The deviance of a GLM can be evaluated as the sum of the squared deviance residuals. Calculation
+of sqared deviance residuals is accomplished by `devresid` which is implemented in GLM.jl
 """
 function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
     dev = zero(T)
     @inbounds for i in eachindex(y)
-        dev += devresid.(d, y[i], μ[i])
+        dev += devresid(d, y[i], μ[i])
     end
     return dev
 end
@@ -322,7 +323,7 @@ Here we are separating the computation because A1 is stored in compressed form w
 uncompressed (float64) matrix. This means that they cannot be stored in the same data 
 structure. 
 """
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::npBitMatrix{T},
+function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::SnpBitMatrix{T},
         A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
     SnpArrays.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)

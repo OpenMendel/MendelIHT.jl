@@ -868,3 +868,70 @@ b = result.beta
 # sum(logpdf.(Poisson.(μ), y))
 loglikelihood(Poisson(), y, xbm*b)
 loglikelihood_test(Poisson(), y, μ)
+
+
+
+
+
+
+
+
+
+#debugging malloc: Incorrect checksum for freed object
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using GLM
+
+#simulat data with k true predictors, from distribution d and with link l.
+n = 1000
+p = 10000
+k = 10
+d = Normal
+l = canonicallink(d())
+
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+x, maf = simulate_random_snparray(n, p, "tmp.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # the intercept
+true_b = zeros(p)
+d == Poisson ? true_b[1:k] = rand(Normal(0, 0.3), k) : true_b[1:k] = randn(k)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+
+#simulate phenotypes (e.g. vector y) 
+y_temp = xbm * true_b
+prob = linkinv.(l, y_temp)
+y = [rand(d(i)) for i in prob]
+y = Float64.(y)
+
+#run IHT
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true)
+
+train_idx = bitrand(n)
+path = collect(1:20)
+
+p, q = size(x, 2), size(z, 2)
+nmodels = length(path)
+betas = zeros(p, nmodels)
+cs = zeros(q, nmodels)
+
+x_train = SnpArray(undef, sum(train_idx), p)
+copyto!(x_train, @view x[train_idx, :])
+y_train = @view(y[train_idx])
+z_train = @view(z[train_idx, :])
+x_trainbm = SnpBitMatrix{Float64}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+k = path[1]
+debias = false
+showinfo = false
+d = d()
+result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, debias=debias, init=false, show_info=showinfo, convg=true)

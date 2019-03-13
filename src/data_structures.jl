@@ -2,27 +2,27 @@
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
 mutable struct IHTVariable{T <: Float}
-    b     :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
-    b0    :: Vector{T}     # estimated model for genotype matrix in the previous iteration
-    xb    :: Vector{T}     # vector that holds x*b
-    xb0   :: Vector{T}     # xb in the previous iteration
-    xk    :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: Vector{T}     # numerator of step size. gk = df[idx]. 
-    xgk   :: Vector{T}     # xk * gk, denominator of step size
-    idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
-    idx0  :: BitVector     # previous iterate of idx
-    idc   :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
-    idc0  :: BitVector     # previous iterate of idc
-    r     :: Vector{T}     # The difference between the observed and predicted response. For linear model this is the residual
-    df    :: Vector{T}     # genotype portion of the score
-    df2   :: Vector{T}     # non-genetic covariates portion of the score
-    c     :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
-    c0    :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
-    zc    :: Vector{T}     # z * c (covariate matrix times c)
-    zc0   :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
-    zdf2  :: Vector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
-    group :: Vector{Int64} # vector denoting group membership
-    μ     :: Vector{T}     # mean of the current model: μ = g^{-1}(xb)
+    b     :: AbstractVector{T}     # the statistical model for the genotype matrix, most will be 0
+    b0    :: AbstractVector{T}     # estimated model for genotype matrix in the previous iteration
+    xb    :: AbstractVector{T}     # vector that holds x*b
+    xb0   :: AbstractVector{T}     # xb in the previous iteration
+    xk    :: AbstractMatrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    gk    :: AbstractVector{T}     # numerator of step size. gk = df[idx]. 
+    xgk   :: AbstractVector{T}     # xk * gk, denominator of step size
+    idx   :: BitVector             # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
+    idx0  :: BitVector             # previous iterate of idx
+    idc   :: BitVector             # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
+    idc0  :: BitVector             # previous iterate of idc
+    r     :: AbstractVector{T}     # The difference between the observed and predicted response. For linear model this is the residual
+    df    :: AbstractVector{T}     # genotype portion of the score
+    df2   :: AbstractVector{T}     # non-genetic covariates portion of the score
+    c     :: AbstractVector{T}     # estimated model for non-genetic variates (first entry = intercept)
+    c0    :: AbstractVector{T}     # estimated model for non-genetic variates in the previous iteration
+    zc    :: AbstractVector{T}     # z * c (covariate matrix times c)
+    zc0   :: AbstractVector{T}     # z * c (covariate matrix times c) in the previous iterate
+    zdf2  :: AbstractVector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
+    group :: AbstractVector{Int64} # vector denoting group membership
+    μ     :: AbstractVector{T}     # mean of the current model: μ = g^{-1}(xb)
 end
 
 function IHTVariables(
@@ -73,11 +73,7 @@ struct ggIHTResults{T <: Float, V <: DenseVector}
     J     :: Int64
     k     :: Int64
     group :: Vector{Int64}
-
-    ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
 end
-
-# strongly typed external constructor for ggIHTResults
 ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
 
 """
@@ -94,26 +90,34 @@ function Base.show(io::IO, x::ggIHTResults)
     non_zero = findall(x -> x != 0, x.beta)
     print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
     println(io, "\n\nIntercept of model = ", x.c[1])
-
-    return nothing
 end
 
 """
 verbose printing of cv results
 """
-function print_cv_results(
-    io::IO, 
-    errors::Vector{T}, 
-    path::DenseVector{Int}, 
-    k::Int
-) where {T <: Float}
+function print_cv_results(io::IO, errors::Vector{T}, path::DenseVector{Int}, 
+                          k::Int) where {T <: Float}
     println(io, "\n\nCrossvalidation Results:")
-    println(io, "k\tMSE")
+    println(io, "\tk\tMSE")
     for i = 1:length(errors)
-        println(io, path[i], "\t", errors[i])
+        println(io, "\t", path[i], "\t", errors[i])
     end
     println(io, "\nThe lowest MSE is achieved at k = $k \n")
 end
-
 # default IO for print_cv_results is STDOUT
 print_cv_results(errors::Vector{T}, path::DenseVector{Int}, k::Int) where {T <: Float} = print_cv_results(stdout, errors, path, k)
+
+"""
+verbose printing of running `iht_run_many_models` with a bunch of models
+"""
+function print_a_bunch_of_path_results(io::IO, loglikelihoods::AbstractVector{T}, path::AbstractVector{Int}) where {T <: Float}
+    println(io, "\n\nResults of running all the model sizes specified in `path`:")
+    println(io, "\tk\tloglikelihoods")
+    for i = 1:length(loglikelihoods)
+        println(io, "\t", path[i], "\t", loglikelihoods[i])
+    end
+    println(io, "\nWe recommend running cross validation through `cv_iht_distributed` on " *
+    "appropriate model sizes. Roughly speaking, this is when error stopped decreasing significantly.")
+end
+# default IO for print_a_bunch_of_path_results is STDOUT
+print_a_bunch_of_path_results(loglikelihoods::AbstractVector{T}, path::AbstractVector{Int}) where {T <: Float} = print_a_bunch_of_path_results(stdout, loglikelihoods, path)
