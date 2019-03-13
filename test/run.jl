@@ -51,7 +51,7 @@ rm("tmp.bed", force=true)
 
 
 
-#BELOW ARE SIMULATION FOR negative binomial
+#BELOW ARE SIMULATION for negative binomial
 using Revise
 using MendelIHT
 using SnpArrays
@@ -62,35 +62,34 @@ using Random
 using LinearAlgebra
 using GLM
 
-#simulat data with k true predictors, from distribution d and with link l.
+#simulat data with k true predictors
 n = 1000
 p = 10000
 k = 10
 d = NegativeBinomial
-l = canonicallink(d())
-# l = LogLink()
-s = 10 #number of tries for binomial/negative-binomial
+l = LogLink()
+nn = 10 #number of successes until stopping
 
 #set random seed
-Random.seed!(1111)
+Random.seed!(2019)
 
 #construct snpmatrix, covariate files, and true model b
 x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
-d == Poisson ? true_b[1:k] = rand(Normal(0, 0.3), k) : true_b[1:k] = randn(k)
+true_b[1:k] = rand(Normal(0, 0.3), k)
 shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 
 #simulate phenotypes (e.g. vector y) 
 μ = linkinv.(l, xbm * true_b)
-prob = 1 ./ (1 .+ s ./ μ)
-y = [rand(d(s, i)) for i in prob]
+prob = 1 ./ (1 .+ μ ./ nn)
+y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
 y = Float64.(y)
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true) seconds = 60
 
 #check result
@@ -126,11 +125,11 @@ n = 1000
 p = 10000
 k = 10
 d = Binomial
-l = canonicallink(d())
-s = 10 #number of tries for binomial/negative-binomial
+l = CloglogLink()
+nn = 10 #number of tries for binomial/negative-binomial
 
 #set random seed
-Random.seed!(1111)
+Random.seed!(2019)
 
 #construct snpmatrix, covariate files, and true model b
 x, maf = simulate_random_snparray(n, p, "tmp.bed")
@@ -143,8 +142,8 @@ correct_position = findall(x -> x != 0, true_b)
 
 #simulate phenotypes (e.g. vector y) 
 μ = linkinv.(l, xbm * true_b)
-prob = μ ./ s
-y = [rand(d(s, i)) for i in prob]
+prob = μ ./ nn
+y = [rand(d(nn, i)) for i in prob]
 y = Float64.(y)
 
 #run IHT
@@ -223,7 +222,7 @@ rm("tmp.bed", force=true)
 
 
 
-#BELOW ARE SIMULATION FOR gamma
+#BELOW ARE SIMULATION FOR inverse Gaussian
 using Revise
 using MendelIHT
 using SnpArrays
@@ -238,9 +237,9 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Gamma
+d = InverseGaussian
 l = LogLink()
-α = 1 #shape parameter for gamma
+λ = 1 # shape parameter for inverse gaussian
 
 #set random seed
 Random.seed!(2019)
@@ -250,15 +249,15 @@ x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
-# true_b[1:k] = randn(k)
-true_b[1:k] = rand(Normal(0, 0.3), k)
+true_b[1:k] = randn(k)
+# true_b[1:k] = rand(Normal(0, 0.3), k)
 shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 
 #simulate phenotypes (e.g. vector y) 
 μ = linkinv.(l, xbm * true_b)
-β = 1 ./ μ #here β is the rate parameter for gamma distribution
-y = [rand(d(α, i)) for i in β]
+mean_parameter = 1 ./ μ #mean parameter for inverse gaussian distribution
+y = [rand(d(i, λ)) for i in mean_parameter]
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false, convg=true)

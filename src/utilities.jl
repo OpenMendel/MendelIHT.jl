@@ -45,7 +45,7 @@ v.df and v.df2, respectively.
 
 """
 function score!(v::IHTVariable{T}, x::SnpBitMatrix{T}, z::AbstractMatrix{T},
-    y :: AbstractVector{T}, d::UnivariateDistribution, l::Link = canonicallink(d)) where {T <: Float}
+    y :: AbstractVector{T}, d::UnivariateDistribution, l::Link) where {T <: Float}
     @inbounds for i in eachindex(y)
         v.r[i] = y[i] - v.μ[i]
     end

@@ -6,7 +6,7 @@ function L0_reg(
     J         :: Int,
     k         :: Int,
     d         :: UnivariateDistribution,
-    l         :: Link = canonicallink(d);
+    l         :: Link;
     use_maf   :: Bool = false,
     tol       :: T = 1e-4,
     max_iter  :: Int = 200,
