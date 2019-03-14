@@ -78,22 +78,28 @@ loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r,
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int, 
-                       temp_vec::Vector{T}) where {T <: Float}
-    BLAS.axpy!(η, v.df, v.b)  # take gradient step: b = b + μv, v = score
-    BLAS.axpy!(η, v.df2, v.c) # take gradient step: b = b + μv, v = score
+                       full_grad::Vector{T}) where {T <: Float}
+    # take gradient step: b = b + μv, v = score
+    BLAS.axpy!(η, v.df, v.b)  
+    BLAS.axpy!(η, v.df2, v.c)
 
-    # copy v.b and v,c to temp_vec and project temp_vec
+    # copy v.b and v,c to full_grad and project full_grad
     length_b = length(v.b)
-    temp_vec[1:length_b] .= v.b
-    temp_vec[length_b+1:end] .= v.c
-    project_group_sparse!(temp_vec, v.group, J, k) # project [v.b; v.c] to sparse vector
-    v.b .= view(temp_vec, 1:length_b)
-    v.c .= view(temp_vec, length_b+1:length(temp_vec))
+    full_grad[1:length_b] .= v.b
+    full_grad[length_b+1:end] .= v.c
+    project_group_sparse!(full_grad, v.group, J, k) # project [v.b; v.c] to sparse vector
+    v.b .= view(full_grad, 1:length_b)
+    v.c .= view(full_grad, length_b+1:length(full_grad))
 
     #recompute current support
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
-    _choose!(v, J, k) # if more than J*k entries are selected, randomly choose J*k of them
+    
+    # if more than J*k entries are selected, randomly choose J*k of them
+    _choose!(v, J, k) 
+
+    # make necessary resizing since grad step might include/exclude non-genetic covariates
+    check_covariate_supp!(v) 
 end
 
 """
@@ -101,15 +107,24 @@ When initializing the IHT algorithm, take largest elements of each group of df a
 components of b. This function set v.idx = 1 for those indices. 
 
 `J` is the maximum number of active groups, and `k` is the maximum number of predictors per
-group. `temp_vec` is some preallocated vector for efficiency. 
+group. `full_grad` is some preallocated vector for efficiency. 
 """
-function init_iht_indices!(v::IHTVariable{T}, J::Int, k::Int;
-        temp_vec :: Vector{T} = zeros(length(v.df) + length(v.df2))) where {T <: Float}
+function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::AbstractMatrix{T},
+                           y::AbstractVector{T}, d::UnivariateDistribution,l::Link, J::Int, 
+                           k::Int, full_grad::AbstractVector{T}) where {T <: Float}
 
+    # # update mean vector and use them to compute score (gradient)
+    # update_mean!(v.μ, v.xb .+ v.zc, l)
+    # score!(v, xbm, z, y, d, l)
+
+    # find J*k largest entries and set everything else to 0. Choose randomly if more are selected
     a = sort([v.df; v.df2], rev=true)[k * J]
     v.idx .= v.df .>= a
     v.idc .= v.df2 .>= a
-    _choose!(v, J, k) # if more than J*k entries are selected, randomly choose J*k of them
+    _choose!(v, J, k) 
+
+    # make necessary resizing when necessary
+    check_covariate_supp!(v)
 end
 
 """
@@ -405,6 +420,57 @@ function _make_snparray(A1::BitArray, A2::BitArray, s::String)
         end
     end
     return x
+end
+
+"""
+This function simulates a random response vector `y` based on provided x, β, distirbution,
+and link function. `k` denotes the true number of predictors. When the distribution is from 
+Poisson, Gamma, or Negative Binomial, then the true model is drawn from N(0, 0.3) to roughly 
+ensure the mean of response `y` doesn't become too large. 
+
+Note: for negative binomial and gamma, the link function must be LogLink. For Bernoulli,
+the probit link seems to work better than logitlink.
+
+`nn` is an optional input argument needed for gamma and negative binomial simulations. 
+For Negative binomial, it is the number of success until stopping. For gamma distribution, 
+it is the shape parameter. 
+
+"""
+function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, β::AbstractVector{T}, 
+                                  k::Int, d::UnivariateDistribution, l::Link; nn = 10
+                                  ) where {T <: Float}
+    
+    n, p = size(x)
+    if (typeof(d) <: NegativeBinomial) || (typeof(d) <: Gamma)
+        l == LogLink() || throw(ArgumentError("Distribution $d must use LogLink!"))
+    end
+
+    #simulate a random model β from a normal distribution
+    true_b = zeros(p)
+    if d == (Poisson || Gamma || NegativeBinomial)
+        true_b[1:k] = rand(Normal(0, 0.3), k)
+    else
+        true_b[1:k] = randn(k)
+    end
+    shuffle!(true_b)
+    correct_position = findall(x -> x != 0, true_b)
+
+    #simulate phenotypes (e.g. vector y)
+    if (typeof(d) <: Normal) || (typeof(d) <: Poisson) || (typeof(d) <: Bernoulli) || (typeof(d) <: Poisson)
+        prob = linkinv.(l, xbm * true_b)
+        y = [rand(d(i)) for i in prob]
+    elseif (typeof(d) <: NegativeBinomial)
+        μ = linkinv.(l, xbm * true_b)
+        prob = 1 ./ (1 .+ μ ./ nn)
+        y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
+    elseif (typeof(d) <: Gamma)
+        μ = linkinv.(l, xbm * true_b)
+        β = 1 ./ μ # here β is the rate parameter for gamma distribution
+        y = [rand(d(nn, i)) for i in β] #nn is used as the shape parameter for gamma
+    end
+    y = Float64.(y)
+
+    return y, true_b, correct_position
 end
 
 """
