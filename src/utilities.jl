@@ -18,10 +18,22 @@ end
 # loglikelihood(::Poisson, y::AbstractVector, xb::AbstractVector) = sum(y .* xb .- exp.(xb) .- lfactorial.(Int.(y)))
 # loglikelihood(::Gamma, y::AbstractVector, xb::AbstractVector, ν::AbstractVector) = sum((y .* xb .+ log.(xb)) .* ν) + (ν .- 1) .* log.(y) .- ν .* (log.(1 ./ ν)) .- log.(SpecialFunctions.gamma.(ν))
 
-function update_mean!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
+function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
     @inbounds for i in eachindex(μ)
         μ[i] = linkinv(l, xb[i])
     end
+end
+
+"""
+This function update the linear predictors `xb` with the new proposed b. We clamp the max
+value of each entry to (-30, 30) because certain distributions (e.g. Poisson) have exponential
+link functions, which causes overflow.
+"""
+function update_xb!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}) where {T <: Float}
+    copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+    A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
+    clamp!(v.xb, -30, 30)
+    clamp!(v.zc, -30, 30)
 end
 
 """
@@ -114,8 +126,8 @@ function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::AbstractMatr
                            k::Int, full_grad::AbstractVector{T}) where {T <: Float}
 
     # # update mean vector and use them to compute score (gradient)
-    # update_mean!(v.μ, v.xb .+ v.zc, l)
-    # score!(v, xbm, z, y, d, l)
+    update_μ!(v.μ, v.xb .+ v.zc, l)
+    score!(v, xbm, z, y, d, l)
 
     # find J*k largest entries and set everything else to 0. Choose randomly if more are selected
     a = sort([v.df; v.df2], rev=true)[k * J]
@@ -434,7 +446,6 @@ the probit link seems to work better than logitlink.
 `nn` is an optional input argument needed for gamma and negative binomial simulations. 
 For Negative binomial, it is the number of success until stopping. For gamma distribution, 
 it is the shape parameter. 
-
 """
 function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, β::AbstractVector{T}, 
                                   k::Int, d::UnivariateDistribution, l::Link; nn = 10

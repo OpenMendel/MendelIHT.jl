@@ -1,3 +1,6 @@
+"""
+
+"""
 function L0_reg(
     x         :: SnpArray,
     xbm       :: SnpBitMatrix,
@@ -7,10 +10,10 @@ function L0_reg(
     k         :: Int,
     d         :: UnivariateDistribution,
     l         :: Link;
-    use_maf   :: Bool = false,
-    tol       :: T = 1e-4,
-    max_iter  :: Int = 200,
-    max_step  :: Int = 3,
+    use_maf   :: Bool = false, 
+    tol       :: T = 1e-4,     # tolerance for tracking convergence
+    max_iter  :: Int = 200,    # maximum IHT iterations
+    max_step  :: Int = 3,      # maximum backtracking for each iteration
     debias    :: Bool = false,
     show_info :: Bool = false,
     init      :: Bool = false,
@@ -36,12 +39,14 @@ function L0_reg(
     η_step      = 0                 # counts number of backtracking steps for η
     converged   = false             # scaled_norm < tol?
 
-    # Initialize variables. Compute initial guess if requested
+    # Initialize variables. 
     v = IHTVariables(x, z, y, J, k)                            # Placeholder variable for cleaner code
     temp_glm = GeneralizedLinearModel                          # Preallocated GLM variable for debiasing
     full_grad = zeros(size(x, 2) + size(z, 2))                 # Preallocated vector for efficiency
     init_iht_indices!(v, xbm, z, y, d, l, J, k, full_grad)     # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x
+    
+    # If requested, compute initial guess for model b
     if init
         initialize_beta!(v, y, x, d, l)
         A_mul_B!(v.xb, v.zc, xbm, z, v.b, v.c)
@@ -74,7 +79,6 @@ function L0_reg(
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
-
         if converged && mm_iter > 1
             tot_time = time() - start_time
             return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
@@ -92,14 +96,11 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
     _iht_gradstep(v, η, J, k, full_grad)
 
-    # update xb and zc with the new computed b and c, clamping because might overflow for poisson
-    copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
-    A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-    clamp!(v.xb, -30, 30)
-    clamp!(v.zc, -30, 30)
+    # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
+    update_xb!(v, x, z)
+    update_μ!(v.μ, v.xb .+ v.zc, l)
 
     # calculate current loglikelihood with the new computed xb and zc
-    update_mean!(v.μ, v.xb .+ v.zc, l)
     new_logl = loglikelihood(d, y, v.μ)
 
     η_step = 0
@@ -113,14 +114,9 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         copyto!(v.c, v.c0)
         _iht_gradstep(v, η, J, k, full_grad)
 
-        # recompute xb
-        copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
-        A_mul_B!(v.xb, v.zc, v.xk, z, @view(v.b[v.idx]), v.c)
-        clamp!(v.xb, -30, 30)
-        clamp!(v.zc, -30, 30)
-
-        # compute new loglikelihood again to see if we're now increasing
-        update_mean!(v.μ, v.xb .+ v.zc, l)
+        # recompute η = xb, μ = g^{-1}(η), and loglikelihood to see if we're now increasing
+        update_xb!(v, x, z)
+        update_μ!(v.μ, v.xb .+ v.zc, l)
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter
