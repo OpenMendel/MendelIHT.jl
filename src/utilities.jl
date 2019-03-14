@@ -488,17 +488,32 @@ end
 When initilizing the model β, for each covariate we fit a bivariate regression with 
 itself and the intercept. Fitting is done using scoring (newton) algorithm in GLM.jl. 
 The average of the intercept over all fits is used as the its initial guess. 
+
+This function is quite slow and not memory efficient currently. 
 """
 function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::SnpArray,
                           d::UnivariateDistribution, l::Link) where {T <: Float}
     n, p = size(x)
-    temp_matrix = ones(n, 2) #n by 2 matrix of the intercept + 1 single covariate
+    temp_matrix = ones(n, 2)           # n by 2 matrix of the intercept and 1 single covariate
+    temp_glm = initialize_glm_object() # preallocating in a dumb ways
+
     intercept = 0.0
     for i in 1:p
         copyto!(@view(temp_matrix[:, 2]), @view(x[:, i]), center=true, scale=true)
-        estimate = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-        intercept += estimate.pp.beta0[1]
-        v.b[i] = estimate.pp.beta0[2]
+        temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
+        intercept += temp_glm.pp.beta0[1]
+        v.b[i] = temp_glm.pp.beta0[2]
     end
     v.c[1] = intercept / p
+end
+
+"""
+This function initializes 1 instance of a GeneralizedLinearModel(G<:GlmResp, L<:LinPred, Bool). 
+"""
+function initialize_glm_object()
+    d = Bernoulli
+    l = canonicallink(d())
+    x = rand(100, 2)
+    y = rand(0:1, 100)
+    return fit(GeneralizedLinearModel, x, y, d(), l)
 end

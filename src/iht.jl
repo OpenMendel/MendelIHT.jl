@@ -1,5 +1,19 @@
 """
+This function runs Iterative Hard Thresholding for GWAS data `x`, response `y`, and non-genetic
+covariates `z`. 
 
++ `d` is a distribution in the exponential family we are fitting to
++ `l` stores the link function. 
++ `k` is the maximum number of predictors per group. (i.e. a sparsity constraint)
++ `J` is the maximum number of groups. When J = 1, we get regular IHT algorithm
++ `xbm` is a BitArray version of `x` needed for linear algebras. It's possible to set scale=false for xbm, especially when rare SNPs exist
++ `use_maf` indicates whether we want to scale the projection with minor allele frequencies (see paper)
++ `tol` is used to track convergence
++ `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
++ `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
++ `debias` is boolean indicating whether we debias at each iteration (see paper)
++ `show_info` boolean indicating whether we want to print results. Should set to false for multithread/multicore computing
++ `init` boolean indicating whether we want to initialize β to sensible values through fitting. This is not efficient yet. 
 """
 function L0_reg(
     x         :: SnpArray,
@@ -41,7 +55,7 @@ function L0_reg(
 
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k)                            # Placeholder variable for cleaner code
-    temp_glm = GeneralizedLinearModel                          # Preallocated GLM variable for debiasing
+    temp_glm = initialize_glm_object()                         # Preallocated GLM variable for debiasing
     full_grad = zeros(size(x, 2) + size(z, 2))                 # Preallocated vector for efficiency
     init_iht_indices!(v, xbm, z, y, d, l, J, k, full_grad)     # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x
@@ -72,7 +86,7 @@ function L0_reg(
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
             temp_glm = fit(GeneralizedLinearModel, v.xk, y, d, l)
-            all(temp_glm.pp.beta0 .≈ 0) || (view(v.b, v.idx) .= temp_glm.pp.beta0)
+            view(v.b, v.idx) .= temp_glm.pp.beta0
         end
 
         # track convergence
@@ -86,6 +100,9 @@ function L0_reg(
     end
 end #function L0_reg
 
+"""
+This function performs 1 iteration of the IHT algorithm. 
+"""
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
     full_grad::AbstractVector{T}, iter::Int, nstep::Int) where {T <: Float}

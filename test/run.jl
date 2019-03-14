@@ -35,8 +35,8 @@ y = [rand(d(i)) for i in prob]
 y = Float64.(y)
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false, convg=true)
-# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false, convg=true)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false)
+# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=true, show_info=false)
 
 #check result
 compare_model = DataFrame(
@@ -367,7 +367,7 @@ using GLM
 
 #simulat data
 n = 1000
-p = 10000
+p = 12000
 k = 10 # number of true predictors
 d = Poisson
 l = canonicallink(d())
@@ -380,7 +380,7 @@ x, maf = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
-d == Poisson ? true_b[1:k] = rand(Normal(0, 0.3), k) : true_b[1:k] = randn(k)
+d == Poisson ? true_b[1:k] = rand(Normal(0, 1.0), k) : true_b[1:k] = randn(k)
 shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 

@@ -61,7 +61,7 @@ function iht_run_many_models(
     # for each k, run L0_reg and store the loglikelihoods
     results = (parallel ? pmap : map)(path) do k
         xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-        result = L0_reg(x, xbm, z, y, 1, k, d, l, debias=debias, init=false, show_info=false, convg=true)
+        result = L0_reg(x, xbm, z, y, 1, k, d, l, debias=debias, init=false, show_info=false)
     end
 
     loglikelihoods = zeros(size(path, 1))
@@ -102,7 +102,7 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
 
     for i in 1:length(path)
         k = path[i]
-        result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, debias=debias, init=false, show_info=showinfo, convg=true)
+        result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, debias=debias, init=false, show_info=showinfo)
         betas[:, i] .= result.beta
         cs[:, i] .= result.c
     end
@@ -151,7 +151,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::Abstra
 
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
         A_mul_B!(xb, zc, x_testbm, z_test, b, c) 
-        update_mean!(μ, xb .+ zc, l)
+        update_μ!(μ, xb .+ zc, l)
 
         # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
         mse[i] = deviance(d, y_test, μ)
