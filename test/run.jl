@@ -13,10 +13,8 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Poisson
+d = Bernoulli
 l = canonicallink(d())
-# g = Int[]
-# w = Float64[]
 
 #set random seed
 Random.seed!(1111)
@@ -36,9 +34,19 @@ prob = linkinv.(l, y_temp)
 y = [rand(d(i)) for i in prob]
 y = Float64.(y)
 
+# Add group and weights 
+# g = ones(Int, p + 1)
+w = ones(p)
+# w = maf_weights(x)
+w[3352] = 2
+w[4093] = 2
+w[5455] = 2
+w[6729] = 2
+w[7403] = 2
+
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
-# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false, weight=w)
+# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, group=g)
 # @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 
 #check result

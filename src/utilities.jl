@@ -105,9 +105,9 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int,
 
     # project to sparsity
     lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
-
+    
     #recompute current support
-    v.b .= view(full_grad, 1:lb)
+    lw == 0 ? v.b .= view(full_grad, 1:lb) : v.b .= view(full_grad, 1:lb) ./ v.weight
     v.c .= view(full_grad, lb+1:length(full_grad))
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
@@ -120,24 +120,26 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int,
 end
 
 """
-When initializing the IHT algorithm, take largest elements of each group of df as nonzero
-components of b. This function set v.idx = 1 for those indices. 
+When initializing the IHT algorithm, take largest elements in magnitude of each group of 
+the score as nonzero components of b. This function set v.idx = 1 for those indices. 
 
 `J` is the maximum number of active groups, and `k` is the maximum number of predictors per
-group. `full_grad` is some preallocated vector for efficiency. 
+group. 
 """
 function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::AbstractMatrix{T},
                            y::AbstractVector{T}, d::UnivariateDistribution,l::Link, J::Int, 
-                           k::Int, full_grad::AbstractVector{T}) where {T <: Float}
+                           k::Int) where {T <: Float}
 
     # # update mean vector and use them to compute score (gradient)
     update_μ!(v.μ, v.xb + v.zc, l)
     score!(v, xbm, z, y)
 
-    # find J*k largest entries and set everything else to 0. Choose randomly if more are selected
-    a = sort([v.df; v.df2], rev=true)[k * J]
+    # find J*k largest entries in magnitude and set everything else to 0. 
+    a = partialsort([v.df; v.df2], k * J, by=abs, rev=true)
     v.idx .= v.df .>= a
     v.idc .= v.df2 .>= a
+
+    # Choose randomly if more are selected
     _choose!(v, J, k) 
 
     # make necessary resizing when necessary
@@ -145,17 +147,16 @@ function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::AbstractMatr
 end
 
 """
-if more than k entries are selected after projection, randomly select top k entries.
+if more than J*k entries are selected after projection, randomly select top J*k entries.
 This can happen if entries of b are equal to each other.
 """
 function _choose!(v::IHTVariable{T}, J::Int, k::Int) where {T <: Float}
     while sum(v.idx) + sum(v.idc) > J * k
-        num = sum(v.idx) + sum(v.idc) - J * k
         idx_length = length(v.idx)
-        temp = [v.idx; v.idc]
+        all_idx = [v.idx; v.idc]
 
-        nonzero_idx = findall(x -> x == true, temp)
-        pos = nonzero_idx[rand(1:length(nonzero_idx))] #randomly choose 1 to set to 0
+        nonzero_idx = findall(x -> x == true, all_idx) #find non-0 location
+        pos = nonzero_idx[rand(1:length(nonzero_idx))] #randomly set a non-0 entry to 0
         pos > idx_length ? v.idc[pos - idx_length] = 0 : v.idx[pos] = 0
     end
 end
@@ -257,7 +258,7 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
     sortperm!(perm, y, by = abs, rev = true)
 
     #calculate the magnitude of each group, where only top predictors contribute
-    @inbounds for i in eachindex(y)
+    for i in eachindex(y)
         j = perm[i]
         n = group[j]
         if group_count[n] < k
@@ -271,7 +272,7 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
     sortperm!(group_rank, group_norm, rev = true)
     group_rank = invperm(group_rank)
     fill!(group_count, 1)
-    @inbounds for i in eachindex(y)
+    for i in eachindex(y)
         j = perm[i]
         n = group[j]
         if (group_rank[n] > J) || (group_count[n] > k)
@@ -283,9 +284,9 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
 end
 
 """
-Calculates the Prior Weighting for IHT. Returns a weight array `my_snpweights`.
+Calculates the Prior Weighting for IHT. Returns an array with weights w_i ∈ (1, ∞).
 """
-function calculate_snp_weights(x::SnpArray)
+function maf_weights(x::SnpArray)
     p = maf(x)
     p .= 1 ./ (2 .* sqrt.(p .* (1 .- p)))
     clamp!(p, 1.0, 2.0)

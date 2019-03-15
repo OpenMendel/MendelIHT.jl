@@ -58,7 +58,7 @@ function L0_reg(
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k, group, weight)             # Placeholder variable for cleaner code
     full_grad = zeros(size(x, 2) + size(z, 2))                 # Preallocated vector for efficiency
-    init_iht_indices!(v, xbm, z, y, d, l, J, k, full_grad)     # initialize non-zero indices
+    init_iht_indices!(v, xbm, z, y, d, l, J, k)                # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x for first iteration
     debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
 
