@@ -57,7 +57,7 @@ v.df and v.df2, respectively.
 
 """
 function score!(v::IHTVariable{T}, x::SnpBitMatrix{T}, z::AbstractMatrix{T},
-    y :: AbstractVector{T}, d::UnivariateDistribution, l::Link) where {T <: Float}
+    y :: AbstractVector{T}) where {T <: Float}
     @inbounds for i in eachindex(y)
         v.r[i] = y[i] - v.μ[i]
     end
@@ -90,14 +90,14 @@ loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r,
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int, 
-                       full_grad::Vector{T}) where {T <: Float}
+                       full_grad::Vector{T}, use_maf::Bool) where {T <: Float}
     # take gradient step: b = b + μv, v = score
     BLAS.axpy!(η, v.df, v.b)  
     BLAS.axpy!(η, v.df2, v.c)
 
-    # copy v.b and v,c to full_grad and project full_grad
+    # copy v.b and v.c to full_grad and project full_grad
     length_b = length(v.b)
-    full_grad[1:length_b] .= v.b
+    use_maf ? full_grad[1:length_b] .= v.b .* v.wts : full_grad[1:length_b] .= v.b
     full_grad[length_b+1:end] .= v.c
     project_group_sparse!(full_grad, v.group, J, k) # project [v.b; v.c] to sparse vector
     v.b .= view(full_grad, 1:length_b)
@@ -126,8 +126,8 @@ function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::AbstractMatr
                            k::Int, full_grad::AbstractVector{T}) where {T <: Float}
 
     # # update mean vector and use them to compute score (gradient)
-    update_μ!(v.μ, v.xb .+ v.zc, l)
-    score!(v, xbm, z, y, d, l)
+    update_μ!(v.μ, v.xb + v.zc, l)
+    score!(v, xbm, z, y)
 
     # find J*k largest entries and set everything else to 0. Choose randomly if more are selected
     a = sort([v.df; v.df2], rev=true)[k * J]
@@ -166,25 +166,25 @@ function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
     end
 end
 
-"""
-this function calculates the omega (here a / b) used for determining backtracking
-"""
-function _iht_omega(v::IHTVariable{T}) where {T <: Float}
-    a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
-    b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
-    return a, b
-end
+# """
+# this function calculates the omega (here a / b) used for determining backtracking
+# """
+# function _iht_omega(v::IHTVariable{T}) where {T <: Float}
+#     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
+#     b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
+#     return a, b
+# end
 
-"""
-this function for determining whether or not to backtrack for normal least squares. True = backtrack
-"""
-function _normal_backtrack(v::IHTVariable{T}, ot::T, ob::T, η::T, η_step::Int, nstep::Int
-) where {T <: Float}
-    η*ob > 0.99*ot               &&
-    sum(v.idx) != 0              &&
-    sum(xor.(v.idx,v.idx0)) != 0 &&
-    η_step < nstep
-end
+# """
+# this function for determining whether or not to backtrack for normal least squares. True = backtrack
+# """
+# function _normal_backtrack(v::IHTVariable{T}, ot::T, ob::T, η::T, η_step::Int, nstep::Int
+# ) where {T <: Float}
+#     η*ob > 0.99*ot               &&
+#     sum(v.idx) != 0              &&
+#     sum(xor.(v.idx,v.idx0)) != 0 &&
+#     η_step < nstep
+# end
 
 """
 This function returns true if backtracking condition is met. Currently, backtracking condition
@@ -226,7 +226,7 @@ assumes there are no unknown or overlaping group membership.
 
 TODO: check if sortperm can be replaced by something that doesn't sort the whole array
 """
-function project_group_sparse!(y::AbstractVector{T},group::AbstractVector{Int64},
+function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64},
     J::Int64, k::Int64) where {T <: Float}
     @assert length(group) == length(y) "group membership vector does not have the same length as the vector to be projected on"
     groups = maximum(group)
@@ -261,46 +261,13 @@ function project_group_sparse!(y::AbstractVector{T},group::AbstractVector{Int64}
     end
 end
 
-# """
-# Calculates the Prior Weighting for IHT.
-# Returns a weight array (my_snpweights) (1,10000) and a MAF array (my_snpMAF ) (1,10000).
-# """
-# function calculate_snp_weights(
-#     x        :: SnpArray,
-#     y        :: Vector{T},
-#     k        :: Int,
-#     v        :: IHTVariable,
-#     use_maf  :: Bool,
-#     maf      :: Array{T,1}
-# ) where {T <: Float}
-#     # get my_snpMAF from x
-#     ALLELE_MAX = 2 * size(x,1)
-#     my_snpMAF = maf' # crashes line 308 npzwrite
-#     my_snpMAF = convert(Matrix{Float64},my_snpMAF)
-
-#     # GORDON - CALCULATE CONSTANT WEIGHTS - another weighting option
-#     my_snpweights_const = copy(my_snpMAF) # only to allocate my_snpweights_const
-#     # need to test for bad user input !!!
-#     for i = 1:size(my_snpweights_const,2)
-#         my_snpweights_const[1,i] = keyword["pw_algorithm_value"]
-#     end
-
-#     # GORDON - CALCULATE WEIGHTS BASED ON p=MAF, 1/(2√pq) SUGGESTED BY BEN AND HUA ZHOU
-#     my_snpweights_p = my_snpMAF      # p_hat
-#     my_snpweights = 2 * sqrt.(my_snpweights_p .* (1 - my_snpweights_p))   # just verifying 2 * sqrtm(p .* q) == 1.0 OK!
-#     my_snpweights_huazhou = my_snpweights
-#     my_snpweights = my_snpweights .\ 1      # this works! to get reciprocal of each element
-#     my_snpweights_huazhou_reciprocal = my_snpweights
-
-#     # DECIDE NOW WHICH WEIGHTS TO APPLY !!!
-#     if true # to ensure an algorithm, do this regardless
-#         my_snpweights = copy(my_snpweights_const)    # Ben/Kevin this is currently at 1.0 for testing null effect
-#     end
-#     if keyword["prior_weights"] == "maf"
-#         my_snpweights = copy(my_snpweights_huazhou_reciprocal)
-#     end
-#     return my_snpMAF, my_snpweights
-# end
+"""
+Calculates the Prior Weighting for IHT. Returns a weight array `my_snpweights`.
+"""
+function calculate_snp_weights(x::SnpArray)
+    p = maf(x)
+    return 1 ./ (2 .* sqrt.(p .* (1 .- p)))
+end
 
 """
 Function that saves `b`, `xb`, `idx`, `idc`, `c`, and `zc` after each iteration. 

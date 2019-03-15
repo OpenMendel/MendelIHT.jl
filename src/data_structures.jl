@@ -22,6 +22,7 @@ mutable struct IHTVariable{T <: Float}
     zc0   :: AbstractVector{T}     # z * c (covariate matrix times c) in the previous iterate
     zdf2  :: AbstractVector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
     group :: AbstractVector{Int64} # vector denoting group membership
+    wts   :: AbstractVector{T}     # weights (typically minor allele freq) that will scale b prior to projection
     μ     :: AbstractVector{T}     # mean of the current model: μ = g^{-1}(xb)
 end
 
@@ -55,26 +56,28 @@ function IHTVariables(
     zc0    = zeros(T, n)
     zdf2   = zeros(T, n)
     group  = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
+    wts    = calculate_snp_weights(x) # Only SNPs will be scaled, currently only by maf
     μ      = zeros(T, n)
 
-    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, μ)
+    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, wts, μ)
 end
 
 """
 objects that house results returned from IHT run. 
 The first `g` stands for group, the second `g` stands for generalized as in GLM.
 """
-struct ggIHTResults{T <: Float, V <: DenseVector}
+struct ggIHTResults{T <: Float}
     time  :: T
     logl  :: T
-    iter  :: Int
-    beta  :: V
-    c     :: V
+    iter  :: Int64
+    beta  :: AbstractVector{T}
+    c     :: AbstractVector{T}
     J     :: Int64
     k     :: Int64
-    group :: Vector{Int64}
+    group :: AbstractVector{Int64}
+    # ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
 end
-ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
+# ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
 
 """
 functions to display ggIHTResults object

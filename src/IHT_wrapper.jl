@@ -27,7 +27,8 @@ function IHT(control_file = ""; args...)
     keyword["run_cross_validation"] = false
     keyword["model_sizes"] = ""
     keyword["cv_folds"] = ""
-    keyword["glm"] = "normal"
+    keyword["glm"] = ""
+    keyword["cpu_cores"] = 1
     #
     # Process the run-time user-specified keywords that will control the analysis.
     # This will also initialize the random number generator.
@@ -36,6 +37,7 @@ function IHT(control_file = ""; args...)
     @assert typeof(keyword["max_groups"]) == Int "Number of groups must be an integer. Set as 1 to run normal IHT"
     @assert typeof(keyword["predictors"]) == Int "Sparsity constraint must be positive integer"
     @assert 0 <= keyword["predictors"]           "Need positive number of predictors per group"
+    @assert keyword["glm"] != ""                 "GLM not specified! Please choose from Normal, Bernoulli, Poisson, Negative_Binomial, Gamma"
     #
     # Import genotype/non-genetic/phenotype data
     #
@@ -49,7 +51,7 @@ function IHT(control_file = ""; args...)
     #
     # Determine what weighting (if any) the user specified for each predictors
     #
-    keyword["maf_weights"] == "maf" ? maf_weights = true : maf_weights = false
+    keyword["maf_weights"] == "maf" ? use_maf = true : use_maf = false
     #
     # Determine the maximum number of groups and max number of predictors per group_membership.
     # Defaults to only 1 group containing 10 predictors
@@ -69,9 +71,9 @@ function IHT(control_file = ""; args...)
     #
     if keyword["run_cross_validation"]
         #
-        # Find the model sizes the user wants. Defaults to 1~10
+        # Find the model sizes the user wants. Defaults to 1~20
         #
-        path = collect(1:10)
+        path = collect(1:20)
         if keyword["model_sizes"] != ""
             path = [parse(Int, ss) for ss in split(keyword["model_sizes"], ',')]
             @assert typeof(path) == Vector{Int} "Cannot parse input paths!"
@@ -87,6 +89,12 @@ function IHT(control_file = ""; args...)
         end
         @info("Running " * string(num_folds) * "-fold cross validation on the following model sizes:\n" * keyword["model_sizes"] * ".\nIgnoring keyword predictors.")
         folds = rand(1:num_folds, size(snpmatrix, 1))
+        #
+        # Determine number of cores specified
+        #
+        if keyword["cpu_cores"] != 1
+            addprocs(keyword["cpu_cores"])
+        end
         return cv_iht(snpmatrix, non_genetic_cov, phenotype, 1, path, folds, num_folds, use_maf=maf_weights, glm="normal", debias=false)
 
     elseif keyword["model_sizes"] != ""

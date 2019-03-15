@@ -13,14 +13,14 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Poisson
+d = Normal
 l = canonicallink(d())
 
 #set random seed
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p, "tmp.bed")
+x, = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
@@ -35,8 +35,9 @@ y = [rand(d(i)) for i in prob]
 y = Float64.(y)
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false)
-# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=true, show_info=false)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, use_maf=true)
+# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
+# @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 
 #check result
 compare_model = DataFrame(
@@ -332,7 +333,7 @@ mses = cv_iht_distributed(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=fa
 
 #compute l0 result using best estimate for k
 k_est = argmin(mses)
-result = L0_reg(x, xbm, z, y, 1, k_est, d(), l, debias=false, init=false, show_info=false, convg=true)
+result = L0_reg(x, xbm, z, y, 1, k_est, d(), l, debias=false, init=false, show_info=false)
 
 #check result
 compare_model = DataFrame(

@@ -45,8 +45,8 @@ function L0_reg(
     checky(y, d) # make sure response data y is in the form we need it to be 
 
     # initialize constants
-    mm_iter     = 0                 # number of iterations of L0_logistic_reg
-    tot_time    = 0.0               # compute time *within* L0_logistic_reg
+    mm_iter     = 0                 # number of iterations 
+    tot_time    = 0.0               # compute time *within* L0_reg
     next_logl   = oftype(tol,-Inf)  # loglikelihood
     the_norm    = 0.0               # norm(b - b0)
     scaled_norm = 0.0               # the_norm / (norm(b0) + 1)
@@ -55,7 +55,7 @@ function L0_reg(
 
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k)                            # Placeholder variable for cleaner code
-    temp_glm = initialize_glm_object()                         # Preallocated GLM variable for debiasing
+    debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
     full_grad = zeros(size(x, 2) + size(z, 2))                 # Preallocated vector for efficiency
     init_iht_indices!(v, xbm, z, y, d, l, J, k, full_grad)     # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x
@@ -67,13 +67,14 @@ function L0_reg(
     end
 
     # Begin 'iterative' hard thresholding algorithm
-    for mm_iter = 1:max_iter
+    for iter = 1:max_iter
 
         # notify and return current model if maximum iteration exceeded
-        if mm_iter >= max_iter
+        if iter >= max_iter
+            mm_iter  = iter
             tot_time = time() - start_time
             show_info && printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
-            return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+            break
         end
 
         # save values from previous iterate and update loglikelihood
@@ -81,7 +82,7 @@ function L0_reg(
         logl = next_logl
 
         # take one IHT step in positive score direction
-        (η, η_step, next_logl) = iht_one_step!(v, x, xbm, z, y, J, k, d, l, logl, full_grad, mm_iter, max_step)
+        (η, η_step, next_logl) = iht_one_step!(v, x, xbm, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf)
 
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
@@ -93,11 +94,14 @@ function L0_reg(
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
-        if converged && mm_iter > 1
+        if converged 
             tot_time = time() - start_time
-            return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+            mm_iter  = iter
+            break
         end
     end
+
+    return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
 end #function L0_reg
 
 """
@@ -105,17 +109,17 @@ This function performs 1 iteration of the IHT algorithm.
 """
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int) where {T <: Float}
+    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d)
 
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
-    _iht_gradstep(v, η, J, k, full_grad)
+    _iht_gradstep(v, η, J, k, full_grad, use_maf)
 
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v, x, z)
-    update_μ!(v.μ, v.xb .+ v.zc, l)
+    update_μ!(v.μ, v.xb + v.zc, l)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(d, y, v.μ)
@@ -129,11 +133,11 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
-        _iht_gradstep(v, η, J, k, full_grad)
+        _iht_gradstep(v, η, J, k, full_grad, use_maf)
 
         # recompute η = xb, μ = g^{-1}(η), and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
-        update_μ!(v.μ, v.xb .+ v.zc, l)
+        update_μ!(v.μ, v.xb + v.zc, l)
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter
@@ -141,7 +145,7 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     end
 
     # compute score with the new mean μ
-    score!(v, xbm, z, y, d, l)
+    score!(v, xbm, z, y)
 
     # check for finiteness before moving to the next iteration
     isnan(new_logl) && throw(error("Loglikelihood function is NaN, aborting..."))

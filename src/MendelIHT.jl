@@ -7,11 +7,10 @@ module MendelIHT
 	import SpecialFunctions: lfactorial
 	import Base.show
 	import GLM: glmvar, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
+
 	using SnpArrays
 	using MendelBase
 	using DataFrames
-	using Gadfly
-	using StatsBase
 	using Random
 	using LinearAlgebra
 	using Distributions
@@ -22,7 +21,7 @@ module MendelIHT
 	export loglikelihood, deviance, score!, L0_reg, iht_run_many_models
 	export iht_path, cv_iht_distributed, MendelIHT, simulate_random_snparray
 	export IHTVariables, use_A2_as_minor_allele, make_snparray
-	export std_reciprocal, project_group_sparse!, save_prev!
+	export std_reciprocal, project_group_sparse!, save_prev!, calculate_snp_weights
 	export update_mean!, At_mul_B!, A_mul_B!, IHT, update_mean!
 
 	# IHT will only work on single/double precision floats!
