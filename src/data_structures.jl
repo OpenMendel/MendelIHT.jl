@@ -2,39 +2,51 @@
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
 mutable struct IHTVariable{T <: Float}
-    b     :: AbstractVector{T}     # the statistical model for the genotype matrix, most will be 0
-    b0    :: AbstractVector{T}     # estimated model for genotype matrix in the previous iteration
-    xb    :: AbstractVector{T}     # vector that holds x*b
-    xb0   :: AbstractVector{T}     # xb in the previous iteration
-    xk    :: AbstractMatrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: AbstractVector{T}     # numerator of step size. gk = df[idx]. 
-    xgk   :: AbstractVector{T}     # xk * gk, denominator of step size
-    idx   :: BitVector             # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
-    idx0  :: BitVector             # previous iterate of idx
-    idc   :: BitVector             # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
-    idc0  :: BitVector             # previous iterate of idc
-    r     :: AbstractVector{T}     # The difference between the observed and predicted response. For linear model this is the residual
-    df    :: AbstractVector{T}     # genotype portion of the score
-    df2   :: AbstractVector{T}     # non-genetic covariates portion of the score
-    c     :: AbstractVector{T}     # estimated model for non-genetic variates (first entry = intercept)
-    c0    :: AbstractVector{T}     # estimated model for non-genetic variates in the previous iteration
-    zc    :: AbstractVector{T}     # z * c (covariate matrix times c)
-    zc0   :: AbstractVector{T}     # z * c (covariate matrix times c) in the previous iterate
-    zdf2  :: AbstractVector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
-    group :: AbstractVector{Int64} # vector denoting group membership
-    wts   :: AbstractVector{T}     # weights (typically minor allele freq) that will scale b prior to projection
-    μ     :: AbstractVector{T}     # mean of the current model: μ = g^{-1}(xb)
+    b      :: AbstractVector{T}     # the statistical model for the genotype matrix, most will be 0
+    b0     :: AbstractVector{T}     # estimated model for genotype matrix in the previous iteration
+    xb     :: AbstractVector{T}     # vector that holds x*b
+    xb0    :: AbstractVector{T}     # xb in the previous iteration
+    xk     :: AbstractMatrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    gk     :: AbstractVector{T}     # numerator of step size. gk = df[idx]. 
+    xgk    :: AbstractVector{T}     # xk * gk, denominator of step size
+    idx    :: BitVector             # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
+    idx0   :: BitVector             # previous iterate of idx
+    idc    :: BitVector             # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
+    idc0   :: BitVector             # previous iterate of idc
+    r      :: AbstractVector{T}     # The difference between the observed and predicted response. For linear model this is the residual
+    df     :: AbstractVector{T}     # genotype portion of the score
+    df2    :: AbstractVector{T}     # non-genetic covariates portion of the score
+    c      :: AbstractVector{T}     # estimated model for non-genetic variates (first entry = intercept)
+    c0     :: AbstractVector{T}     # estimated model for non-genetic variates in the previous iteration
+    zc     :: AbstractVector{T}     # z * c (covariate matrix times c)
+    zc0    :: AbstractVector{T}     # z * c (covariate matrix times c) in the previous iterate
+    zdf2   :: AbstractVector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
+    group  :: AbstractVector{Int64} # vector denoting group membership
+    weight :: AbstractVector{T}     # weights (typically minor allele freq) that will scale b prior to projection
+    μ      :: AbstractVector{T}     # mean of the current model: μ = g^{-1}(xb)
 end
 
-function IHTVariables(
-    x :: SnpArray,
-    z :: AbstractMatrix{T},
-    y :: AbstractVector{T},
-    J :: Int64,
-    k :: Int64;
-) where {T <: Float}
-    n, p = size(x)
-    q    = size(z, 2)
+function IHTVariables(x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, k::Int64, 
+                      group::AbstractVector{Int64}, weight::AbstractVector{T}) where {T <: Float}
+    n = size(x, 1)
+    p = size(x, 2)
+    m = size(z, 1)
+    q = size(z, 2)
+    ly = length(y)
+    lg = length(group)
+    lw = length(weight)
+
+    if !(ly == n == m)
+        throw(DimensionMismatch("row dimension of y, x, and z ($ly, $n, $m) are not equal"))
+    end
+
+    if lg != (p + q) && lg != 0
+        throw(DimensionMismatch("group must have length " * string(p + q) * " or 0 but was $lg"))
+    end 
+
+    if lw != p && lw != 0
+        throw(DimensionMismatch("weight must have length $p or length 0 but was $lw"))
+    end
 
     b      = zeros(T, p)
     b0     = zeros(T, p)
@@ -55,16 +67,14 @@ function IHTVariables(
     zc     = zeros(T, n)
     zc0    = zeros(T, n)
     zdf2   = zeros(T, n)
-    group  = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
-    wts    = calculate_snp_weights(x) # Only SNPs will be scaled, currently only by maf
     μ      = zeros(T, n)
 
-    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, wts, μ)
+    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, weight, μ)
 end
 
 """
-objects that house results returned from IHT run. 
-The first `g` stands for group, the second `g` stands for generalized as in GLM.
+immutable objects that house results returned from IHT run. 
+The first `g` stands for generalized as in GLM, the second `g` stands for group.
 """
 struct ggIHTResults{T <: Float}
     time  :: T
@@ -91,7 +101,7 @@ function Base.show(io::IO, x::ggIHTResults)
     println(io, "Max predictors/group:   ", x.k)
     println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero coefficients.")
     non_zero = findall(x -> x != 0, x.beta)
-    print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
+    print(io, DataFrame(Predictor=non_zero, Estimated_β=x.beta[non_zero]))
     println(io, "\n\nIntercept of model = ", x.c[1])
 end
 

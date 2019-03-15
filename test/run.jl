@@ -13,8 +13,10 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Normal
+d = Poisson
 l = canonicallink(d())
+# g = Int[]
+# w = Float64[]
 
 #set random seed
 Random.seed!(1111)
@@ -35,12 +37,13 @@ y = [rand(d(i)) for i in prob]
 y = Float64.(y)
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, use_maf=true)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 # @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 
 #check result
 compare_model = DataFrame(
+    position    = correct_position,
     true_β      = true_b[correct_position], 
     estimated_β = result.beta[correct_position])
 println("Total iteration number was " * string(result.iter))

@@ -12,7 +12,7 @@ covariates `z`.
 + `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
 + `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 + `debias` is boolean indicating whether we debias at each iteration (see paper)
-+ `show_info` boolean indicating whether we want to print results. Should set to false for multithread/multicore computing
++ `show_info` boolean indicating whether we want to print results if model does not converge. Should set to false for multithread/multicore computing
 + `init` boolean indicating whether we want to initialize β to sensible values through fitting. This is not efficient yet. 
 """
 function L0_reg(
@@ -24,13 +24,15 @@ function L0_reg(
     k         :: Int,
     d         :: UnivariateDistribution,
     l         :: Link;
+    group     :: AbstractVector{Int} = Int[],
+    weight    :: AbstractVector{T} = T[],
     use_maf   :: Bool = false, 
+    debias    :: Bool = false,
+    show_info :: Bool = true,  # print things when model didn't converge
+    init      :: Bool = false, # not efficient. whether to initialize β to sensible values
     tol       :: T = 1e-4,     # tolerance for tracking convergence
     max_iter  :: Int = 200,    # maximum IHT iterations
     max_step  :: Int = 3,      # maximum backtracking for each iteration
-    debias    :: Bool = false,
-    show_info :: Bool = false,
-    init      :: Bool = false,
 ) where {T <: Float}
 
     #start timer
@@ -42,7 +44,7 @@ function L0_reg(
     @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
-    checky(y, d) # make sure response data y is in the form we need it to be 
+    checky(y, d) # make sure response data y is in the form compatible with specified GLM
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
@@ -54,12 +56,12 @@ function L0_reg(
     converged   = false             # scaled_norm < tol?
 
     # Initialize variables. 
-    v = IHTVariables(x, z, y, J, k)                            # Placeholder variable for cleaner code
-    debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
+    v = IHTVariables(x, z, y, J, k, group, weight)             # Placeholder variable for cleaner code
     full_grad = zeros(size(x, 2) + size(z, 2))                 # Preallocated vector for efficiency
     init_iht_indices!(v, xbm, z, y, d, l, J, k, full_grad)     # initialize non-zero indices
-    copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x
-    
+    copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x for first iteration
+    debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
+
     # If requested, compute initial guess for model b
     if init
         initialize_beta!(v, y, x, d, l)
@@ -115,7 +117,7 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     η = iht_stepsize(v, z, d)
 
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
-    _iht_gradstep(v, η, J, k, full_grad, use_maf)
+    _iht_gradstep(v, η, J, k, full_grad)
 
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v, x, z)
@@ -133,7 +135,7 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
-        _iht_gradstep(v, η, J, k, full_grad, use_maf)
+        _iht_gradstep(v, η, J, k, full_grad)
 
         # recompute η = xb, μ = g^{-1}(η), and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)

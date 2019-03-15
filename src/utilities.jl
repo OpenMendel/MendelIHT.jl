@@ -90,20 +90,25 @@ loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r,
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int, 
-                       full_grad::Vector{T}, use_maf::Bool) where {T <: Float}
+                       full_grad::Vector{T}) where {T <: Float}
+    lb = length(v.b)
+    lw = length(v.weight)
+    lg = length(v.group)
+
     # take gradient step: b = b + μv, v = score
     BLAS.axpy!(η, v.df, v.b)  
     BLAS.axpy!(η, v.df2, v.c)
 
-    # copy v.b and v.c to full_grad and project full_grad
-    length_b = length(v.b)
-    use_maf ? full_grad[1:length_b] .= v.b .* v.wts : full_grad[1:length_b] .= v.b
-    full_grad[length_b+1:end] .= v.c
-    project_group_sparse!(full_grad, v.group, J, k) # project [v.b; v.c] to sparse vector
-    v.b .= view(full_grad, 1:length_b)
-    v.c .= view(full_grad, length_b+1:length(full_grad))
+    # scale snp model if weight is supplied 
+    lw == 0 ? full_grad[1:lb] .= v.b : full_grad[1:lb] .= v.b .* v.weight
+    full_grad[lb+1:end] .= v.c
+
+    # project to sparsity
+    lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
 
     #recompute current support
+    v.b .= view(full_grad, 1:lb)
+    v.c .= view(full_grad, lb+1:length(full_grad))
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
     
@@ -220,7 +225,24 @@ function std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T}) where {T <: Float}
     return std_vector
 end
 
-""" Projects the vector y = [y1; y2] onto the set with at most J active groups and at most
+"""
+    project_k!(x, k)
+This function projects a vector `x` onto the set S_k = { y in R^p : || y ||_0 <= k }.
+It does so by first finding the pivot `a` of the `k` largest components of `x` in magnitude.
+`project_k!` then applies `x[abs.(x) < a] = 0 
+Arguments:
+- `b` is the vector to project.
+- `k` is the number of components of `b` to preserve.
+"""
+function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
+    a = abs(partialsort(x, k, by=abs, rev=true))
+    for i in eachindex(x)
+        abs(x[i]) < a && (x[i] = zero(T))
+    end
+end
+
+""" 
+Projects the vector y = [y1; y2] onto the set with at most J active groups and at most
 k active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown or overlaping group membership.
 
@@ -228,11 +250,10 @@ TODO: check if sortperm can be replaced by something that doesn't sort the whole
 """
 function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64},
     J::Int64, k::Int64) where {T <: Float}
-    @assert length(group) == length(y) "group membership vector does not have the same length as the vector to be projected on"
-    groups = maximum(group)
-    group_count = zeros(Int, groups)         #counts number of predictors in each group
-    group_norm = zeros(groups)               #l2 norm of each group
-    perm = zeros(Int64, length(y))           #vector holding the permuation vector after sorting
+    groups = maximum(group)          # number of groups
+    group_count = zeros(Int, groups) # counts number of predictors in each group
+    group_norm = zeros(groups)       # l2 norm of each group
+    perm = zeros(Int64, length(y))   # vector holding the permuation vector after sorting
     sortperm!(perm, y, by = abs, rev = true)
 
     #calculate the magnitude of each group, where only top predictors contribute
@@ -266,7 +287,9 @@ Calculates the Prior Weighting for IHT. Returns a weight array `my_snpweights`.
 """
 function calculate_snp_weights(x::SnpArray)
     p = maf(x)
-    return 1 ./ (2 .* sqrt.(p .* (1 .- p)))
+    p .= 1 ./ (2 .* sqrt.(p .* (1 .- p)))
+    clamp!(p, 1.0, 2.0)
+    return p
 end
 
 """
