@@ -237,7 +237,7 @@ Arguments:
 """
 function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
     a = abs(partialsort(x, k, by=abs, rev=true))
-    for i in eachindex(x)
+    @inbounds for i in eachindex(x)
         abs(x[i]) < a && (x[i] = zero(T))
     end
 end
@@ -284,12 +284,13 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
 end
 
 """
-Calculates the Prior Weighting for IHT. Returns an array with weights w_i ∈ (1, ∞).
+Calculates the prior weight based on minor allele frequencies. Returns an array 
+with weights w_i = 1 / (2 sqrt(p_i (1 - p_i))) ∈ (1, ∞) where p is maf of allele i. 
 """
-function maf_weights(x::SnpArray)
+function maf_weights(x::SnpArray; max_weight::T = Inf) where {T <: Float}
     p = maf(x)
     p .= 1 ./ (2 .* sqrt.(p .* (1 .- p)))
-    clamp!(p, 1.0, 2.0)
+    clamp!(p, 1.0, max_weight)
     return p
 end
 
@@ -379,9 +380,10 @@ where each SNP has at least 5 minor alleles.
 
 n = number of samples
 p = number of SNPs
-s = name of the simulated SnpArray. 
+s = name of the simulated SnpArray
+min_ma = the minimum number of minor alleles that must be present for each SNP (defaults to 5)
 """
-function simulate_random_snparray(n::Int64, p::Int64, s::String)
+function simulate_random_snparray(n::Int64, p::Int64, s::String, min_ma::Float64)
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
     A1 = BitArray(undef, n, p) 
     A2 = BitArray(undef, n, p) 
@@ -389,7 +391,7 @@ function simulate_random_snparray(n::Int64, p::Int64, s::String)
     for j in 1:p
         minor_alleles = 0
         maf = 0
-        while minor_alleles <= 5
+        while minor_alleles <= min_ma
             maf = 0.5rand()
             for i in 1:n
                 A1[i, j] = rand(Bernoulli(maf))
@@ -434,14 +436,13 @@ ensure the mean of response `y` doesn't become too large.
 Note: for negative binomial and gamma, the link function must be LogLink. For Bernoulli,
 the probit link seems to work better than logitlink.
 
-`nn` is an optional input argument needed for gamma and negative binomial simulations. 
+`nn` and `α` are optional input argument needed for gamma and negative binomial simulations. 
 For Negative binomial, it is the number of success until stopping. For gamma distribution, 
 it is the shape parameter. 
 """
-function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, β::AbstractVector{T}, 
-                                  k::Int, d::UnivariateDistribution, l::Link; nn = 10
-                                  ) where {T <: Float}
-    
+function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, 
+                                  d::UnionAll, l::Link; nn = 10,
+                                  α = 1) where {T <: Float}
     n, p = size(x)
     if (typeof(d) <: NegativeBinomial) || (typeof(d) <: Gamma)
         l == LogLink() || throw(ArgumentError("Distribution $d must use LogLink!"))
@@ -449,7 +450,7 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, β::AbstractVe
 
     #simulate a random model β from a normal distribution
     true_b = zeros(p)
-    if d == (Poisson || Gamma || NegativeBinomial)
+    if d == Poisson || d == Gamma || d == NegativeBinomial
         true_b[1:k] = rand(Normal(0, 0.3), k)
     else
         true_b[1:k] = randn(k)
@@ -458,17 +459,17 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, β::AbstractVe
     correct_position = findall(x -> x != 0, true_b)
 
     #simulate phenotypes (e.g. vector y)
-    if (typeof(d) <: Normal) || (typeof(d) <: Poisson) || (typeof(d) <: Bernoulli) || (typeof(d) <: Poisson)
+    if d == Normal || d == Poisson || d == Bernoulli
         prob = linkinv.(l, xbm * true_b)
         y = [rand(d(i)) for i in prob]
-    elseif (typeof(d) <: NegativeBinomial)
+    elseif d == NegativeBinomial
         μ = linkinv.(l, xbm * true_b)
         prob = 1 ./ (1 .+ μ ./ nn)
         y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
-    elseif (typeof(d) <: Gamma)
+    elseif d == Gamma
         μ = linkinv.(l, xbm * true_b)
         β = 1 ./ μ # here β is the rate parameter for gamma distribution
-        y = [rand(d(nn, i)) for i in β] #nn is used as the shape parameter for gamma
+        y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
     end
     y = Float64.(y)
 

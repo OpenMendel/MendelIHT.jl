@@ -23,6 +23,7 @@ module MendelIHT
 	export IHTVariables, use_A2_as_minor_allele, make_snparray
 	export std_reciprocal, project_group_sparse!, save_prev!, maf_weights
 	export update_mean!, At_mul_B!, A_mul_B!, IHT, update_mean!
+	export simulate_random_response
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}

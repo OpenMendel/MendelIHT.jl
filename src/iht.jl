@@ -75,7 +75,7 @@ function L0_reg(
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            show_info && printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * "seconds and model size was" * string(k), color=:red)
+            show_info && printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
             break
         end
 

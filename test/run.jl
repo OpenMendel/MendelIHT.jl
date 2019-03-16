@@ -37,12 +37,7 @@ y = Float64.(y)
 # Add group and weights 
 # g = ones(Int, p + 1)
 w = ones(p)
-# w = maf_weights(x)
-w[3352] = 2
-w[4093] = 2
-w[5455] = 2
-w[6729] = 2
-w[7403] = 2
+w[correct_position] .= 2.0
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false, weight=w)
@@ -194,7 +189,7 @@ p = 10000
 k = 10
 d = Gamma
 l = LogLink()
-α = 1 #shape parameter for gamma
+θ = 1 #scale parameter for gamma
 
 #set random seed
 Random.seed!(2019)
@@ -205,17 +200,16 @@ xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
 # true_b[1:k] = randn(k)
-true_b[1:k] = rand(Normal(0, 0.3), k)
+true_b[1:k] = rand(Normal(0, 1.0), k)
 shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 
 #simulate phenotypes (e.g. vector y) 
 μ = linkinv.(l, xbm * true_b)
-β = 1 ./ μ #here β is the rate parameter for gamma distribution
-y = [rand(d(α, i)) for i in β]
+y = [rand(d(i, 1)) for i in μ] # here assuming unit scale parameter (θ) for gamma distribution
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false, convg=true)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true) seconds = 60
 
 #check result
