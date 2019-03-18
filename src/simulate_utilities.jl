@@ -31,6 +31,45 @@ function simulate_random_snparray(n::Int64, p::Int64, s::String; min_ma::Int = 5
 end
 
 """
+This function requires a vector of minor alleles frequencies to perform simulation. 
+It will create a random SnpArray in the current directory without missing value, 
+where each SNP has at least 5 minor alleles. 
+
+n = number of samples
+p = number of SNPs
+s = name of the simulated SnpArray
+mafs = vector of minor allele freuqencies
+min_ma = the minimum number of minor alleles that must be present for each SNP (defaults to 5)
+
+
+Note: if supplied minor allele frequency is extremely small, it could take a long time for 
+the simulation to generate samples where at least `min_ma` (defaults to 5) are present. 
+"""
+function simulate_random_snparray(n::Int64, p::Int64, s::String, 
+                                  mafs::Vector{Float64}; min_ma::Int = 5)
+    all(0.0 .<= mafs .<= 0.5) || throw(ArgumentError("vector of minor allele frequencies must be in (0, 0.5)"))
+    any(mafs .<= 0.0005) && @warn("Provided minor allele frequencies contain entries smaller than 0.0005, simulation may take long if sample size is small and min_ma = $min_ma is large")
+
+    #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
+    A1 = BitArray(undef, n, p) 
+    A2 = BitArray(undef, n, p) 
+    for j in 1:p
+        minor_alleles = 0
+        maf = mafs[j]
+        while minor_alleles <= min_ma
+            for i in 1:n
+                A1[i, j] = rand(Bernoulli(maf))
+                A2[i, j] = rand(Bernoulli(maf))
+            end
+            minor_alleles = sum(view(A1, :, j)) + sum(view(A2, :, j))
+        end
+    end
+
+    #fill the SnpArray with the corresponding x_tmp entry
+    return _make_snparray(A1, A2, s)
+end
+
+"""
 Make a SnpArray from 2 BitArrays.
 """
 function _make_snparray(A1::BitArray, A2::BitArray, s::String)

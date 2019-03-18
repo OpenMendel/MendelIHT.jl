@@ -968,3 +968,36 @@ cor(tmp[:, 1], tmp[:, 2])
 
 
 
+
+
+
+
+#BELOW ARE SIMULATION FOR normal, bernoulli, and poisson
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using GLM
+
+#simulat data with k true predictors, from distribution d and with link l.
+n = 1000
+p = 10000
+k = 10
+d = Bernoulli
+l = canonicallink(d())
+
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+mafs = 0.5rand(p)
+clamp!(mafs, 0.0005, 0.5)
+x = simulate_random_snparray(n, p, "tmp.bed", mafs)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # the intercept
+
+

@@ -96,7 +96,7 @@ function L0_reg(
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
-        if converged 
+        if converged
             tot_time = time() - start_time
             mm_iter  = iter
             break
