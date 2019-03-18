@@ -935,3 +935,36 @@ debias = false
 showinfo = false
 d = d()
 result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, debias=debias, init=false, show_info=showinfo, convg=true)
+
+
+
+
+
+#simulate correlated columns
+
+
+n = 1000
+p = 10000
+k = 10
+d = Bernoulli
+l = canonicallink(d())
+
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+x, = simulate_random_snparray(n, p, "tmp.bed")
+
+#ad hoc method to construct correlated columns
+c = 0.9
+for i in 1:size(x, 1)
+    prob = rand(Bernoulli(c))
+    prob == 1 && (x[i, 2] = x[i, 1]) #make 2nd column the same as first column 90% of the time
+end
+
+tmp = convert(Matrix{Float64}, @view(x[:, 1:2]), center=true, scale=true)
+cor(tmp[:, 1], tmp[:, 2])
+
+
+
+

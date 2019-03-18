@@ -23,18 +23,14 @@ Random.seed!(1111)
 x, = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
-true_b = zeros(p)
-d == Poisson ? true_b[1:k] = rand(Normal(0, 0.3), k) : true_b[1:k] = randn(k)
-shuffle!(true_b)
-correct_position = findall(x -> x != 0, true_b)
 
-#simulate phenotypes (e.g. vector y) 
-y_temp = xbm * true_b
-prob = linkinv.(l, y_temp)
-y = [rand(d(i)) for i in prob]
-y = Float64.(y)
+#add correlation if desired
+adhoc_add_correlation(x, 0.9, 5000, 4, 10)
 
-# Add group and weights 
+# simulate response, true model b, and the correct non-0 positions of b
+y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+
+# specify weights 
 # g = ones(Int, p + 1)
 w = ones(p)
 w[correct_position] .= 2.0
@@ -47,60 +43,6 @@ result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=fa
 #check result
 compare_model = DataFrame(
     position    = correct_position,
-    true_β      = true_b[correct_position], 
-    estimated_β = result.beta[correct_position])
-println("Total iteration number was " * string(result.iter))
-println("Total time was " * string(result.time))
-println("Total found predictors = " * string(length(findall(!iszero, result.beta[correct_position]))))
-
-#clean up
-rm("tmp.bed", force=true)
-
-
-
-#BELOW ARE SIMULATION for negative binomial
-using Revise
-using MendelIHT
-using SnpArrays
-using DataFrames
-using Distributions
-using BenchmarkTools
-using Random
-using LinearAlgebra
-using GLM
-
-#simulat data with k true predictors
-n = 1000
-p = 10000
-k = 10
-d = NegativeBinomial
-l = LogLink()
-nn = 10 #number of successes until stopping
-
-#set random seed
-Random.seed!(2019)
-
-#construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p, "tmp.bed")
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-z = ones(n, 1) # the intercept
-true_b = zeros(p)
-true_b[1:k] = rand(Normal(0, 0.3), k)
-shuffle!(true_b)
-correct_position = findall(x -> x != 0, true_b)
-
-#simulate phenotypes (e.g. vector y) 
-μ = linkinv.(l, xbm * true_b)
-prob = 1 ./ (1 .+ μ ./ nn)
-y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
-y = Float64.(y)
-
-#run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=false)
-# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true) seconds = 60
-
-#check result
-compare_model = DataFrame(
     true_β      = true_b[correct_position], 
     estimated_β = result.beta[correct_position])
 println("Total iteration number was " * string(result.iter))
@@ -279,6 +221,9 @@ println("Total found predictors = " * string(length(findall(!iszero, result.beta
 
 #clean up
 rm("tmp.bed", force=true)
+
+
+
 
 
 

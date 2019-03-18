@@ -14,9 +14,9 @@ function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T},
 end
 # loglikelihood(::Normal, y::AbstractVector, xb::AbstractVector) = -0.5 * sum(abs2, y .- xb)
 # loglikelihood(::Bernoulli, y::AbstractVector, xb::AbstractVector) = sum(y .* xb .- log.(1.0 .+ exp.(xb)))
-# loglikelihood(::Binomial, y::AbstractVector, xb::AbstractVector, n::AbstractVector) = sum(y .* xb .- n .* log.(1.0 .+ exp.(xb)))
+# loglikelihood(::Binomial, y::AbstractVector, xb::AbstractVector, n::AbstractVector) = sum(y .* xb .- n .* log.(1.0 .+ exp.(xb))) #not tested
 # loglikelihood(::Poisson, y::AbstractVector, xb::AbstractVector) = sum(y .* xb .- exp.(xb) .- lfactorial.(Int.(y)))
-# loglikelihood(::Gamma, y::AbstractVector, xb::AbstractVector, ν::AbstractVector) = sum((y .* xb .+ log.(xb)) .* ν) + (ν .- 1) .* log.(y) .- ν .* (log.(1 ./ ν)) .- log.(SpecialFunctions.gamma.(ν))
+# loglikelihood(::Gamma, y::AbstractVector, xb::AbstractVector, ν::AbstractVector) = sum((y .* xb .+ log.(xb)) .* ν) + (ν .- 1) .* log.(y) .- ν .* (log.(1 ./ ν)) .- log.(SpecialFunctions.gamma.(ν)) #not tested
 
 function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
     @inbounds for i in eachindex(μ)
@@ -95,7 +95,7 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int,
     lw = length(v.weight)
     lg = length(v.group)
 
-    # take gradient step: b = b + μv, v = score
+    # take gradient step: b = b + ηv, v = score
     BLAS.axpy!(η, v.df, v.b)  
     BLAS.axpy!(η, v.df2, v.c)
 
@@ -198,9 +198,9 @@ includes either one of the following:
     1. New loglikelihood is smaller than the old one
     2. Current backtrack exceeds maximum allowed backtracking (default = 3)
 
-Note, for Posison, we require the model coefficients to be "small" to prevent 
-loglikelihood blowing up in first few iteration. This is accomplished by clamping
-xb values to be in (-30, 30)
+Note for Posison, NegativeBinomial, and Gamma, we require model coefficients to be 
+"small" to prevent loglikelihood blowing up in first few iteration. This is accomplished 
+by clamping η = xb values to be in (-30, 30)
 """
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
     prev_logl > logl && η_step < nstep 
@@ -370,8 +370,8 @@ end
 
 function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMatrix{T},
         A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
-    LinearAlgebra.mul!(C1, A1', B1)
-    LinearAlgebra.mul!(C2, A2', B2)
+    LinearAlgebra.mul!(C1, Transpose(A1), B1)
+    LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
 """
@@ -383,7 +383,7 @@ p = number of SNPs
 s = name of the simulated SnpArray
 min_ma = the minimum number of minor alleles that must be present for each SNP (defaults to 5)
 """
-function simulate_random_snparray(n::Int64, p::Int64, s::String, min_ma::Float64)
+function simulate_random_snparray(n::Int64, p::Int64, s::String; min_ma::Int = 5)
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
     A1 = BitArray(undef, n, p) 
     A2 = BitArray(undef, n, p) 
@@ -474,6 +474,30 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int,
     y = Float64.(y)
 
     return y, true_b, correct_position
+end
+
+"""
+This function makes some columns of x correlated with a specific one, in some rather ad-hoc way.
+We check whether the correlation is actually met in the end by printing the correlation 
+coefficients afterwards. 
+
+- `x` the snparray
+- `ρ` correlation coefficient
+- `pos` the position of the target SNP that everything would be correlated to
+- `num` even integer: how many columns of `x` would be made correlated
+- `increment` how far should each correlated SNP be located than the one specified in `pos`.
+"""
+function adhoc_add_correlation(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
+    @assert 0 <= ρ <= 1 "correlation coefficient must be in (0, 1) but was $ρ"
+
+    for loc in location 
+        for i in 1:size(x, 1)
+            prob = rand(Bernoulli(ρ))
+            prob == 1 && (x[i, loc] = x[i, pos]) #make 2nd column the same as 1st ~90% of the time
+        end
+        corr = cor(x[:, loc], x[:, pos])
+        println("for SNP $loc the simulated correlation is $corr")
+    end
 end
 
 """
