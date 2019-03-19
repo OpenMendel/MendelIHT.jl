@@ -12,32 +12,29 @@ using GLM
 #simulat data with k true predictors, from distribution d and with link l.
 n = 1000
 p = 10000
-k = 10
-d = Bernoulli
-l = canonicallink(d())
+k = 5
+d = NegativeBinomial
+# l = canonicallink(d())
+l = LogLink()
 
 #set random seed
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, = simulate_random_snparray(n, p, "tmp.bed")
+x, = simulate_random_snparray(n, p, undef)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
-
-#add correlation if desired
-adhoc_add_correlation(x, 0.9, 5000, 4, 10)
 
 # simulate response, true model b, and the correct non-0 positions of b
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 # specify weights 
-# g = ones(Int, p + 1)
 w = ones(p)
 w[correct_position] .= 2.0
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false, weight=w)
-# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, group=g)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false) seconds=60
 # @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 
 #check result

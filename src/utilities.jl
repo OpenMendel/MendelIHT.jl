@@ -94,21 +94,22 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int,
     lb = length(v.b)
     lw = length(v.weight)
     lg = length(v.group)
+    lf = length(full_grad)
 
     # take gradient step: b = b + ηv, v = score
     BLAS.axpy!(η, v.df, v.b)  
     BLAS.axpy!(η, v.df2, v.c)
 
     # scale snp model if weight is supplied 
-    lw == 0 ? full_grad[1:lb] .= v.b : full_grad[1:lb] .= v.b .* v.weight
-    full_grad[lb+1:end] .= v.c
+    lw == 0 ? copyto!(@view(full_grad[1:lb]), v.b) : copyto!(@view(full_grad[1:lb]), v.b .* v.weight)
+    copyto!(@view(full_grad[lb+1:end]), v.c)
 
     # project to sparsity
     lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
     
     #recompute current support
-    lw == 0 ? v.b .= view(full_grad, 1:lb) : v.b .= view(full_grad, 1:lb) ./ v.weight
-    v.c .= view(full_grad, lb+1:length(full_grad))
+    lw == 0 ? copyto!(v.b, @view(full_grad[1:lb])) : copyto!(v.b, @view(full_grad[1:lb]) ./ v.weight)
+    v.c .= view(full_grad, lb+1:lf)
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
     
@@ -203,7 +204,7 @@ Note for Posison, NegativeBinomial, and Gamma, we require model coefficients to 
 by clamping η = xb values to be in (-30, 30)
 """
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
-    prev_logl > logl && η_step < nstep 
+    (prev_logl > logl) && (η_step < nstep)
 end
 
 """
@@ -313,7 +314,7 @@ function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T},
                       d::UnivariateDistribution) where {T <: Float}
     
     # first store relevant components of gradient
-    v.gk .= view(v.df, v.idx)
+    copyto!(v.gk, view(v.df, v.idx))
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
     
     # now compute and return step size. Note non-genetic covariates are separated from x
