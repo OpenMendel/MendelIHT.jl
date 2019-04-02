@@ -10,12 +10,12 @@ using LinearAlgebra
 using GLM
 
 #simulat data with k true predictors, from distribution d and with link l.
-n = 1000
-p = 10000
+n = 5000
+p = 30000
 k = 5
-d = NegativeBinomial
-# l = canonicallink(d())
-l = LogLink()
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
 
 #set random seed
 Random.seed!(1111)
@@ -29,8 +29,8 @@ z = ones(n, 1) # the intercept
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 # specify weights 
-w = ones(p)
-w[correct_position] .= 2.0
+# w = ones(p)
+# w[correct_position] .= 2.0
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)

@@ -137,8 +137,8 @@ function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::AbstractMatr
 
     # find J*k largest entries in magnitude and set everything else to 0. 
     a = partialsort([v.df; v.df2], k * J, by=abs, rev=true)
-    v.idx .= v.df .>= a
-    v.idc .= v.df2 .>= a
+    v.idx .= abs.(v.df) .>= abs(a)
+    v.idc .= abs.(v.df2) .>= abs(a)
 
     # Choose randomly if more are selected
     _choose!(v, J, k) 
