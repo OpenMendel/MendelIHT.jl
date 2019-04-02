@@ -53,11 +53,10 @@ end
 
 function run()
     #simulat data with k true predictors, from distribution d and with link l.
-    repeats = 100 #how many repeats should I run
+    repeats = 50 #how many repeats should I run
     n = 5000
     p = 100000
     d = Poisson
-    #l = LogLink()
     l = canonicallink(d())
     debias = false
 
@@ -80,7 +79,7 @@ function run()
     if debias
         writedlm("./repeats/$d" * "_$repeats", result)
     else
-        writedlm("./repeats_nodebias/$d" * "_$repeats", result)
+        writedlm("./repeats_nodebias/$d" * "_$repeats" * "_2", result)
     end
 end
 

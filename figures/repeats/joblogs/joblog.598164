@@ -1,0 +1,45 @@
+Job 598164 started on:    n2143
+Job 598164 started on:    Tue Mar 19 09:38:33 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia generate_repeats.jl (100 runs) #Negative Binomial, debias=true
+/u/home/b/biona001/generate_repeats
+
+signal (7): Bus error
+in expression starting at no file:0
+memcpy at /lib64/libc.so.6 (unknown line)
+_ZN4llvm15RuntimeDyldImpl11emitSectionERKNS_6object10ObjectFileERKNS1_10SectionRefEb at /u/local/apps/julia/1.0.1/bin/../lib/julia/libLLVM-6.0.so (unknown line)
+_ZN4llvm15RuntimeDyldImpl17findOrEmitSectionERKNS_6object10ObjectFileERKNS1_10SectionRefEbRSt3mapIS5_jSt4lessIS5_ESaISt4pairIS6_jEEE at /u/local/apps/julia/1.0.1/bin/../lib/julia/libLLVM-6.0.so (unknown line)
+_ZN4llvm15RuntimeDyldImpl14loadObjectImplERKNS_6object10ObjectFileE at /u/local/apps/julia/1.0.1/bin/../lib/julia/libLLVM-6.0.so (unknown line)
+_ZN4llvm14RuntimeDyldELF10loadObjectERKNS_6object10ObjectFileE at /u/local/apps/julia/1.0.1/bin/../lib/julia/libLLVM-6.0.so (unknown line)
+_ZN4llvm11RuntimeDyld10loadObjectERKNS_6object10ObjectFileE at /u/local/apps/julia/1.0.1/bin/../lib/julia/libLLVM-6.0.so (unknown line)
+operator() at /buildworker/worker/package_linux64/build/usr/include/llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h:267 [inlined]
+finalize at /buildworker/worker/package_linux64/build/usr/include/llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h:144 [inlined]
+emitAndFinalize at /buildworker/worker/package_linux64/build/usr/include/llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h:343 [inlined]
+emitAndFinalize at /buildworker/worker/package_linux64/build/usr/include/llvm/ExecutionEngine/Orc/IRCompileLayer.h:91 [inlined]
+addModule at /buildworker/worker/package_linux64/build/src/jitlayers.cpp:618
+jl_add_to_ee at /buildworker/worker/package_linux64/build/src/jitlayers.cpp:855 [inlined]
+jl_finalize_function at /buildworker/worker/package_linux64/build/src/jitlayers.cpp:863
+getAddressForFunction at /buildworker/worker/package_linux64/build/src/codegen.cpp:1299
+jl_generate_fptr at /buildworker/worker/package_linux64/build/src/codegen.cpp:1410
+jl_compile_method_internal at /buildworker/worker/package_linux64/build/src/gf.c:1823 [inlined]
+jl_fptr_trampoline at /buildworker/worker/package_linux64/build/src/gf.c:1830
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2184
+reinit_displays at ./multimedia.jl:254
+__init__ at ./sysimg.jl:471
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2184
+jl_apply at /buildworker/worker/package_linux64/build/src/julia.h:1537 [inlined]
+jl_module_run_initializer at /buildworker/worker/package_linux64/build/src/toplevel.c:90
+_julia_init at /buildworker/worker/package_linux64/build/src/init.c:813
+julia_init__threading at /buildworker/worker/package_linux64/build/src/task.c:302
+unknown function (ip: 0x401507)
+__libc_start_main at /lib64/libc.so.6 (unknown line)
+unknown function (ip: 0x4015b4)
+Allocations: 3178 (Pool: 3169; Big: 9); GC: 0
+/work/UGE/8.0.1/hoffman2/spool/n2143/job_scripts/598164: line 24: 17513 Bus error               (core dumped) julia /u/home/b/biona001/generate_repeats/generate_repeats.jl
+Job 598164 ended on:    n2143
+Job #JOB_ID ended on:    Tue Mar 19 09:38:37 PDT 2019

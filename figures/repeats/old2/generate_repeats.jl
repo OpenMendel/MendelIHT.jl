@@ -56,8 +56,8 @@ function run()
     repeats = 100 #how many repeats should I run
     n = 5000
     p = 100000
-    d = Poisson
-    #l = LogLink()
+    d = Normal
+    # l = LogLink()
     l = canonicallink(d())
     debias = false
 
@@ -80,7 +80,7 @@ function run()
     if debias
         writedlm("./repeats/$d" * "_$repeats", result)
     else
-        writedlm("./repeats_nodebias/$d" * "_$repeats", result)
+        writedlm("./repeats_debias/$d" * "_$repeats", result)
     end
 end
 

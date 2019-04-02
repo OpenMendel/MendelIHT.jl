@@ -56,10 +56,9 @@ function run()
     repeats = 100 #how many repeats should I run
     n = 5000
     p = 100000
-    d = Poisson
-    #l = LogLink()
-    l = canonicallink(d())
-    debias = false
+    d = NegativeBinomial
+    l = LogLink()
+    debias = true
 
     # set random seed for reproducibility
     Random.seed!(2019)

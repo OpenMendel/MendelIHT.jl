@@ -1,0 +1,12 @@
+Job 598212 started on:    n53
+Job 598212 started on:    Tue Mar 19 09:48:43 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia generate_repeats.jl (100 runs) #Normal, no mmap, debias=false
+/u/home/b/biona001/generate_repeats
+Job 598212 ended on:    n53
+Job #JOB_ID ended on:    Tue Mar 19 10:53:49 PDT 2019

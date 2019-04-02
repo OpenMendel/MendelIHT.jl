@@ -1,0 +1,60 @@
+Job 598215 started on:    n9945
+Job 598215 started on:    Tue Mar 19 09:50:42 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia generate_repeats.jl (100 runs) #Bernoulli, debias=false
+/u/home/b/biona001/generate_repeats
+
+signal (7): Bus error
+in expression starting at /u/home/b/biona001/generate_repeats/generate_repeats.jl:87
+getindex at ./array.jl:732 [inlined]
+getindex at ./subarray.jl:220 [inlined]
+macro expansion at ./simdloop.jl:84 [inlined]
+#copyto!#23 at /u/home/b/biona001/.julia/packages/SnpArrays/P8Hn0/src/snparray.jl:325
+unknown function (ip: 0x2b6b0d26f60d)
+#copyto! at ./none:0
+unknown function (ip: 0x2b6b0d26f05b)
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2184
+update_xb! at /u/home/b/biona001/.julia/packages/MendelIHT/1fQVo/src/utilities.jl:33
+iht_one_step! at /u/home/b/biona001/.julia/packages/MendelIHT/1fQVo/src/iht.jl:123
+#L0_reg#22 at /u/home/b/biona001/.julia/packages/MendelIHT/1fQVo/src/iht.jl:87
+#L0_reg at ./none:0
+unknown function (ip: 0x2b6b0d2621d8)
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2184
+repeat at /u/home/b/biona001/generate_repeats/generate_repeats.jl:45
+unknown function (ip: 0x2b6b0d25f211)
+jl_fptr_trampoline at /buildworker/worker/package_linux64/build/src/gf.c:1831
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2184
+run at /u/home/b/biona001/generate_repeats/generate_repeats.jl:79
+jl_fptr_trampoline at /buildworker/worker/package_linux64/build/src/gf.c:1831
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2184
+do_call at /buildworker/worker/package_linux64/build/src/interpreter.c:324
+eval_value at /buildworker/worker/package_linux64/build/src/interpreter.c:430
+eval_stmt_value at /buildworker/worker/package_linux64/build/src/interpreter.c:363 [inlined]
+eval_body at /buildworker/worker/package_linux64/build/src/interpreter.c:682
+jl_interpret_toplevel_thunk_callback at /buildworker/worker/package_linux64/build/src/interpreter.c:795
+unknown function (ip: 0xfffffffffffffffe)
+unknown function (ip: 0x2b6b09176a8f)
+unknown function (ip: 0xffffffffffffffff)
+jl_interpret_toplevel_thunk at /buildworker/worker/package_linux64/build/src/interpreter.c:804
+jl_toplevel_eval_flex at /buildworker/worker/package_linux64/build/src/toplevel.c:813
+jl_parse_eval_all at /buildworker/worker/package_linux64/build/src/ast.c:838
+jl_load at /buildworker/worker/package_linux64/build/src/toplevel.c:847
+include at ./boot.jl:317 [inlined]
+include_relative at ./loading.jl:1041
+include at ./sysimg.jl:29
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2184
+exec_options at ./client.jl:229
+_start at ./client.jl:421
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2184
+unknown function (ip: 0x401ae8)
+unknown function (ip: 0x401513)
+__libc_start_main at /lib64/libc.so.6 (unknown line)
+unknown function (ip: 0x4015b4)
+Allocations: 76721336 (Pool: 76709721; Big: 11615); GC: 181
+Job 598215 ended on:    n9945
+Job #JOB_ID ended on:    Tue Mar 19 13:11:44 PDT 2019
