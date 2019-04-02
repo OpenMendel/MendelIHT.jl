@@ -3,8 +3,8 @@
 # error = Merged with joblog
 #$ -o joblog.$JOB_ID
 #$ -j y
-#$ -pe shared 8 
-#$ -l arch=intel-E5-2670,exclusive,h_rt=24:00:00,h_data=3.5G
+#$ -pe shared 6
+#$ -l h_rt=24:00:00,h_data=3.5G
 # Email address to notify
 ## $ -M $USER@mal
 # Notify when:
@@ -21,8 +21,8 @@ module li
 which julia
 
 # run julia code
-echo "julia normal_cv.jl with 16 thread, debias=false"
-pwd; export JULIA_NUM_THREADS=16; julia /u/home/b/biona001/cross_validation/normal_cv_nodebias.jl
+echo "julia normal_cv_nodebias.jl, debias=false"
+pwd; julia /u/home/b/biona001/cross_validation/normal_cv_nodebias.jl
 
 #echo job info on joblog:
 echo "Job $JOB_ID ended on:   " `hostname -s`
