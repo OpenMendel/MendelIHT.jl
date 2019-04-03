@@ -127,8 +127,8 @@ the score as nonzero components of b. This function set v.idx = 1 for those indi
 `J` is the maximum number of active groups, and `k` is the maximum number of predictors per
 group. 
 """
-function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::AbstractMatrix{T},
-                           y::AbstractVector{T}, d::UnivariateDistribution,l::Link, J::Int, 
+function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::Matrix{T},
+                           y::Vector{T}, d::UnivariateDistribution,l::Link, J::Int, 
                            k::Int) where {T <: Float}
 
     # # update mean vector and use them to compute score (gradient)
