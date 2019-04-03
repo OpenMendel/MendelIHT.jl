@@ -1,33 +1,34 @@
 """
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
-mutable struct IHTVariable{T <: Float}
-    b      :: AbstractVector{T}     # the statistical model for the genotype matrix, most will be 0
-    b0     :: AbstractVector{T}     # estimated model for genotype matrix in the previous iteration
-    xb     :: AbstractVector{T}     # vector that holds x*b
-    xb0    :: AbstractVector{T}     # xb in the previous iteration
-    xk     :: AbstractMatrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk     :: AbstractVector{T}     # numerator of step size. gk = df[idx]. 
-    xgk    :: AbstractVector{T}     # xk * gk, denominator of step size
-    idx    :: BitVector             # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
-    idx0   :: BitVector             # previous iterate of idx
-    idc    :: BitVector             # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
-    idc0   :: BitVector             # previous iterate of idc
-    r      :: AbstractVector{T}     # The difference between the observed and predicted response. For linear model this is the residual
-    df     :: AbstractVector{T}     # genotype portion of the score
-    df2    :: AbstractVector{T}     # non-genetic covariates portion of the score
-    c      :: AbstractVector{T}     # estimated model for non-genetic variates (first entry = intercept)
-    c0     :: AbstractVector{T}     # estimated model for non-genetic variates in the previous iteration
-    zc     :: AbstractVector{T}     # z * c (covariate matrix times c)
-    zc0    :: AbstractVector{T}     # z * c (covariate matrix times c) in the previous iterate
-    zdf2   :: AbstractVector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
-    group  :: AbstractVector{Int64} # vector denoting group membership
-    weight :: AbstractVector{T}     # weights (typically minor allele freq) that will scale b prior to projection
-    μ      :: AbstractVector{T}     # mean of the current model: μ = g^{-1}(xb)
+mutable struct IHTVariable{T <: Float64}
+    b      :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
+    b0     :: Vector{T}     # estimated model for genotype matrix in the previous iteration
+    xb     :: Vector{T}     # vector that holds x*b
+    xb0    :: Vector{T}     # xb in the previous iteration
+    xk     :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    gk     :: Vector{T}     # numerator of step size. gk = df[idx]. 
+    xgk    :: Vector{T}     # xk * gk, denominator of step size
+    idx    :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
+    idx0   :: BitVector     # previous iterate of idx
+    idc    :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
+    idc0   :: BitVector     # previous iterate of idc
+    r      :: Vector{T}     # The difference between the observed and predicted response. For linear model this is the residual
+    df     :: Vector{T}     # genotype portion of the score
+    df2    :: Vector{T}     # non-genetic covariates portion of the score
+    c      :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
+    c0     :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
+    zc     :: Vector{T}     # z * c (covariate matrix times c)
+    zc0    :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
+    zdf2   :: Vector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
+    group  :: Vector{Int}   # vector denoting group membership
+    weight :: Vector{T}     # weights (typically minor allele freq) that will scale b prior to projection
+    μ      :: Vector{T}     # mean of the current model: μ = g^{-1}(xb)
 end
 
-function IHTVariables(x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, k::Int64, 
-                      group::AbstractVector{Int64}, weight::AbstractVector{T}) where {T <: Float}
+function IHTVariables(x::SnpArray, z::Matrix{T}, y::Vector{T}, J::Int, k::Int, group::Vector{Int}, 
+                      weight::Vector{T}) where {T <: Float}
+
     n = size(x, 1)
     p = size(x, 2)
     m = size(z, 1)
@@ -80,11 +81,11 @@ struct ggIHTResults{T <: Float}
     time  :: T
     logl  :: T
     iter  :: Int64
-    beta  :: AbstractVector{T}
-    c     :: AbstractVector{T}
+    beta  :: Vector{T}
+    c     :: Vector{T}
     J     :: Int64
     k     :: Int64
-    group :: AbstractVector{Int64}
+    group :: Vector{Int64}
     # ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
 end
 # ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
