@@ -23,7 +23,6 @@ module MendelIHT
 	export std_reciprocal, project_group_sparse!, save_prev!, maf_weights
 	export update_mean!, At_mul_B!, A_mul_B!, IHT, update_mean!
 	export simulate_random_response, adhoc_add_correlation, cv_iht
-	export cv_iht_distributed, cv_iht_distributed2, cv_iht_distributed3
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}
@@ -34,6 +33,5 @@ module MendelIHT
 	include("simulate_utilities.jl")
 	include("iht.jl")
 	include("cross_validation.jl")
-	include("cross_validation_distributed.jl")
 
 end # end module
