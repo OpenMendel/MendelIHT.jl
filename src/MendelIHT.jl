@@ -18,11 +18,12 @@ module MendelIHT
 	using Distributed
 
 	export loglikelihood, deviance, score!, L0_reg, iht_run_many_models
-	export iht_path, cv_iht_distributed, MendelIHT, simulate_random_snparray
+	export iht_path, MendelIHT, simulate_random_snparray
 	export IHTVariables, use_A2_as_minor_allele, make_snparray
 	export std_reciprocal, project_group_sparse!, save_prev!, maf_weights
 	export update_mean!, At_mul_B!, A_mul_B!, IHT, update_mean!
-	export simulate_random_response, adhoc_add_correlation, cv_iht, cv_iht_distributed2
+	export simulate_random_response, adhoc_add_correlation, cv_iht
+	export cv_iht_distributed, cv_iht_distributed2, cv_iht_distributed3
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}

@@ -10,10 +10,10 @@ using LinearAlgebra
 using GLM
 
 #simulat data with k true predictors, from distribution d and with link l.
-n = 5000
-p = 30000
-k = 5
-d = Normal
+n = 1000
+p = 10000
+k = 10
+d = Poisson
 l = canonicallink(d())
 # l = LogLink()
 
@@ -29,8 +29,12 @@ z = ones(n, 1) # the intercept
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 # specify weights 
-# w = ones(p)
-# w[correct_position] .= 2.0
+weight = ones(p)
+group = ones(Int, p + 1)
+J = 1
+v = IHTVariables(x, z, y, J, k, group, weight)
+@code_warntype v.b
+# weight[correct_position] .= 2.0
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
@@ -249,11 +253,11 @@ using GLM
 n = 1000
 p = 10000
 k = 10 # number of true predictors
-d = Poisson
+d = Normal
 l = canonicallink(d())
 
 #set random seed
-Random.seed!(2019)
+Random.seed!(2018)
 
 #construct snpmatrix, covariate files, and true model b
 x, maf = simulate_random_snparray(n, p, "tmp.bed")
@@ -343,6 +347,80 @@ path = collect(1:20)
 
 #run results
 result = iht_run_many_models(d(), l, x, z, y, 1, path, parallel=true, debias=true);
+
+#clean up
+rm("tmp.bed", force=true)
+
+
+
+
+
+
+
+#RUN IHT with all CPU available
+using Distributed
+addprocs(4)
+nprocs()
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using GLM
+
+#simulat data with k true predictors, from distribution d and with link l.
+n = 1000
+p = 10000
+k = 10
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
+
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+x, = simulate_random_snparray(n, p, undef)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1) # the intercept
+
+# simulate response, true model b, and the correct non-0 positions of b
+y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+
+#specify path and folds
+path = collect(1:20)
+num_folds = 4
+folds = rand(1:num_folds, size(x, 1))
+
+# run threaded IHT
+# result = iht_run_many_models(d(), l, x, z, y, 1, path);
+mses = cv_iht_distributed(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true)
+mses = cv_iht_distributed2(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true)
+mses = cv_iht_distributed3(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true)
+
+#benchmarking
+@benchmark mses = cv_iht_distributed(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true) seconds=60
+@benchmark mses = cv_iht_distributed2(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true) seconds=60
+@benchmark mses = cv_iht_distributed2(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true) seconds=60
+
+
+#run IHT
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false) seconds=60
+# @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
+
+#check result
+compare_model = DataFrame(
+    position    = correct_position,
+    true_β      = true_b[correct_position], 
+    estimated_β = result.beta[correct_position])
+println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
+println("Total found predictors = " * string(length(findall(!iszero, result.beta[correct_position]))))
 
 #clean up
 rm("tmp.bed", force=true)

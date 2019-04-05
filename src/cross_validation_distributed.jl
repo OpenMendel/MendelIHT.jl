@@ -86,6 +86,45 @@ function cv_iht_distributed2(
     return mse
 end
 
+function cv_iht_distributed3(
+    d        :: UnivariateDistribution,
+    l        :: Link,
+    x        :: SnpArray,
+    z        :: AbstractMatrix{T},
+    y        :: AbstractVector{T},
+    J        :: Int64,
+    path     :: DenseVector{Int},
+    folds    :: DenseVector{Int},
+    num_fold :: Int64;
+    use_maf  :: Bool = false,
+    debias   :: Bool = false,
+    showinfo :: Bool = true,
+    parallel :: Bool = false
+) where {T <: Float}
+
+    # preallocate mean squared error matrix
+    nmodels = length(path)
+    mses = zeros(nmodels, num_fold)
+
+    for fold in 1:num_fold
+        # find entries that are for test sets and train sets
+        test_idx  = folds .== fold
+        train_idx = .!test_idx
+
+        # validate trained models on test data by computing deviance residuals
+        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, use_maf=use_maf, debias=debias, showinfo=false, parallel=parallel)
+    end
+
+    #weight mses for each fold by their size before averaging
+    mse = meanloss(mses, num_fold, folds)
+
+    # find best model size and print cross validation result
+    k = path[argmin(mse)] :: Int
+    showinfo && print_cv_results(mse, path, k)
+
+    return mse
+end
+
 function iht_run_many_models(
     d        :: UnivariateDistribution,
     l        :: Link,
@@ -188,6 +227,55 @@ function pfold_train2(train_idx::BitArray, d::UnivariateDistribution, l::Link, x
     return betas, cs
 end
 
+function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
+                    l::Link, x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
+                    path::DenseVector{Int}; use_maf::Bool=false, debias::Bool=false, 
+                    showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
+
+    # first allocate return arrays
+    p, q = size(x, 2), size(z, 2)
+    nmodels = length(path)
+    betas = zeros(p, nmodels)
+    cs = zeros(q, nmodels)
+
+    # allocate train model
+    x_train = SnpArray(undef, sum(train_idx), p)
+    y_train = y[train_idx]
+    z_train = z[train_idx, :]
+    copyto!(x_train, @view(x[train_idx, :]))
+    x_trainbm = SnpBitMatrix{Float64}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+    # allocate test model
+    x_test = SnpArray(undef, sum(test_idx), p)
+    y_test = @view(y[test_idx])
+    z_test = @view(z[test_idx, :])
+    copyto!(x_test, @view(x[test_idx, :]))
+    x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+    # preallocate arrays to compute mse
+    test_size = sum(test_idx)
+    mse = zeros(T, length(path))
+    xb = zeros(T, test_size)
+    zc = zeros(T, test_size)
+    μ  = zeros(T, test_size)
+
+    # for each k in path, run L0_reg and compute mse
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    mses = (parallel ? pmap : map)(path) do k
+        #run IHT on training model with given k
+        result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, debias=debias, init=false, show_info=false)
+
+        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
+        A_mul_B!(xb, zc, x_testbm, z_test, result.beta, result.c) 
+        update_μ!(μ, xb .+ zc, l)
+
+        # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
+        return deviance(d, y_test, μ)
+    end
+
+    return mses
+end
+
 """
 This function takes a trained model, and returns the mean squared error (mse) of that model 
 on the test set. A vector of mse is returned, where each entry corresponds to the training
@@ -254,6 +342,7 @@ function pfold_validate2(test_idx::BitArray, betas::AbstractMatrix{T}, cs::Abstr
 
     # for each computed model stored in betas, compute the deviance residuals (i.e. generalized mean squared error) on test set
     for i = 1:size(betas, 2)
+
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
         A_mul_B!(xb, zc, x_testbm, z_test, @view(betas[:, i]), @view(cs[:, i])) 
         update_μ!(μ, xb .+ zc, l)
