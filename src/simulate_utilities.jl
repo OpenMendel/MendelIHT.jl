@@ -175,3 +175,28 @@ function simulate_rare_variants(mafs::Vector{Float64}, penetrance::Vector{Float6
                                 cases::Int, controls::Int)
     return nothing # not implemented yet
 end
+
+"""
+This function creates .bim and .bed files from a SnpArray (which can potentially be memory 
+mapped to a .bed file).
+"""
+function make_bim_fam_files(x::SnpArray, y, name::String)
+    ly = length(y)
+    n, p = size(x)
+    @assert n == ly "dimension mismatch: phenotype data has length $ly but SnpArray has $n samples"
+
+    #create .bim file structure: https://www.cog-genomics.org/plink2/formats#bim
+    open(name * ".bim", "w") do f
+        for i in 1:p
+            write(f, "1 \t $i \t 0 \t 1 \t 1 \t 2 \n")
+        end
+    end
+
+    #create .fam file structure: https://www.cog-genomics.org/plink2/formats#bim
+    open(name * ".fam", "w") do f
+        for i in 1:n
+            yi = y[i]
+            write(f, "$i \t 1 \t 0 \t 0 \t 1 \t $yi \n")
+        end
+    end
+end
