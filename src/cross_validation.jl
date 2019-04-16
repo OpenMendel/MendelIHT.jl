@@ -37,7 +37,7 @@ function cv_iht(
         train_idx = .!test_idx
 
         # validate trained models on test data by computing deviance residuals
-        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, init=init, use_maf=use_maf, debias=debias, showinfo=false, parallel=parallel)
+        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, fold, init=init, use_maf=use_maf, debias=debias, showinfo=false, parallel=parallel)
     end
 
     #weight mses for each fold by their size before averaging
@@ -89,8 +89,12 @@ on the test set. This deviance residuals vector is returned
 """
 function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
                     l::Link, x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
-                    path::DenseVector{Int}; init::Bool=false, use_maf::Bool=false, debias::Bool=false, 
-                    showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
+                    path::DenseVector{Int}, fold::Int; init::Bool=false, use_maf::Bool=false, 
+                    debias::Bool=false, showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
+
+    # create directory for memory mapping
+    train_file = "train_tmp$fold.bed"
+    test_file = "test_tmp$fold.bed"
 
     # first allocate arrays needed for computing deviance residuals
     p, q = size(x, 2), size(z, 2)
@@ -101,14 +105,14 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     μ  = zeros(T, test_size)
 
     # allocate train model
-    x_train = SnpArray(undef, sum(train_idx), p)
+    x_train = SnpArray(train_file, sum(train_idx), p)
     y_train = y[train_idx]
     z_train = z[train_idx, :]
     copyto!(x_train, @view(x[train_idx, :]))
     x_trainbm = SnpBitMatrix{Float64}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # allocate test model
-    x_test = SnpArray(undef, test_size, p)
+    x_test = SnpArray(test_file, test_size, p)
     y_test = y[test_idx]
     z_test = z[test_idx, :]
     copyto!(x_test, @view(x[test_idx, :]))
@@ -126,6 +130,10 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
         # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
         return deviance(d, y_test, μ)
     end
+
+    #clean up 
+    rm(train_file, force=true)
+    rm(test_file, force=true)
 
     return mses
 end
