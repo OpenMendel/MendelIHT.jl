@@ -1,0 +1,51 @@
+Job 606170 started on:    n6101
+Job 606170 started on:    Tue Mar 26 02:29:06 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 1
+/u/home/b/biona001/benchmark
+Job 606170 started on:    n7142
+Job 606170 started on:    Tue Mar 26 02:35:04 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 2
+/u/home/b/biona001/benchmark
+Job 606170 started on:    n7102
+Job 606170 started on:    Tue Mar 26 03:31:50 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debjulia benchmark_normal.jl, where debias = true, n = 120000, run = 3
+/u/home/b/biona001/benchmark
+Job 606170 started on:    n6092
+Job 606170 started on:    Tue Mar 26 03:36:52 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 5
+/u/home/b/biona001/benchmark
+Job 606170 ended on:    n6101
+Job #JOB_ID ended on:    Tue Mar 26 05:15:13 PDT 2019
+Job 606170 ended on:    n7142
+Job #JOB_ID ended on:    Tue Mar 26 05:20:31 PDT 2019
+/work/UGE/8.0.1/hoffman2/spool/n6092/job_scripts/606170: line 27: 49736 Killed                  julia /u/home/b/biona001/benchmark/benchmark_normal.jl 120000 $SGE_TASK_ID
+Job 606170 ended on:    n6092
+Job #JOB_ID ended on:    Tue Mar 26 05:35:26 PDT 2019
+Job 606170 ended on:    n6103
+Job #JOB_ID ended on:    Tue Mar 26 06:16:21 PDT 2019
+Job 606170 ended on:    n7102
+Job #JOB_ID ended on:    Tue Mar 26 06:17:28 PDT 2019

@@ -1,0 +1,60 @@
+Job 598445 started on:    n7084
+Job 598445 started on:    Sat Mar 23 06:59:21 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 60000, run = 1
+/u/home/b/biona001/benchmark
+Job 598445 started on:    n6140
+Job 598445 started on:    Sat Mar 23 07:01:28 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 60000, run = 2
+/u/home/b/biona001/benchmark
+Job 598445 started on:    n6157
+Job 598445 started on:    Sat Mar 23 07:14:58 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 60000, run = 3
+/u/home/b/biona001/benchmark
+Job 598445 started on:    n6085
+Job 598445 started on:    Sat Mar 23 07:58:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 60000, run = 4
+/u/home/b/biona001/benchmark
+Job 598445 started on:    n6077
+Job 598445 started on:    Sat Mar 23 08:04:03 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 60000, run = 5
+/u/home/b/biona001/benchmark
+Job 598445 ended on:    n7084
+Job #JOB_ID ended on:    Sat Mar 23 11:52:27 PDT 2019
+Job 598445 ended on:    n6140
+Job #JOB_ID ended on:    Sat Mar 23 12:02:33 PDT 2019
+Job 598445 ended on:    n6157
+Job #JOB_ID ended on:    Sat Mar 23 12:06:21 PDT 2019
+Job 598445 ended on:    n6085
+Job #JOB_ID ended on:    Sat Mar 23 12:49:56 PDT 2019
+Job 598445 ended on:    n6077
+Job #JOB_ID ended on:    Sat Mar 23 13:47:36 PDT 2019

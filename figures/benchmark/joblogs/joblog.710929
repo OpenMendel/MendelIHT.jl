@@ -1,0 +1,40 @@
+Job 710929 started on:    n7094
+Job 710929 started on:    Sun Apr 7 17:03:38 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+9 started on:    Sun Apr 7 17:03:38 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+9 started on:    Sun Apr 7 17:03:38 PDT 2019
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 90300, run = 1
+/u/home/b/biona001/benjulia benchmark_poisson_nodebias.jl, where debias = false, n = 90300, run = 2
+/u/home/b/biona001/benchmar/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 90300, run = 3
+/u/home/b/biona001/benchmark
+Job 710929 started on:    n7107
+Job 710929 started on:    Sun Apr 7 17:03:50 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+9 started on:    Sun Apr 7 17:03:50 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 90300, run = 5
+/u/home/b/biona001/benjulia benchmark_poisson_nodebias.jl, where debias = false, n = 90300, run = 4
+/u/home/b/biona001/benchmark
+Job 710929 ended on:    n7099
+Job #JOB_ID ended on:    Sun Apr 7 20:37:14 PDT 2019
+Job 710929 ended on:    n7105
+Job #JOB_ID ended on:    Sun Apr 7 20:37:47 PDT 2019
+Job 710929 ended on:    n7100
+Job #JOB_ID ended on:    Sun Apr 7 20:38:07 PDT 2019
+Job 710929 ended on:    n7094
+Job #JOB_ID ended on:    Sun Apr 7 20:38:23 PDT 2019
+Job 710929 ended on:    n7107
+Job #JOB_ID ended on:    Sun Apr 7 20:41:23 PDT 2019

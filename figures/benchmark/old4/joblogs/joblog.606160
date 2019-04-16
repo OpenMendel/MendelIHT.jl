@@ -1,0 +1,57 @@
+Job 606160 started on:    n7080
+Job 606160 started on:    Tue Mar 26 01:41:58 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 90000, run = 1
+/u/home/b/biona001/benchmark
+Job 606160 started on:    n6165
+Job 606160 started on:    Tue Mar 26 01:42:28 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 90000, run = 2
+/u/home/b/biona001/benchmark
+Job 606160 started on:    n6142
+Job 606160 started on:    Tue Mar 26 01:48:00 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 90000, run = 3
+/u/home/b/biona001/benchmark
+dule is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 90000, run = 4
+/u/home/b/biona001/benchmark
+Job 606160 started on:    n7100
+Job 606160 started on:    Tue Mar 26 01:49:12 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 90000, run = 5
+/u/home/b/biona001/benchmark
+Job 606160 ended on:    n6165
+Job #JOB_ID ended on:    Tue Mar 26 07:11:23 PDT 2019
+Job 606160 ended on:    n7100
+Job #JOB_ID ended on:    Tue Mar 26 07:21:36 PDT 2019
+Job 606160 ended on:    n7099
+Job #JOB_ID ended on:    Tue Mar 26 07:31:56 PDT 2019
+Job 606160 ended on:    n6142
+Job #JOB_ID ended on:    Tue Mar 26 07:40:30 PDT 2019
+Job 606160 ended on:    n7080
+Job #JOB_ID ended on:    Tue Mar 26 07:42:22 PDT 2019

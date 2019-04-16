@@ -1,0 +1,56 @@
+Job 681215 started on:    n6086
+Job 681215 started on:    Fri Apr 5 13:05:08 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 1
+/u/home/b/biona001/benchmark
+Job 681215 started on:    n7094
+Job 681215 started on:    Fri Apr 5 14:04:40 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 2
+/u/home/b/biona001/benchmark
+Job 681215 started on:    n6099
+Job 681215 started on:    Fri Apr 5 14:05:14 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 3
+/u/home/b/biona001/benchmark
+Job 681215 started on:    n7108
+Job 681215 started on:    Fri Apr 5 14:06:05 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 4
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 5
+/u/home/b/biona001/benchmark
+Job 681215 ended on:    n6086
+Job #JOB_ID ended on:    Fri Apr 5 15:33:25 PDT 2019
+Job 681215 ended on:    n7094
+Job #JOB_ID ended on:    Fri Apr 5 16:32:41 PDT 2019
+Job 681215 ended on:    n6099
+Job #JOB_ID ended on:    Fri Apr 5 16:33:24 PDT 2019
+Job 681215 ended on:    n7108
+Job #JOB_ID ended on:    Fri Apr 5 16:34:05 PDT 2019
+Job 681215 ended on:    n6103
+Job #JOB_ID ended on:    Fri Apr 5 16:34:17 PDT 2019

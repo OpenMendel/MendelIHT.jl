@@ -1,0 +1,51 @@
+Job 681090 started on:    n6142
+Job 681090 started on:    Wed Apr 3 13:56:49 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 1
+/u/home/b/biona001/benchmark
+Job 681090 started on:    n6073
+Job 681090 started on:    Wed Apr 3 13:57:33 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debjulia benchmark_normal.jl, where debias = true, n = 120000, run = 3
+/u/home/b/biona001/benchmark
+Job 681090 started on:    n6095
+Job 681090 started on:    Wed Apr 3 14:02:56 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 4
+/u/home/b/biona001/benchmark
+Job 681090 started on:    n7138
+Job 681090 started on:    Wed Apr 3 14:08:16 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 5
+/u/home/b/biona001/benchmark
+/work/UGE/8.0.1/hoffman2/spool/n7138/job_scripts/681090: line 27: 47334 Killed                  julia /u/home/b/biona001/benchmark/benchmark_normal.jl 120000 $SGE_TASK_ID
+Job 681090 ended on:    n7138
+Job #JOB_ID ended on:    Wed Apr 3 15:36:25 PDT 2019
+Job 681090 ended on:    n6142
+Job #JOB_ID ended on:    Wed Apr 3 16:40:33 PDT 2019
+Job 681090 ended on:    n6073
+Job #JOB_ID ended on:    Wed Apr 3 16:42:18 PDT 2019
+Job 681090 ended on:    n6104
+Job #JOB_ID ended on:    Wed Apr 3 16:43:03 PDT 2019
+Job 681090 ended on:    n6095
+Job #JOB_ID ended on:    Wed Apr 3 16:48:21 PDT 2019

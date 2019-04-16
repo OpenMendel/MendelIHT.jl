@@ -1,0 +1,60 @@
+Job 688467 started on:    n6076
+Job 688467 started on:    Sun Apr 7 08:28:39 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 100000, run = 1
+/u/home/b/biona001/benchmark
+Job 688467 started on:    n7140
+Job 688467 started on:    Sun Apr 7 09:13:37 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+Job 688467 started on:    n7142
+re debias = true, n = 100000, run = 2
+/u/home/b/biona001/benchmark
+Job 688467 started on:    Sun Apr 7 09:13:37 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 100000, run = 3
+/u/home/b/biona001/benchmark
+Job 688467 started on:    n6087
+Job 688467 started on:    Sun Apr 7 09:17:06 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 100000, run = 4
+/u/home/b/biona001/benchmark
+Job 688467 started on:    n6075
+Job 688467 started on:    Sun Apr 7 09:34:12 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 100000, run = 5
+/u/home/b/biona001/benchmark
+Job 688467 ended on:    n6076
+Job #JOB_ID ended on:    Sun Apr 7 10:46:20 PDT 2019
+Job 688467 ended on:    n7142
+Job #JOB_ID ended on:    Sun Apr 7 11:29:46 PDT 2019
+Job 688467 ended on:    n7140
+Job #JOB_ID ended on:    Sun Apr 7 11:32:51 PDT 2019
+Job 688467 ended on:    n6087
+Job #JOB_ID ended on:    Sun Apr 7 11:33:35 PDT 2019
+Job 688467 ended on:    n6075
+Job #JOB_ID ended on:    Sun Apr 7 11:50:26 PDT 2019

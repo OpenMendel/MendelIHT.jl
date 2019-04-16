@@ -1,0 +1,45 @@
+Job 472500 started on:    n7139
+Job 472500 started on:    Thu Feb 28 05:49:24 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110000, run = 1
+/u/home/b/biona001/benchmark
+Job 472500 started on:    n6088
+Job 472500 started on:    Thu Feb 28 08:01:40 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+0 started on:    Thu Feb 28 08:01:40 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 1/u/local/apps/julia/1.0.1/bin/julia
+nchmark
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110000, run = 2
+/u/home/b/biona001/benchmark
+Job 472500 started on:    n6136
+Job 472500 started on:    Thu Feb 28 08:37:59 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110000, run = 4
+/u/home/b/biona001/benchmark
+Job 472500 started on:    n7100
+Job 472500 started on:    Thu Feb 28 08:59:49 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110000, run = 5
+/u/home/b/biona001/benchmark

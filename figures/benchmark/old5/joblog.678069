@@ -1,0 +1,10 @@
+Job 678069 started on:    n7106
+Job 678069 started on:    Tue Apr 2 23:02:13 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n =60000, run = 1
+/u/home/b/biona001/benchmark

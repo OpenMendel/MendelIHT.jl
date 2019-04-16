@@ -1,0 +1,130 @@
+Job 681166 started on:    n7098
+Job 681166 started on:    Thu Apr 4 00:33:51 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 70000, run = 1
+/u/home/b/biona001/benchmark
+Job 681166 started on:    n6073
+Job 681166 started on:    Thu Apr 4 00:35:24 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 70000, run = 2
+/u/home/b/biona001/benchmark
+Job 681166 started on:    n6142
+Job 681166 started on:    Thu Apr 4 00:40:31 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 70000, run = 3
+/u/home/b/biona001/benchmark
+Job 681166 started on:    n7100
+Job 681166 started on:    Thu Apr 4 01:09:57 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 70000, run = 4
+/u/home/b/biona001/benchmark
+Job 681166 started on:    n6088
+Job 681166 started on:    Thu Apr 4 01:16:47 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 70000, run = 5
+/u/home/b/biona001/benchmark
+ERROR: LoadError: MethodError: no method matching *(::typeof(response), ::String)
+Closest candidates are:
+  *(::Any, ::Any, !Matched::Any, !Matched::Any...) at operators.jl:502
+  *(!Matched::Missing, ::AbstractString) at missing.jl:139
+  *(!Matched::Union{AbstractChar, AbstractString}, ::Union{AbstractChar, AbstractString}...) at strings/basic.jl:229
+Stacktrace:
+ [1] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_logistic.jl:50
+ [2] top-level scope at none:0
+ [3] include at ./boot.jl:317 [inlined]
+ [4] include_relative(::Module, ::String) at ./loading.jl:1041
+ [5] include(::Module, ::String) at ./sysimg.jl:29
+ [6] exec_options(::Base.JLOptions) at ./client.jl:229
+ [7] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_logistic.jl:65
+Job 681166 ended on:    n7098
+Job #JOB_ID ended on:    Thu Apr 4 02:15:01 PDT 2019
+ERROR: LoadError: MethodError: no method matching *(::typeof(response), ::String)
+Closest candidates are:
+  *(::Any, ::Any, !Matched::Any, !Matched::Any...) at operators.jl:502
+  *(!Matched::Missing, ::AbstractString) at missing.jl:139
+  *(!Matched::Union{AbstractChar, AbstractString}, ::Union{AbstractChar, AbstractString}...) at strings/basic.jl:229
+Stacktrace:
+ [1] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_logistic.jl:50
+ [2] top-level scope at none:0
+ [3] include at ./boot.jl:317 [inlined]
+ [4] include_relative(::Module, ::String) at ./loading.jl:1041
+ [5] include(::Module, ::String) at ./sysimg.jl:29
+ [6] exec_options(::Base.JLOptions) at ./client.jl:229
+ [7] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_logistic.jl:65
+Job 681166 ended on:    n6073
+Job #JOB_ID ended on:    Thu Apr 4 02:16:01 PDT 2019
+ERROR: LoadError: MethodError: no method matching *(::typeof(response), ::String)
+Closest candidates are:
+  *(::Any, ::Any, !Matched::Any, !Matched::Any...) at operators.jl:502
+  *(!Matched::Missing, ::AbstractString) at missing.jl:139
+  *(!Matched::Union{AbstractChar, AbstractString}, ::Union{AbstractChar, AbstractString}...) at strings/basic.jl:229
+Stacktrace:
+ [1] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_logistic.jl:50
+ [2] top-level scope at none:0
+ [3] include at ./boot.jl:317 [inlined]
+ [4] include_relative(::Module, ::String) at ./loading.jl:1041
+ [5] include(::Module, ::String) at ./sysimg.jl:29
+ [6] exec_options(::Base.JLOptions) at ./client.jl:229
+ [7] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_logistic.jl:65
+Job 681166 ended on:    n6142
+Job #JOB_ID ended on:    Thu Apr 4 02:21:03 PDT 2019
+ERROR: LoadError: MethodError: no method matching *(::typeof(response), ::String)
+Closest candidates are:
+  *(::Any, ::Any, !Matched::Any, !Matched::Any...) at operators.jl:502
+  *(!Matched::Missing, ::AbstractString) at missing.jl:139
+  *(!Matched::Union{AbstractChar, AbstractString}, ::Union{AbstractChar, AbstractString}...) at strings/basic.jl:229
+Stacktrace:
+ [1] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_logistic.jl:50
+ [2] top-level scope at none:0
+ [3] include at ./boot.jl:317 [inlined]
+ [4] include_relative(::Module, ::String) at ./loading.jl:1041
+ [5] include(::Module, ::String) at ./sysimg.jl:29
+ [6] exec_options(::Base.JLOptions) at ./client.jl:229
+ [7] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_logistic.jl:65
+Job 681166 ended on:    n7100
+Job #JOB_ID ended on:    Thu Apr 4 02:50:36 PDT 2019
+ERROR: LoadError: MethodError: no method matching *(::typeof(response), ::String)
+Closest candidates are:
+  *(::Any, ::Any, !Matched::Any, !Matched::Any...) at operators.jl:502
+  *(!Matched::Missing, ::AbstractString) at missing.jl:139
+  *(!Matched::Union{AbstractChar, AbstractString}, ::Union{AbstractChar, AbstractString}...) at strings/basic.jl:229
+Stacktrace:
+ [1] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_logistic.jl:50
+ [2] top-level scope at none:0
+ [3] include at ./boot.jl:317 [inlined]
+ [4] include_relative(::Module, ::String) at ./loading.jl:1041
+ [5] include(::Module, ::String) at ./sysimg.jl:29
+ [6] exec_options(::Base.JLOptions) at ./client.jl:229
+ [7] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_logistic.jl:65
+Job 681166 ended on:    n6088
+Job #JOB_ID ended on:    Thu Apr 4 02:57:24 PDT 2019

@@ -1,0 +1,60 @@
+Job 681106 started on:    n6092
+Job 681106 started on:    Wed Apr 3 14:08:16 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 1
+/u/home/b/biona001/benchmark
+Job 681106 started on:    n7103
+Job 681106 started on:    Wed Apr 3 14:13:00 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 2
+/u/home/b/biona001/benchmark
+Job 681106 started on:    n6106
+Job 681106 started on:    Wed Apr 3 14:22:08 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 3
+/u/home/b/biona001/benchmark
+Job 681106 ended on:    n6092
+Job #JOB_ID ended on:    Wed Apr 3 14:24:02 PDT 2019
+Job 681106 started on:    n6092
+Job 681106 started on:    Wed Apr 3 14:25:02 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 4
+/u/home/b/biona001/benchmark
+Job 681106 started on:    n7135
+Job 681106 started on:    Wed Apr 3 14:25:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 5
+/u/home/b/biona001/benchmark
+Job 681106 ended on:    n7103
+Job #JOB_ID ended on:    Wed Apr 3 14:28:46 PDT 2019
+Job 681106 ended on:    n6106
+Job #JOB_ID ended on:    Wed Apr 3 14:37:52 PDT 2019
+Job 681106 ended on:    n6092
+Job #JOB_ID ended on:    Wed Apr 3 14:40:47 PDT 2019
+Job 681106 ended on:    n7135
+Job #JOB_ID ended on:    Wed Apr 3 14:41:29 PDT 2019

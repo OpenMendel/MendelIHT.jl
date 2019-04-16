@@ -1,0 +1,51 @@
+Job 681221 started on:    n6102
+Job 681221 started on:    Fri Apr 5 16:33:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 60000, run = 1
+/u/home/b/biona001/benchmark
+Job 681221 started on:    n7108
+Job 681221 started on:    Fri Apr 5 16:34:41 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+1 started on:    Fri Apr 5 16:34:41 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = fal/u/local/apps/julia/1.0.1/bin/julia
+na001/benchmark
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 60000, run = 3
+/u/home/b/biona001/benchmark
+Job 681221 started on:    n7140
+Job 681221 started on:    Fri Apr 5 16:35:54 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 60000, run = 4
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 60000, run = 5
+/u/home/b/biona001/benchmark
+Job 681221 ended on:    n6102
+Job #JOB_ID ended on:    Fri Apr 5 17:54:35 PDT 2019
+Job 681221 ended on:    n7108
+Job #JOB_ID ended on:    Fri Apr 5 17:55:40 PDT 2019
+Job 681221 ended on:    n6099
+Job #JOB_ID ended on:    Fri Apr 5 17:56:00 PDT 2019
+Job 681221 ended on:    n7140
+Job #JOB_ID ended on:    Fri Apr 5 17:56:41 PDT 2019
+Job 681221 ended on:    n6103
+Job #JOB_ID ended on:    Fri Apr 5 17:56:50 PDT 2019

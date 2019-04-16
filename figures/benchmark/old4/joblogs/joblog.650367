@@ -1,0 +1,29 @@
+Job 650367 started on:    n6090
+Job 650367 started on:    Thu Mar 28 14:06:16 PDT 2019
+
+The 'gcc/4.9.3' module is beingJob 65036Job 650367 started on:    Thu Mar 28 14:06:16 PDT 2019
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+Job 650367 started on:    n7097
+lia
+julia benchmark_negativebinomial.jl, where debias = tru
+The 'gcc/4.9.3' module is being loaded
+
+Currently LCurrently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+ps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial.jl,julia benchmark_negativebinomial.jl, where debias = true, n = 11julia benchmark_negativebinomial.jl, where debias = true, n = 110700, run = 1
+/u/home/b/biona001/benchmark
+Job 650367 started on:    n6134
+Job 650367 started on:    Thu Mar 28 14:06:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial.jl, where debias = true, n = 110700, run = 5
+/u/home/b/biona001/benchmark
+/work/UGE/8.0.1/hoffman2/spool/n6134/job_scripts/650367: line 27:  2338 Killed                  julia /u/home/b/biona001/benchmark/benchmark_negativebinomial.jl 110700 $SGE_TASK_ID
+Job 650367 ended on:    n6134
+Job #JOB_ID ended on:    Thu Mar 28 15:37:44 PDT 2019
