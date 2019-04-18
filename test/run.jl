@@ -21,7 +21,7 @@ l = canonicallink(d())
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, = simulate_random_snparray(n, p, undef)
+x, = simulate_random_snparray(n, p, "tmp")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 
@@ -40,6 +40,8 @@ v = IHTVariables(x, z, y, J, k, group, weight)
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false) seconds=60
 # @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
+
+make_bim_fam_files(x, y, "tmp")
 
 #check result
 compare_model = DataFrame(
@@ -280,7 +282,7 @@ num_folds = 4
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-mses = cv_iht_distributed(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true);
+mses = cv_iht(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true);
 
 #compute l0 result using best estimate for k
 k_est = argmin(mses)
@@ -398,14 +400,10 @@ folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT
 # result = iht_run_many_models(d(), l, x, z, y, 1, path);
-mses = cv_iht_distributed(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true)
-mses = cv_iht_distributed2(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true)
-mses = cv_iht_distributed3(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true)
+mses = cv_iht(d(), l, x, z, y, 1, path, folds, num_folds, init=false, use_maf=false, debias=true, parallel=true)
 
 #benchmarking
-@benchmark mses = cv_iht_distributed(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true) seconds=60
-@benchmark mses = cv_iht_distributed2(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true) seconds=60
-@benchmark mses = cv_iht_distributed2(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true) seconds=60
+@benchmark cv_iht(d(), l, x, z, y, 1, path, folds, num_folds, init=false, use_maf=false, debias=true, parallel=true) seconds=60
 
 
 #run IHT
