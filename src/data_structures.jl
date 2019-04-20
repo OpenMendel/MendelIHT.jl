@@ -94,16 +94,20 @@ end
 functions to display ggIHTResults object
 """
 function Base.show(io::IO, x::ggIHTResults)
+    snp_position = findall(x -> x != 0, x.beta)
+    nongenetic_position = findall(x -> x != 0, x.c)
+
     println(io, "IHT results:")
     println(io, "\nCompute time (sec):     ", x.time)
     println(io, "Final loglikelihood:    ", x.logl)
     println(io, "Iterations:             ", x.iter)
     println(io, "Max number of groups:   ", x.J)
     println(io, "Max predictors/group:   ", x.k)
-    println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero coefficients.")
-    non_zero = findall(x -> x != 0, x.beta)
-    print(io, DataFrame(Predictor=non_zero, Estimated_β=x.beta[non_zero]))
-    println(io, "\n\nIntercept of model = ", x.c[1])
+    println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero SNP predictors and ", count(!iszero, x.c), " non-genetic predictors.")
+    println(io, "\nGenetic predictors:")
+    print(io, DataFrame(Position=snp_position, Estimated_β=x.beta[snp_position]))
+    println(io, "\n\nNongenetic predictors:")
+    print(io, DataFrame(Position=nongenetic_position, Estimated_β=x.c[nongenetic_position]))
 end
 
 """

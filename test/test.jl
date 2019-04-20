@@ -972,7 +972,7 @@ cor(tmp[:, 1], tmp[:, 2])
 
 
 
-#BELOW ARE SIMULATION FOR normal, bernoulli, and poisson
+#testing if IHT finds intercept and/or nongenetic covariates, normal response
 using Revise
 using MendelIHT
 using SnpArrays
@@ -987,17 +987,38 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Bernoulli
+d = Normal
 l = canonicallink(d())
 
 #set random seed
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-mafs = 0.5rand(p)
-clamp!(mafs, 0.0005, 0.5)
-x = simulate_random_snparray(n, p, "tmp.bed", mafs)
+x, = simulate_random_snparray(n, p, "tmp")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-z = ones(n, 1) # the intercept
+z = ones(n, 2) # the intercept
+z[:, 2] .= randn(n)
 
+#define true_b and true_c
+true_b = zeros(p)
+true_b[1:k-2] = randn(k-2)
+shuffle!(true_b)
+correct_position = findall(!iszero, true_b)
+true_c = [1.0; 3.5]
 
+#simulate phenotype
+prob = linkinv.(l, xbm * true_b .+ z * true_c)
+y = [rand(d(i)) for i in prob]
+
+#run result
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+
+#compare with correct answer
+compare_model = DataFrame(
+    position    = correct_position,
+    true_β      = true_b[correct_position], 
+    estimated_β = result.beta[correct_position])
+
+compare_model = DataFrame(
+    true_c      = true_c[1:2], 
+    estimated_c = result.c[1:2])
