@@ -1,0 +1,54 @@
+Job 606145 started on:    n6097
+Job 606145 started on:    Mon Mar 25 19:45:15 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+5:15 PDT 2019
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = false, n = 20000, run = 1
+/u/home/b/biona001/benchmark
+
+julia benchmark_logistic.jl, where debias = false, n = 20000, run = 2
+/u/home/b/biona001/benchmark
+Job 606145 started on:    n7083
+Job 606145 started on:    Mon Mar 25 19:48:21 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = false, n = 20000, run = 3
+/u/home/b/biona001/benchmark
+Job 606145 started on:    n7084
+Job 606145 started on:    Mon Mar 25 19:48:52 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = false, n = 20000, run = 4
+/u/home/b/biona001/benchmark
+Job 606145 started on:    n7143
+Job 606145 started on:    Mon Mar 25 20:04:33 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = false, n = 20000, run = 5
+/u/home/b/biona001/benchmark
+Job 606145 ended on:    n7083
+Job #JOB_ID ended on:    Tue Mar 26 00:04:03 PDT 2019
+Job 606145 ended on:    n7084
+Job #JOB_ID ended on:    Tue Mar 26 00:05:37 PDT 2019
+Job 606145 ended on:    n6097
+Job #JOB_ID ended on:    Tue Mar 26 00:09:17 PDT 2019
+Job 606145 ended on:    n6093
+Job #JOB_ID ended on:    Tue Mar 26 00:17:57 PDT 2019
+Job 606145 ended on:    n7143
+Job #JOB_ID ended on:    Tue Mar 26 01:03:08 PDT 2019

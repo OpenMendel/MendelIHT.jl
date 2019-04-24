@@ -1,0 +1,25 @@
+Job 598207 started on:    n2073
+Job 598207 started on:    Tue Mar 19 09:46:14 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia generate_repeats.jl (100 runs) #Normal, no mmap, debias=false
+/u/home/b/biona001/generate_repeats
+ERROR: LoadError: MethodError: no method matching simulate_random_snparray(::Int64, ::Int64, ::UndefInitializer)
+Closest candidates are:
+  simulate_random_snparray(::Int64, ::Int64, !Matched::String, !Matched::Array{Float64,1}; min_ma) at /u/home/b/biona001/.julia/packages/MendelIHT/1fQVo/src/simulate_utilities.jl:50
+  simulate_random_snparray(::Int64, ::Int64, !Matched::String; min_ma) at /u/home/b/biona001/.julia/packages/MendelIHT/1fQVo/src/simulate_utilities.jl:12
+Stacktrace:
+ [1] run() at /u/home/b/biona001/generate_repeats/generate_repeats.jl:68
+ [2] top-level scope at none:0
+ [3] include at ./boot.jl:317 [inlined]
+ [4] include_relative(::Module, ::String) at ./loading.jl:1041
+ [5] include(::Module, ::String) at ./sysimg.jl:29
+ [6] exec_options(::Base.JLOptions) at ./client.jl:229
+ [7] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/generate_repeats/generate_repeats.jl:87
+Job 598207 ended on:    n2073
+Job #JOB_ID ended on:    Tue Mar 19 09:46:48 PDT 2019

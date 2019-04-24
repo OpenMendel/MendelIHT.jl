@@ -1,0 +1,60 @@
+Job 606172 started on:    n7158
+Job 606172 started on:    Tue Mar 26 05:06:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 100000, run = 1
+/u/home/b/biona001/benchmark
+Job 606172 started on:    n7101
+Job 606172 started on:    Tue Mar 26 05:10:02 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 100000, run = 2
+/u/home/b/biona001/benchmark
+Job 606172 started on:    n7104
+Job 606172 started on:    Tue Mar 26 05:10:43 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 100000, run = 3
+/u/home/b/biona001/benchmark
+Job 606172 started on:    n6101
+Job 606172 started on:    Tue Mar 26 05:15:49 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 100000, run = 4
+/u/home/b/biona001/benchmark
+Job 606172 started on:    n6139
+Job 606172 started on:    Tue Mar 26 05:16:30 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 100000, run = 5
+/u/home/b/biona001/benchmark
+Job 606172 ended on:    n7158
+Job #JOB_ID ended on:    Tue Mar 26 10:32:03 PDT 2019
+Job 606172 ended on:    n6139
+Job #JOB_ID ended on:    Tue Mar 26 10:41:34 PDT 2019
+Job 606172 ended on:    n7101
+Job #JOB_ID ended on:    Tue Mar 26 10:44:28 PDT 2019
+Job 606172 ended on:    n6101
+Job #JOB_ID ended on:    Tue Mar 26 10:45:21 PDT 2019
+Job 606172 ended on:    n7104
+Job #JOB_ID ended on:    Tue Mar 26 10:52:31 PDT 2019

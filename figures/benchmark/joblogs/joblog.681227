@@ -1,0 +1,76 @@
+Job 681227 started on:    n6103
+Job 681227 started on:    Fri Apr 5 21:43:52 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 120000, run = 1
+/u/home/b/biona001/benchmark
+Job 681227 started on:    n6141
+Job 681227 started on:    Fri Apr 5 22:18:40 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 120000, run = 2
+/u/home/b/biona001/benchmark
+Job 681227 started on:    n7081
+Job 681227 started on:    Fri Apr 5 23:57:28 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 120000, run = 3
+/u/home/b/biona001/benchmark
+Job 681227 started on:    n6092
+Job 681227 started on:    Sat Apr 6 00:12:39 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 120000, run = 4
+/u/home/b/biona001/benchmark
+ERROR: LoadError: OutOfMemoryError()
+Stacktrace:
+ [1] Type at ./boot.jl:394 [inlined]
+ [2] BitArray{2}(::UndefInitializer, ::Int64, ::Int64) at ./bitarray.jl:25
+ [3] materialize at ./bitarray.jl:59 [inlined]
+ [4] #call#68(::Val{1}, ::Bool, ::Bool, ::Type{SnpBitMatrix{Float64}}, ::SnpArray) at /u/home/b/biona001/.julia/packages/SnpArrays/P8Hn0/src/linalg.jl:19
+ [5] Type at ./none:0 [inlined]
+ [6] time_nb_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_negativebinomial_nodebias.jl:22
+ [7] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_negativebinomial_nodebias.jl:46
+ [8] top-level scope at none:0
+ [9] include at ./boot.jl:317 [inlined]
+ [10] include_relative(::Module, ::String) at ./loading.jl:1041
+ [11] include(::Module, ::String) at ./sysimg.jl:29
+ [12] exec_options(::Base.JLOptions) at ./client.jl:229
+ [13] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_negativebinomial_nodebias.jl:65
+Job 681227 ended on:    n6092
+Job #JOB_ID ended on:    Sat Apr 6 01:57:30 PDT 2019
+Job 681227 ended on:    n6103
+Job #JOB_ID ended on:    Sat Apr 6 03:13:00 PDT 2019
+Job 681227 ended on:    n6141
+Job #JOB_ID ended on:    Sat Apr 6 03:44:18 PDT 2019
+Job 681227 ended on:    n7081
+Job #JOB_ID ended on:    Sat Apr 6 05:24:45 PDT 2019
+Job 681227 started on:    n6158
+Job 681227 started on:    Sat Apr 6 11:58:49 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 120000, run = 5
+/u/home/b/biona001/benchmark
+Job 681227 ended on:    n6158
+Job #JOB_ID ended on:    Sat Apr 6 17:28:55 PDT 2019

@@ -1,0 +1,168 @@
+Job 440746 started on:    n7092
+Job 440746 started on:    Thu Feb 21 03:05:05 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 10000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n6096
+Job 440746 started on:    Thu Feb 21 03:08:34 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 20000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n6094
+Job 440746 started on:    Thu Feb 21 03:14:35 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 30000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n7100
+Job 440746 started on:    Thu Feb 21 03:20:34 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 40000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n7168
+Job 440746 started on:    Thu Feb 21 03:55:04 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 50000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n7144
+Job 440746 started on:    Thu Feb 21 03:56:34 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 60000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n7090
+Job 440746 started on:    Thu Feb 21 04:01:34 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 70000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n6139
+Job 440746 started on:    Thu Feb 21 04:17:03 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 80000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n7105
+Job 440746 started on:    Thu Feb 21 04:26:03 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 90000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n6089
+Job 440746 started on:    Thu Feb 21 04:30:05 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 100000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n6140
+Job 440746 started on:    Thu Feb 21 04:38:03 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 110000
+/u/home/b/biona001/benchmark
+Job 440746 started on:    n7107
+Job 440746 started on:    Thu Feb 21 04:40:04 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where n = 120000
+/u/home/b/biona001/benchmark
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440746 ended on:    n7092
+Job #JOB_ID ended on:    Thu Feb 21 06:40:49 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440746 ended on:    n7100
+Job #JOB_ID ended on:    Thu Feb 21 14:27:59 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440746 ended on:    n6139
+Job #JOB_ID ended on:    Thu Feb 21 17:37:57 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440746 ended on:    n6094
+Job #JOB_ID ended on:    Thu Feb 21 17:48:34 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440746 ended on:    n7090
+Job #JOB_ID ended on:    Thu Feb 21 19:15:39 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440746 ended on:    n6096
+Job #JOB_ID ended on:    Fri Feb 22 00:14:03 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+ERROR: LoadError: OutOfMemoryError()
+Stacktrace:
+ [1] Type at ./boot.jl:394 [inlined]
+ [2] BitArray{2}(::UndefInitializer, ::Int64, ::Int64) at ./bitarray.jl:25
+ [3] materialize at ./bitarray.jl:59 [inlined]
+ [4] #call#68(::Val{1}, ::Bool, ::Bool, ::Type{SnpBitMatrix{Float64}}, ::SnpArray) at /u/home/b/biona001/.julia/packages/SnpArrays/P8Hn0/src/linalg.jl:20
+ [5] Type at ./none:0 [inlined]
+ [6] #L0_poisson_reg#14(::Bool, ::String, ::Float64, ::Int64, ::Int64, ::Array{Float64,1}, ::Bool, ::Bool, ::Bool, ::Bool, ::Bool, ::Array{Float64,1}, ::typeof(L0_poisson_reg), ::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64) at /u/home/b/biona001/.julia/packages/MendelIHT/BurLX/src/gwas_poisson.jl:157
+ [7] (::getfield(MendelIHT, Symbol("#kw##L0_poisson_reg")))(::NamedTuple{(:glm, :debias, :convg, :show_info, :scale, :init),Tuple{String,Bool,Bool,Bool,Bool,Bool}}, ::typeof(L0_poisson_reg), ::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64) at ./none:0
+ [8] ##core#376(::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Bool) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:297
+ [9] ##sample#377(::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:303
+ [10] #_run#13(::Bool, ::String, ::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::Function, ::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:337
+ [11] _run(::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:325
+ [12] #invokelatest#1 at ./essentials.jl:697 [inlined]
+ [13] invokelatest at ./essentials.jl:696 [inlined]
+ [14] #run_result#19 at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:32 [inlined]
+ [15] run_result at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:32 [inlined]
+ [16] #run#21(::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::Function, ::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:46
+ [17] run at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:46 [inlined] (repeats 2 times)
+ [18] _benchmark_poisson_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_poisson.jl:99
+ [19] top-level scope at /u/home/b/biona001/benchmark/benchmark_poisson.jl:117
+ [20] include at ./boot.jl:317 [inlined]
+ [21] include_relative(::Module, ::String) at ./loading.jl:1041
+ [22] include(::Module, ::String) at ./sysimg.jl:29
+ [23] exec_options(::Base.JLOptions) at ./client.jl:229
+ [24] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_poisson.jl:112
+Job 440746 ended on:    n6140
+Job #JOB_ID ended on:    Fri Feb 22 02:57:51 PST 2019

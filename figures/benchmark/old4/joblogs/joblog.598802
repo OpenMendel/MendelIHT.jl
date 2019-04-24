@@ -1,0 +1,53 @@
+Job 598802 started on:    n6073
+Job 598802 started on:    Mon Mar 25 10:00:18 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial.jl, where debias = true, n = 110000, run = 1
+/u/home/b/biona001/benchmark
+Job 598802 started on:    n6138
+Job 598802 started on:    Mon Mar 25 10:02:15 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial.jl, where debias = true, n = 110000, run = 2
+/u/home/b/biona001/benchmark
+Job 598802 started on:    n6157
+Job 598802 started on:    Mon Mar 25 10:05:46 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial.jl, where debias = true, n = 110000, run = 3
+/u/home/b/biona001/benchmark
+Job 598802 started on:    n6084
+Job 598802 started on:    Mon Mar 25 10:06:16 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial.jl, where debias = true, n = 110000, run = 4
+/u/home/b/biona001/benchmark
+Job 598802 started on:    n6095
+Job 598802 started on:    Mon Mar 25 10:16:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial.jl, where debias = true, n = 110000, run = 5
+/u/home/b/biona001/benchmark
+/work/UGE/8.0.1/hoffman2/spool/n6138/job_scripts/598802: line 27:   772 Killed                  julia /u/home/b/biona001/benchmark/benchmark_negativebinomial.jl 110000 $SGE_TASK_ID
+Job 598802 ended on:    n6138
+Job #JOB_ID ended on:    Mon Mar 25 11:32:09 PDT 2019

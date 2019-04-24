@@ -1,0 +1,60 @@
+Job 598440 started on:    n6090
+Job 598440 started on:    Fri Mar 22 16:41:17 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 110000, run = 1
+/u/home/b/biona001/benchmark
+Job 598440 started on:    n6157
+Job 598440 started on:    Fri Mar 22 17:10:42 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 110000, run = 2
+/u/home/b/biona001/benchmark
+Job 598440 started on:    n7135
+Job 598440 started on:    Fri Mar 22 18:54:35 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 110000, run = 3
+/u/home/b/biona001/benchmark
+Job 598440 started on:    n6100
+Job 598440 started on:    Fri Mar 22 18:56:36 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 110000, run = 4
+/u/home/b/biona001/benchmark
+Job 598440 started on:    n6165
+Job 598440 started on:    Fri Mar 22 19:13:07 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where debias = true, n = 110000, run = 5
+/u/home/b/biona001/benchmark
+Job 598440 ended on:    n6090
+Job #JOB_ID ended on:    Fri Mar 22 23:04:18 PDT 2019
+Job 598440 ended on:    n6157
+Job #JOB_ID ended on:    Fri Mar 22 23:30:09 PDT 2019
+Job 598440 ended on:    n7135
+Job #JOB_ID ended on:    Sat Mar 23 01:10:08 PDT 2019
+Job 598440 ended on:    n6100
+Job #JOB_ID ended on:    Sat Mar 23 01:22:28 PDT 2019
+Job 598440 ended on:    n6165
+Job #JOB_ID ended on:    Sat Mar 23 01:31:16 PDT 2019

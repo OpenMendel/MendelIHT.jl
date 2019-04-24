@@ -1,0 +1,60 @@
+Job 678063 started on:    n7143
+Job 678063 started on:    Tue Apr 2 14:43:46 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n =10000, run = 1
+/u/home/b/biona001/benchmark
+Job 678063 started on:    n6159
+Job 678063 started on:    Tue Apr 2 14:52:52 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n =10000, run = 2
+/u/home/b/biona001/benchmark
+Job 678063 ended on:    n7143
+Job #JOB_ID ended on:    Tue Apr 2 14:59:46 PDT 2019
+Job 678063 started on:    n7143
+Job 678063 started on:    Tue Apr 2 15:01:01 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n =10000, run = 3
+/u/home/b/biona001/benchmark
+Job 678063 ended on:    n6159
+Job #JOB_ID ended on:    Tue Apr 2 15:08:47 PDT 2019
+Job 678063 ended on:    n7143
+Job #JOB_ID ended on:    Tue Apr 2 15:16:57 PDT 2019
+Job 678063 started on:    n7143
+Job 678063 started on:    Tue Apr 2 15:17:35 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n =10000, run = 4
+/u/home/b/biona001/benchmark
+Job 678063 ended on:    n7143
+Job #JOB_ID ended on:    Tue Apr 2 15:33:32 PDT 2019
+Job 678063 started on:    n6135
+Job 678063 started on:    Tue Apr 2 18:28:23 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n =10000, run = 5
+/u/home/b/biona001/benchmark
+Job 678063 ended on:    n6135
+Job #JOB_ID ended on:    Tue Apr 2 18:44:17 PDT 2019

@@ -1,0 +1,57 @@
+Job 643602 started on:    n7105
+Job 643602 started on:    Tue Mar 26 23:44:46 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 90100, run = 1
+/u/home/b/biona001/benchmark
+Job 643602 started on:    n6135
+Job 643602 started on:    Tue Mar 26 23:51:03 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 90100, run = 2
+/u/home/b/biona001/benchmark
+Job 643602 started on:    n7136
+Job 643602 started on:    Wed Mar 27 00:21:42 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 90100, run = 3
+/u/home/b
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 90100, run = 4
+/u/home/b/biona001/benchmark
+Job 643602 started on:    n7166
+Job 643602 started on:    Wed Mar 27 00:44:08 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 90100, run = 5
+/u/home/b/biona001/benchmark
+Job 643602 ended on:    n7105
+Job #JOB_ID ended on:    Wed Mar 27 06:31:02 PDT 2019
+Job 643602 ended on:    n6135
+Job #JOB_ID ended on:    Wed Mar 27 06:36:24 PDT 2019
+Job 643602 ended on:    n7136
+Job #JOB_ID ended on:    Wed Mar 27 07:05:26 PDT 2019
+Job 643602 ended on:    n6139
+Job #JOB_ID ended on:    Wed Mar 27 07:05:57 PDT 2019
+Job 643602 ended on:    n7166
+Job #JOB_ID ended on:    Wed Mar 27 07:30:59 PDT 2019

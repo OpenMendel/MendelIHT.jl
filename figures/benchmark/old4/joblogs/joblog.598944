@@ -1,0 +1,60 @@
+Job 598944 started on:    n7106
+Job 598944 started on:    Mon Mar 25 19:17:50 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 1
+/u/home/b/biona001/benchmark
+Job 598944 started on:    n6103
+Job 598944 started on:    Mon Mar 25 19:21:09 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 2
+/u/home/b/biona001/benchmark
+Job 598944 started on:    n7102
+Job 598944 started on:    Mon Mar 25 19:21:43 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 3
+/u/home/b/biona001/benchmark
+Job 598944 started on:    n7138
+Job 598944 started on:    Mon Mar 25 19:22:13 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 4
+/u/home/b/biona001/benchmark
+Job 598944 started on:    n6083
+Job 598944 started on:    Mon Mar 25 19:23:28 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 10000, run = 5
+/u/home/b/biona001/benchmark
+Job 598944 ended on:    n7106
+Job #JOB_ID ended on:    Mon Mar 25 21:48:38 PDT 2019
+Job 598944 ended on:    n6103
+Job #JOB_ID ended on:    Mon Mar 25 21:52:04 PDT 2019
+Job 598944 ended on:    n7102
+Job #JOB_ID ended on:    Mon Mar 25 21:52:31 PDT 2019
+Job 598944 ended on:    n7138
+Job #JOB_ID ended on:    Mon Mar 25 21:52:52 PDT 2019
+Job 598944 ended on:    n6083
+Job #JOB_ID ended on:    Mon Mar 25 21:54:12 PDT 2019

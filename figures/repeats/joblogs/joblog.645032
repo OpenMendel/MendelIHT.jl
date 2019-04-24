@@ -1,0 +1,12 @@
+Job 645032 started on:    n7266
+Job 645032 started on:    Wed Mar 27 09:23:21 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia poisson_repeats_nodebias_2.jl
+/u/home/b/biona001/generate_repeats
+Job 645032 ended on:    n7266
+Job #JOB_ID ended on:    Wed Mar 27 10:48:24 PDT 2019

@@ -1,0 +1,25 @@
+Job 451973 started on:    n7155
+Job 451973 started on:    n6155
+b 22 10:22:30 PST 2019
+Job 451973 started on:    Fri FeJob 451973 started on:    Fri Feb 22 10:22:30 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/juli/ujulia benchmark_normal.jl, where debias = true, n = 110000, run = 3
+/u/home/b/biona001/benchmark
+ia
+julia benchmark_normal.jl, where debjulia benchmark_normal.jl, where debias = true, n = 110000, run = 2
+/u/home/b/biona001/benchmark
+Job 451973 started on:    n7141
+Job 451973 started on:    Fri Feb 22 10:40:59 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 110000, run = 5
+/u/home/b/biona001/benchmark

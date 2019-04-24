@@ -1,0 +1,19 @@
+---
+title: "glmnet"
+author: "benjamin chu"
+date: "3/2/2019"
+output: html_document
+---
+
+```{r}
+library(glmnet)
+x_float = matrix(scan('./data/x_float'),nrow=1000,byrow=TRUE)
+y = scan('./data/y')
+folds = scan('./data/folds')
+result = cv.glmnet(x_float, y, nfolds = 5, foldid = folds)
+```
+
+```{r}
+lasso_beta = glmnet(x_float, y, lambda=result$lambda.min)$beta
+```
+

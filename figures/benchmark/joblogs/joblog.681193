@@ -1,0 +1,74 @@
+Job 681193 started on:    n6140
+Job 681193 started on:    Thu Apr 4 08:04:31 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 120000, run = 1
+/u/home/b/biona001/benchmark
+Job 681193 started on:    n6096
+Job 681193 started on:    Thu Apr 4 08:04:31 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 120000, run = 2
+/u/home/b/biona001/benchmark
+Job 681193 started on:    n7076
+Job 681193 started on:    Thu Apr 4 08:06:46 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+3 started on:    Thu Apr 4 08:06:46 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+9.3     2) julia/1.0.1
+Currently Loaded Modulefiles:
+  1) gjulia benchmark_poisson.jl, where debias = true, n = 120000, runjulia benchmark_poisson.jl, where debias = true, n = 120000, run = 4
+/u/home/b/biona001/benchmark
+Job 681193 started on:    n7135
+Job 681193 started on:    Thu Apr 4 08:16:12 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 120000, run = 5
+/u/home/b/biona001/benchmark
+ERROR: LoadError: OutOfMemoryError()
+Stacktrace:
+ [1] Type at ./boot.jl:394 [inlined]
+ [2] BitArray{2}(::UndefInitializer, ::Int64, ::Int64) at ./bitarray.jl:25
+ [3] materialize at ./bitarray.jl:59 [inlined]
+ [4] #call#68(::Val{1}, ::Bool, ::Bool, ::Type{SnpBitMatrix{Float64}}, ::SnpArray) at /u/home/b/biona001/.julia/packages/SnpArrays/P8Hn0/src/linalg.jl:19
+ [5] Type at ./none:0 [inlined]
+ [6] time_poisson_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_poisson.jl:22
+ [7] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_poisson.jl:46
+ [8] top-level scope at none:0
+ [9] include at ./boot.jl:317 [inlined]
+ [10] include_relative(::Module, ::String) at ./loading.jl:1041
+ [11] include(::Module, ::String) at ./sysimg.jl:29
+ [12] exec_options(::Base.JLOptions) at ./client.jl:229
+ [13] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_poisson.jl:65
+Did not converge!!!!! The run time for IHT was 1.4992179870605469 seconds and model size was10
+Job 681193 ended on:    n7135
+Job #JOB_ID ended on:    Thu Apr 4 10:01:42 PDT 2019
+Did not converge!!!!! The run time for IHT was 1.5044198036193848 seconds and model size was10
+Job 681193 ended on:    n6096
+Job #JOB_ID ended on:    Thu Apr 4 11:58:52 PDT 2019
+Did not converge!!!!! The run time for IHT was 1.5192289352416992 seconds and model size was10
+Job 681193 ended on:    n6140
+Job #JOB_ID ended on:    Thu Apr 4 12:01:07 PDT 2019
+Did not converge!!!!! The run time for IHT was 1.5131230354309082 seconds and model size was10
+Job 681193 ended on:    n7076
+Job #JOB_ID ended on:    Thu Apr 4 12:01:31 PDT 2019
+Did not converge!!!!! The run time for IHT was 1.5130159854888916 seconds and model size was10
+Job 681193 ended on:    n7104
+Job #JOB_ID ended on:    Thu Apr 4 12:02:14 PDT 2019

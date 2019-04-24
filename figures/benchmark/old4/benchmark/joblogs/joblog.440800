@@ -1,0 +1,204 @@
+Job 440800 started on:    n7088
+Job 440800 started on:    Thu Feb 21 06:34:10 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 10000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n7082
+Job 440800 started on:    Thu Feb 21 06:37:10 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 20000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n7158
+Job 440800 started on:    Thu Feb 21 06:38:40 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 30000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n7092
+Job 440800 started on:    Thu Feb 21 06:41:40 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 40000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n6095
+Job 440800 started on:    Thu Feb 21 07:01:40 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 50000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n7108
+Job 440800 started on:    Thu Feb 21 07:09:40 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 60000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n6167
+Job 440800 started on:    Thu Feb 21 07:27:09 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 70000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n6157
+Job 440800 started on:    Thu Feb 21 07:28:38 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 80000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n6168
+Job 440800 started on:    Thu Feb 21 07:35:38 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 90000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n7095
+Job 440800 started on:    Thu Feb 21 07:39:08 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 100000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n6074
+Job 440800 started on:    Thu Feb 21 07:51:09 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 110000
+/u/home/b/biona001/benchmark
+Job 440800 started on:    n6107
+Job 440800 started on:    Thu Feb 21 07:58:08 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic.jl, where n = 120000
+/u/home/b/biona001/benchmark
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440800 ended on:    n7088
+Job #JOB_ID ended on:    Thu Feb 21 08:26:24 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440800 ended on:    n7082
+Job #JOB_ID ended on:    Thu Feb 21 09:49:45 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440800 ended on:    n7158
+Job #JOB_ID ended on:    Thu Feb 21 13:53:00 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440800 ended on:    n7092
+Job #JOB_ID ended on:    Thu Feb 21 14:08:38 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440800 ended on:    n6095
+Job #JOB_ID ended on:    Thu Feb 21 16:26:23 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+ERROR: LoadError: OutOfMemoryError()
+Stacktrace:
+ [1] Type at ./boot.jl:394 [inlined]
+ [2] BitArray{2}(::UndefInitializer, ::Int64, ::Int64) at ./bitarray.jl:25
+ [3] materialize at ./bitarray.jl:59 [inlined]
+ [4] #call#68(::Val{1}, ::Bool, ::Bool, ::Type{SnpBitMatrix{Float64}}, ::SnpArray) at /u/home/b/biona001/.julia/packages/SnpArrays/P8Hn0/src/linalg.jl:20
+ [5] Type at ./none:0 [inlined]
+ [6] #L0_logistic_reg#13(::Bool, ::String, ::Float64, ::Int64, ::Int64, ::Array{Float64,1}, ::Bool, ::Bool, ::Bool, ::Bool, ::typeof(L0_logistic_reg), ::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64) at /u/home/b/biona001/.julia/packages/MendelIHT/BurLX/src/gwas_logistic.jl:153
+ [7] #L0_logistic_reg at ./none:0 [inlined]
+ [8] ##core#376(::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Bool) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:297
+ [9] ##sample#377(::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:303
+ [10] #_run#13(::Bool, ::String, ::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::Function, ::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:337
+ [11] _run(::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:325
+ [12] #invokelatest#1 at ./essentials.jl:697 [inlined]
+ [13] invokelatest at ./essentials.jl:696 [inlined]
+ [14] #run_result#19 at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:32 [inlined]
+ [15] run_result at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:32 [inlined]
+ [16] #run#21(::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::Function, ::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:46
+ [17] run at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:46 [inlined] (repeats 2 times)
+ [18] _benchmark_logistic_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_logistic.jl:67
+ [19] top-level scope at /u/home/b/biona001/benchmark/benchmark_logistic.jl:115
+ [20] include at ./boot.jl:317 [inlined]
+ [21] include_relative(::Module, ::String) at ./loading.jl:1041
+ [22] include(::Module, ::String) at ./sysimg.jl:29
+ [23] exec_options(::Base.JLOptions) at ./client.jl:229
+ [24] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_logistic.jl:112
+Job 440800 ended on:    n6107
+Job #JOB_ID ended on:    Thu Feb 21 16:58:03 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440800 ended on:    n6167
+Job #JOB_ID ended on:    Thu Feb 21 21:06:50 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+ERROR: LoadError: OutOfMemoryError()
+Stacktrace:
+ [1] Type at ./boot.jl:394 [inlined]
+ [2] BitArray{2}(::UndefInitializer, ::Int64, ::Int64) at ./bitarray.jl:25
+ [3] materialize at ./bitarray.jl:59 [inlined]
+ [4] #call#68(::Val{1}, ::Bool, ::Bool, ::Type{SnpBitMatrix{Float64}}, ::SnpArray) at /u/home/b/biona001/.julia/packages/SnpArrays/P8Hn0/src/linalg.jl:20
+ [5] Type at ./none:0 [inlined]
+ [6] #L0_logistic_reg#13(::Bool, ::String, ::Float64, ::Int64, ::Int64, ::Array{Float64,1}, ::Bool, ::Bool, ::Bool, ::Bool, ::typeof(L0_logistic_reg), ::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64) at /u/home/b/biona001/.julia/packages/MendelIHT/BurLX/src/gwas_logistic.jl:153
+ [7] #L0_logistic_reg at ./none:0 [inlined]
+ [8] ##core#376(::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Bool) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:297
+ [9] ##sample#377(::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:303
+ [10] #_run#13(::Bool, ::String, ::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::Function, ::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:337
+ [11] _run(::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:325
+ [12] #invokelatest#1 at ./essentials.jl:697 [inlined]
+ [13] invokelatest at ./essentials.jl:696 [inlined]
+ [14] #run_result#19 at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:32 [inlined]
+ [15] run_result at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:32 [inlined]
+ [16] #run#21(::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::Function, ::BenchmarkTools.Benchmark{Symbol("##benchmark#375")}, ::BenchmarkTools.Parameters) at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:46
+ [17] run at /u/home/b/biona001/.julia/packages/BenchmarkTools/mVOqg/src/execution.jl:46 [inlined] (repeats 2 times)
+ [18] _benchmark_logistic_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_logistic.jl:67
+ [19] top-level scope at /u/home/b/biona001/benchmark/benchmark_logistic.jl:115
+ [20] include at ./boot.jl:317 [inlined]
+ [21] include_relative(::Module, ::String) at ./loading.jl:1041
+ [22] include(::Module, ::String) at ./sysimg.jl:29
+ [23] exec_options(::Base.JLOptions) at ./client.jl:229
+ [24] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_logistic.jl:112
+Job 440800 ended on:    n6074
+Job #JOB_ID ended on:    Thu Feb 21 21:23:56 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440800 ended on:    n6157
+Job #JOB_ID ended on:    Thu Feb 21 23:44:53 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 440800 ended on:    n7095
+Job #JOB_ID ended on:    Fri Feb 22 05:18:12 PST 2019

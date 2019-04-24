@@ -1,0 +1,50 @@
+Job 452113 started on:    n6092
+Job 452113 started on:    Sat Feb 23 07:00:48 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 90000, run = 1
+/u/home/b/biona001/benchmark
+Job 452113 started on:    n6154
+Job 452113 started on:    Sat Feb 23 07:12:49 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 90000, run = 2
+/u/home/b/biona001/benchmark
+Job 452113 started on:    n7100
+Job 452113 started on:    Sat Feb 23 07:17:49 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 90000, run = 3
+/u/home/b/biona001/benchmark
+Job 452113 started on:    n6081
+Job 452113 started on:    Sat Feb 23 07:22:18 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 90000, run = 4
+/u/home/b/biona001/benchmark
+Job 452113 started on:    n6095
+Job 452113 started on:    Sat Feb 23 07:25:18 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 90000, run = 5
+/u/home/b/biona001/benchmark

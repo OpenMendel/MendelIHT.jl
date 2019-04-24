@@ -1,0 +1,65 @@
+Job 494067 started on:    n7084
+Job 494067 started on:    Sat Mar 2 02:15:36 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110100, run = 1
+/u/home/b/biona001/benchmark
+Job 494067 started on:    n7098
+Job 494067 started on:    Sat Mar 2 02:59:03 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110100, run = 2
+/u/home/b/biona001/benchmark
+Job 494067 started on:    n6105
+Job 494067 started on:    Sat Mar 2 03:15:47 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110100, run = 3
+/u/home/b/biona001/benchmark
+Job 494067 started on:    n7091
+Job 494067 started on:    Sat Mar 2 03:16:31 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110100, run = 4
+/u/home/b/biona001/benchmark
+Job 494067 started on:    n7074
+Job 494067 started on:    Sat Mar 2 03:19:52 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson_nodebias.jl, where debias = false, n = 110100, run = 5
+/u/home/b/biona001/benchmark
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 494067 ended on:    n7098
+Job #JOB_ID ended on:    Sat Mar 2 09:14:06 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 494067 ended on:    n6105
+Job #JOB_ID ended on:    Sat Mar 2 09:30:48 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 494067 ended on:    n7091
+Job #JOB_ID ended on:    Sat Mar 2 09:31:19 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 494067 ended on:    n7074
+Job #JOB_ID ended on:    Sat Mar 2 09:35:12 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 494067 ended on:    n7084
+Job #JOB_ID ended on:    Sat Mar 2 10:32:55 PST 2019

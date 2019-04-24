@@ -1,36 +1,38 @@
+__precompile__()
+
 module MendelIHT
 
-import Distances: euclidean, chebyshev, sqeuclidean
-import StatsFuns: logistic
-import SpecialFunctions: lfactorial
-import Base.show
-import Gadfly.plot
-using SnpArrays
-using MendelBase
-using DataFrames
-using Gadfly
-using StatsBase
-using Random
-using LinearAlgebra
-using Distributions
-using SparseArrays
-using DelimitedFiles
+	import Distances: euclidean, chebyshev, sqeuclidean
+	import SpecialFunctions: lfactorial
+	import Base.show
+	import GLM: glmvar, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
 
-export L0_reg, iht_path, cv_iht, MendelIHT, L0_logistic_reg, L0_poisson_reg
-export IHTVariables, use_A2_as_minor_allele, make_snparray, regress
-export project_k!, std_reciprocal, project_group_sparse!
-export update_df!, At_mul_B!, A_mul_B!, check_y_content, IHT
-export save_prev!, update_mean!, normalize!, simulate_random_snparray
+	using SnpArrays
+	using MendelBase
+	using DataFrames
+	using Random
+	using LinearAlgebra
+	using Distributions
+	using SparseArrays
+	using DelimitedFiles
+	using Distributed
 
-# IHT will only work on single/double precision floats!
-const Float = Union{Float64,Float32}
+	export loglikelihood, deviance, score!, L0_reg, iht_run_many_models
+	export iht_path, MendelIHT, simulate_random_snparray, make_bim_fam_files
+	export IHTVariables, use_A2_as_minor_allele, make_snparray
+	export std_reciprocal, project_group_sparse!, save_prev!, maf_weights
+	export update_mean!, At_mul_B!, A_mul_B!, IHT, update_mean!
+	export simulate_random_response, adhoc_add_correlation, cv_iht, cv_iht2
 
-include("IHT_wrapper.jl")
-include("data_structures.jl")
-include("utilities.jl")
-include("gwas_normal.jl")
-include("gwas_logistic.jl")
-include("gwas_poisson.jl")
-include("cross_validation.jl")
+	# IHT will only work on single/double precision floats!
+	const Float = Union{Float64,Float32}
+
+	include("IHT_wrapper.jl")
+	include("data_structures.jl")
+	include("utilities.jl")
+	include("simulate_utilities.jl")
+	include("iht.jl")
+	include("cross_validation.jl")
+	include("cross_validation_old.jl")
 
 end # end module

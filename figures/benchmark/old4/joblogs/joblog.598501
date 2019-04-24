@@ -1,0 +1,65 @@
+Job 598501 started on:    n6102
+Job 598501 started on:    Sun Mar 24 11:40:19 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 110000, run = 1
+/u/home/b/biona001/benchmark
+Job 598501 started on:    n7083
+Job 598501 started on:    Sun Mar 24 11:46:04 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 110000, run = 2
+/u/home/b/biona001/benchmark
+Job 598501 started on:    n6086
+Job 598501 started on:    Sun Mar 24 12:37:53 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 110000, run = 3
+/u/home/b/biona001/benchmark
+Job 598501 started on:    n7077
+Job 598501 started on:    Sun Mar 24 14:01:00 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 110000, run = 4
+/u/home/b/biona001/benchmark
+Job 598501 started on:    n6082
+Job 598501 started on:    Sun Mar 24 14:48:02 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 110000, run = 5
+/u/home/b/biona001/benchmark
+Did not converge!!!!! The run time for IHT was 3.031704902648926 seconds and model size was10
+Job 598501 ended on:    n7083
+Job #JOB_ID ended on:    Sun Mar 24 20:51:50 PDT 2019
+Did not converge!!!!! The run time for IHT was 3.0704550743103027 seconds and model size was10
+Job 598501 ended on:    n6102
+Job #JOB_ID ended on:    Sun Mar 24 21:01:22 PDT 2019
+Did not converge!!!!! The run time for IHT was 3.0483388900756836 seconds and model size was10
+Job 598501 ended on:    n6086
+Job #JOB_ID ended on:    Sun Mar 24 21:39:26 PDT 2019
+Did not converge!!!!! The run time for IHT was 3.0231709480285645 seconds and model size was10
+Job 598501 ended on:    n7077
+Job #JOB_ID ended on:    Sun Mar 24 23:26:56 PDT 2019
+Did not converge!!!!! The run time for IHT was 3.0639939308166504 seconds and model size was10
+Job 598501 ended on:    n6082
+Job #JOB_ID ended on:    Sun Mar 24 23:54:43 PDT 2019

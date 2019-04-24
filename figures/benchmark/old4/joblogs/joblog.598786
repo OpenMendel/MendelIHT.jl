@@ -1,0 +1,33 @@
+Job 598786 started on:    n6143
+Job 598786 started on:    Mon Mar 25 09:53:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+6 started on:    Mon Mar 25 09:53:45 PDT 2019
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+r 25 09:53:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loajulia benchmark_negativebinomial.jl, where debias = true, n = 90julia benchmark_negativebinomial.jl, where debias = true, n = 90000, run = 5
+/u/home/b/biona001/bencjulia benchmark_negativebinomial.jl, where debias = true, n = 90000, run = 1
+/u/home/b/biona001/benchmark
+dule is being loaded
+
+6 started on:    Mon Mar 25 09:53:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+9.3     2) julia/1.0.1
+Currently Loaded Modulefiles:
+  1) gjulia benchmark_negativebinomial.jl, where debias = true, n = 90julia benchmark_negativebinomial.jl, where debias = true, n = 90000, run = 3
+/u/home/b/biona001/benchmark
+Job 598786 ended on:    n6139
+Job #JOB_ID ended on:    Mon Mar 25 11:56:38 PDT 2019
+Job 598786 ended on:    n7136
+Job #JOB_ID ended on:    Mon Mar 25 11:57:05 PDT 2019
+Job 598786 ended on:    n7167
+Job #JOB_ID ended on:    Mon Mar 25 11:57:29 PDT 2019
+Job 598786 ended on:    n6080
+Job #JOB_ID ended on:    Mon Mar 25 11:57:33 PDT 2019
+Job 598786 ended on:    n6143
+Job #JOB_ID ended on:    Mon Mar 25 11:57:36 PDT 2019

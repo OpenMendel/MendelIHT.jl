@@ -1,0 +1,58 @@
+Job 598936 started on:    n6102
+Job 598936 started on:    Mon Mar 25 19:02:36 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 20000, run = 1
+/u/home/b/biona001/benchmark
+Job 598936 started on:    n6105
+Job 598936 started on:    Mon Mar 25 19:08:56 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 20000, run = 2
+/u/home/b/biona001/benchmark
+Job 598936 started on:    n6081
+Job 598936 started on:    Mon Mar 25 19:12:20 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 20000, run = 3
+/u/home/b/biona001/benchmark
+Job 598936 started on:    n6093
+Job 598936 started on:    Mon Mar 25 19:13:28 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomialJob 598936 started on:    Mon Mar 25 19:13:28 PDT 2019
+/u/home/b/biona001/benchmark
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_negativebinomial_nodebias.jl, where debias = false, n = 20000, run = 4
+/u/home/b/biona001/benchmark
+Job 598936 ended on:    n6102
+Job #JOB_ID ended on:    Mon Mar 25 19:29:27 PDT 2019
+Job 598936 ended on:    n6105
+Job #JOB_ID ended on:    Mon Mar 25 19:35:48 PDT 2019
+Job 598936 ended on:    n6081
+Job #JOB_ID ended on:    Mon Mar 25 19:39:09 PDT 2019
+Job 598936 ended on:    n6097
+Job #JOB_ID ended on:    Mon Mar 25 19:42:28 PDT 2019
+Job 598936 ended on:    n6093
+Job #JOB_ID ended on:    Mon Mar 25 19:42:29 PDT 2019

@@ -1,156 +1,141 @@
 """
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
-mutable struct IHTVariable{T <: Float}
-    b     :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
-    b0    :: Vector{T}     # estimated model for genotype matrix in the previous iteration
-    xb    :: Vector{T}     # vector that holds x*b
-    xb0   :: Vector{T}     # xb in the previous iteration
-    xk    :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk    :: Vector{T}     # numerator of step size. gk = df[idx]. 
-    xgk   :: Vector{T}     # xk * gk, denominator of step size
-    idx   :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
-    idx0  :: BitVector     # previous iterate of idx
-    idc   :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
-    idc0  :: BitVector     # previous iterate of idc
-    r     :: Vector{T}     # n-vector of residuals
-    df    :: Vector{T}     # the gradient portion of the genotype part: df = ∇f(β) = snpmatrix * (y - xb - zc)
-    df2   :: Vector{T}     # the gradient portion of the non-genetic covariates: covariate matrix * (y - xb - zc)
-    c     :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
-    c0    :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
-    zc    :: Vector{T}     # z * c (covariate matrix times c)
-    zc0   :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
-    zdf2  :: Vector{T}     # z * df2. needed to calculate non-genetic covariate contribution for denomicator of step size 
-    group :: Vector{Int64} # vector denoting group membership
-    p     :: Vector{T}     # vector storing the mean of a glm: p = g^{-1}( Xβ )
-    ymp   :: Vector{T}     # y - p, arises as calculation in fisher's information matrix
+mutable struct IHTVariable{T <: Float64}
+    b      :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
+    b0     :: Vector{T}     # estimated model for genotype matrix in the previous iteration
+    xb     :: Vector{T}     # vector that holds x*b
+    xb0    :: Vector{T}     # xb in the previous iteration
+    xk     :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    gk     :: Vector{T}     # numerator of step size. gk = df[idx]. 
+    xgk    :: Vector{T}     # xk * gk, denominator of step size
+    idx    :: BitVector     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
+    idx0   :: BitVector     # previous iterate of idx
+    idc    :: BitVector     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
+    idc0   :: BitVector     # previous iterate of idc
+    r      :: Vector{T}     # The difference between the observed and predicted response. For linear model this is the residual
+    df     :: Vector{T}     # genotype portion of the score
+    df2    :: Vector{T}     # non-genetic covariates portion of the score
+    c      :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
+    c0     :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
+    zc     :: Vector{T}     # z * c (covariate matrix times c)
+    zc0    :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
+    zdf2   :: Vector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
+    group  :: Vector{Int}   # vector denoting group membership
+    weight :: Vector{T}     # weights (typically minor allele freq) that will scale b prior to projection
+    μ      :: Vector{T}     # mean of the current model: μ = g^{-1}(xb)
 end
 
-function IHTVariables(
-    x :: SnpArray,
-    z :: AbstractMatrix{T},
-    y :: AbstractVector{T},
-    J :: Int64,
-    k :: Int64;
-) where {T <: Float}
-    n, p  = size(x)
-    q     = size(z, 2)
+function IHTVariables(x::SnpArray, z::Matrix{T}, y::Vector{T}, J::Int, k::Int, group::Vector{Int}, 
+                      weight::Vector{T}) where {T <: Float}
 
-    b     = zeros(T, p)
-    b0    = zeros(T, p)
-    xb    = zeros(T, n)
-    xb0   = zeros(T, n)
-    xk    = zeros(T, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    # xk    = SnpArray(undef, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    # xk    = SnpBitMatrix{T}(xktmp)
-    gk    = zeros(T, J * k - 1)           # subtracting 1 because the intercept will likely be selected in the first iter
-    xgk   = zeros(T, n)
-    idx   = falses(p)
-    idx0  = falses(p)
-    idc   = falses(q)
-    idc0  = falses(q)
-    r     = zeros(T, n)
-    df    = zeros(T, p)
-    df2   = zeros(T, q)
-    c     = zeros(T, q)
-    c0    = zeros(T, q)
-    zc    = zeros(T, n)
-    zc0   = zeros(T, n)
-    zdf2  = zeros(T, n)
-    group = ones(Int64, p + q) # both SNPs and non genetic covariates need group membership
-    p     = zeros(T, n)
-    ymp   = zeros(T, n)
+    n = size(x, 1)
+    p = size(x, 2)
+    m = size(z, 1)
+    q = size(z, 2)
+    ly = length(y)
+    lg = length(group)
+    lw = length(weight)
 
-    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, p, ymp)
+    if !(ly == n == m)
+        throw(DimensionMismatch("row dimension of y, x, and z ($ly, $n, $m) are not equal"))
+    end
+
+    if lg != (p + q) && lg != 0
+        throw(DimensionMismatch("group must have length " * string(p + q) * " or 0 but was $lg"))
+    end 
+
+    if lw != p && lw != 0
+        throw(DimensionMismatch("weight must have length $p or length 0 but was $lw"))
+    end
+
+    b      = zeros(T, p)
+    b0     = zeros(T, p)
+    xb     = zeros(T, n)
+    xb0    = zeros(T, n)
+    xk     = zeros(T, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    gk     = zeros(T, J * k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
+    xgk    = zeros(T, n)
+    idx    = falses(p)
+    idx0   = falses(p)
+    idc    = falses(q)
+    idc0   = falses(q)
+    r      = zeros(T, n)
+    df     = zeros(T, p)
+    df2    = zeros(T, q)
+    c      = zeros(T, q)
+    c0     = zeros(T, q)
+    zc     = zeros(T, n)
+    zc0    = zeros(T, n)
+    zdf2   = zeros(T, n)
+    μ      = zeros(T, n)
+
+    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, weight, μ)
 end
 
 """
-objects that house results returned from IHT run. 
-The first `g` stands for group, the second `g` stands for generalized as in GLM.
+immutable objects that house results returned from IHT run. 
+The first `g` stands for generalized as in GLM, the second `g` stands for group.
 """
-struct gIHTResults{T <: Float, V <: DenseVector}
-    time  :: T
-    loss  :: T
-    iter  :: Int
-    beta  :: V
-    c     :: V
-    J     :: Int64
-    k     :: Int64
-    group :: Vector{Int64}
-
-    gIHTResults{T,V}(time, loss, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, loss, iter, beta, c, J, k, group)
-end
-
-# strongly typed external constructor for gIHTResults
-gIHTResults(time::T, loss::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = gIHTResults{T, V}(time, loss, iter, beta, c, J, k, group)
-
-struct ggIHTResults{T <: Float, V <: DenseVector}
+struct ggIHTResults{T <: Float}
     time  :: T
     logl  :: T
-    iter  :: Int
-    beta  :: V
-    c     :: V
+    iter  :: Int64
+    beta  :: Vector{T}
+    c     :: Vector{T}
     J     :: Int64
     k     :: Int64
     group :: Vector{Int64}
-
-    ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
+    # ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
 end
-
-# strongly typed external constructor for ggIHTResults
-ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
+# ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
 
 """
-functions to display gIHTResults and ggIHTResults object
+functions to display ggIHTResults object
 """
-function Base.show(io::IO, x::gIHTResults)
-    println(io, "IHT results:")
-    println(io, "\nCompute time (sec):     ", x.time)
-    println(io, "Final loss:             ", x.loss)
-    println(io, "Iterations:             ", x.iter)
-    println(io, "Max number of groups:   ", x.J)
-    println(io, "Max predictors/group:   ", x.k)
-    println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero coefficients.")
-    non_zero = findall(x -> x != 0, x.beta)
-    print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
-    println(io, "\n\nIntercept of model = ", x.c[1])
-
-    return nothing
-end
-
 function Base.show(io::IO, x::ggIHTResults)
+    snp_position = findall(x -> x != 0, x.beta)
+    nongenetic_position = findall(x -> x != 0, x.c)
+
     println(io, "IHT results:")
     println(io, "\nCompute time (sec):     ", x.time)
     println(io, "Final loglikelihood:    ", x.logl)
     println(io, "Iterations:             ", x.iter)
     println(io, "Max number of groups:   ", x.J)
     println(io, "Max predictors/group:   ", x.k)
-    println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero coefficients.")
-    non_zero = findall(x -> x != 0, x.beta)
-    print(io, DataFrame(Group=x.group[non_zero], Predictor=non_zero, Estimated_β=x.beta[non_zero]))
-    println(io, "\n\nIntercept of model = ", x.c[1])
-
-    return nothing
+    println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero SNP predictors and ", count(!iszero, x.c), " non-genetic predictors.")
+    println(io, "\nSelected genetic predictors:")
+    print(io, DataFrame(Position=snp_position, Estimated_β=x.beta[snp_position]))
+    println(io, "\n\nSelected nongenetic predictors:")
+    print(io, DataFrame(Position=nongenetic_position, Estimated_β=x.c[nongenetic_position]))
 end
 
 """
 verbose printing of cv results
 """
-function print_cv_results(
-    io::IO, 
-    errors::Vector{T}, 
-    path::DenseVector{Int}, 
-    k::Int
-) where {T <: Float}
+function print_cv_results(io::IO, errors::Vector{T}, path::DenseVector{Int}, 
+                          k::Int) where {T <: Float}
     println(io, "\n\nCrossvalidation Results:")
-    println(io, "k\tMSE")
+    println(io, "\tk\tMSE")
     for i = 1:length(errors)
-        println(io, path[i], "\t", errors[i])
+        println(io, "\t", path[i], "\t", errors[i])
     end
-    println(io, "\nThe lowest MSE is achieved at k = ", k)
+    println(io, "\nThe lowest MSE is achieved at k = $k \n")
 end
-
 # default IO for print_cv_results is STDOUT
 print_cv_results(errors::Vector{T}, path::DenseVector{Int}, k::Int) where {T <: Float} = print_cv_results(stdout, errors, path, k)
 
-
+"""
+verbose printing of running `iht_run_many_models` with a bunch of models
+"""
+function print_a_bunch_of_path_results(io::IO, loglikelihoods::AbstractVector{T}, path::AbstractVector{Int}) where {T <: Float}
+    println(io, "\n\nResults of running all the model sizes specified in `path`:")
+    println(io, "\tk\tloglikelihoods")
+    for i = 1:length(loglikelihoods)
+        println(io, "\t", path[i], "\t", loglikelihoods[i])
+    end
+    println(io, "\nWe recommend running cross validation through `cv_iht_distributed` on " *
+    "appropriate model sizes. Roughly speaking, this is when error stopped decreasing significantly.")
+end
+# default IO for print_a_bunch_of_path_results is STDOUT
+print_a_bunch_of_path_results(loglikelihoods::AbstractVector{T}, path::AbstractVector{Int}) where {T <: Float} = print_a_bunch_of_path_results(stdout, loglikelihoods, path)

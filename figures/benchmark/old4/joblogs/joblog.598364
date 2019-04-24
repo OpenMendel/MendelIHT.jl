@@ -1,0 +1,130 @@
+Job 598364 started on:    n7108
+Job 598364 started on:    Tue Mar 19 14:02:42 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 1
+/u/home/b/biona001/benchmark
+ERROR: LoadError: MethodError: no method matching L0_reg(::SnpArray, ::Nothing, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64, ::Normal{Float64}, ::IdentityLink; debias=false, init=false, use_maf=false)
+Closest candidates are:
+  L0_reg(::SnpArray, !Matched::SnpBitMatrix, ::AbstractArray{T<:Union{Float32, Float64},2}, ::AbstractArray{T<:Union{Float32, Float64},1}, ::Int64, ::Int64, ::Distribution{Univariate,S} where S<:ValueSupport, ::Link; group, weight, use_maf, debias, show_info, init, tol, max_iter, max_step) where T<:Union{Float32, Float64} at /u/home/b/biona001/.julia/packages/MendelIHT/FtWPp/src/iht.jl:39
+Stacktrace:
+ [1] macro expansion at ./util.jl:289 [inlined]
+ [2] time_normal_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:33
+ [3] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:48
+ [4] top-level scope at none:0
+ [5] include at ./boot.jl:317 [inlined]
+ [6] include_relative(::Module, ::String) at ./loading.jl:1041
+ [7] include(::Module, ::String) at ./sysimg.jl:29
+ [8] exec_options(::Base.JLOptions) at ./client.jl:229
+ [9] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:68
+Job 598364 ended on:    n7108
+Job #JOB_ID ended on:    Tue Mar 19 14:03:04 PDT 2019
+Job 598364 started on:    n7108
+Job 598364 started on:    Tue Mar 19 14:04:24 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 2
+/u/home/b/biona001/benchmark
+ERROR: LoadError: MethodError: no method matching L0_reg(::SnpArray, ::Nothing, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64, ::Normal{Float64}, ::IdentityLink; debias=false, init=false, use_maf=false)
+Closest candidates are:
+  L0_reg(::SnpArray, !Matched::SnpBitMatrix, ::AbstractArray{T<:Union{Float32, Float64},2}, ::AbstractArray{T<:Union{Float32, Float64},1}, ::Int64, ::Int64, ::Distribution{Univariate,S} where S<:ValueSupport, ::Link; group, weight, use_maf, debias, show_info, init, tol, max_iter, max_step) where T<:Union{Float32, Float64} at /u/home/b/biona001/.julia/packages/MendelIHT/FtWPp/src/iht.jl:39
+Stacktrace:
+ [1] macro expansion at ./util.jl:289 [inlined]
+ [2] time_normal_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:33
+ [3] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:48
+ [4] top-level scope at none:0
+ [5] include at ./boot.jl:317 [inlined]
+ [6] include_relative(::Module, ::String) at ./loading.jl:1041
+ [7] include(::Module, ::String) at ./sysimg.jl:29
+ [8] exec_options(::Base.JLOptions) at ./client.jl:229
+ [9] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:68
+Job 598364 ended on:    n7108
+Job #JOB_ID ended on:    Tue Mar 19 14:04:46 PDT 2019
+Job 598364 started on:    n7108
+Job 598364 started on:    Tue Mar 19 14:05:29 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 3
+/u/home/b/biona001/benchmark
+ERROR: LoadError: MethodError: no method matching L0_reg(::SnpArray, ::Nothing, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64, ::Normal{Float64}, ::IdentityLink; debias=false, init=false, use_maf=false)
+Closest candidates are:
+  L0_reg(::SnpArray, !Matched::SnpBitMatrix, ::AbstractArray{T<:Union{Float32, Float64},2}, ::AbstractArray{T<:Union{Float32, Float64},1}, ::Int64, ::Int64, ::Distribution{Univariate,S} where S<:ValueSupport, ::Link; group, weight, use_maf, debias, show_info, init, tol, max_iter, max_step) where T<:Union{Float32, Float64} at /u/home/b/biona001/.julia/packages/MendelIHT/FtWPp/src/iht.jl:39
+Stacktrace:
+ [1] macro expansion at ./util.jl:289 [inlined]
+ [2] time_normal_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:33
+ [3] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:48
+ [4] top-level scope at none:0
+ [5] include at ./boot.jl:317 [inlined]
+ [6] include_relative(::Module, ::String) at ./loading.jl:1041
+ [7] include(::Module, ::String) at ./sysimg.jl:29
+ [8] exec_options(::Base.JLOptions) at ./client.jl:229
+ [9] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:68
+Job 598364 ended on:    n7108
+Job #JOB_ID ended on:    Tue Mar 19 14:05:51 PDT 2019
+Job 598364 started on:    n7108
+Job 598364 started on:    Tue Mar 19 14:06:58 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 4
+/u/home/b/biona001/benchmark
+ERROR: LoadError: MethodError: no method matching L0_reg(::SnpArray, ::Nothing, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64, ::Normal{Float64}, ::IdentityLink; debias=false, init=false, use_maf=false)
+Closest candidates are:
+  L0_reg(::SnpArray, !Matched::SnpBitMatrix, ::AbstractArray{T<:Union{Float32, Float64},2}, ::AbstractArray{T<:Union{Float32, Float64},1}, ::Int64, ::Int64, ::Distribution{Univariate,S} where S<:ValueSupport, ::Link; group, weight, use_maf, debias, show_info, init, tol, max_iter, max_step) where T<:Union{Float32, Float64} at /u/home/b/biona001/.julia/packages/MendelIHT/FtWPp/src/iht.jl:39
+Stacktrace:
+ [1] macro expansion at ./util.jl:289 [inlined]
+ [2] time_normal_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:33
+ [3] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:48
+ [4] top-level scope at none:0
+ [5] include at ./boot.jl:317 [inlined]
+ [6] include_relative(::Module, ::String) at ./loading.jl:1041
+ [7] include(::Module, ::String) at ./sysimg.jl:29
+ [8] exec_options(::Base.JLOptions) at ./client.jl:229
+ [9] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:68
+Job 598364 ended on:    n7108
+Job #JOB_ID ended on:    Tue Mar 19 14:07:21 PDT 2019
+Job 598364 started on:    n7108
+Job 598364 started on:    Tue Mar 19 14:08:22 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal_nodebias.jl, where debias = false, n = 10000, run = 5
+/u/home/b/biona001/benchmark
+ERROR: LoadError: MethodError: no method matching L0_reg(::SnpArray, ::Nothing, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Int64, ::Normal{Float64}, ::IdentityLink; debias=false, init=false, use_maf=false)
+Closest candidates are:
+  L0_reg(::SnpArray, !Matched::SnpBitMatrix, ::AbstractArray{T<:Union{Float32, Float64},2}, ::AbstractArray{T<:Union{Float32, Float64},1}, ::Int64, ::Int64, ::Distribution{Univariate,S} where S<:ValueSupport, ::Link; group, weight, use_maf, debias, show_info, init, tol, max_iter, max_step) where T<:Union{Float32, Float64} at /u/home/b/biona001/.julia/packages/MendelIHT/FtWPp/src/iht.jl:39
+Stacktrace:
+ [1] macro expansion at ./util.jl:289 [inlined]
+ [2] time_normal_response(::Int64, ::Int64, ::Int64, ::Bool) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:33
+ [3] main(::Int64, ::Int64) at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:48
+ [4] top-level scope at none:0
+ [5] include at ./boot.jl:317 [inlined]
+ [6] include_relative(::Module, ::String) at ./loading.jl:1041
+ [7] include(::Module, ::String) at ./sysimg.jl:29
+ [8] exec_options(::Base.JLOptions) at ./client.jl:229
+ [9] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/benchmark/benchmark_normal_nodebias.jl:68
+Job 598364 ended on:    n7108
+Job #JOB_ID ended on:    Tue Mar 19 14:08:44 PDT 2019

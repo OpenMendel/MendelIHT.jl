@@ -1,0 +1,65 @@
+Job 472469 started on:    n7081
+Job 472469 started on:    Mon Feb 25 17:50:18 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic_nodebias.jl, where debias = false, n = 60000, run = 1
+/u/home/b/biona001/benchmark
+Job 472469 started on:    n7080
+Job 472469 started on:    Mon Feb 25 18:31:09 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic_nodebias.jl, where debias = false, n = 60000, run = 2
+/u/home/b/biona001/benchmark
+Job 472469 started on:    n6136
+Job 472469 started on:    Mon Feb 25 19:48:27 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic_nodebias.jl, where debias = false, n = 60000, run = 3
+/u/home/b/biona001/benchmark
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 472469 ended on:    n7081
+Job #JOB_ID ended on:    Tue Feb 26 06:35:52 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 472469 ended on:    n7080
+Job #JOB_ID ended on:    Tue Feb 26 07:20:02 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 472469 ended on:    n6136
+Job #JOB_ID ended on:    Tue Feb 26 08:35:55 PST 2019
+Job 472469 started on:    n7139
+Job 472469 started on:    Tue Feb 26 17:01:08 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic_nodebias.jl, where debias = false, n = 60000, run = 4
+/u/home/b/biona001/benchmark
+Job 472469 started on:    n7096
+Job 472469 started on:    Tue Feb 26 23:07:11 PST 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_logistic_nodebias.jl, where debias = false, n = 60000, run = 5
+/u/home/b/biona001/benchmark
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 472469 ended on:    n7139
+Job #JOB_ID ended on:    Wed Feb 27 05:47:36 PST 2019
+[ Info: Loading DataFrames support into Gadfly.jl
+Job 472469 ended on:    n7096
+Job #JOB_ID ended on:    Wed Feb 27 11:54:03 PST 2019
