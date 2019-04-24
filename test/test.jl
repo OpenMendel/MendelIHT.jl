@@ -1004,7 +1004,7 @@ true_b = zeros(p)
 true_b[1:k-2] = randn(k-2)
 shuffle!(true_b)
 correct_position = findall(!iszero, true_b)
-true_c = [1.0; 3.5]
+true_c = [3.0; 3.5]
 
 #simulate phenotype
 prob = linkinv.(l, xbm * true_b .+ z * true_c)

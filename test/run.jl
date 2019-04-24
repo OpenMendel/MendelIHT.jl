@@ -23,17 +23,18 @@ Random.seed!(1111)
 #construct snpmatrix, covariate files, and true model b
 x, = simulate_random_snparray(n, p, "tmp")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-z = ones(n, 1) # the intercept
+z = ones(n, 2) # the intercept
+z[:, 2] .= randn(n)
 
 # simulate response, true model b, and the correct non-0 positions of b
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 # specify weights 
-weight = ones(p)
-group = ones(Int, p + 1)
-J = 1
-v = IHTVariables(x, z, y, J, k, group, weight)
-@code_warntype v.b
+# weight = ones(p)
+# group = ones(Int, p + 1)
+# J = 1
+# v = IHTVariables(x, z, y, J, k, group, weight)
+# @code_warntype v.b
 # weight[correct_position] .= 2.0
 
 #run IHT
@@ -378,12 +379,12 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Normal
+d = Poisson
 l = canonicallink(d())
 # l = LogLink()
 
 #set random seed
-Random.seed!(1111)
+Random.seed!(33)
 
 #construct snpmatrix, covariate files, and true model b
 x, = simulate_random_snparray(n, p, undef)
@@ -395,7 +396,7 @@ y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 #specify path and folds
 path = collect(1:20)
-num_folds = 4
+num_folds = 3
 folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT

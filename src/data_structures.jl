@@ -104,9 +104,9 @@ function Base.show(io::IO, x::ggIHTResults)
     println(io, "Max number of groups:   ", x.J)
     println(io, "Max predictors/group:   ", x.k)
     println(io, "IHT estimated ", count(!iszero, x.beta), " nonzero SNP predictors and ", count(!iszero, x.c), " non-genetic predictors.")
-    println(io, "\nGenetic predictors:")
+    println(io, "\nSelected genetic predictors:")
     print(io, DataFrame(Position=snp_position, Estimated_β=x.beta[snp_position]))
-    println(io, "\n\nNongenetic predictors:")
+    println(io, "\n\nSelected nongenetic predictors:")
     print(io, DataFrame(Position=nongenetic_position, Estimated_β=x.c[nongenetic_position]))
 end
 
