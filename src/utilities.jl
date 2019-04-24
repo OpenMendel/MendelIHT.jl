@@ -173,26 +173,6 @@ function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
     end
 end
 
-# """
-# this function calculates the omega (here a / b) used for determining backtracking
-# """
-# function _iht_omega(v::IHTVariable{T}) where {T <: Float}
-#     a = sqeuclidean(v.b, v.b0::Vector{T}) + sqeuclidean(v.c, v.c0::Vector{T}) :: T
-#     b = sqeuclidean(v.xb, v.xb0::Vector{T}) + sqeuclidean(v.zc, v.zc0::Vector{T}) :: T
-#     return a, b
-# end
-
-# """
-# this function for determining whether or not to backtrack for normal least squares. True = backtrack
-# """
-# function _normal_backtrack(v::IHTVariable{T}, ot::T, ob::T, η::T, η_step::Int, nstep::Int
-# ) where {T <: Float}
-#     η*ob > 0.99*ot               &&
-#     sum(v.idx) != 0              &&
-#     sum(xor.(v.idx,v.idx0)) != 0 &&
-#     η_step < nstep
-# end
-
 """
 This function returns true if backtracking condition is met. Currently, backtracking condition
 includes either one of the following:
@@ -322,18 +302,6 @@ function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T},
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
     return (numer / denom) :: T
 end
-
-# function normalize!(
-#     X        :: AbstractMatrix{T},
-#     mean_vec :: AbstractVector{T},
-#     std_vec  :: AbstractVector{T}
-# ) where {T <: Float}
-
-#     @assert size(X, 2) == length(mean_vec) "normalize!: X and mean_vec have different size"
-#     for i in 1:size(X, 2)
-#         X[:, i] .= (X[:, i] .- mean_vec[i]) .* std_vec[i]
-#     end
-# end
 
 """
 This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 

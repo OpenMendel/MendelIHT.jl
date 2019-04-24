@@ -2,3 +2,9 @@
 *.jl.mem
 .DS_Store
 .ipynb_checkpoints/
+*.bed
+*.bim
+*.fam
+*.eigenvec
+*.eigenval
+*.log
