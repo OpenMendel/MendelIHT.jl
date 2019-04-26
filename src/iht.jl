@@ -2,6 +2,12 @@
 This function runs Iterative Hard Thresholding for GWAS data `x`, response `y`, and non-genetic
 covariates `z`. 
 
++ `x` is a SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
++ `xbm` is the bitarray representation of `x`. This matrix is loaded in RAM and performs linear algebra 
++ `z` Matrix of non-genetic covariates. The first column is treated as integer. 
++ `y` Response vector
++ `J` The number of maximum groups
++ `k` Number of non-zero predictors in each group
 + `d` is a distribution in the exponential family we are fitting to
 + `l` stores the link function. 
 + `k` is the maximum number of predictors per group. (i.e. a sparsity constraint)
@@ -107,7 +113,9 @@ function L0_reg(
 end #function L0_reg
 
 """
-This function performs 1 iteration of the IHT algorithm. 
+This function performs 1 iteration of the IHT algorithm, backtracking a maximum of 3 times.
+While IHT can strictly increase loglikelihood, we still allow it to potentially decrease 
+to avoid bad boundary cases.
 """
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
