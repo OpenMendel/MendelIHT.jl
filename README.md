@@ -15,9 +15,11 @@ IHT.jl supports Julia 1.0 and 1.1, but is currently an unregistered package. To 
 
 The order of installation is important!
 
-## Tutorials
+## Documentation
 
-A brief tutorial can be found in the [OpenMendel Tutorials](https://github.com/OpenMendel/Tutorials/blob/master/IHT/Mendel_IHT_tutorial.ipynb). For more advanced functionalities (e.g. doubly sparse projections, prior weightings), please see the [figures folder](https://github.com/biona001/MendelIHT.jl/tree/master/figures) which illustrates some of these functions. 
++ [**STABLE**](https://biona001.github.io/MendelIHT.jl/stable)
+
+Alterantively, a brief tutorial can be found in the [OpenMendel Tutorials](https://github.com/OpenMendel/Tutorials/blob/master/IHT/Mendel_IHT_tutorial.ipynb). For more advanced functionalities (e.g. doubly sparse projections, prior weightings), please see the [figures folder](https://github.com/biona001/MendelIHT.jl/tree/master/figures) which illustrates some of these functions. 
 
 ## Use Caution:
 
