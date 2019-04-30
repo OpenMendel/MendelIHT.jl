@@ -1,10 +1,16 @@
 using Documenter, MendelIHT
 
 makedocs(
-    format = :html,
+    format = Documenter.HTML(),
     sitename = "MendelIHT",
-    modules = [MendelIHT],
     authors = "Benjamin Chu, Kevin Keys",
+    clean = true,
+    branch = "gh-pages",
+    devbranch = "master",
+    devurl = "dev",
+    page = [
+        "index.md"
+    ]
 )
 
 deploydocs(
