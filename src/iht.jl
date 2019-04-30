@@ -1,25 +1,27 @@
 """
-This function runs Iterative Hard Thresholding for GWAS data `x`, response `y`, and non-genetic
-covariates `z`. 
+Runs Iterative Hard Thresholding for GWAS data `x`, response `y`, and non-genetic
+covariates `z` on a specific sparsity parameter `k`. 
 
+One needs to construct a SnpBitMatrix type (xbm below) before running this function.
+
+#Arguments
 + `x` is a SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
-+ `xbm` is the bitarray representation of `x`. This matrix is loaded in RAM and performs linear algebra 
++ `xbm` is the bitarray representation of `x`. This matrix is loaded in RAM and performs linear algebra. It's possible to set scale=false for xbm, especially when rare SNPs exist
 + `z` Matrix of non-genetic covariates. The first column is treated as integer. 
 + `y` Response vector
 + `J` The number of maximum groups
 + `k` Number of non-zero predictors in each group
 + `d` is a distribution in the exponential family we are fitting to
 + `l` stores the link function. 
-+ `k` is the maximum number of predictors per group. (i.e. a sparsity constraint)
-+ `J` is the maximum number of groups. When J = 1, we get regular IHT algorithm
-+ `xbm` is a BitArray version of `x` needed for linear algebras. It's possible to set scale=false for xbm, especially when rare SNPs exist
++ `group` vector storing group membership
++ `weight` vector storing vector of weights containing prior knowledge on each SNP
 + `use_maf` indicates whether we want to scale the projection with minor allele frequencies (see paper)
-+ `tol` is used to track convergence
-+ `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
-+ `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 + `debias` is boolean indicating whether we debias at each iteration (see paper)
 + `show_info` boolean indicating whether we want to print results if model does not converge. Should set to false for multithread/multicore computing
 + `init` boolean indicating whether we want to initialize β to sensible values through fitting. This is not efficient yet. 
++ `tol` is used to track convergence
++ `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
++ `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 """
 function L0_reg(
     x         :: SnpArray,

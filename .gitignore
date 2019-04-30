@@ -8,3 +8,5 @@
 *.eigenvec
 *.eigenval
 *.log
+
+docs/build/

@@ -1,3 +1,4 @@
+#documentation: https://docs.travis-ci.com/user/languages/julia/
 language: julia
 
 os:
@@ -5,7 +6,8 @@ os:
   - osx
 
 julia:
-  - 0.6 
+  - 1.0
+  - 1.1
   - nightly
 
 matrix:
@@ -13,20 +15,27 @@ matrix:
     -julia: nightly
 
 notifications:
-  email:
-    on_success: change
-    on_failure: always
-  recipients:
-    - klkeys@g.ucla.edu
-install:
-  - julia -e 'Pkg.clone("https://github.com/OpenMendel/SnpArrays.jl.git")'
-  - julia -e 'Pkg.clone("https://github.com/OpenMendel/Search.jl.git")'
-  - julia -e 'Pkg.clone("https://github.com/OpenMendel/MendelBase.jl.git")'
-  - julia -e 'Pkg.clone("https://github.com/klkeys/PLINK.jl.git")'
+  email: false
 
-script:
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("IHT"); Pkg.test("IHT"; coverage=true)'
+git:
+  depth: 99999999
 
-after_success:
-  - julia -e 'cd(Pkg.dir("IHT")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+# script:
+#   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+#   - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("IHT"); Pkg.test("IHT"; coverage=true)'
+
+# after_script:
+#   - julia -e 'using Pkg, MendelIHT; cd(joinpath(dirname(pathof(MendelIHT)), "..")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder()); Coveralls.submit(process_folder())'
+
+# after_success:
+#   - julia -e 'cd(Pkg.dir("IHT")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+
+jobs:
+  include:
+    - stage: "Documentation"
+      julia: 1.0
+      os: osx
+      script:
+        - julia -e 'using Pkg; Pkg.add("Documenter")'
+        - julia -e 'using MendelIHT; include(joinpath(dirname(pathof(MendelIHT)), "..", "docs", "make.jl"))'
+      after_success: skip

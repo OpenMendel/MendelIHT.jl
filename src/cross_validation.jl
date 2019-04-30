@@ -6,20 +6,20 @@ To use this function, start julia using 2 (the more the better) processors by
 
     julia -p 2
 
-Some description of variables: 
-`d`: A distribution (e.g. Normal, Poisson)
-`l`: A link function (e.g. Loglink, ProbitLink)
-`x`: A SnpArray
-`z`: Matrix of non-genetic covariates. The first column is treated as integer. 
-`y`: Response vector
-`J`: The number of maximum groups
-`path`: Vector storing different model sizes
-`folds`: Vector that separates the sample into q disjoint subsets
-`init`: Boolean indicating whether we should initialize IHT algorithm at a good starting guess
-`use_maf`: Boolean indicating we should scale the projection step by a weight vector 
-`debias`: Boolean indicating whether we should debias at each IHT step
-`showinfo`: Whether we want IHT to print meaningful intermediate steps
-`parallel`: Whether we want to run cv_iht using multiple CPUs (highly recommended)
+#Arguments
+- `d`: A distribution (e.g. Normal, Poisson)
+- `l`: A link function (e.g. Loglink, ProbitLink)
+- `x`: A SnpArray
+- `z`: Matrix of non-genetic covariates. The first column is treated as integer. 
+- `y`: Response vector
+- `J`: The number of maximum groups
+- `path`: Vector storing different model sizes
+- `folds`: Vector that separates the sample into q disjoint subsets
+- `init`: Boolean indicating whether we should initialize IHT algorithm at a good starting guess
+- `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
+- `debias`: Boolean indicating whether we should debias at each IHT step
+- `showinfo`: Whether we want IHT to print meaningful intermediate steps
+- `parallel`: Whether we want to run cv_iht using multiple CPUs (highly recommended)
 """
 function cv_iht(
     d        :: UnivariateDistribution,

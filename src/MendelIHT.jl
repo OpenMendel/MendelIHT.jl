@@ -27,7 +27,6 @@ module MendelIHT
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}
 
-	include("IHT_wrapper.jl")
 	include("data_structures.jl")
 	include("utilities.jl")
 	include("simulate_utilities.jl")
