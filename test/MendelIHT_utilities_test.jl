@@ -1,199 +1,190 @@
-using IHT, SnpArrays, MendelBase, CSV, DataFrames
+Random.seed!(2018)
 
-srand(2018)
+# function test_data()
+# 	# dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
+# 	x = SnpArray("test.bed")
+# 	z = readdlm("test_cov.txt", Float64)
+# 	y = CSV.read("test.fam", delim = ' ', header = false)
+# 	y = convert(Array{Float64,1}, y[:, 6])
+# 	J = 1
+# 	k = 1
+# 	v = IHTVariables(x, z, y, J, k)
+# 	return (x, z, y, J, k, v)
+# end
 
-@static if VERSION < v"0.7.0-DEV.2005"
-    using Base.Test
-else
-    using Test
-end
+# function gwas1_data()
+# 	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10000
+# 	x = SnpArray("gwas 1 data") 
+# 	z = readdlm("gwas 1 cov.txt", Float64)
+# 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
+# 	y = convert(Array{Float64,1}, y[:, 6])
+# 	J = 1
+# 	k = 10
+# 	v = IHTVariables(x, z, y, J, k)
+# 	return (x, z, y, J, k, v)
+# end
 
-function test_data()
-	# dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
-	x = SnpArray("test")
-	z = readdlm("test_cov.txt", Float64)
-	y = CSV.read("test.fam", delim = ' ', header = false)
-	y = convert(Array{Float64,1}, y[:, 6])
-	J = 1
-	k = 1
-	v = IHTVariables(x, z, y, J, k)
-	return (x, z, y, J, k, v)
-end
+# @testset "initilize IHTVariables" begin
+# 	(x, z, y, J, k, v) = test_data()
 
-function gwas1_data()
-	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10000
-	x = SnpArray("gwas 1 data") 
-	z = readdlm("gwas 1 cov.txt", Float64)
-	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
-	y = convert(Array{Float64,1}, y[:, 6])
-	J = 1
-	k = 10
-	v = IHTVariables(x, z, y, J, k)
-	return (x, z, y, J, k, v)
-end
+# 	#J, k must be a non-zero integer
+# 	@test_throws(ArgumentError, IHTVariables(x, z, y, -1, 2))
+# 	@test_throws(MethodError, IHTVariables(x, z, y, 1.1, 2))
+# 	@test_throws(MethodError, IHTVariables(x, z, y, NaN, 2))
+# 	@test_throws(MethodError, IHTVariables(x, z, y, missing, 2))
+# 	@test_throws(MethodError, IHTVariables(x, z, y, Inf, 2))
+# 	@test_throws(ArgumentError, IHTVariables(x, z, y, 1, -1))
+# 	@test_throws(MethodError, IHTVariables(x, z, y, 1, 1.1))
+# 	@test_throws(MethodError, IHTVariables(x, z, y, 1, NaN))
+# 	@test_throws(MethodError, IHTVariables(x, z, y, 1, missing))
+# 	@test_throws(MethodError, IHTVariables(x, z, y, 1, Inf))
 
+# 	#Different types of inputs for IHTVariables(x, y, J, k) is
+# 	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
+# 	@test typeof(x) == SnpData || typeof(x) <: SnpArray
 
-@testset "initilize IHTVariables" begin
-	(x, z, y, J, k, v) = test_data()
+# 	@test size(v.b)    == (2,)
+# 	@test size(v.b0)   == (2,)
+# 	@test size(v.xb)   == (6,)
+# 	@test size(v.xb0)  == (6,)
+# 	@test size(v.xk)   == (6, 0)
+# 	@test size(v.gk)   == (0,)
+# 	@test size(v.xgk)  == (6,)
+# 	@test size(v.idx)  == (2,)
+# 	@test size(v.idx0) == (2,)
+# 	@test size(v.r)	   == (6,)
+# 	@test size(v.df)   == (2,)
+# 	@test size(v.df2)  == (1,)
+# 	@test size(v.c)    == (1,)
+# 	@test size(v.c0)   == (1,)
+# 	@test size(v.zc)   == (6,)
+# 	@test size(v.zc0)  == (6,)
+# 	@test size(v.zdf2) == (6,)
+# 	@test size(v.group)== (3,)
 
-	#J, k must be a non-zero integer
-	@test_throws(ArgumentError, IHTVariables(x, z, y, -1, 2))
-	@test_throws(MethodError, IHTVariables(x, z, y, 1.1, 2))
-	@test_throws(MethodError, IHTVariables(x, z, y, NaN, 2))
-	@test_throws(MethodError, IHTVariables(x, z, y, missing, 2))
-	@test_throws(MethodError, IHTVariables(x, z, y, Inf, 2))
-	@test_throws(ArgumentError, IHTVariables(x, z, y, 1, -1))
-	@test_throws(MethodError, IHTVariables(x, z, y, 1, 1.1))
-	@test_throws(MethodError, IHTVariables(x, z, y, 1, NaN))
-	@test_throws(MethodError, IHTVariables(x, z, y, 1, missing))
-	@test_throws(MethodError, IHTVariables(x, z, y, 1, Inf))
+# 	@test typeof(v.b)    == Array{Float64, 1}
+# 	@test typeof(v.b0)   == Array{Float64, 1}
+# 	@test typeof(v.xb)   == Array{Float64, 1}
+# 	@test typeof(v.xb0)  == Array{Float64, 1}
+# 	@test typeof(v.xk)   == SnpArray{2}
+# 	@test typeof(v.gk)   == Array{Float64, 1}
+# 	@test typeof(v.xgk)  == Array{Float64, 1}
+# 	@test typeof(v.idx)  == BitArray{1}
+# 	@test typeof(v.idx0) == BitArray{1}
+# 	@test typeof(v.r)	 == Array{Float64, 1}
+# 	@test typeof(v.df)   == Array{Float64, 1}
+# 	@test typeof(v.df2)  == Array{Float64, 1}
+# 	@test typeof(v.c)    == Array{Float64, 1}
+# 	@test typeof(v.c0)   == Array{Float64, 1}
+# 	@test typeof(v.zc)   == Array{Float64, 1}
+# 	@test typeof(v.zc0)  == Array{Float64, 1}
+# 	@test typeof(v.zdf2) == Array{Float64, 1}
+# 	@test typeof(v.group)== Array{Int64, 1}
+# end
 
-	#Different types of inputs for IHTVariables(x, y, J, k) is
-	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
-	@test typeof(x) == SnpData || typeof(x) <: SnpArray
+# @testset "init_iht_indices!" begin
+# 	(x, z, y, J, k, v) = gwas1_data()
 
-	@test size(v.b)    == (2,)
-	@test size(v.b0)   == (2,)
-	@test size(v.xb)   == (6,)
-	@test size(v.xb0)  == (6,)
-	@test size(v.xk)   == (6, 0)
-	@test size(v.gk)   == (0,)
-	@test size(v.xgk)  == (6,)
-	@test size(v.idx)  == (2,)
-	@test size(v.idx0) == (2,)
-	@test size(v.r)	   == (6,)
-	@test size(v.df)   == (2,)
-	@test size(v.df2)  == (1,)
-	@test size(v.c)    == (1,)
-	@test size(v.c0)   == (1,)
-	@test size(v.zc)   == (6,)
-	@test size(v.zc0)  == (6,)
-	@test size(v.zdf2) == (6,)
-	@test size(v.group)== (3,)
+# 	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
+# 	# set v.idx = 1 for the k largest terms in v.df 
+# 	v.df[1:10000] .= rand(10000)
+# 	p = sortperm(v.df, rev = true)
+# 	top_k_index = p[1:10]
+# 	IHT.init_iht_indices!(v, J, k)
 
-	@test typeof(v.b)    == Array{Float64, 1}
-	@test typeof(v.b0)   == Array{Float64, 1}
-	@test typeof(v.xb)   == Array{Float64, 1}
-	@test typeof(v.xb0)  == Array{Float64, 1}
-	@test typeof(v.xk)   == SnpArray{2}
-	@test typeof(v.gk)   == Array{Float64, 1}
-	@test typeof(v.xgk)  == Array{Float64, 1}
-	@test typeof(v.idx)  == BitArray{1}
-	@test typeof(v.idx0) == BitArray{1}
-	@test typeof(v.r)	 == Array{Float64, 1}
-	@test typeof(v.df)   == Array{Float64, 1}
-	@test typeof(v.df2)  == Array{Float64, 1}
-	@test typeof(v.c)    == Array{Float64, 1}
-	@test typeof(v.c0)   == Array{Float64, 1}
-	@test typeof(v.zc)   == Array{Float64, 1}
-	@test typeof(v.zc0)  == Array{Float64, 1}
-	@test typeof(v.zdf2) == Array{Float64, 1}
-	@test typeof(v.group)== Array{Int64, 1}
-end
+# 	@test all(v.idx[top_k_index] .== 1)
+# end
 
-@testset "init_iht_indices!" begin
-	(x, z, y, J, k, v) = gwas1_data()
+# @testset "project_k!" begin
+#     x = rand(100000)
+#     k = 100
+#     p = sortperm(x, rev = true)
+#     top_k_index = p[1:k]
+# 	last_k_index = p[k+1:end]
+# 	IHT.project_k!(x, k)
 
-	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
-	# set v.idx = 1 for the k largest terms in v.df 
-	v.df[1:10000] .= rand(10000)
-	p = sortperm(v.df, rev = true)
-	top_k_index = p[1:10]
-	IHT.init_iht_indices!(v, J, k)
+# 	@test all(x[top_k_index] .!= 0.0)
+# 	@test all(x[last_k_index] .== 0.0)
+# end
 
-	@test all(v.idx[top_k_index] .== 1)
-end
+# @testset "use_A2_as_minor_allele" begin
+# 	(x, z, y, J, k, v) = test_data()
+#     result = use_A2_as_minor_allele(x)
+#     answer = [[0.0 1.0]; [1.0 1.0]; [2.0 0.0]; [1.0 2.0]; [2.0 1.0]; [2.0 2.0]]
 
-@testset "project_k!" begin
-    x = rand(100000)
-    k = 100
-    p = sortperm(x, rev = true)
-    top_k_index = p[1:k]
-	last_k_index = p[k+1:end]
-	IHT.project_k!(x, k)
+#     @test all(result .== answer)
+# end
 
-	@test all(x[top_k_index] .!= 0.0)
-	@test all(x[last_k_index] .== 0.0)
-end
+# @testset "std_reciprocal" begin
+# 	# first compute the correct answer by converting each column to floats and call std() directly
+# 	x       = SnpArray("gwas 1 data")
+# 	n, p    = size(x)
+# 	storage = zeros(n)
+# 	answer  = zeros(p)
+#     for i in 1:p
+#     	copy!(storage, view(x, :, i))
+#         answer[i] = std(storage)
+#     end
+#     answer .= 1.0 ./ answer
 
-@testset "use_A2_as_minor_allele" begin
-	(x, z, y, J, k, v) = test_data()
-    result = use_A2_as_minor_allele(x)
-    answer = [[0.0 1.0]; [1.0 1.0]; [2.0 0.0]; [1.0 2.0]; [2.0 1.0]; [2.0 2.0]]
+#     # next compute the mean of snps since we need it for std_reciprocal()
+#     mean_vec = zeros(p)
+#     maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
+#     for i in 1:p
+#         minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i]
+#     end
+#     std_vector = std_reciprocal(x, mean_vec)
 
-    @test all(result .== answer)
-end
+#     @test all(std_vector .≈ answer)
+# end
 
-@testset "std_reciprocal" begin
-	# first compute the correct answer by converting each column to floats and call std() directly
-	x       = SnpArray("gwas 1 data")
-	n, p    = size(x)
-	storage = zeros(n)
-	answer  = zeros(p)
-    for i in 1:p
-    	copy!(storage, view(x, :, i))
-        answer[i] = std(storage)
-    end
-    answer .= 1.0 ./ answer
+# @testset "project_group_sparse!" begin
+# 	srand(1914) 
 
-    # next compute the mean of snps since we need it for std_reciprocal()
-    mean_vec = zeros(p)
-    maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
-    for i in 1:p
-        minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i]
-    end
-    std_vector = std_reciprocal(x, mean_vec)
+#     m, n, k = 2, 3, 20
+# 	y = randn(k);
+# 	group = rand(1:5, k);
+# 	x = copy(y)
+# 	project_group_sparse!(x, group, m, n)
 
-    @test all(std_vector .≈ answer)
-end
+# 	# view result easily:
+# 	# for i = 1:length(x)
+# 	#     println(i,"  ",group[i],"  ",y[i],"  ",x[i])
+# 	# end
 
-@testset "project_group_sparse!" begin
-	srand(1914) 
+# 	non_zero_position = find(x)
+# 	non_zero_entries = x[non_zero_position]
+# 	@test all(non_zero_entries .== y[non_zero_position])
+# 	@test all(non_zero_position .== [10; 12; 13; 14; 15; 18])
+# 	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621;
+# 								   -0.5746320293057241; 0.9225538732662374;
+# 								   2.4060215839929158; 2.9499620312194383])
 
-    m, n, k = 2, 3, 20
-	y = randn(k);
-	group = rand(1:5, k);
-	x = copy(y)
-	project_group_sparse!(x, group, m, n)
+# 	# test project_group_sparse! is equivalent to project_k! when max group = 1
+# 	m, n, k = 1, 10, 100000
+# 	group = ones(Int, k) #everybody is in the same group
+# 	y = randn(k)
+# 	x = copy(y)
+# 	project_k!(x, n)
+# 	project_group_sparse!(y, group, m, n)
+# 	@test all(x .== y)
 
-	# view result easily:
-	# for i = 1:length(x)
-	#     println(i,"  ",group[i],"  ",y[i],"  ",x[i])
-	# end
+# end
 
-	non_zero_position = find(x)
-	non_zero_entries = x[non_zero_position]
-	@test all(non_zero_entries .== y[non_zero_position])
-	@test all(non_zero_position .== [10; 12; 13; 14; 15; 18])
-	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621;
-								   -0.5746320293057241; 0.9225538732662374;
-								   2.4060215839929158; 2.9499620312194383])
+# @testset "_iht_omega" begin
+# 	(x, z, y, J, k, v) = test_data()
+# 	v.b    = [0.0, 0.334712]
+# 	v.b0   = [0.0, 0.0]
+# 	v.c[1] = 1.51177394
+# 	v.c0[1]= 0.0
+# 	v.xb   = [1.43767, 1.43767, 0.993028, 1.88231, 1.43767, 1.88231]
+# 	v.xb0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-	# test project_group_sparse! is equivalent to project_k! when max group = 1
-	m, n, k = 1, 10, 100000
-	group = ones(Int, k) #everybody is in the same group
-	y = randn(k)
-	x = copy(y)
-	project_k!(x, n)
-	project_group_sparse!(y, group, m, n)
-	@test all(x .== y)
+# 	ω_top, ω_bot = IHT._iht_omega(v)
 
-end
-
-@testset "_iht_omega" begin
-	(x, z, y, J, k, v) = test_data()
-	v.b    = [0.0, 0.334712]
-	v.b0   = [0.0, 0.0]
-	v.c[1] = 1.51177394
-	v.c0[1]= 0.0
-	v.xb   = [1.43767, 1.43767, 0.993028, 1.88231, 1.43767, 1.88231]
-	v.xb0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-	ω_top, ω_bot = IHT._iht_omega(v)
-
-	@test round(ω_top, 4) == 2.3975
-	@test round(ω_bot, 4) == 14.273
-end
+# 	@test round(ω_top, 4) == 2.3975
+# 	@test round(ω_bot, 4) == 14.273
+# end
 
 @testset "check_covariate_supp!" begin
 end

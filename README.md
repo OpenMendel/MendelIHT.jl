@@ -1,5 +1,10 @@
 # MendelIHT
 
+| **Documentation** | **Build Status** | **Code Coverage**  |
+|-------------------|------------------|--------------------|
+| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://biona001.github.io/PACKAGE_NAME.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://biona001.github.io/MendelIHT.jl/dev) | 
+[![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) | 
+[![Coverage Status](https://coveralls.io/repos/github/OpenMendel/SnpArrays.jl/badge.svg?branch=master)](https://coveralls.io/github/OpenMendel/SnpArrays.jl?branch=master) [![codecov](https://codecov.io/gh/OpenMendel/SnpArrays.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/OpenMendel/SnpArrays.jl) |
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://biona001.github.io/PACKAGE_NAME.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://biona001.github.io/MendelIHT.jl/dev)
 
