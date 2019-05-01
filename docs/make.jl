@@ -1,6 +1,7 @@
 using Documenter, MendelIHT
 
 makedocs(
+    doctest = false, #will set to true later
     format = Documenter.HTML(),
     sitename = "MendelIHT",
     authors = "Benjamin Chu, Kevin Keys",
@@ -11,9 +12,10 @@ makedocs(
 )
 
 deploydocs(
-    repo   = "https://github.com/biona001/MendelIHT.jl.git",
+    repo   = "github.com/biona001/MendelIHT.jl.git",
     target = "build",
     branch = "gh-pages",
   	deps   = nothing,
-  	make   = nothing
+  	make   = nothing,
+    devurl = "develop"
 )
