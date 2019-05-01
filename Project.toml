@@ -18,6 +18,7 @@ DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 
 [compat]
 Documenter = ">=0.20"
