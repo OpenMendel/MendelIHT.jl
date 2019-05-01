@@ -4,8 +4,7 @@
 
 | **Documentation** | **Build Status** | **Code Coverage**  |
 |-------------------|------------------|--------------------|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://biona001.github.io/MendelIHT.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://biona001.github.io/MendelIHT.jl/dev) |
- [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://biona001.github.io/MendelIHT.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://biona001.github.io/MendelIHT.jl/dev) | [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) | [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg?branch=master)](https://coveralls.io/github/biona001/MendelIHT.jl?branch=master)
 
 
 ## Installation
@@ -16,7 +15,7 @@ IHT.jl supports Julia 1.0 and 1.1, but is currently an unregistered package. To 
 (v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
 (v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
 (v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
-(v1.0) pkg> add https://github.com/biona001/IHT.jl
+(v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
 ```
 
 The order of installation is important!
@@ -41,6 +40,19 @@ This is a work in progress, so at the moment please cite the general OpenMendel 
 
 ```
 Zhou, Hua, et al. "OpenMendel: a cooperative programming project for statistical genetics." Human genetics (2019): 1-11.
+```
+
+Bibtex:
+
+```
+@article{zhou2019openmendel,
+  title={OpenMendel: a cooperative programming project for statistical genetics},
+  author={Zhou, Hua and Sinsheimer, Janet S and Bates, Douglas M and Chu, Benjamin B and German, Christopher A and Ji, Sarah S and Keys, Kevin L and Kim, Juhyun and Ko, Seyoon and Mosher, Gordon D and others},
+  journal={Human genetics},
+  pages={1--11},
+  year={2019},
+  publisher={Springer}
+}
 ```
 
 
