@@ -14,8 +14,6 @@ makedocs(
 deploydocs(
     repo   = "github.com/biona001/MendelIHT.jl.git",
     target = "build",
-    branch = "gh-pages",
   	deps   = nothing,
   	make   = nothing,
-    devurl = "develop"
 )

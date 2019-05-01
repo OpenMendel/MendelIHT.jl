@@ -8,16 +8,15 @@
 
 ## Installation
 
-IHT.jl supports Julia 1.0 and 1.1, but is currently an unregistered package. To install, press `]` to enter package manager mode, and then install the following packages:
+Copy and paste the following in Julia (the order of installation is important):
 
 ```
-(v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
-(v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
+using Pkg
+Pkg.add("https://github.com/OpenMendel/SnpArrays.jl")
+Pkg.add("https://github.com/OpenMendel/MendelSearch.jl")
+Pkg.add("https://github.com/OpenMendel/MendelBase.jl")
+Pkg.add("https://github.com/biona001/MendelIHT.jl")
 ```
-
-The order of installation is important!
 
 ## Documentation
 
@@ -35,11 +34,9 @@ IHT enjoys built-in parallelism for cross validation routines. Users should ensu
 
 ## Citation:
 
-This is a work in progress, so at the moment please cite the general OpenMendel paper:
+If you use MendelIHT.jl in an academic manuscript, please cite:
 
-```
 Zhou, Hua, et al. "OpenMendel: a cooperative programming project for statistical genetics." Human genetics (2019): 1-11.
-```
 
 Bibtex:
 
@@ -53,6 +50,3 @@ Bibtex:
   publisher={Springer}
 }
 ```
-
-
-See the [figures folder](https://github.com/biona001/MendelIHT.jl/tree/master/figures) for figures and code for reproducing them.
