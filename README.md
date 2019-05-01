@@ -1,6 +1,9 @@
 # MendelIHT
 
-A Julia module that implements Iterative Hard Thresholding (IHT) for GWAS data. IHT performs [feature selection](https://en.wikipedia.org/wiki/Feature_selection) akin to [LASSO](https://en.wikipedia.org/wiki/Lasso_(statistics)). 
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://biona001.github.io/PACKAGE_NAME.jl/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://biona001.github.io/MendelIHT.jl/dev)
+
+*A modern approach to analyze data from a Genome Wide Association Studies (GWAS)*
 
 ## Installation
 

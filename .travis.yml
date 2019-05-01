@@ -2,17 +2,14 @@
 language: julia
 
 os:
-  - linux
   - osx
 
 julia:
   - 1.0
-  - 1.1
-  - nightly
 
-matrix:
-  allow_failures:
-    -julia: nightly
+# matrix:
+#   allow_failures:
+#     -julia: nightly
 
 notifications:
   email: false
@@ -36,6 +33,7 @@ jobs:
       julia: 1.0
       os: osx
       script:
-        - julia -e 'using Pkg; Pkg.add("Documenter")'
-        - julia -e 'using MendelIHT; include(joinpath(dirname(pathof(MendelIHT)), "..", "docs", "make.jl"))'
+        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));
+                                               Pkg.instantiate()'
+        - julia --project=docs/ docs/make.jl
       after_success: skip
