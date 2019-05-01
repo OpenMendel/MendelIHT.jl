@@ -17,15 +17,9 @@ notifications:
 git:
   depth: 99999999
 
-# script:
-#   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#   - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("IHT"); Pkg.test("IHT"; coverage=true)'
-
-# after_script:
-#   - julia -e 'using Pkg, MendelIHT; cd(joinpath(dirname(pathof(MendelIHT)), "..")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder()); Coveralls.submit(process_folder())'
-
-# after_success:
-#   - julia -e 'cd(Pkg.dir("IHT")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+before_script: # install dependent unregistered packages
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia -e 'using Pkg; Pkg.add([PackageSpec(url="https://github.com/OpenMendel/SnpArrays.jl.git"), PackageSpec(url="https://github.com/OpenMendel/MendelSearch.jl.git"), PackageSpec(url="https://github.com/OpenMendel/MendelBase.jl.git")]);'
 
 jobs:
   include:
