@@ -34,7 +34,6 @@ jobs:
       os: osx
       script:
         - julia -e 'using Pkg; Pkg.add("Documenter")'
-        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));
-                                               Pkg.instantiate()'
-        - julia --project=docs/ docs/make.jl
+        - julia -e 'using MendelIHT; include(joinpath(dirname(pathof(MendelIHT)), "..", "docs", "make.jl"))'
+      after_script: skip
       after_success: skip
