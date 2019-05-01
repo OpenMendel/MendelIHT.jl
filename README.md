@@ -4,7 +4,7 @@
 
 | **Documentation** | **Build Status** | **Code Coverage**  |
 |-------------------|------------------|--------------------|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://biona001.github.io/MendelIHT.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://biona001.github.io/MendelIHT.jl/dev) | [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) | [![codecov](https://codecov.io/gh/biona001/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/biona001/MendelIHT.jl) [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg?branch=master)](https://coveralls.io/github/biona001/MendelIHT.jl?branch=master) 
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://biona001.github.io/MendelIHT.jl/latest) | [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) | [![codecov](https://codecov.io/gh/biona001/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/biona001/MendelIHT.jl) [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg?branch=master)](https://coveralls.io/github/biona001/MendelIHT.jl?branch=master) 
 
 ## Installation
 
@@ -20,7 +20,7 @@ Pkg.add("https://github.com/biona001/MendelIHT.jl")
 
 ## Documentation
 
-+ [**STABLE**](https://biona001.github.io/MendelIHT.jl/stable)
++ [**Latest**](https://biona001.github.io/MendelIHT.jl/latest/)
 
 Alterantively, a brief tutorial can be found in the [OpenMendel Tutorials](https://github.com/OpenMendel/Tutorials/blob/master/IHT/Mendel_IHT_tutorial.ipynb). For more advanced functionalities (e.g. doubly sparse projections, prior weightings), please see the [figures folder](https://github.com/biona001/MendelIHT.jl/tree/master/figures) which illustrates some of these functions. 
 
