@@ -4,6 +4,7 @@ using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
+using DelimitedFiles
 using BenchmarkTools
 using Random
 using LinearAlgebra
@@ -13,7 +14,7 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Poisson
+d = Normal
 l = canonicallink(d())
 # l = LogLink()
 
@@ -21,10 +22,10 @@ l = canonicallink(d())
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, = simulate_random_snparray(n, p, "tmp")
+x, = simulate_random_snparray(n, p, "test1.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 2) # the intercept
-z[:, 2] .= randn(n)
+# z[:, 2] .= randn(n)
 
 # simulate response, true model b, and the correct non-0 positions of b
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
@@ -379,7 +380,7 @@ using GLM
 n = 1000
 p = 10000
 k = 10
-d = Poisson
+d = Bernoulli
 l = canonicallink(d())
 # l = LogLink()
 
@@ -401,7 +402,7 @@ folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT
 # result = iht_run_many_models(d(), l, x, z, y, 1, path);
-mses = cv_iht(d(), l, x, z, y, 1, path, folds, num_folds, init=false, use_maf=false, debias=true, parallel=true)
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true)
 
 #benchmarking
 @benchmark cv_iht(d(), l, x, z, y, 1, path, folds, num_folds, init=false, use_maf=false, debias=true, parallel=true) seconds=60

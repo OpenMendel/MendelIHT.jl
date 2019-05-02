@@ -2,9 +2,9 @@
 This function performs q-fold cross validation for Iterative hard thresholding to determine 
 the best model size k. Each CPU runs a different model for a given fold. 
 
-To use this function, start julia using 2 (the more the better) processors by
+To use this function, start julia using 4 (the more the better) processors by
 
-    julia -p 2
+    julia -p 4
 
 #Arguments
 - `d`: A distribution (e.g. Normal, Poisson)
@@ -13,7 +13,7 @@ To use this function, start julia using 2 (the more the better) processors by
 - `z`: Matrix of non-genetic covariates. The first column is treated as integer. 
 - `y`: Response vector
 - `J`: The number of maximum groups
-- `path`: Vector storing different model sizes
+- `path`: Vector  storing different model sizes
 - `folds`: Vector that separates the sample into q disjoint subsets
 - `init`: Boolean indicating whether we should initialize IHT algorithm at a good starting guess
 - `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
@@ -29,8 +29,8 @@ function cv_iht(
     y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
-    folds    :: DenseVector{Int},
     num_fold :: Int64;
+    folds    :: DenseVector{Int} = rand(1:num_folds, size(x, 1)),
     init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
