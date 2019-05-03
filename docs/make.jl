@@ -8,6 +8,7 @@ makedocs(
     clean = true,
     pages = [
 		"Home" => "index.md"
+        "Getting Started" => "man/getting_started.md"
     ]
 )
 

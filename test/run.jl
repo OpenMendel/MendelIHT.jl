@@ -405,7 +405,7 @@ folds = rand(1:num_folds, size(x, 1))
 mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true)
 
 #benchmarking
-@benchmark cv_iht(d(), l, x, z, y, 1, path, folds, num_folds, init=false, use_maf=false, debias=true, parallel=true) seconds=60
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true) seconds=60
 
 
 #run IHT
