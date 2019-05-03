@@ -1,18 +1,31 @@
 """
-This function will create a random SnpArray in the current directory without missing value, 
-where each SNP has at least 5 minor alleles. 
+    simulate_random_snparray(n::Integer, p::Integer, s::String; mafs::Vector{Float64}, min_ma::Integer)
 
+Creates a random SnpArray in the current directory without missing value, 
+where each SNP has ⫺5 (default) minor alleles. 
+
+#Arguments
 n = number of samples
 p = number of SNPs
-s = name of the simulated SnpArray
+s = name of the simulated SnpArray that will be created on the current directory
+
+#Optional Arguments
+mafs = vector of minor allele freuqencies
 min_ma = the minimum number of minor alleles that must be present for each SNP (defaults to 5)
+
+Note: if supplied minor allele frequency is extremely small, it could take a long time for 
+the simulation to generate samples where at least `min_ma` (defaults to 5) are present. 
 """
 function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}; 
-                                  min_ma::Int = 5)
+                                  mafs::Vector{Float64}=zeros(Float64, p), min_ma::Int = 5)
+    
+    if mafs != zeros(Float64, p)
+        return _random_snparray(n, p, s, mafs, min_ma)
+    end
+
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
     A1 = BitArray(undef, n, p) 
     A2 = BitArray(undef, n, p) 
-    mafs = zeros(Float64, p)
     for j in 1:p
         minor_alleles = 0
         maf = 0
@@ -35,18 +48,8 @@ end
 This function requires a vector of minor alleles frequencies to perform simulation. 
 It will create a random SnpArray in the current directory without missing value, 
 where each SNP has at least 5 minor alleles. 
-
-n = number of samples
-p = number of SNPs
-s = name of the simulated SnpArray
-mafs = vector of minor allele freuqencies
-min_ma = the minimum number of minor alleles that must be present for each SNP (defaults to 5)
-
-
-Note: if supplied minor allele frequency is extremely small, it could take a long time for 
-the simulation to generate samples where at least `min_ma` (defaults to 5) are present. 
 """
-function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}, 
+function _random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}, 
                                   mafs::Vector{Float64}; min_ma::Int = 5)
     all(0.0 .<= mafs .<= 0.5) || throw(ArgumentError("vector of minor allele frequencies must be in (0, 0.5)"))
     any(mafs .<= 0.0005) && @warn("Provided minor allele frequencies contain entries smaller than 0.0005, simulation may take long if sample size is small and min_ma = $min_ma is large")
@@ -92,17 +95,25 @@ function _make_snparray(A1::BitArray, A2::BitArray, s::Union{String, UndefInitia
 end
 
 """
-This function simulates a random response vector `y` based on provided x, β, distirbution,
-and link function. `k` denotes the true number of predictors. When the distribution is from 
-Poisson, Gamma, or Negative Binomial, then the true model is drawn from N(0, 0.3) to roughly 
-ensure the mean of response `y` doesn't become too large. 
+    simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, d::UnionAll, l::Link)
 
-Note: for negative binomial and gamma, the link function must be LogLink. For Bernoulli,
-the probit link seems to work better than logitlink.
+This function simulates a random response (trait) vector `y` based on provided x, β, distirbution,
+and link function. 
 
-`nn` and `α` are optional input argument needed for gamma and negative binomial simulations. 
-For Negative binomial, it is the number of success until stopping. For gamma distribution, 
-it is the shape parameter. 
+When the distribution is from Poisson, Gamma, or Negative Binomial, we simulate `β ∼ N(0, 0.3)` 
+to roughly ensure the mean of response `y` doesn't become too large. For other distributions,
+we choose `β ∼ N(0, 1)`. 
+
+#Arguments
+- `x`: The SnpArray
+- `xbm`: SnpBitMatrix type of your SnpArray
+- `k`: the true number of predictors. 
+- `d`: The distribution of the simulatedtrait
+- `l`: The link function. Input `canonicallink(d())` if you want to use the canonical link of `d`.
+
+# Optional arguments 
+- `nn`: The number of success until stopping in negative binomial regression, defaults to 10
+- `α`: Shape parameter of the gamma distribution, defaults to 1
 """
 function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, 
                                   d::UnionAll, l::Link; nn = 10,
@@ -141,10 +152,9 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int,
 end
 
 """
-This function makes some columns of x correlated with a specific one, in some rather ad-hoc way.
-We check whether the correlation is actually met in the end by printing the correlation 
-coefficients afterwards. 
+Makes some columns of x (i.e. SNPs) correlated with other columns in some ad-hoc way.
 
+#Arguments
 - `x` the snparray
 - `ρ` correlation coefficient
 - `pos` the position of the target SNP that everything would be correlated to
@@ -165,11 +175,9 @@ function adhoc_add_correlation(x::SnpArray, ρ::Float64, pos::Int64, location::V
 end
 
 """
-This function simulates case controls based on `v` variants that can independently cause a 
-disease. We typically end up with a handful of causal variants and a lot of rare variants. 
+    NOT COMPLETE
 
-This is Algorithm 1 of "Association screening of common and rare genetic variants by
-penalized regression" here: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3025646/
+TODO: implement Algrithm 1 of https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3025646/
 """
 function simulate_rare_variants(mafs::Vector{Float64}, penetrance::Vector{Float64}, 
                                 cases::Int, controls::Int)
@@ -177,8 +185,12 @@ function simulate_rare_variants(mafs::Vector{Float64}, penetrance::Vector{Float6
 end
 
 """
-This function creates .bim and .bed files from a SnpArray (which can potentially be memory 
-mapped to a .bed file).
+    make_bim_fam_files(x::SnpArray, y, name::String)
+
+Creates .bim and .bed files from a SnpArray. 
+
+`name` is a string that should match the `.bed` file you simulate with 
+`simulate_random_snparray`. Do not include `.bim` or `.fam` extensions in `name`.
 """
 function make_bim_fam_files(x::SnpArray, y, name::String)
     ly = length(y)

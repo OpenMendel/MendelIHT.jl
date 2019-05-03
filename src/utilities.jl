@@ -208,10 +208,10 @@ function std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T}) where {T <: Float}
 end
 
 """
-    project_k!(x, k)
+    project_k!(x::AbstractVector, k::Integer)
+
 This function projects a vector `x` onto the set S_k = { y in R^p : || y ||_0 <= k }.
-It does so by first finding the pivot `a` of the `k` largest components of `x` in magnitude.
-`project_k!` then applies `x[abs.(x) < a] = 0 
+
 Arguments:
 - `b` is the vector to project.
 - `k` is the number of components of `b` to preserve.
@@ -224,11 +224,11 @@ function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
 end
 
 """ 
-Projects the vector y = [y1; y2] onto the set with at most J active groups and at most
+    project_group_sparse!(y::AbstractVector, group::AbstractVector, J::Integer, k::Integer)
+
+Projects the vector y onto the set with at most J active groups and at most
 k active predictors per group. The variable group encodes group membership. Currently
 assumes there are no unknown or overlaping group membership.
-
-TODO: check if sortperm can be replaced by something that doesn't sort the whole array
 """
 function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64},
     J::Int64, k::Int64) where {T <: Float}
@@ -348,7 +348,7 @@ When initilizing the model β, for each covariate we fit a bivariate regression 
 itself and the intercept. Fitting is done using scoring (newton) algorithm in GLM.jl. 
 The average of the intercept over all fits is used as the its initial guess. 
 
-This function is quite slow and not memory efficient currently. 
+This function is quite slow and not memory efficient. 
 """
 function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::SnpArray,
                           d::UnivariateDistribution, l::Link) where {T <: Float}
