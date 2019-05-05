@@ -21,7 +21,23 @@ The order of installation is important!
 
 + [**Latest**](https://biona001.github.io/MendelIHT.jl/latest/)
 
-Alterantively, one can view a brief tutorial can be found in the [OpenMendel Tutorials](https://github.com/OpenMendel/Tutorials/blob/master/IHT/Mendel_IHT_tutorial.ipynb). 
+## Why use IHT for GWAS? 
+
+Because it is (figures taken from our manuscript, which is to be published):
+
+**Fast & Memory Efficient**
+
+![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/benchmark/yes_debias.png)
+
+**Accurate**
+
+![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/accuracy.png)
+
+**Reliable**
+
+![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/iht_lasso_marginal.png)
+
+* Marginal tests indicate a traditional GWAS analysis from a SNP-by-SNP association test.
 
 ## Citation:
 

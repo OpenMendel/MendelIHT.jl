@@ -7,9 +7,10 @@ makedocs(
     authors = "Benjamin Chu, Kevin Keys",
     clean = true,
     pages = [
-		"Home" => "index.md",
+        "Home"            => "index.md",
         "Getting Started" => "man/getting_started.md",
-        "Examples" => "man/examples.md",
+        "Examples"        => "man/examples.md",
+        "Contributing"    => "man/contributing.md",
     ]
 )
 
