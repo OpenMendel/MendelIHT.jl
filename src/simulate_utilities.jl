@@ -4,17 +4,17 @@
 Creates a random SnpArray in the current directory without missing value, 
 where each SNP has ⫺5 (default) minor alleles. 
 
-#Arguments
-n = number of samples
-p = number of SNPs
-s = name of the simulated SnpArray that will be created on the current directory
-
-#Optional Arguments
-mafs = vector of minor allele freuqencies
-min_ma = the minimum number of minor alleles that must be present for each SNP (defaults to 5)
-
 Note: if supplied minor allele frequency is extremely small, it could take a long time for 
 the simulation to generate samples where at least `min_ma` (defaults to 5) are present. 
+
+Arguments:
+- `n`: number of samples
+- `p`: number of SNPs
+- `s`: name of the simulated SnpArray that will be created on the current directory
+
+Optional Arguments:
+- `mafs`: vector of desired minor allele freuqencies
+- `min_ma`: the minimum number of minor alleles that must be present for each SNP (defaults to 5)
 """
 function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}; 
                                   mafs::Vector{Float64}=zeros(Float64, p), min_ma::Int = 5)
@@ -108,7 +108,7 @@ we choose `β ∼ N(0, 1)`.
 - `x`: The SnpArray
 - `xbm`: SnpBitMatrix type of your SnpArray
 - `k`: the true number of predictors. 
-- `d`: The distribution of the simulatedtrait
+- `d`: The distribution of the simulated trait (note `typeof(d) = UnionAll` but `typeof(d())` is an actual distribution: e.g. Normal)
 - `l`: The link function. Input `canonicallink(d())` if you want to use the canonical link of `d`.
 
 # Optional arguments 
@@ -152,14 +152,15 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int,
 end
 
 """
-Makes some columns of x (i.e. SNPs) correlated with other columns in some ad-hoc way.
+    adhoc_add_correlation(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
 
-#Arguments
-- `x` the snparray
-- `ρ` correlation coefficient
-- `pos` the position of the target SNP that everything would be correlated to
-- `num` even integer: how many columns of `x` would be made correlated
-- `increment` how far should each correlated SNP be located than the one specified in `pos`.
+Makes 1 SNP (a column of `x`) correlate with SNPs in `location` with correlation coefficient roughly `ρ`.
+
+Arguments:
+- `x`: the snparray
+- `ρ`: correlation coefficient
+- `pos`: the position of the target SNP that everything would be correlated to
+- `location`: All the SNPs that shall be correlated with the SNP at position `pos` with correlation `ρ`.
 """
 function adhoc_add_correlation(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
     @assert 0 <= ρ <= 1 "correlation coefficient must be in (0, 1) but was $ρ"
@@ -175,7 +176,7 @@ function adhoc_add_correlation(x::SnpArray, ρ::Float64, pos::Int64, location::V
 end
 
 """
-    NOT COMPLETE
+    simulate_rare_variants(mafs::Vector{Float64}, penetrance::Vector{Float64}, cases::Int, controls::Int)
 
 TODO: implement Algrithm 1 of https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3025646/
 """
@@ -189,8 +190,10 @@ end
 
 Creates .bim and .bed files from a SnpArray. 
 
-`name` is a string that should match the `.bed` file you simulate with 
-`simulate_random_snparray`. Do not include `.bim` or `.fam` extensions in `name`.
+Arguments:
+`x`: A SnpArray (i.e. `.bed` file on the disk) for which you wish to create corresponding `.bim` and `.fam` files.
+`name`: string that should match the `.bed` file (Do not include `.bim` or `.fam` extensions in `name`).
+`y`: Trait vector that will go in to the 6th column of `.fam` file. 
 """
 function make_bim_fam_files(x::SnpArray, y, name::String)
     ly = length(y)

@@ -1,20 +1,26 @@
 """
-This function performs q-fold cross validation for Iterative hard thresholding to determine 
-the best model size k. Each CPU runs a different model for a given fold. 
+    cv_iht(d, l, x, z, y, J, path, num_fold)
 
-To use this function, start julia using 4 (the more the better) processors by
+Performs q-fold cross validation and returns the deviance residuals for each model. 
+
+Each CPU runs a different model for a given fold. To use this function, start julia 
+using 4 (the more the better) processors by:
 
     julia -p 4
 
-#Arguments
-- `d`: A distribution (e.g. Normal, Poisson)
+Arguments
+- `d`: A distribution (e.g. Normal, Bernoulli)
 - `l`: A link function (e.g. Loglink, ProbitLink)
-- `x`: A SnpArray
-- `z`: Matrix of non-genetic covariates. The first column is treated as integer. 
+- `x`: A SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
+- `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
 - `y`: Response vector
 - `J`: The number of maximum groups
 - `path`: Vector storing different model sizes
 - `num_fold`: Number of cross validation folds. For large data do not set this to be greater than 5
+
+Optional Arguments: 
+- `group` vector storing group membership
+- `weight` vector storing vector of weights containing prior knowledge on each SNP
 - `folds`: Vector that separates the sample into q disjoint subsets
 - `init`: Boolean indicating whether we should initialize IHT algorithm at a good starting guess
 - `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
@@ -33,7 +39,7 @@ function cv_iht(
     num_fold :: Int64;
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
-    folds    :: DenseVector{Int} = rand(1:num_folds, size(x, 1)),
+    folds    :: DenseVector{Int} = rand(1:num_fold, size(x, 1)),
     init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
@@ -145,7 +151,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     
     # for each k in path, run L0_reg and compute mse
     mses = (parallel ? pmap : map)(path) do k
-        
+
         #run IHT on training model with given k
         result = L0_reg(x_train, x_trainbm, z[train_idx, :], y[train_idx], 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=showinfo)
 

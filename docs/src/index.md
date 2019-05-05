@@ -1,4 +1,4 @@
-# Iterative Hard Thresholding
+# Mendel - Iterative Hard Thresholding
 
 *A modern approach to analyze data from a Genome Wide Association Studies (GWAS)*
 
@@ -10,20 +10,21 @@
 ## Package Feature
 
 + Analyze large GWAS datasets intuitively.
-+ Automatically distributed (parallel) `q-fold` cross-validation routines.
-+ Ability to fit a large range of generalized linear models with any choice of link function.
++ Built-in parallel computing routines for `q-fold` cross-validation.
++ Fits a variety of generalized linear models with any choice of link function.
 + Computation directly on raw genotype files.
 + Ability to include non-genetic covariates.
-+ Optional acceleration step to dramatically improve speed by setting `debias = true`.
-+ Ability to incorporate prior weights for predictors.
++ Optional acceleration (debias) step to dramatically improve speed.
++ Ability to explicitly incorporate weights for predictors.
 + Ability to enforce within and between group sparsity. 
-+ Easily adjustable convergence criteria, max iteration count, and max backtracking.
++ Excellent flexibility to handle different data structures and complements well with other Julia packages.
 
 ## Manual Outline
 
 ```@contents
     pages = [
-		"Home" => "index.md"
-        "Getting Started" => "man/getting_started.md"
+		"Home" => "index.md",
+        "Getting Started" => "man/getting_started.md",
+        "Examples" => "man/examples.md",
     ]
 ```

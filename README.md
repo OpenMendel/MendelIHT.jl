@@ -8,35 +8,26 @@
 
 ## Installation
 
-Copy and paste the following in Julia (the order of installation is important):
-
+Press `]` to enter package manager mode and type the following (after `pkg>`):
 ```
-using Pkg
-Pkg.add("https://github.com/OpenMendel/SnpArrays.jl")
-Pkg.add("https://github.com/OpenMendel/MendelSearch.jl")
-Pkg.add("https://github.com/OpenMendel/MendelBase.jl")
-Pkg.add("https://github.com/biona001/MendelIHT.jl")
+(v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
+(v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
 ```
+The order of installation is important!
 
 ## Documentation
 
 + [**Latest**](https://biona001.github.io/MendelIHT.jl/latest/)
 
-Alterantively, a brief tutorial can be found in the [OpenMendel Tutorials](https://github.com/OpenMendel/Tutorials/blob/master/IHT/Mendel_IHT_tutorial.ipynb). For more advanced functionalities (e.g. doubly sparse projections, prior weightings), please see the [figures folder](https://github.com/biona001/MendelIHT.jl/tree/master/figures) which illustrates some of these functions. 
-
-## Use Caution:
-
-**Missing Genotype:**
-The current implementation of MendelIHT assumes *there are no missing genotypes* since it uses linear algebra functions defined in [`SnpArrays.jl`](https://openmendel.github.io/SnpArrays.jl/latest/man/snparray/#linear-algebra-with-snparray). Therefore, you must first impute missing genotypes *before* you use MendelIHT. `SnpArrays.jl` offer some naive imputation strategy, but otherwise, we recommend using [Option 23 of Mendel](http://www.genetics.ucla.edu/software/mendel). 
-
-**Parallel Computation:**
-IHT enjoys built-in parallelism for cross validation routines. Users should ensure to (1) NOT spawn more workers than the number of available CPU cores, and (2) NOT remove auxiliary files (e.g. `train.bed`) that will be produced during cross validation. These files will be removed in the end. 
+Alterantively, one can view a brief tutorial can be found in the [OpenMendel Tutorials](https://github.com/OpenMendel/Tutorials/blob/master/IHT/Mendel_IHT_tutorial.ipynb). 
 
 ## Citation:
 
-If you use MendelIHT.jl in an academic manuscript, please cite:
+If you use `MendelIHT.jl` in an academic manuscript, please cite:
 
-Zhou, Hua, et al. "OpenMendel: a cooperative programming project for statistical genetics." Human genetics (2019): 1-11.
+`Zhou, Hua, et al. "OpenMendel: a cooperative programming project for statistical genetics." Human genetics (2019): 1-11.`
 
 Bibtex:
 
