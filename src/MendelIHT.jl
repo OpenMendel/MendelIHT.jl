@@ -8,7 +8,7 @@ module MendelIHT
 	import GLM: glmvar, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
 
 	using SnpArrays
-	using MendelBase
+	# using MendelBase
 	using DataFrames
 	using Random
 	using LinearAlgebra

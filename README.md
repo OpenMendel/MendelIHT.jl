@@ -11,8 +11,6 @@
 Press `]` to enter package manager mode and type the following (after `pkg>`):
 ```
 (v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
 (v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
 ```
 The order of installation is important!
@@ -43,7 +41,9 @@ Because it is (figures taken from our manuscript, which is to be published):
 
 If you use `MendelIHT.jl` in an academic manuscript, please cite:
 
-`Zhou, Hua, et al. "OpenMendel: a cooperative programming project for statistical genetics." Human genetics (2019): 1-11.`
+```
+Zhou, Hua, et al. "OpenMendel: a cooperative programming project for statistical genetics." Human genetics (2019): 1-11.
+```
 
 Bibtex:
 
