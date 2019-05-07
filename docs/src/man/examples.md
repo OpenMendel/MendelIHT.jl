@@ -37,9 +37,13 @@ using DelimitedFiles
 using Statistics
 ```
 
+    ┌ Info: Recompiling stale cache file /Users/biona001/.julia/compiled/v1.0/MendelIHT/eaqWB.ji for MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
+    └ @ Base loading.jl:1190
+
+
 ## Example 1: How to Import Data
 
-We use [SnpArrays.jl](https://openmendel.github.io/SnpArrays.jl/latest/) as backend to process genotype files. Internally, the genotype file is a memory mapped [SnpArray](https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1), which will not be loaded into RAM. If you wish to run `L0_reg`, you need to convert a SnpArray into a [SnpBitMatrix](https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1), which consumes $n \times p \times 2$ bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as a **matrix** of type Float64 (i.e. `Array{Float64, 2}`. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. 
+We use [SnpArrays.jl](https://openmendel.github.io/SnpArrays.jl/latest/) as backend to process genotype files. Internally, the genotype file is a memory mapped [SnpArray](https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1), which will not be loaded into RAM. If you wish to run `L0_reg`, you need to convert a SnpArray into a [SnpBitMatrix](https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1), which consumes $n \times p \times 2$ bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as an `Array{Float64, 2}`. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. 
 
 ### Reading Genotype data and Non-Genetic Covariates
 
@@ -101,16 +105,12 @@ z   = readdlm("../data/test1_covariates.txt") # 1st column intercept, 2nd column
     
 ### Standardizing Non-Genetic Covariates.
 
-We recommend standardizing all genetic and non-genetic covarariates (including binary and categorical), except for the intercept. This ensures equal penalization for all. `SnpBitMatrix` efficiently achieves this standardization for genotype data, but non-genetic covariates must be done manually, as below:
+We recommend standardizing all genetic and non-genetic covarariates (including binary and categorical), except for the intercept. This ensures equal penalization for all predictors. `SnpBitMatrix` efficiently achieves this standardization for genotype data, but this must be done manually for non-genetic covariates prior to using `z` in `L0_reg` or `cv_iht`, as below:
 
 
 ```julia
 # standardize all covariates (other than intercept) to mean 0 variance 1
-for i in 2:size(z, 2)
-    col_mean = mean(z[:, i])
-    col_std  = std(z[:, i])
-    z[:, i] .= (z[:, i] .- col_mean) ./ col_std
-end
+standardize!(@view(z[:, 2:end]))
 z
 ```
 
@@ -147,7 +147,7 @@ z
 
 
 
-# Example 2: Quantitative Traits
+## Example 2: Quantitative Traits
 
 Quantitative traits are continuous phenotypes whose distribution can be modeled by the normal distribution. Then using the genotype matrix $\mathbf{X}$ and phenotype vector $\mathbf{y}$, we want to recover $\beta$ such that $\mathbf{y} \approx \mathbf{X}\beta$. 
 
@@ -157,9 +157,13 @@ In Example 1 we illustrated how to import data into Julia. So here we use simula
 
 In this example, our model is simulated as:
 $$y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i$$
+
 $$x_{ij} \sim Binomial(2, p_j)$$
+
 $$p_j \sim Uniform(0, 0.5)$$
+
 $$\epsilon_i \sim N(0, 1)$$
+
 $$\beta_i \sim N(0, 1)$$
 
 
@@ -170,17 +174,7 @@ p = 10000
 k = 10
 d = Normal
 l = canonicallink(d())
-```
 
-
-
-
-    IdentityLink()
-
-
-
-
-```julia
 # set random seed for reproducibility
 Random.seed!(2019) 
 
@@ -194,15 +188,8 @@ xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
 z = ones(n, 1) 
 
 # simulate response y, true model b, and the correct non-0 positions of b
-y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l);
 ```
-
-
-
-
-    ([-1.55712, -2.58259, 2.90878, 2.97143, -0.623694, -1.53675, -1.31672, -0.260568, 4.71735, 3.16402  …  1.50775, -7.16653, -2.75505, -0.748213, 0.529417, 0.170073, -2.31786, -0.27737, -1.29737, 3.94419], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [853, 877, 924, 2703, 4241, 4783, 5094, 5284, 7760, 8255])
-
-
 
 ### Step 2: Run cross validation to determine best model size
 
@@ -217,17 +204,6 @@ By default, we partition the training/testing data randomly, but you can change 
 ```julia
 path = collect(1:20)
 num_folds = 3
-```
-
-
-
-
-    3
-
-
-
-
-```julia
 mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is for number of groups
 ```
 
@@ -270,7 +246,7 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
 
 ### Step 3: Run full model on the best estimated model size 
 
-According to our cross validation result, the best model size that minimizes deviance residuals (i.e. MSE on the q-th subset of samples) is attained at $k = 10$. That is, cross validation detected that we need 10 SNPs to achieve the best model size. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
+`cv_iht` finished in about a minute. According to our cross validation result, the best model size that minimizes deviance residuals (i.e. MSE on the q-th subset of samples) is attained at $k = 10$. That is, cross validation detected that we need 10 SNPs to achieve the best model size. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
 
 
 ```julia
@@ -283,7 +259,7 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
 
     IHT results:
     
-    Compute time (sec):     0.5330710411071777
+    Compute time (sec):     0.49691104888916016
     Final loglikelihood:    -1406.8807653835697
     Iterations:             6
     Max number of groups:   1
@@ -343,7 +319,7 @@ rm("tmp.bed", force=true)
     │ 10  │ 1.03477  │ 1.08117     │
 
 
-# Example 3: Logistic Regression Controlling for Sex
+## Example 3: Logistic Regression Controlling for Sex
 
 We show how to use IHT to handle case-control studies. In this example, we fit a logistic regression model with IHT using simulated case-control data, while controling for sex as a non-genetic covariate. 
 
@@ -351,10 +327,15 @@ We show how to use IHT to handle case-control studies. In this example, we fit a
 
 Again we use a simulated model:
 $$y_i \sim Bernoulli(\mathbf{x}_i^T\mathbf{\beta})$$
+
 $$x_{ij} \sim Binomial(2, p_j)$$
+
 $$p_j \sim Uniform(0, 0.5)$$
+
 $$\beta_i \sim N(0, 1)$$
+
 $$\beta_{intercept} = 1$$
+
 $$\beta_{sex} = 1.5$$
 
 We assumed there are $k=8$ genetic predictors and 2 non-genetic predictors (intercept and sex) that affects the trait. The simulation code in our package does not yet handle simulations with non-genetic predictors, so we must simulate these phenotypes manually. 
@@ -393,41 +374,8 @@ true_c = [1.0; 1.5]
 # simulate phenotype using genetic and nongenetic predictors
 prob = linkinv.(l, xbm * true_b .+ z * true_c)
 y = [rand(d(i)) for i in prob]
-y = Float64.(y) # y must be floating point numbers
+y = Float64.(y); # y must be floating point numbers
 ```
-
-
-
-
-    1000-element Array{Float64,1}:
-     1.0
-     1.0
-     1.0
-     1.0
-     1.0
-     1.0
-     1.0
-     1.0
-     1.0
-     0.0
-     1.0
-     1.0
-     0.0
-     ⋮  
-     1.0
-     0.0
-     0.0
-     0.0
-     0.0
-     0.0
-     0.0
-     1.0
-     1.0
-     1.0
-     0.0
-     1.0
-
-
 
 ### Step 2: Run cross validation to determine best model size
 
@@ -442,17 +390,6 @@ By default, we partition the training/testing data randomly, but you can change 
 ```julia
 path = collect(1:20)
 num_folds = 3
-```
-
-
-
-
-    3
-
-
-
-
-```julia
 mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is for number of groups
 ```
 
@@ -495,7 +432,7 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
 
 ### Step 3: Run full model on the best estimated model size 
 
-Cross validation have declared that $k_{best} = 8$. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
+`cv_iht` finished in about a minute. Cross validation have declared that $k_{best} = 8$. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
 
 
 ```julia
@@ -508,7 +445,7 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
 
     IHT results:
     
-    Compute time (sec):     1.797137975692749
+    Compute time (sec):     1.7007958889007568
     Final loglikelihood:    -290.45093915185475
     Iterations:             33
     Max number of groups:   1
@@ -587,3 +524,8 @@ We invite users to experiment with additional functionalities. We explored a sig
 + Modeling SNP-SNP or SNP-environment interaction effects by explicitly including them in the nongenetic covariates `z`.
 + Doubly sparse projection (requires group information)
 + Weighted projections to favor certain SNPs (requires weight information)
+
+
+```julia
+
+```

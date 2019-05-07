@@ -6,9 +6,15 @@
 |-------------------|------------------|--------------------|
 | [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://biona001.github.io/MendelIHT.jl/latest) | [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) | [![codecov](https://codecov.io/gh/biona001/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/biona001/MendelIHT.jl) [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg?branch=master)](https://coveralls.io/github/biona001/MendelIHT.jl?branch=master) 
 
+If **Build Status** is `passing`, it means `MendelIHT` successfully installed and ran on `osx` and `linux` machines building Julia 1.0, 1.1, and potentially nightly. To ensure correct behavior of MendelIHT, press `]` and type:
+```
+(v1.0) pkg> test MendelIHT
+```
+to ensure all unit tests pass. 
+
 ## Installation
 
-Press `]` to enter package manager mode and type the following (after `pkg>`):
+Start Julia, press `]` to enter package manager mode, and type the following (after `pkg>`):
 ```
 (v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
 (v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
@@ -19,19 +25,20 @@ The order of installation is important!
 
 + [**Latest**](https://biona001.github.io/MendelIHT.jl/latest/)
 
-## Why use IHT for GWAS? 
+## Why Iterative Hard Thresholding for GWAS? 
 
 Because it is (figures taken from our manuscript, which is to be published):
 
-**Fast & Memory Efficient**
+### Fast & Memory Efficient
 
+Benchmark results on 1 million SNPs:
 ![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/benchmark/yes_debias.png)
 
-**Accurate**
+### Accurate
 
 ![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/accuracy.png)
 
-**Reliable**
+### Reliable
 
 ![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/iht_lasso_marginal.png)
 

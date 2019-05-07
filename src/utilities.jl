@@ -1,22 +1,54 @@
 """
     loglikelihood(y::AbstractVector, xb::AbstractVector, d::UnivariateDistribution)
 
-This function calculates the loglikelihood of observing `y` given `μ` = g^{-1}(xb). 
+This function calculates the loglikelihood of observing `y` given `μ` = g^{-1}(xb)
+and some distribution `d` from the exp family. Note that loglikelihood is the sum 
+of the logpdfs for each observation. For each logpdf, we 
 """
 function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
                        μ::AbstractVector{T}) where {T <: Float}
     logl = zero(T)
     ϕ = MendelIHT.deviance(d, y, μ) / length(y)
     @inbounds for i in eachindex(y)
-        logl += loglik_obs(d, y[i], μ[i], 1, ϕ) #currently IHT don't support weights
+        logl += loglik_obs(d, y[i], μ[i], 1, ϕ) #wt = 1 because only have 1 sample to estimate a given mean 
     end
     return logl
 end
-# loglikelihood(::Normal, y::AbstractVector, xb::AbstractVector) = -0.5 * sum(abs2, y .- xb)
-# loglikelihood(::Bernoulli, y::AbstractVector, xb::AbstractVector) = sum(y .* xb .- log.(1.0 .+ exp.(xb)))
-# loglikelihood(::Binomial, y::AbstractVector, xb::AbstractVector, n::AbstractVector) = sum(y .* xb .- n .* log.(1.0 .+ exp.(xb))) #not tested
-# loglikelihood(::Poisson, y::AbstractVector, xb::AbstractVector) = sum(y .* xb .- exp.(xb) .- lfactorial.(Int.(y)))
-# loglikelihood(::Gamma, y::AbstractVector, xb::AbstractVector, ν::AbstractVector) = sum((y .* xb .+ log.(xb)) .* ν) + (ν .- 1) .* log.(y) .- ν .* (log.(1 ./ ν)) .- log.(SpecialFunctions.gamma.(ν)) #not tested
+
+"""
+This function is taken from GLM.jl from: 
+https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
+
+Putting it here because it was not exported. 
+
+`wt`: the number of observations (y) used to estimate μ
+"""
+function loglik_obs end
+
+loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
+loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
+loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
+loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
+loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
+loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
+# We use the following parameterization for the Negative Binomial distribution:
+#    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
+# The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
+#    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
+# Hence, p = θ/(μ+θ)
+loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
+
+"""
+The deviance of a GLM can be evaluated as the sum of the squared deviance residuals. Calculation
+of sqared deviance residuals is accomplished by `devresid` which is implemented in GLM.jl
+"""
+function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
+    dev = zero(T)
+    @inbounds for i in eachindex(y)
+        dev += devresid(d, y[i], μ[i])
+    end
+    return dev
+end
 
 function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
     @inbounds for i in eachindex(μ)
@@ -37,54 +69,19 @@ function update_xb!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}) where 
 end
 
 """
-The deviance of a GLM can be evaluated as the sum of the squared deviance residuals. Calculation
-of sqared deviance residuals is accomplished by `devresid` which is implemented in GLM.jl
-"""
-function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
-    dev = zero(T)
-    @inbounds for i in eachindex(y)
-        dev += devresid(d, y[i], μ[i])
-    end
-    return dev
-end
-
-"""
     score = X^T * (y - g^{-1}(xb)) = [X^T * (y - g^{-1}(xb)) ; Z^T (y - g^{-1}(xb)))
 
 This function calculates the score (gradient) for different glm models. X stores the snpmatrix
 and Z stores intercept + other non-genetic covariates. The resulting score is stored in
 v.df and v.df2, respectively. 
-
 """
 function score!(v::IHTVariable{T}, x::SnpBitMatrix{T}, z::AbstractMatrix{T},
-    y :: AbstractVector{T}) where {T <: Float}
+    y::AbstractVector{T}) where {T <: Float}
     @inbounds for i in eachindex(y)
         v.r[i] = y[i] - v.μ[i]
     end
     At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
 end
-
-"""
-This function is taken from GLM.jl from : 
-
-https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
-
-Putting it here because it was not exported.
-"""
-function loglik_obs end
-
-loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
-loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
-loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
-loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
-loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
-loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
-# We use the following parameterization for the Negative Binomial distribution:
-#    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
-# The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
-#    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
-# Hence, p = θ/(μ+θ)
-loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
@@ -128,10 +125,10 @@ the score as nonzero components of b. This function set v.idx = 1 for those indi
 group. 
 """
 function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::Matrix{T},
-                           y::Vector{T}, d::UnivariateDistribution,l::Link, J::Int, 
+                           y::Vector{T}, d::UnivariateDistribution, l::Link, J::Int, 
                            k::Int) where {T <: Float}
 
-    # # update mean vector and use them to compute score (gradient)
+    # update mean vector and use them to compute score (gradient)
     update_μ!(v.μ, v.xb + v.zc, l)
     score!(v, xbm, z, y)
 
@@ -177,7 +174,7 @@ end
 This function returns true if backtracking condition is met. Currently, backtracking condition
 includes either one of the following:
     1. New loglikelihood is smaller than the old one
-    2. Current backtrack exceeds maximum allowed backtracking (default = 3)
+    2. Current backtrack (`η_step`) exceeds maximum allowed backtracking (`nstep`, default = 3)
 
 Note for Posison, NegativeBinomial, and Gamma, we require model coefficients to be 
 "small" to prevent loglikelihood blowing up in first few iteration. This is accomplished 
@@ -188,7 +185,11 @@ function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) wh
 end
 
 """
-Compute the standard deviation of a SnpArray in place. Note this function assumes all SNPs 
+    std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T})
+
+Compute the standard error of each columns of a SnpArray in place. 
+
+`mean_vec` stores the mean for each SNP. Note this function assumes all SNPs 
 are not missing. Otherwise, the inner loop should only add if data not missing.
 """
 function std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T}) where {T <: Float}
@@ -205,6 +206,50 @@ function std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T}) where {T <: Float}
         std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
     end
     return std_vector
+end
+
+"""
+    standardize!(z::Matrix{Float64})
+
+Standardizes each column of `z` to mean 0 and variance 1. Make sure you 
+do not standardize the intercept. 
+"""
+@inline function standardize!(z::AbstractMatrix{Float64})
+    n, q = size(z)
+    μ = _mean(z)
+    σ = _std(z, μ)
+
+    @inbounds for j in 1:q
+        @simd for i in 1:n
+            z[i, j] = (z[i, j] - μ[j]) * σ[j]
+        end
+    end
+end
+
+@inline function _mean(z::AbstractMatrix{Float64})
+    n, q = size(z)
+    μ = zeros(q)
+    @inbounds for j in 1:q
+        tmp = 0.0
+        @simd for i in 1:n
+            tmp += z[i, j]
+        end
+        μ[j] = tmp / n
+    end
+    return μ
+end
+
+function _std(z::AbstractMatrix{Float64}, μ::Vector{Float64})
+    n, q = size(z)
+    σ = zeros(q)
+
+    @inbounds for j in 1:q
+        @simd for i in 1:n
+            σ[j] += (z[i, j] - μ[j])^2
+        end
+        σ[j] = 1.0 / sqrt(σ[j] / (n - 1))
+    end
+    return σ
 end
 
 """
@@ -265,8 +310,13 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
 end
 
 """
-Calculates the prior weight based on minor allele frequencies. Returns an array 
-with weights w_i = 1 / (2 sqrt(p_i (1 - p_i))) ∈ (1, ∞) where p is maf of allele i. 
+    maf_weights(x::SnpArray; max_weight::T = Inf)
+
+Calculates the prior weight based on minor allele frequencies. 
+
+Returns an array of weights where 
+    ```w[i] = 1 / (2 * sqrt(p[i] (1 - p[i]))) ∈ (1, ∞)```
+here `p` is the minor allele frequency computed by `maf()` in SnpArrays. 
 """
 function maf_weights(x::SnpArray; max_weight::T = Inf) where {T <: Float}
     p = maf(x)
@@ -344,6 +394,8 @@ function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMat
 end
 
 """
+    initialize_beta!(v::IHTVariable, y::AbstractVector, x::SnpArray, d::UnivariateDistribution, l::Link)
+
 When initilizing the model β, for each covariate we fit a bivariate regression with 
 itself and the intercept. Fitting is done using scoring (newton) algorithm in GLM.jl. 
 The average of the intercept over all fits is used as the its initial guess. 

@@ -1022,3 +1022,116 @@ compare_model = DataFrame(
 compare_model = DataFrame(
     true_c      = true_c[1:2], 
     estimated_c = result.c[1:2])
+
+
+
+
+
+using BenchmarkTools
+using Random
+
+function test(z::Matrix{Float64})
+    for i in 2:size(z, 2)
+        col_mean = mean(z[:, i])
+        col_std  = std(z[:, i])
+        z[:, i] .= (z[:, i] .- col_mean) ./ col_std
+    end
+end
+#memory estimate:  23.23 MiB
+#allocs estimate:  2997
+#median time:      8.278 ms (26.30% GC)
+
+function test2(z::Matrix{Float64})
+    n, q = size(z)
+    for j in 2:q
+        μ = 0.0
+        for i in 1:n
+            μ += z[i, j]
+        end
+        μ /= n
+        σ = 0.0
+        for i in 1:n
+            σ += (z[i, j] - μ)^2
+        end
+        σ = sqrt(σ / (n - 1))
+        for i in 1:n
+            z[i, j] = (z[i, j] - μ) / σ
+        end
+    end
+end
+#memory estimate:  0 bytes
+#allocs estimate:  0
+#median time:      5.629 ms (0.00% GC)
+
+function test3(z::Matrix{Float64})
+    n, q = size(z)
+    @inbounds for j in 2:q
+        μ = 0.0
+        @simd for i in 1:n
+            μ += z[i, j]
+        end
+        μ /= n
+        σ = 0.0
+        for i in 1:n
+            σ += (z[i, j] - μ)^2
+        end
+        σ = sqrt(σ / (n - 1))
+        for i in 1:n
+            z[i, j] = (z[i, j] - μ) / σ
+        end
+    end
+end
+#memory estimate:  0 bytes
+#allocs estimate:  0
+#median time:      3.289 ms (0.00% GC)
+
+@inline function test4(z::Matrix{Float64})
+    n, q = size(z)
+    μ = _mean(z)
+    σ = _std(z, μ)
+
+    @inbounds for j in 1:q
+        @simd for i in 1:n
+            z[i, j] = (z[i, j] - μ[j]) * σ[j]
+        end
+    end
+end
+#memory estimate:  15.88 KiB
+#allocs estimate:  2
+#median time:      1.918 ms (0.00% GC)
+
+@inline function _mean(z::Matrix{Float64})
+    n, q = size(z)
+    μ = zeros(q)
+    @inbounds for j in 1:q
+        tmp = 0.0
+        @simd for i in 1:n
+            tmp += z[i, j]
+        end
+        μ[j] = tmp / n
+    end
+    return μ
+end
+
+function _std(z::Matrix{Float64}, μ::Vector{Float64})
+    n, q = size(z)
+    σ = zeros(q)
+
+    @inbounds for j in 1:q
+        @simd for i in 1:n
+            σ[j] += (z[i, j] - μ[j])^2
+        end
+        σ[j] = 1.0 / sqrt(σ[j] / (n - 1))
+    end
+    return σ
+end
+@benchmark _std(z, μ) setup=(z=rand(1000, 1000), μ = _mean(z))
+@benchmark _mean(z) setup=(z=rand(1000, 1000))
+
+Random.seed!(2019)
+@benchmark test(z) setup=(z=rand(1000, 1000))
+@benchmark test2(z) setup=(z=rand(1000, 1000))
+@benchmark test3(z) setup=(z=rand(1000, 1000))
+@benchmark test4(z) setup=(z=rand(1000, 1000))
+@benchmark standardize!(@view(z[:, 2:end])) setup=(z=rand(1000, 1000))
+

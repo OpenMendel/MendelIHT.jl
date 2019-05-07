@@ -1,6 +1,4 @@
 function test_data()
-   	Random.seed!(1111)
-
 	x, = simulate_random_snparray(1000, 1000, undef)
 	z = ones(1000, 1)
 	y = rand(1000)
@@ -79,6 +77,7 @@ end
 end
 
 @testset "update_xb! and check_covariate_supp!" begin
+   	Random.seed!(1111)
 	x, z, y, v = test_data()
     v.idx[1:10] .= trues(10)
     v.b .= rand(1000)
@@ -97,7 +96,36 @@ end
     @test all(abs.(v.b) .<= 30)
 end
 
+@testset "score!" begin
+    # Not sure how to "really" test this function, so I'm throwing in a lot of input/outputs
+    # as they are calculated right now, because the code seems to work well
+   	
+   	Random.seed!(1993)
+   	(x, z, y, v) = test_data()
+	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+	score!(v, xbm, z, y)
+
+	@test v.df[1:3] == [8.057330896198419; -2.229495636684423; 9.948528223937274]
+	@test v.df2[1] == 500.8665816573597
+
+   	(x, z, y, v) = test_data()
+	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+	score!(v, xbm, z, y)
+
+	@test v.df[1:3] == [-12.569757729532215; 8.237144382138629; 9.625154193038197]
+	@test v.df2[1] == 503.8433996263735
+
+   	(x, z, y, v) = test_data()
+	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+	score!(v, xbm, z, y)
+
+	@test v.df[1:3] == [-2.2634046444623226; -5.266454260596382; -1.5449038662162529]
+	@test v.df2[1] == 507.55935638764254
+end
+
 @testset "_iht_gradstep" begin
+   	Random.seed!(1111)
+
 	x, z, y, v = test_data()
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
@@ -123,6 +151,7 @@ end
 	J = 1
 	k = 10
 
+   	Random.seed!(1111)
 	x, z, y, v = test_data()
 	v.idx[1:10] .= trues(10)
 	MendelIHT._choose!(v, J, k)
@@ -262,8 +291,9 @@ end
 end
 
 @testset "save_prev!" begin
+   	Random.seed!(1111)
 	x, z, y, v = test_data()
-	
+
 	v.b .= rand(1000)
 	v.xb .= rand(1000)
 	v.idx .= bitrand(1000)
@@ -282,17 +312,43 @@ end
 end
 
 @testset "iht_stepsize" begin
-    
-end
+    # Not sure how to "really" test this function, so I'm throwing in a lot of input/outputs
+    # as they are calculated right now, because the code seems to work well
 
-@testset "Linear algebras" begin
-    
-end
+    Random.seed!(1234)
+    d = Normal()
+    x, z, y, v = test_data()
+    v.df .= rand(1000)
+    v.xk .= rand(1000, 9)
+    v.μ .= rand(1000)
+    v.idx[1:9] .= trues(9)
 
-@testset "initialize_beta!" begin
-    
-end
+    @test MendelIHT.iht_stepsize(v, z, d) == 0.0006414336637728858
 
-@testset "initialize_glm_object" begin
-    
+    d = Poisson()
+    x, z, y, v = test_data()
+    v.df .= rand(1000)
+    v.xk .= rand(1000, 9)
+    v.μ .= rand(1000)
+    v.idx[1:9] .= trues(9)
+
+    @test MendelIHT.iht_stepsize(v, z, d) == 0.0010994366974406494
+
+    d = NegativeBinomial()
+    x, z, y, v = test_data()
+    v.df .= rand(1000)
+    v.xk .= rand(1000, 9)
+    v.μ .= rand(1000)
+    v.idx[1:9] .= trues(9)
+
+    @test MendelIHT.iht_stepsize(v, z, d) == 0.0006083627295116991
+
+    d = Bernoulli()
+    x, z, y, v = test_data()
+    v.df .= rand(1000)
+    v.xk .= rand(1000, 9)
+    v.μ .= rand(1000)
+    v.idx[1:9] .= trues(9)
+
+    @test MendelIHT.iht_stepsize(v, z, d) == 0.002972243353525584
 end
