@@ -91,7 +91,7 @@ end
 
     MendelIHT.update_xb!(v, x, z)
 
-    @test all(v.xb .== tmp_x * v.b[1:10])
+    @test all(v.xb .≈ tmp_x * v.b[1:10])
     @test all(v.zc .== 0.0)
     @test all(abs.(v.b) .<= 30)
 end
@@ -105,22 +105,22 @@ end
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	score!(v, xbm, z, y)
 
-	@test v.df[1:3] == [8.057330896198419; -2.229495636684423; 9.948528223937274]
-	@test v.df2[1] == 500.8665816573597
+	@test all(v.df[1:3] .≈ [8.057330896198419; -2.229495636684423; 9.948528223937274])
+	@test v.df2[1] ≈ 500.8665816573597
 
    	(x, z, y, v) = test_data()
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	score!(v, xbm, z, y)
 
-	@test v.df[1:3] == [-12.569757729532215; 8.237144382138629; 9.625154193038197]
-	@test v.df2[1] == 503.8433996263735
+	@test all(v.df[1:3] .≈ [-12.569757729532215; 8.237144382138629; 9.625154193038197])
+	@test v.df2[1] ≈ 503.8433996263735
 
    	(x, z, y, v) = test_data()
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	score!(v, xbm, z, y)
 
-	@test v.df[1:3] == [-2.2634046444623226; -5.266454260596382; -1.5449038662162529]
-	@test v.df2[1] == 507.55935638764254
+	@test all(v.df[1:3] .≈ [-2.2634046444623226; -5.266454260596382; -1.5449038662162529])
+	@test v.df2[1] ≈ 507.55935638764254
 end
 
 @testset "_iht_gradstep" begin
@@ -139,12 +139,12 @@ end
 
 	MendelIHT._iht_gradstep(v, η, J, k, [v.df; v.df2]) # this should keep 1 * 2 = 2 elements
 
-	@test v.b[1] == 0.0 # because first entry is smallest, it should be set to 0
-	@test v.b[2] == (b + η*df)[2]
-	@test v.b[3] == (b + η*df)[3]
-	@test all(v.b[4:end] .== 0.0)
-	@test all(v.c .== 0.0)
-	@test all(v.df .== df)
+	@test v.b[1] ≈ 0.0 # because first entry is smallest, it should be set to 0
+	@test v.b[2] ≈ (b + η*df)[2]
+	@test v.b[3] ≈ (b + η*df)[3]
+	@test all(v.b[4:end] .≈ 0.0)
+	@test all(v.c .≈ 0.0)
+	@test all(v.df .≈ df)
 end
 
 @testset "_choose!" begin
@@ -281,12 +281,12 @@ end
 
 	@test eltype(p) <: AbstractFloat
 	@test all(p .>= 1.0)
-	@test p[1] == 1 / (2.0sqrt(m[1] * (1 - m[1])))
-	@test p[2] == 1 / (2.0sqrt(m[2] * (1 - m[2])))
+	@test p[1] ≈ 1 / (2.0sqrt(m[1] * (1 - m[1])))
+	@test p[2] ≈ 1 / (2.0sqrt(m[2] * (1 - m[2])))
 
 	p = maf_weights(x, max_weight=2.0)
 	@test all(1.0 .<= p .<= 2)
-	@test p[1] == 1 / (2.0sqrt(m[1] * (1 - m[1])))
+	@test p[1] ≈ 1 / (2.0sqrt(m[1] * (1 - m[1])))
 	@test p[15] == 2.0
 end
 
@@ -323,7 +323,7 @@ end
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d) == 0.0006414336637728858
+    @test MendelIHT.iht_stepsize(v, z, d) ≈ 0.0006414336637728858
 
     d = Poisson()
     x, z, y, v = test_data()
@@ -332,7 +332,7 @@ end
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d) == 0.0010994366974406494
+    @test MendelIHT.iht_stepsize(v, z, d) ≈ 0.0010994366974406494
 
     d = NegativeBinomial()
     x, z, y, v = test_data()
@@ -341,7 +341,7 @@ end
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d) == 0.0006083627295116991
+    @test MendelIHT.iht_stepsize(v, z, d) ≈ 0.0006083627295116991
 
     d = Bernoulli()
     x, z, y, v = test_data()
@@ -350,5 +350,5 @@ end
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d) == 0.002972243353525584
+    @test MendelIHT.iht_stepsize(v, z, d) ≈ 0.002972243353525584
 end
