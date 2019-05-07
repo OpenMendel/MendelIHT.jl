@@ -1,235 +1,298 @@
-Random.seed!(2018)
+function test_data()
+   	Random.seed!(1111)
 
-# function test_data()
-# 	# dataset with 2 SNP and 6 people. The SNP matrix is 6x3 (with column of intercept)
-# 	x = SnpArray("test.bed")
-# 	z = readdlm("test_cov.txt", Float64)
-# 	y = CSV.read("test.fam", delim = ' ', header = false)
-# 	y = convert(Array{Float64,1}, y[:, 6])
-# 	J = 1
-# 	k = 1
-# 	v = IHTVariables(x, z, y, J, k)
-# 	return (x, z, y, J, k, v)
-# end
+	x, = simulate_random_snparray(1000, 1000, undef)
+	z = ones(1000, 1)
+	y = rand(1000)
+    v = IHTVariables(x, z, y, 1, 10, Int[], Float64[]) #J = 1, k = 10
 
-# function gwas1_data()
-# 	# dataset with 10000 SNP and 2200 people. The SNP matrix is 2200x10000
-# 	x = SnpArray("gwas 1 data") 
-# 	z = readdlm("gwas 1 cov.txt", Float64)
-# 	y = CSV.read("gwas 1 data_kevin.fam", delim = ',', header = false) # same file, comma separated
-# 	y = convert(Array{Float64,1}, y[:, 6])
-# 	J = 1
-# 	k = 10
-# 	v = IHTVariables(x, z, y, J, k)
-# 	return (x, z, y, J, k, v)
-# end
-
-# @testset "initilize IHTVariables" begin
-# 	(x, z, y, J, k, v) = test_data()
-
-# 	#J, k must be a non-zero integer
-# 	@test_throws(ArgumentError, IHTVariables(x, z, y, -1, 2))
-# 	@test_throws(MethodError, IHTVariables(x, z, y, 1.1, 2))
-# 	@test_throws(MethodError, IHTVariables(x, z, y, NaN, 2))
-# 	@test_throws(MethodError, IHTVariables(x, z, y, missing, 2))
-# 	@test_throws(MethodError, IHTVariables(x, z, y, Inf, 2))
-# 	@test_throws(ArgumentError, IHTVariables(x, z, y, 1, -1))
-# 	@test_throws(MethodError, IHTVariables(x, z, y, 1, 1.1))
-# 	@test_throws(MethodError, IHTVariables(x, z, y, 1, NaN))
-# 	@test_throws(MethodError, IHTVariables(x, z, y, 1, missing))
-# 	@test_throws(MethodError, IHTVariables(x, z, y, 1, Inf))
-
-# 	#Different types of inputs for IHTVariables(x, y, J, k) is
-# 	@test typeof(v) == IHTVariable{eltype(y), typeof(y)}
-# 	@test typeof(x) == SnpData || typeof(x) <: SnpArray
-
-# 	@test size(v.b)    == (2,)
-# 	@test size(v.b0)   == (2,)
-# 	@test size(v.xb)   == (6,)
-# 	@test size(v.xb0)  == (6,)
-# 	@test size(v.xk)   == (6, 0)
-# 	@test size(v.gk)   == (0,)
-# 	@test size(v.xgk)  == (6,)
-# 	@test size(v.idx)  == (2,)
-# 	@test size(v.idx0) == (2,)
-# 	@test size(v.r)	   == (6,)
-# 	@test size(v.df)   == (2,)
-# 	@test size(v.df2)  == (1,)
-# 	@test size(v.c)    == (1,)
-# 	@test size(v.c0)   == (1,)
-# 	@test size(v.zc)   == (6,)
-# 	@test size(v.zc0)  == (6,)
-# 	@test size(v.zdf2) == (6,)
-# 	@test size(v.group)== (3,)
-
-# 	@test typeof(v.b)    == Array{Float64, 1}
-# 	@test typeof(v.b0)   == Array{Float64, 1}
-# 	@test typeof(v.xb)   == Array{Float64, 1}
-# 	@test typeof(v.xb0)  == Array{Float64, 1}
-# 	@test typeof(v.xk)   == SnpArray{2}
-# 	@test typeof(v.gk)   == Array{Float64, 1}
-# 	@test typeof(v.xgk)  == Array{Float64, 1}
-# 	@test typeof(v.idx)  == BitArray{1}
-# 	@test typeof(v.idx0) == BitArray{1}
-# 	@test typeof(v.r)	 == Array{Float64, 1}
-# 	@test typeof(v.df)   == Array{Float64, 1}
-# 	@test typeof(v.df2)  == Array{Float64, 1}
-# 	@test typeof(v.c)    == Array{Float64, 1}
-# 	@test typeof(v.c0)   == Array{Float64, 1}
-# 	@test typeof(v.zc)   == Array{Float64, 1}
-# 	@test typeof(v.zc0)  == Array{Float64, 1}
-# 	@test typeof(v.zdf2) == Array{Float64, 1}
-# 	@test typeof(v.group)== Array{Int64, 1}
-# end
-
-# @testset "init_iht_indices!" begin
-# 	(x, z, y, J, k, v) = gwas1_data()
-
-# 	# if v.idx is zero vector (i.e. first iteration of L0_reg), running _iht_indices should 
-# 	# set v.idx = 1 for the k largest terms in v.df 
-# 	v.df[1:10000] .= rand(10000)
-# 	p = sortperm(v.df, rev = true)
-# 	top_k_index = p[1:10]
-# 	IHT.init_iht_indices!(v, J, k)
-
-# 	@test all(v.idx[top_k_index] .== 1)
-# end
-
-# @testset "project_k!" begin
-#     x = rand(100000)
-#     k = 100
-#     p = sortperm(x, rev = true)
-#     top_k_index = p[1:k]
-# 	last_k_index = p[k+1:end]
-# 	IHT.project_k!(x, k)
-
-# 	@test all(x[top_k_index] .!= 0.0)
-# 	@test all(x[last_k_index] .== 0.0)
-# end
-
-# @testset "use_A2_as_minor_allele" begin
-# 	(x, z, y, J, k, v) = test_data()
-#     result = use_A2_as_minor_allele(x)
-#     answer = [[0.0 1.0]; [1.0 1.0]; [2.0 0.0]; [1.0 2.0]; [2.0 1.0]; [2.0 2.0]]
-
-#     @test all(result .== answer)
-# end
-
-# @testset "std_reciprocal" begin
-# 	# first compute the correct answer by converting each column to floats and call std() directly
-# 	x       = SnpArray("gwas 1 data")
-# 	n, p    = size(x)
-# 	storage = zeros(n)
-# 	answer  = zeros(p)
-#     for i in 1:p
-#     	copy!(storage, view(x, :, i))
-#         answer[i] = std(storage)
-#     end
-#     answer .= 1.0 ./ answer
-
-#     # next compute the mean of snps since we need it for std_reciprocal()
-#     mean_vec = zeros(p)
-#     maf, minor_allele, missings_per_snp, missings_per_person = summarize(x)
-#     for i in 1:p
-#         minor_allele[i] ? mean_vec[i] = 2.0 - 2.0maf[i] : mean_vec[i] = 2.0maf[i]
-#     end
-#     std_vector = std_reciprocal(x, mean_vec)
-
-#     @test all(std_vector .≈ answer)
-# end
-
-# @testset "project_group_sparse!" begin
-# 	srand(1914) 
-
-#     m, n, k = 2, 3, 20
-# 	y = randn(k);
-# 	group = rand(1:5, k);
-# 	x = copy(y)
-# 	project_group_sparse!(x, group, m, n)
-
-# 	# view result easily:
-# 	# for i = 1:length(x)
-# 	#     println(i,"  ",group[i],"  ",y[i],"  ",x[i])
-# 	# end
-
-# 	non_zero_position = find(x)
-# 	non_zero_entries = x[non_zero_position]
-# 	@test all(non_zero_entries .== y[non_zero_position])
-# 	@test all(non_zero_position .== [10; 12; 13; 14; 15; 18])
-# 	@test all(non_zero_entries .≈ [-0.06177816577797742; -0.6328210040976621;
-# 								   -0.5746320293057241; 0.9225538732662374;
-# 								   2.4060215839929158; 2.9499620312194383])
-
-# 	# test project_group_sparse! is equivalent to project_k! when max group = 1
-# 	m, n, k = 1, 10, 100000
-# 	group = ones(Int, k) #everybody is in the same group
-# 	y = randn(k)
-# 	x = copy(y)
-# 	project_k!(x, n)
-# 	project_group_sparse!(y, group, m, n)
-# 	@test all(x .== y)
-
-# end
-
-# @testset "_iht_omega" begin
-# 	(x, z, y, J, k, v) = test_data()
-# 	v.b    = [0.0, 0.334712]
-# 	v.b0   = [0.0, 0.0]
-# 	v.c[1] = 1.51177394
-# 	v.c0[1]= 0.0
-# 	v.xb   = [1.43767, 1.43767, 0.993028, 1.88231, 1.43767, 1.88231]
-# 	v.xb0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-# 	ω_top, ω_bot = IHT._iht_omega(v)
-
-# 	@test round(ω_top, 4) == 2.3975
-# 	@test round(ω_bot, 4) == 14.273
-# end
-
-@testset "check_covariate_supp!" begin
+	return (x, z, y, v)
 end
 
-@testset "_iht_backtrack" begin
+@testset "loglikelihood" begin
+	Random.seed!(2019)
+
+    d = Normal()
+    μ = rand(1000000)
+    y = [rand(Normal(μi)) for μi in μ]	#simulate deviance ϕ ≈ 1
+
+    @test isapprox(MendelIHT.loglikelihood(d, y, μ), sum(logpdf.(Normal.(μ), y)), atol=1e-1)
+
+    d = Bernoulli()
+    p = rand(10000)
+    y = rand(0.0:1.0, 10000)
+
+    @test isapprox(MendelIHT.loglikelihood(d, y, p), sum(logpdf.(Bernoulli.(p), y)), atol=1e-8)
+
+    d = Poisson()
+    λ = rand(10000)
+    y = Float64.(rand(1:100, 10000))
+
+    @test isapprox(MendelIHT.loglikelihood(d, y, λ), sum(logpdf.(Poisson.(λ), y)), atol=1e-8)
+
+    d = NegativeBinomial()
+    p = rand(1000000)
+    r = ones(1000000)
+    y = Float64.([rand(NegativeBinomial(1.0, p_i)) for p_i in p])
+
+    @test isapprox(MendelIHT.loglikelihood(d, y, p), sum(logpdf.(NegativeBinomial.(r, r ./ (p .+ r)), y)), atol=1e-6)
+end
+
+@testset "deviance" begin
+	# Need more test other than normal distribution!!
+	d = Normal
+	y = randn(1000)
+	μ = randn(1000)
+    @test sum(abs2, y .- μ) ≈ MendelIHT.deviance(d(), y, μ)
+end
+
+@testset "update_μ!" begin
+	Random.seed!(2019)
+
+    d = Normal
+    μ = zeros(1000)
+    xb = rand(1000)
+    MendelIHT.update_μ!(μ, xb, canonicallink(d()))
+
+    @test all(isapprox(μ, xb, atol=1e-8))
+
+    d = Bernoulli
+    p = zeros(1000)
+    xb = rand(1000)
+    MendelIHT.update_μ!(p, xb, canonicallink(d()))
+
+    @test all(isapprox(p, 1 ./ (1 .+ exp.(-1.0 .* xb)), atol=1e-8))
+
+    d = Poisson
+    λ = zeros(1000)
+    xb = rand(1000)
+    MendelIHT.update_μ!(λ, xb, canonicallink(d()))
+
+    @test all(isapprox(λ, (exp.(xb)), atol=1e-8))
+
+    d = NegativeBinomial
+    p = zeros(1000)
+    xb = rand(1000)
+    MendelIHT.update_μ!(p, xb, LogLink()) #use loglink for NegativeBinomial
+
+    @test all(isapprox(p, exp.(xb), atol=1e-8))
+end
+
+@testset "update_xb! and check_covariate_supp!" begin
+	x, z, y, v = test_data()
+    v.idx[1:10] .= trues(10)
+    v.b .= rand(1000)
+	tmp_x = convert(Matrix{Float64}, @view(x[:, v.idx]), center=true, scale=true)
+
+    @test size(v.xk, 2) == 9 #IHTVariable is initialized to have k - 1 columns
+
+	MendelIHT.check_covariate_supp!(v)
+
+	@test size(v.xk, 2) == 10 
+
+    MendelIHT.update_xb!(v, x, z)
+
+    @test all(v.xb .== tmp_x * v.b[1:10])
+    @test all(v.zc .== 0.0)
+    @test all(abs.(v.b) .<= 30)
 end
 
 @testset "_iht_gradstep" begin
+	x, z, y, v = test_data()
+	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+	v.b[1:3] .= [1; 2; 3]
+	v.df[1:3] .= [1; 2; 3]
+	b = copy(v.b)
+	df = copy(v.df)
+	J = 1
+	k = 2
+	η = 0.9
+
+	MendelIHT._iht_gradstep(v, η, J, k, [v.df; v.df2]) # this should keep 1 * 2 = 2 elements
+
+	@test v.b[1] == 0.0 # because first entry is smallest, it should be set to 0
+	@test v.b[2] == (b + η*df)[2]
+	@test v.b[3] == (b + η*df)[3]
+	@test all(v.b[4:end] .== 0.0)
+	@test all(v.c .== 0.0)
+	@test all(v.df .== df)
 end
 
-@testset "calculate_snp_weights" begin
+@testset "_choose!" begin
+	J = 1
+	k = 10
+
+	x, z, y, v = test_data()
+	v.idx[1:10] .= trues(10)
+	MendelIHT._choose!(v, J, k)
+
+	@test all(v.idx[1:10] .== trues(10))
+	@test v.idc[1] == false
+
+	v.idx[1:11] .= trues(11)
+	MendelIHT._choose!(v, J, k)
+
+	@test sum(v.idx[1:11]) == 10
+
+	x, z, y, v = test_data()
+	v.idc .= true
+	MendelIHT._choose!(v, J, 1)
+
+	@test v.idc[1] == true
+	@test sum(v.idc) == 1
+	@test sum(v.idx) == 0
+
+	x, z, y, v = test_data()
+	v.idc .= true
+	v.idx[1:10] .= trues(10)
+	MendelIHT._choose!(v, J, k)
+
+	@test sum(v.idx) + sum(v.idc) == 10
+end
+
+@testset "_iht_backtrack" begin
+	@test MendelIHT._iht_backtrack_(-150.0, -100.0, 1, 10) == true
+	@test MendelIHT._iht_backtrack_(-50.0, -100.0, 1, 10) == false
+	@test MendelIHT._iht_backtrack_(150.0, 100.0, 1, 10) == false
+	@test MendelIHT._iht_backtrack_(50.0, 100.0, 1, 10) == true
+	@test MendelIHT._iht_backtrack_(50.0, 100.0, 0, 3) == true
+	@test MendelIHT._iht_backtrack_(50.0, 100.0, 11, 10) == false
+	@test MendelIHT._iht_backtrack_(50.0, 100.0, 11, 11) == false
+end
+
+@testset "std_reciprocal" begin
+	Random.seed!(2019)
+
+	# first compute the correct answer by converting each column to floats and call std() directly
+	n, p = 10000, 10000
+	x, = simulate_random_snparray(n, p, undef)
+	storage = zeros(n)
+	answer  = zeros(p)
+    for i in 1:p
+    	copyto!(storage, @view(x[:, i]))
+        answer[i] = std(storage)
+    end
+    answer .= 1.0 ./ answer
+
+    # now compute the std of ecah snp
+	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    μ = 2.0maf(x)
+    std_vector = std_reciprocal(xbm, μ)
+
+    @test all(isapprox.(std_vector, answer, atol=1e-3))
+end
+
+@testset "standardize!" begin
+	Random.seed!(1017)
+    z = rand(1000, 1000)
+    standardize!(z)
+    @test isapprox(0.0, mean(z[:, 1]), atol=1e-8)
+    @test isapprox(0.0, mean(z[:, 10]), atol=1e-8)
+    @test isapprox(0.0, mean(z[:, 100]), atol=1e-8)
+    @test isapprox(1.0, std(z[:, 1]), atol=1e-8)
+    @test isapprox(1.0, std(z[:, 10]), atol=1e-8)
+    @test isapprox(1.0, std(z[:, 100]), atol=1e-8)
+
+    z = rand(1000, 1000)
+    col1_μ = mean(z[:, 1])
+    col1_σ = std(z[:, 1])
+    standardize!(@view(z[:, 2:end]))
+    @test isapprox(col1_μ, mean(z[:, 1]), atol=1e-8)
+    @test isapprox(0.0, mean(z[:, 10]), atol=1e-8)
+    @test isapprox(0.0, mean(z[:, 100]), atol=1e-8)
+    @test isapprox(col1_σ, std(z[:, 1]), atol=1e-8)
+    @test isapprox(1.0, std(z[:, 10]), atol=1e-8)
+    @test isapprox(1.0, std(z[:, 100]), atol=1e-8)
+end
+
+@testset "project_k!" begin
+    x = rand(100000)
+    k = 100
+    p = sortperm(x, rev = true)
+    top_k_index = p[1:k]
+	last_k_index = p[k+1:end]
+	project_k!(x, k)
+
+	@test all(x[top_k_index] .!= 0.0)
+	@test all(x[last_k_index] .== 0.0)
+end
+
+@testset "project_group_sparse!" begin
+	Random.seed!(1914) 
+
+    m, n, k = 2, 3, 10 #2 active groups, 3 active predictors per group, 10 total predictors
+	y = randn(k);
+	group = rand(1:5, k);
+	x = copy(y)
+	project_group_sparse!(x, group, m, n)
+
+	non_zero_position = findall(!iszero, x)
+	non_zero_entries = x[non_zero_position]
+	@test all(non_zero_entries .== y[non_zero_position])
+	@test all(non_zero_position .== [2; 6; 8; 10])
+	@test all(non_zero_entries .≈ [0.44267476307372516; -1.4199877945915547;
+ 								  -0.8857806660404711; -0.06177816577797742;])
+
+	# test project_group_sparse! is equivalent to project_k! when max group = 1
+	m, n, k = 1, 10, 100000
+	group = ones(Int, k) #everybody is in the same group
+	y = randn(k)
+	x = copy(y)
+	project_k!(x, n)
+	project_group_sparse!(y, group, m, n)
+	@test all(x .== y)
+end
+
+@testset "maf_weights" begin
+    Random.seed!(33)
+    x, = simulate_random_snparray(1000, 10000, undef)
+    m = maf(x)
+    p = maf_weights(x)
+
+	@test eltype(p) <: AbstractFloat
+	@test all(p .>= 1.0)
+	@test p[1] == 1 / (2.0sqrt(m[1] * (1 - m[1])))
+	@test p[2] == 1 / (2.0sqrt(m[2] * (1 - m[2])))
+
+	p = maf_weights(x, max_weight=2.0)
+	@test all(1.0 .<= p .<= 2)
+	@test p[1] == 1 / (2.0sqrt(m[1] * (1 - m[1])))
+	@test p[15] == 2.0
 end
 
 @testset "save_prev!" begin
+	x, z, y, v = test_data()
+	
+	v.b .= rand(1000)
+	v.xb .= rand(1000)
+	v.idx .= bitrand(1000)
+	v.idc .= true
+	v.c .= rand()
+	v.zc .= rand(1000)
+
+	save_prev!(v)
+
+	@test all(v.b .== v.b0)
+	@test all(v.xb .== v.xb0)
+	@test all(v.idx .== v.idx0)
+	@test all(v.idc .== v.idc0)
+	@test all(v.c .== v.c0)
+	@test all(v.zc .== v.zc0)
 end
 
-# @testset "_iht_backtrack" begin
-#    (x, y, k, v) = gwas1_data()
-#    μ, ω = 1.0, 1.0
-#    @test IHT._iht_backtrack(v, ω, μ) == false
+@testset "iht_stepsize" begin
+    
+end
 
-#    μ, ω = 0.2, 0.3
-#    @test IHT._iht_backtrack(v, ω, μ) == true
+@testset "Linear algebras" begin
+    
+end
 
-#    μ, ω = 0.8, 0.792
-#    @test IHT._iht_backtrack(v, ω, μ) == false
+@testset "initialize_beta!" begin
+    
+end
 
-#    μ, ω = 0.5, 0.2
-#    @test IHT._iht_backtrack(v, ω, μ) == false
-
-#    μ, ω = 0.98, 1.0
-#    @test IHT._iht_backtrack(v, ω, μ) == true
-# end
-
-#@testset "_iht_gradstep" begin
-#    (x, y, k, v) = test_data()
-#    v.b .= rand(3)
-#    v.df .= rand(3)
-#    b = copy(v.b)
-#    df = copy(v.df)
-#    k = 2
-#    μ = 0.9
-#
-#    IHT._iht_gradstep(v, μ, k)
-#    @test v.b[1] == 0.0 # because first entry is smallest, it should be set to 0
-#    @test v.b[2] == (b + μ*df)[2]
-#    @test v.b[3] == (b + μ*df)[3]
-#end
+@testset "initialize_glm_object" begin
+    
+end
