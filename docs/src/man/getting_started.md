@@ -106,10 +106,6 @@ MendelIHT provides some simulation utilities that help users explore the functio
 ```
 
 ```@docs
-  simulate_rare_variants
-```
-
-```@docs
   make_bim_fam_files
 ```
 
@@ -140,3 +136,4 @@ MendelIHT additionally provides useful utilities that may be of interest to a fe
 ```@docs
   initialize_beta!
 ```
+

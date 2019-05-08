@@ -6,7 +6,7 @@ covariates `z` on a specific sparsity parameter `k`.
 
 One needs to construct a SnpBitMatrix type (xbm below) before running this function.
 
-Arguments:
+# Arguments:
 + `x`: A SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
 + `xbm`: The bitarray representation of `x`. This matrix is loaded in RAM and performs linear algebra. It's possible to set scale=false for xbm, especially when rare SNPs exist
 + `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
@@ -16,7 +16,7 @@ Arguments:
 + `d`: A distribution (e.g. Normal, Poisson)
 + `l`: A link function (e.g. Loglink, ProbitLink)
 
-Optional Arguments: 
+# Optional Arguments: 
 + `group` vector storing group membership
 + `weight` vector storing vector of weights containing prior knowledge on each SNP
 + `use_maf` indicates whether we want to scale the projection with minor allele frequencies (see paper)

@@ -7,12 +7,12 @@ where each SNP has ⫺5 (default) minor alleles.
 Note: if supplied minor allele frequency is extremely small, it could take a long time for 
 the simulation to generate samples where at least `min_ma` (defaults to 5) are present. 
 
-Arguments:
+# Arguments:
 - `n`: number of samples
 - `p`: number of SNPs
 - `s`: name of the simulated SnpArray that will be created on the current directory
 
-Optional Arguments:
+# Optional Arguments:
 - `mafs`: vector of desired minor allele freuqencies
 - `min_ma`: the minimum number of minor alleles that must be present for each SNP (defaults to 5)
 """
@@ -104,7 +104,7 @@ When the distribution is from Poisson, Gamma, or Negative Binomial, we simulate 
 to roughly ensure the mean of response `y` doesn't become too large. For other distributions,
 we choose `β ∼ N(0, 1)`. 
 
-#Arguments
+# Arguments
 - `x`: The SnpArray
 - `xbm`: SnpBitMatrix type of your SnpArray
 - `k`: the true number of predictors. 
@@ -156,7 +156,7 @@ end
 
 Makes 1 SNP (a column of `x`) correlate with SNPs in `location` with correlation coefficient roughly `ρ`.
 
-Arguments:
+# Arguments:
 - `x`: the snparray
 - `ρ`: correlation coefficient
 - `pos`: the position of the target SNP that everything would be correlated to
@@ -190,7 +190,7 @@ end
 
 Creates .bim and .bed files from a SnpArray. 
 
-Arguments:
+# Arguments:
 `x`: A SnpArray (i.e. `.bed` file on the disk) for which you wish to create corresponding `.bim` and `.fam` files.
 `name`: string that should match the `.bed` file (Do not include `.bim` or `.fam` extensions in `name`).
 `y`: Trait vector that will go in to the 6th column of `.fam` file. 

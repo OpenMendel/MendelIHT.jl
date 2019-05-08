@@ -38,6 +38,10 @@ using Statistics
 using BenchmarkTools
 ```
 
+    ┌ Info: Recompiling stale cache file /Users/biona001/.julia/compiled/v1.0/MendelIHT/eaqWB.ji for MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
+    └ @ Base loading.jl:1190
+
+
 ## Example 1: How to Import Data
 
 We use [SnpArrays.jl](https://openmendel.github.io/SnpArrays.jl/latest/) as backend to process genotype files. Internally, the genotype file is a memory mapped [SnpArray](https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1), which will not be loaded into RAM. If you wish to run `L0_reg`, you need to convert a SnpArray into a [SnpBitMatrix](https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1), which consumes $n \times p \times 2$ bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as an `Array{Float64, 2}`. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. 
@@ -260,7 +264,7 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
     
     IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
     
-    Compute time (sec):     0.5166158676147461
+    Compute time (sec):     0.5801961421966553
     Final loglikelihood:    -1406.8807653835697
     Iterations:             6
     Max number of groups:   1
@@ -445,7 +449,7 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
     
     IHT estimated 6 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     1.7932031154632568
+    Compute time (sec):     1.8014729022979736
     Final loglikelihood:    -290.45093915185475
     Iterations:             33
     Max number of groups:   1
@@ -559,21 +563,28 @@ yes_debias = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true);
 
 
 ```julia
-#clean up first
-rm("tmp.bed", force=true)
-
 compare_model = DataFrame(
     position    = correct_position,
     true_β      = true_b[correct_position], 
     no_debias_β = no_debias.beta[correct_position],
     yes_debias_β = yes_debias.beta[correct_position])
+@show compare_model;
 ```
 
-
-
-
-<table class="data-frame"><thead><tr><th></th><th>position</th><th>true_β</th><th>no_debias_β</th><th>yes_debias_β</th></tr><tr><th></th><th>Int64</th><th>Float64</th><th>Float64</th><th>Float64</th></tr></thead><tbody><p>10 rows × 4 columns</p><tr><th>1</th><td>2105</td><td>0.0155232</td><td>0.0</td><td>0.0</td></tr><tr><th>2</th><td>5852</td><td>0.0747323</td><td>0.0764579</td><td>0.0776816</td></tr><tr><th>3</th><td>9219</td><td>0.0233952</td><td>0.0</td><td>0.0</td></tr><tr><th>4</th><td>10362</td><td>-0.241167</td><td>-0.244755</td><td>-0.242612</td></tr><tr><th>5</th><td>15755</td><td>0.278812</td><td>0.281372</td><td>0.282154</td></tr><tr><th>6</th><td>21188</td><td>0.0540703</td><td>0.060669</td><td>0.0622104</td></tr><tr><th>7</th><td>21324</td><td>-0.216701</td><td>-0.222539</td><td>-0.220426</td></tr><tr><th>8</th><td>21819</td><td>-0.0331256</td><td>-0.0582902</td><td>-0.0602985</td></tr><tr><th>9</th><td>25655</td><td>0.0217997</td><td>0.0</td><td>0.0</td></tr><tr><th>10</th><td>29986</td><td>0.354062</td><td>0.359734</td><td>0.360543</td></tr></tbody></table>
-
+    compare_model = 10×4 DataFrame
+    │ Row │ position │ true_β     │ no_debias_β │ yes_debias_β │
+    │     │ Int64    │ Float64    │ Float64     │ Float64      │
+    ├─────┼──────────┼────────────┼─────────────┼──────────────┤
+    │ 1   │ 2105     │ 0.0155232  │ 0.0         │ 0.0          │
+    │ 2   │ 5852     │ 0.0747323  │ 0.0764579   │ 0.0776816    │
+    │ 3   │ 9219     │ 0.0233952  │ 0.0         │ 0.0          │
+    │ 4   │ 10362    │ -0.241167  │ -0.244755   │ -0.242612    │
+    │ 5   │ 15755    │ 0.278812   │ 0.281372    │ 0.282154     │
+    │ 6   │ 21188    │ 0.0540703  │ 0.060669    │ 0.0622104    │
+    │ 7   │ 21324    │ -0.216701  │ -0.222539   │ -0.220426    │
+    │ 8   │ 21819    │ -0.0331256 │ -0.0582902  │ -0.0602985   │
+    │ 9   │ 25655    │ 0.0217997  │ 0.0         │ 0.0          │
+    │ 10  │ 29986    │ 0.354062   │ 0.359734    │ 0.360543     │
 
 
 ### Compare Speed and Memory Usage
@@ -592,12 +603,12 @@ Now we illustrate that debiasing may dramatically reduce computational time (in 
       memory estimate:  7.44 MiB
       allocs estimate:  783
       --------------
-      minimum time:     9.561 s (0.03% GC)
-      median time:      9.652 s (0.00% GC)
-      mean time:        9.650 s (0.01% GC)
-      maximum time:     9.737 s (0.00% GC)
+      minimum time:     10.013 s (0.04% GC)
+      median time:      10.098 s (0.00% GC)
+      mean time:        10.085 s (0.01% GC)
+      maximum time:     10.144 s (0.00% GC)
       --------------
-      samples:          4
+      samples:          3
       evals/sample:     1
 
 
@@ -614,15 +625,21 @@ Now we illustrate that debiasing may dramatically reduce computational time (in 
       memory estimate:  15.53 MiB
       allocs estimate:  1610
       --------------
-      minimum time:     7.182 s (0.00% GC)
-      median time:      7.469 s (0.03% GC)
-      mean time:        7.402 s (0.02% GC)
-      maximum time:     7.678 s (0.03% GC)
+      minimum time:     7.816 s (0.00% GC)
+      median time:      7.855 s (0.02% GC)
+      mean time:        7.883 s (0.02% GC)
+      maximum time:     8.006 s (0.03% GC)
       --------------
-      samples:          5
+      samples:          4
       evals/sample:     1
 
 
+
+
+```julia
+#clean up
+rm("tmp.bed", force=true)
+```
 
 ## Other examples and functionalities
 

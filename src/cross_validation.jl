@@ -9,7 +9,7 @@ using 4 (the more the better) processors by:
     julia> using Distributed
     julia> addprocs(4)
 
-Arguments
+# Arguments
 - `d`: A distribution (e.g. Normal, Bernoulli)
 - `l`: A link function (e.g. Loglink, ProbitLink)
 - `x`: A SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
@@ -19,7 +19,7 @@ Arguments
 - `path`: Vector storing different model sizes
 - `num_fold`: Number of cross validation folds. For large data do not set this to be greater than 5
 
-Optional Arguments: 
+# Optional Arguments: 
 - `group` vector storing group membership
 - `weight` vector storing vector of weights containing prior knowledge on each SNP
 - `folds`: Vector that separates the sample into q disjoint subsets
