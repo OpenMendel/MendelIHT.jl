@@ -2,11 +2,9 @@
 
 *A modern approach to analyze data from a Genome Wide Association Studies (GWAS)*
 
-<center>
 | **Documentation** | **Build Status** | **Code Coverage**  |
 |-------------------|------------------|--------------------|
 | [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://biona001.github.io/MendelIHT.jl/latest) | [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) | [![codecov](https://codecov.io/gh/biona001/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/biona001/MendelIHT.jl) [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg?branch=master)](https://coveralls.io/github/biona001/MendelIHT.jl?branch=master) 
-</center>
 
 ## Installation
 
