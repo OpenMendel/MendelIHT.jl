@@ -21,10 +21,10 @@ l = canonicallink(d())
 #set random seed
 Random.seed!(1111)
 
-#construct snpmatrix, covariate files, and true model b
+#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 x, = simulate_random_snparray(n, p, "test1.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-z = ones(n, 2) # the intercept
+z = ones(n, 1)
 # z[:, 2] .= randn(n)
 
 # simulate response, true model b, and the correct non-0 positions of b
@@ -409,7 +409,7 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_
 
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+result = L0_reg(x, xbm, z, y, 1, argmin(mses), d(), l, debias=true, init=false, use_maf=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false) seconds=60
 # @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 
