@@ -97,16 +97,28 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int,
     BLAS.axpy!(η, v.df, v.b)  
     BLAS.axpy!(η, v.df2, v.c)
 
-    # scale snp model if weight is supplied 
-    lw == 0 ? copyto!(@view(full_grad[1:lb]), v.b) : copyto!(@view(full_grad[1:lb]), v.b .* v.weight)
-    copyto!(@view(full_grad[lb+1:end]), v.c)
+    # scale model by weight vector, if supplied 
+    if lw == 0
+        copyto!(@view(full_grad[1:lb]), v.b)
+        copyto!(@view(full_grad[lb+1:lf]), v.c)
+    else
+        copyto!(@view(full_grad[1:lb]), v.b .* @view(v.weight[1:lb]))
+        copyto!(@view(full_grad[lb+1:lf]), v.c .* @view(v.weight[lb+1:lf]))
+    end
 
     # project to sparsity
     lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
     
-    #recompute current support
-    lw == 0 ? copyto!(v.b, @view(full_grad[1:lb])) : copyto!(v.b, @view(full_grad[1:lb]) ./ v.weight)
-    v.c .= view(full_grad, lb+1:lf)
+    # unweight the model after projection
+    if lw == 0
+        copyto!(v.b, @view(full_grad[1:lb]))
+        copyto!(v.c, @view(full_grad[lb+1:lf]))
+    else
+        copyto!(v.b, @view(full_grad[1:lb]) ./ @view(v.weight[1:lb]))
+        copyto!(v.c, @view(full_grad[lb+1:lf]) ./ @view(v.weight[lb+1:lf]))
+    end
+
+    #recombute support
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
     

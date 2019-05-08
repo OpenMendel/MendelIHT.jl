@@ -42,11 +42,11 @@ function IHTVariables(x::SnpArray, z::Matrix{T}, y::Vector{T}, J::Int, k::Int, g
     end
 
     if lg != (p + q) && lg != 0
-        throw(DimensionMismatch("group must have length " * string(p + q) * " or 0 but was $lg"))
+        throw(DimensionMismatch("group must have length " * string(p + q) * " but was $lg"))
     end 
 
-    if lw != p && lw != 0
-        throw(DimensionMismatch("weight must have length $p or length 0 but was $lw"))
+    if lw != (p + q) && lw != 0
+        throw(DimensionMismatch("weight must have length " * string(p + q) * " but was $lw"))
     end
 
     b      = zeros(T, p)
