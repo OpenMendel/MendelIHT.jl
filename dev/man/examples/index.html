@@ -21,7 +21,8 @@ using LinearAlgebra
 using GLM
 using DelimitedFiles
 using Statistics
-using BenchmarkTools</code></pre><h2><a class="nav-anchor" id="Example-1:-How-to-Import-Data-1" href="#Example-1:-How-to-Import-Data-1">Example 1: How to Import Data</a></h2><p>We use <a href="https://openmendel.github.io/SnpArrays.jl/latest/">SnpArrays.jl</a> as backend to process genotype files. Internally, the genotype file is a memory mapped <a href="https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1">SnpArray</a>, which will not be loaded into RAM. If you wish to run <code>L0_reg</code>, you need to convert a SnpArray into a <a href="https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1">SnpBitMatrix</a>, which consumes <span>$n \times p \times 2$</span> bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as an <code>Array{Float64, 2}</code>. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. </p><h3><a class="nav-anchor" id="Reading-Genotype-data-and-Non-Genetic-Covariates-1" href="#Reading-Genotype-data-and-Non-Genetic-Covariates-1">Reading Genotype data and Non-Genetic Covariates</a></h3><pre><code class="language-julia">x   = SnpArray(&quot;../data/test1.bed&quot;)
+using BenchmarkTools</code></pre><pre><code class="language-none">┌ Info: Recompiling stale cache file /Users/biona001/.julia/compiled/v1.0/MendelIHT/eaqWB.ji for MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
+└ @ Base loading.jl:1190</code></pre><h2><a class="nav-anchor" id="Example-1:-How-to-Import-Data-1" href="#Example-1:-How-to-Import-Data-1">Example 1: How to Import Data</a></h2><p>We use <a href="https://openmendel.github.io/SnpArrays.jl/latest/">SnpArrays.jl</a> as backend to process genotype files. Internally, the genotype file is a memory mapped <a href="https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1">SnpArray</a>, which will not be loaded into RAM. If you wish to run <code>L0_reg</code>, you need to convert a SnpArray into a <a href="https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1">SnpBitMatrix</a>, which consumes <span>$n \times p \times 2$</span> bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as an <code>Array{Float64, 2}</code>. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. </p><h3><a class="nav-anchor" id="Reading-Genotype-data-and-Non-Genetic-Covariates-1" href="#Reading-Genotype-data-and-Non-Genetic-Covariates-1">Reading Genotype data and Non-Genetic Covariates</a></h3><pre><code class="language-julia">x   = SnpArray(&quot;../data/test1.bed&quot;)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
 z   = readdlm(&quot;../data/test1_covariates.txt&quot;) # 1st column intercept, 2nd column sex</code></pre><pre><code class="language-none">1000×2 Array{Float64,2}:
  1.0  2.0
@@ -129,7 +130,7 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
 The lowest MSE is achieved at k = 10</code></pre><div class="admonition note"><div class="admonition-title">Note</div><div class="admonition-text"><p><code>cv_iht()</code> generates intermediate files such as <code>train.tmp</code>. <strong>DO NOT remove these files before the algorithm terminate.</strong> These are necessary auxiliary files that will be automatically removed when cross validation completes. </p></div></div><div class="admonition tip"><div class="admonition-title">Tip</div><div class="admonition-text"><p>Because Julia employs a JIT compiler, the first round of any function call run will always take longer and consume extra memory. Therefore it is advised to always run a small &quot;test example&quot; (such as this one!) before running cross validation on a large dataset. </p></div></div><h3><a class="nav-anchor" id="Step-3:-Run-full-model-on-the-best-estimated-model-size-1" href="#Step-3:-Run-full-model-on-the-best-estimated-model-size-1">Step 3: Run full model on the best estimated model size</a></h3><p><code>cv_iht</code> finished in less than a minute. </p><p>According to our cross validation result, the best model size that minimizes deviance residuals (i.e. MSE on the q-th subset of samples) is attained at <span>$k = 10$</span>. That is, cross validation detected that we need 10 SNPs to achieve the best model size. Using this information, one can re-run the IHT algorithm on the <em>full</em> dataset to obtain the best estimated model.</p><pre><code class="language-julia">k_est = argmin(mses)
 result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)</code></pre><pre><code class="language-none">IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
 
-Compute time (sec):     0.5166158676147461
+Compute time (sec):     0.5801961421966553
 Final loglikelihood:    -1406.8807653835697
 Iterations:             6
 Max number of groups:   1
@@ -231,7 +232,7 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
 The lowest MSE is achieved at k = 8</code></pre><div class="admonition tip"><div class="admonition-title">Tip</div><div class="admonition-text"><p>In our experience, using the <code>ProbitLink</code> for logistic regressions deliver better results than <code>LogitLink</code> (which is the canonical link). </p></div></div><h3><a class="nav-anchor" id="Step-3:-Run-full-model-on-the-best-estimated-model-size-2" href="#Step-3:-Run-full-model-on-the-best-estimated-model-size-2">Step 3: Run full model on the best estimated model size</a></h3><p><code>cv_iht</code> finished in about a minute. </p><p>Cross validation have declared that <span>$k_{best} = 8$</span>. Using this information, one can re-run the IHT algorithm on the <em>full</em> dataset to obtain the best estimated model.</p><pre><code class="language-julia">k_est = argmin(mses)
 result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)</code></pre><pre><code class="language-none">IHT estimated 6 nonzero SNP predictors and 2 non-genetic predictors.
 
-Compute time (sec):     1.7932031154632568
+Compute time (sec):     1.8014729022979736
 Final loglikelihood:    -290.45093915185475
 Iterations:             33
 Max number of groups:   1
@@ -301,31 +302,43 @@ z = ones(n, 1)
 
 # simulate response, true model b, and the correct non-0 positions of b
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l);</code></pre><h3><a class="nav-anchor" id="First-Compare-Reconstruction-Result-1" href="#First-Compare-Reconstruction-Result-1">First Compare Reconstruction Result</a></h3><p>First we show that, with or without debiasing, we obtain comparable results with <code>L0_reg</code>.</p><pre><code class="language-julia">no_debias  = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
-yes_debias = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true);</code></pre><pre><code class="language-julia">#clean up first
-rm(&quot;tmp.bed&quot;, force=true)
-
-compare_model = DataFrame(
+yes_debias = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true);</code></pre><pre><code class="language-julia">compare_model = DataFrame(
     position    = correct_position,
     true_β      = true_b[correct_position], 
     no_debias_β = no_debias.beta[correct_position],
-    yes_debias_β = yes_debias.beta[correct_position])</code></pre><p>&lt;table class=&quot;data-frame&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;&lt;/th&gt;&lt;th&gt;position&lt;/th&gt;&lt;th&gt;true<em>β&lt;/th&gt;&lt;th&gt;no</em>debias<em>β&lt;/th&gt;&lt;th&gt;yes</em>debias_β&lt;/th&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;&lt;/th&gt;&lt;th&gt;Int64&lt;/th&gt;&lt;th&gt;Float64&lt;/th&gt;&lt;th&gt;Float64&lt;/th&gt;&lt;th&gt;Float64&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;p&gt;10 rows × 4 columns&lt;/p&gt;&lt;tr&gt;&lt;th&gt;1&lt;/th&gt;&lt;td&gt;2105&lt;/td&gt;&lt;td&gt;0.0155232&lt;/td&gt;&lt;td&gt;0.0&lt;/td&gt;&lt;td&gt;0.0&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;2&lt;/th&gt;&lt;td&gt;5852&lt;/td&gt;&lt;td&gt;0.0747323&lt;/td&gt;&lt;td&gt;0.0764579&lt;/td&gt;&lt;td&gt;0.0776816&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;3&lt;/th&gt;&lt;td&gt;9219&lt;/td&gt;&lt;td&gt;0.0233952&lt;/td&gt;&lt;td&gt;0.0&lt;/td&gt;&lt;td&gt;0.0&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;4&lt;/th&gt;&lt;td&gt;10362&lt;/td&gt;&lt;td&gt;-0.241167&lt;/td&gt;&lt;td&gt;-0.244755&lt;/td&gt;&lt;td&gt;-0.242612&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;5&lt;/th&gt;&lt;td&gt;15755&lt;/td&gt;&lt;td&gt;0.278812&lt;/td&gt;&lt;td&gt;0.281372&lt;/td&gt;&lt;td&gt;0.282154&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;6&lt;/th&gt;&lt;td&gt;21188&lt;/td&gt;&lt;td&gt;0.0540703&lt;/td&gt;&lt;td&gt;0.060669&lt;/td&gt;&lt;td&gt;0.0622104&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;7&lt;/th&gt;&lt;td&gt;21324&lt;/td&gt;&lt;td&gt;-0.216701&lt;/td&gt;&lt;td&gt;-0.222539&lt;/td&gt;&lt;td&gt;-0.220426&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;8&lt;/th&gt;&lt;td&gt;21819&lt;/td&gt;&lt;td&gt;-0.0331256&lt;/td&gt;&lt;td&gt;-0.0582902&lt;/td&gt;&lt;td&gt;-0.0602985&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;9&lt;/th&gt;&lt;td&gt;25655&lt;/td&gt;&lt;td&gt;0.0217997&lt;/td&gt;&lt;td&gt;0.0&lt;/td&gt;&lt;td&gt;0.0&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;10&lt;/th&gt;&lt;td&gt;29986&lt;/td&gt;&lt;td&gt;0.354062&lt;/td&gt;&lt;td&gt;0.359734&lt;/td&gt;&lt;td&gt;0.360543&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;</p><h3><a class="nav-anchor" id="Compare-Speed-and-Memory-Usage-1" href="#Compare-Speed-and-Memory-Usage-1">Compare Speed and Memory Usage</a></h3><p>Now we illustrate that debiasing may dramatically reduce computational time (in this case 75%), at a cost of increasing the memory usage. In practice, this extra memory usage hardly matters because the matrix size will dominate for larger problems. See <a href="https://github.com/biona001/MendelIHT.jl">here for complete benchmark figure.</a></p><pre><code class="language-julia">@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false) seconds=30</code></pre><pre><code class="language-none">BenchmarkTools.Trial: 
+    yes_debias_β = yes_debias.beta[correct_position])
+@show compare_model;</code></pre><pre><code class="language-none">compare_model = 10×4 DataFrame
+│ Row │ position │ true_β     │ no_debias_β │ yes_debias_β │
+│     │ Int64    │ Float64    │ Float64     │ Float64      │
+├─────┼──────────┼────────────┼─────────────┼──────────────┤
+│ 1   │ 2105     │ 0.0155232  │ 0.0         │ 0.0          │
+│ 2   │ 5852     │ 0.0747323  │ 0.0764579   │ 0.0776816    │
+│ 3   │ 9219     │ 0.0233952  │ 0.0         │ 0.0          │
+│ 4   │ 10362    │ -0.241167  │ -0.244755   │ -0.242612    │
+│ 5   │ 15755    │ 0.278812   │ 0.281372    │ 0.282154     │
+│ 6   │ 21188    │ 0.0540703  │ 0.060669    │ 0.0622104    │
+│ 7   │ 21324    │ -0.216701  │ -0.222539   │ -0.220426    │
+│ 8   │ 21819    │ -0.0331256 │ -0.0582902  │ -0.0602985   │
+│ 9   │ 25655    │ 0.0217997  │ 0.0         │ 0.0          │
+│ 10  │ 29986    │ 0.354062   │ 0.359734    │ 0.360543     │</code></pre><h3><a class="nav-anchor" id="Compare-Speed-and-Memory-Usage-1" href="#Compare-Speed-and-Memory-Usage-1">Compare Speed and Memory Usage</a></h3><p>Now we illustrate that debiasing may dramatically reduce computational time (in this case 75%), at a cost of increasing the memory usage. In practice, this extra memory usage hardly matters because the matrix size will dominate for larger problems. See <a href="https://github.com/biona001/MendelIHT.jl">here for complete benchmark figure.</a></p><pre><code class="language-julia">@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false) seconds=30</code></pre><pre><code class="language-none">BenchmarkTools.Trial: 
   memory estimate:  7.44 MiB
   allocs estimate:  783
   --------------
-  minimum time:     9.561 s (0.03% GC)
-  median time:      9.652 s (0.00% GC)
-  mean time:        9.650 s (0.01% GC)
-  maximum time:     9.737 s (0.00% GC)
+  minimum time:     10.013 s (0.04% GC)
+  median time:      10.098 s (0.00% GC)
+  mean time:        10.085 s (0.01% GC)
+  maximum time:     10.144 s (0.00% GC)
   --------------
-  samples:          4
+  samples:          3
   evals/sample:     1</code></pre><pre><code class="language-julia">@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true) seconds=30</code></pre><pre><code class="language-none">BenchmarkTools.Trial: 
   memory estimate:  15.53 MiB
   allocs estimate:  1610
   --------------
-  minimum time:     7.182 s (0.00% GC)
-  median time:      7.469 s (0.03% GC)
-  mean time:        7.402 s (0.02% GC)
-  maximum time:     7.678 s (0.03% GC)
+  minimum time:     7.816 s (0.00% GC)
+  median time:      7.855 s (0.02% GC)
+  mean time:        7.883 s (0.02% GC)
+  maximum time:     8.006 s (0.03% GC)
   --------------
-  samples:          5
-  evals/sample:     1</code></pre><h2><a class="nav-anchor" id="Other-examples-and-functionalities-1" href="#Other-examples-and-functionalities-1">Other examples and functionalities</a></h2><p>We invite users to experiment with additional functionalities. We explored a significant portion of them in our manuscript, with <a href="https://github.com/biona001/MendelIHT.jl/tree/master/figures">reproducible code</a>. This includes:</p><ul><li>Modeling some exotic distributions and using noncanonical link functions <a href="https://biona001.github.io/MendelIHT.jl/latest/man/getting_started/#Supported-GLM-models-and-Link-functions-1">listed here</a></li><li>Modeling SNP-SNP or SNP-environment interaction effects by explicitly including them in the nongenetic covariates <code>z</code>.</li><li>Doubly sparse projection (requires group information)</li><li>Weighted projections to favor certain SNPs (requires weight information)</li></ul><footer><hr/><a class="previous" href="../getting_started/"><span class="direction">Previous</span><span class="title">Getting Started</span></a><a class="next" href="../contributing/"><span class="direction">Next</span><span class="title">Contributing</span></a></footer></article></body></html>
+  samples:          4
+  evals/sample:     1</code></pre><pre><code class="language-julia">#clean up
+rm(&quot;tmp.bed&quot;, force=true)</code></pre><h2><a class="nav-anchor" id="Other-examples-and-functionalities-1" href="#Other-examples-and-functionalities-1">Other examples and functionalities</a></h2><p>We invite users to experiment with additional functionalities. We explored a significant portion of them in our manuscript, with <a href="https://github.com/biona001/MendelIHT.jl/tree/master/figures">reproducible code</a>. This includes:</p><ul><li>Modeling some exotic distributions and using noncanonical link functions <a href="https://biona001.github.io/MendelIHT.jl/latest/man/getting_started/#Supported-GLM-models-and-Link-functions-1">listed here</a></li><li>Modeling SNP-SNP or SNP-environment interaction effects by explicitly including them in the nongenetic covariates <code>z</code>.</li><li>Doubly sparse projection (requires group information)</li><li>Weighted projections to favor certain SNPs (requires weight information)</li></ul><footer><hr/><a class="previous" href="../getting_started/"><span class="direction">Previous</span><span class="title">Getting Started</span></a><a class="next" href="../contributing/"><span class="direction">Next</span><span class="title">Contributing</span></a></footer></article></body></html>
