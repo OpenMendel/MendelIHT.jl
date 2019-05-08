@@ -2,15 +2,11 @@
 
 *A modern approach to analyze data from a Genome Wide Association Studies (GWAS)*
 
+<center>
 | **Documentation** | **Build Status** | **Code Coverage**  |
 |-------------------|------------------|--------------------|
 | [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://biona001.github.io/MendelIHT.jl/latest) | [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) | [![codecov](https://codecov.io/gh/biona001/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/biona001/MendelIHT.jl) [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg?branch=master)](https://coveralls.io/github/biona001/MendelIHT.jl?branch=master) 
-
-If **Build Status** is `passing`, it means `MendelIHT` successfully installed and ran on `osx` and `linux` machines building Julia 1.0, 1.1, and potentially nightly. To ensure correct behavior of MendelIHT, press `]` and type:
-```
-(v1.0) pkg> test MendelIHT
-```
-to ensure all unit tests pass. 
+</center>
 
 ## Installation
 
@@ -31,7 +27,7 @@ Because it is (figures taken from our manuscript, which is to be published):
 
 ### Fast & Memory Efficient
 
-Benchmark results on 1 million SNPs:
+Benchmark results on 1 million SNPs and various sample size:
 ![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/benchmark/yes_debias.png)
 
 ### Accurate

@@ -6,7 +6,8 @@ Performs q-fold cross validation and returns the deviance residuals for each mod
 Each CPU runs a different model for a given fold. To use this function, start julia 
 using 4 (the more the better) processors by:
 
-    julia -p 4
+    julia> using Distributed
+    julia> addprocs(4)
 
 Arguments
 - `d`: A distribution (e.g. Normal, Bernoulli)

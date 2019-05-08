@@ -35,11 +35,8 @@ using LinearAlgebra
 using GLM
 using DelimitedFiles
 using Statistics
+using BenchmarkTools
 ```
-
-    ┌ Info: Recompiling stale cache file /Users/biona001/.julia/compiled/v1.0/MendelIHT/eaqWB.ji for MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
-    └ @ Base loading.jl:1190
-
 
 ## Example 1: How to Import Data
 
@@ -156,6 +153,7 @@ Quantitative traits are continuous phenotypes whose distribution can be modeled 
 In Example 1 we illustrated how to import data into Julia. So here we use simulated data ([code](https://github.com/biona001/MendelIHT.jl/blob/master/src/simulate_utilities.jl#L107)) because, only then, can we compare IHT's result to the true solution. Below we simulate a GWAS data with $n=1000$ patients and $p=10000$ SNPs. Here the quantitative trait vector are affected by $k = 10$ causal SNPs, with no non-genetic confounders. 
 
 In this example, our model is simulated as:
+
 $$y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i$$
 
 $$x_{ij} \sim Binomial(2, p_j)$$
@@ -246,7 +244,9 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
 
 ### Step 3: Run full model on the best estimated model size 
 
-`cv_iht` finished in about a minute. According to our cross validation result, the best model size that minimizes deviance residuals (i.e. MSE on the q-th subset of samples) is attained at $k = 10$. That is, cross validation detected that we need 10 SNPs to achieve the best model size. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
+`cv_iht` finished in less than a minute. 
+
+According to our cross validation result, the best model size that minimizes deviance residuals (i.e. MSE on the q-th subset of samples) is attained at $k = 10$. That is, cross validation detected that we need 10 SNPs to achieve the best model size. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
 
 
 ```julia
@@ -257,14 +257,14 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
 
 
 
-    IHT results:
     
-    Compute time (sec):     0.49691104888916016
+    IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
+    
+    Compute time (sec):     0.5166158676147461
     Final loglikelihood:    -1406.8807653835697
     Iterations:             6
     Max number of groups:   1
     Max predictors/group:   10
-    IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
     
     Selected genetic predictors:
     10×2 DataFrame
@@ -321,11 +321,12 @@ rm("tmp.bed", force=true)
 
 ## Example 3: Logistic Regression Controlling for Sex
 
-We show how to use IHT to handle case-control studies. In this example, we fit a logistic regression model with IHT using simulated case-control data, while controling for sex as a non-genetic covariate. 
+We show how to use IHT to handle case-control studies, while handling non-genetic covariates. In this example, we fit a logistic regression model with IHT using simulated case-control data, while controling for sex as a nongenetic covariate. 
 
 ### Step 1: Import Data
 
 Again we use a simulated model:
+
 $$y_i \sim Bernoulli(\mathbf{x}_i^T\mathbf{\beta})$$
 
 $$x_{ij} \sim Binomial(2, p_j)$$
@@ -424,15 +425,13 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
 
 !!! tip
 
-    Try the optinal input `debias=true` in `cv_iht` or `L0_reg`. This is an acceleration that potentially allows IHT to converge must faster. 
-
-!!! tip
-
     In our experience, using the `ProbitLink` for logistic regressions deliver better results than `LogitLink` (which is the canonical link). 
 
 ### Step 3: Run full model on the best estimated model size 
 
-`cv_iht` finished in about a minute. Cross validation have declared that $k_{best} = 8$. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
+`cv_iht` finished in about a minute. 
+
+Cross validation have declared that $k_{best} = 8$. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
 
 
 ```julia
@@ -443,14 +442,14 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
 
 
 
-    IHT results:
     
-    Compute time (sec):     1.7007958889007568
+    IHT estimated 6 nonzero SNP predictors and 2 non-genetic predictors.
+    
+    Compute time (sec):     1.7932031154632568
     Final loglikelihood:    -290.45093915185475
     Iterations:             33
     Max number of groups:   1
     Max predictors/group:   8
-    IHT estimated 6 nonzero SNP predictors and 2 non-genetic predictors.
     
     Selected genetic predictors:
     6×2 DataFrame
@@ -476,7 +475,7 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
 
 ### Step 4 (only for simulated data): Check final model against simulation
 
-Since all our data and model was simulated, we can see how well `cv_iht` combined with `L0_reg` estimated the true model. For this example, we find that IHT found every simulated predictor, with 0 false positives. 
+Since all our data and model was simulated, we can see how well `cv_iht` combined with `L0_reg` estimated the true model. For this example, we find that IHT found both nongenetic predictor, but missed 2 genetic predictors. The 2 genetic predictors that we missed had much smaller effect size, so given that we only had 1000 samples, this is hardly surprising. 
 
 
 ```julia
@@ -515,17 +514,121 @@ rm("tmp.bed", force=true)
     │ 2   │ 1.5     │ 1.6505      │
 
 
+## Example 4: Poisson Regression with Convergence Acceleration
+
+In this example, we show how debiasing can achieve dramatic speedup. Our model is:
+
+$$y_i \sim Poisson(\mathbf{x}_i^T\mathbf{\beta})$$
+
+$$x_{ij} \sim Binomial(2, p_j)$$
+
+$$p_j \sim Uniform(0, 0.5)$$
+
+$$\beta_i \sim N(0, 0.3)$$
+
+
+```julia
+# Define model dimensions, true model size, distribution, and link functions
+n = 5000
+p = 30000
+k = 10
+d = Poisson
+l = canonicallink(d())
+
+# set random seed for reproducibility
+Random.seed!(2019)
+
+# construct SnpArray, SnpBitMatrix, and intercept
+x, = simulate_random_snparray(n, p, "tmp.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+z = ones(n, 1) 
+
+# simulate response, true model b, and the correct non-0 positions of b
+y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l);
+```
+
+### First Compare Reconstruction Result
+
+First we show that, with or without debiasing, we obtain comparable results with `L0_reg`.
+
+
+```julia
+no_debias  = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+yes_debias = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true);
+```
+
+
+```julia
+#clean up first
+rm("tmp.bed", force=true)
+
+compare_model = DataFrame(
+    position    = correct_position,
+    true_β      = true_b[correct_position], 
+    no_debias_β = no_debias.beta[correct_position],
+    yes_debias_β = yes_debias.beta[correct_position])
+```
+
+
+
+
+<table class="data-frame"><thead><tr><th></th><th>position</th><th>true_β</th><th>no_debias_β</th><th>yes_debias_β</th></tr><tr><th></th><th>Int64</th><th>Float64</th><th>Float64</th><th>Float64</th></tr></thead><tbody><p>10 rows × 4 columns</p><tr><th>1</th><td>2105</td><td>0.0155232</td><td>0.0</td><td>0.0</td></tr><tr><th>2</th><td>5852</td><td>0.0747323</td><td>0.0764579</td><td>0.0776816</td></tr><tr><th>3</th><td>9219</td><td>0.0233952</td><td>0.0</td><td>0.0</td></tr><tr><th>4</th><td>10362</td><td>-0.241167</td><td>-0.244755</td><td>-0.242612</td></tr><tr><th>5</th><td>15755</td><td>0.278812</td><td>0.281372</td><td>0.282154</td></tr><tr><th>6</th><td>21188</td><td>0.0540703</td><td>0.060669</td><td>0.0622104</td></tr><tr><th>7</th><td>21324</td><td>-0.216701</td><td>-0.222539</td><td>-0.220426</td></tr><tr><th>8</th><td>21819</td><td>-0.0331256</td><td>-0.0582902</td><td>-0.0602985</td></tr><tr><th>9</th><td>25655</td><td>0.0217997</td><td>0.0</td><td>0.0</td></tr><tr><th>10</th><td>29986</td><td>0.354062</td><td>0.359734</td><td>0.360543</td></tr></tbody></table>
+
+
+
+### Compare Speed and Memory Usage
+
+Now we illustrate that debiasing may dramatically reduce computational time (in this case 75%), at a cost of increasing the memory usage. In practice, this extra memory usage hardly matters because the matrix size will dominate for larger problems. See [here for complete benchmark figure.](https://github.com/biona001/MendelIHT.jl)
+
+
+```julia
+@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false) seconds=30
+```
+
+
+
+
+    BenchmarkTools.Trial: 
+      memory estimate:  7.44 MiB
+      allocs estimate:  783
+      --------------
+      minimum time:     9.561 s (0.03% GC)
+      median time:      9.652 s (0.00% GC)
+      mean time:        9.650 s (0.01% GC)
+      maximum time:     9.737 s (0.00% GC)
+      --------------
+      samples:          4
+      evals/sample:     1
+
+
+
+
+```julia
+@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true) seconds=30
+```
+
+
+
+
+    BenchmarkTools.Trial: 
+      memory estimate:  15.53 MiB
+      allocs estimate:  1610
+      --------------
+      minimum time:     7.182 s (0.00% GC)
+      median time:      7.469 s (0.03% GC)
+      mean time:        7.402 s (0.02% GC)
+      maximum time:     7.678 s (0.03% GC)
+      --------------
+      samples:          5
+      evals/sample:     1
+
+
+
 ## Other examples and functionalities
 
 We invite users to experiment with additional functionalities. We explored a significant portion of them in our manuscript, with [reproducible code](https://github.com/biona001/MendelIHT.jl/tree/master/figures). This includes:
 
 + Modeling some exotic distributions and using noncanonical link functions [listed here](https://biona001.github.io/MendelIHT.jl/latest/man/getting_started/#Supported-GLM-models-and-Link-functions-1)
-+ Using `debias=true` in both `cv_iht` and `L0_reg` to accelerate convergence.
 + Modeling SNP-SNP or SNP-environment interaction effects by explicitly including them in the nongenetic covariates `z`.
 + Doubly sparse projection (requires group information)
 + Weighted projections to favor certain SNPs (requires weight information)
-
-
-```julia
-
-```

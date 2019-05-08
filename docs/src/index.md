@@ -22,10 +22,10 @@
 ## Manual Outline
 
 ```@contents
-    pages = [
-		"Home"            => "index.md",
-        "Getting Started" => "man/getting_started.md",
-        "Examples"        => "man/examples.md",
-        "Contributing"    => "man/contributing.md",
-    ]
+Pages = [
+    "man/getting_started.md",
+    "man/examples.md",
+    "man/contributing.md",
+]
+Depth = 2
 ```

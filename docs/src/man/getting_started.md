@@ -1,15 +1,13 @@
 
 # Getting started
 
-MendelIHT is designed to be user-friendly. In this section, we outline the basic procedure to analyze your GWAS data with MendelIHT. 
+In this section, we outline the basic procedure to analyze your GWAS data with MendelIHT. 
 
 ## Installation
 
 Press `]` to enter package manager mode and type the following (after `pkg>`):
 ```
 (v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
 (v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
 ```
 The order of installation is important!
@@ -22,15 +20,15 @@ Most analysis consists of 3 simple steps:
 2. Run `cv_iht` to determine best model size.
 3. Run `L0_reg` to obtain final model.
 
-We believe the best way to learn is through examples. Head over to the example section to see these steps in action. Nevertheless, below contains function signatures and use cautions that any users should be aware. 
+We believe the best way to learn is through examples. Head over to the example section on the left to see these steps in action. Nevertheless, below contains function signatures and use cautions that any users should be aware. 
 
 !!! note
 
-    (1) MendelIHT.jl assumes there are **NO missing genotypes**, and (2) the trios (`.bim`, `.bed`, `.fam`) must all be present in the same directory. 
+    (1) `MendelIHT` assumes there are **NO missing genotypes**, and (2) the trios (`.bim`, `.bed`, `.fam`) must all be present in the same directory. 
 
 ## Core Functions
 
-A standard user should only ever run 2 functions, other than importing data.
+A standard analysis runs only 2 functions, other than importing data.
 
 ```@docs
   cv_iht
@@ -38,7 +36,7 @@ A standard user should only ever run 2 functions, other than importing data.
 
 !!! note 
 
-    **Do not** delete intermediate files (e.g. `train.bed`) which will be created in the current directory when you run `cv_iht`. These are memory-mapped training/testing files that are necessary to run cross validation. This means that **you must have `x` GB of free space on your hard disk** where `x` is how much memory it takes to store your `.bed` file.
+    **Do not** delete intermediate files (e.g. `train.bed`) created by `cv_iht`. These are memory-mapped files necessary for cross validation. In order to successfully create these files, **you must have `x` GB of free space on your hard disk** where `x` is your `.bed` file size.
 
 
 ```@docs
@@ -47,7 +45,7 @@ A standard user should only ever run 2 functions, other than importing data.
 
 ## Supported GLM models and Link functions
 
-MendelIHT borrows the distribution and link function implementations in [GLM.jl](http://juliastats.github.io/GLM.jl/stable/).
+MendelIHT borrows distribution and link functions implementationed in [GLM.jl](http://juliastats.github.io/GLM.jl/stable/) and [Distributions.jl](https://juliastats.github.io/Distributions.jl/stable/)
 
 Distributions (listed with their canonical link) that work with `L0_reg` and `cv_iht` are:
 
@@ -72,22 +70,29 @@ Available link functions are:
     
 !!! tip
     
-    For d = NegativeBinomial or d=Gamma, the link function must be `LogLink`. For Bernoulli, the `ProbitLink` seems to work better than `LogitLink`.
+    For logistic regression, the `ProbitLink` seems to work better than `LogitLink`. For `d = NegativeBinomial` or `d=Gamma`, the link function must be `LogLink`. 
 
 ## Specifying Groups and Weights
 
-When you have group and weight information, you input them as optional arguments in `L0_reg` and `cv_iht`. The weight vector is a vector of Float64, while the group vector is a vector of integers. 
+When you have group and weight information, you input them as optional arguments in `L0_reg` and `cv_iht`. The weight vector is a vector of Float64, while the group vector is a vector of integers. For instance,
 
-## Simulation utilities
+```Julia
+    g = #import group vector
+    w = #import weight vector
+    result = L0_reg(x, xbm, z, y, 1, k, d(), l, group=g, weight=w)
+```
+
+## Simulation Utilities
 
 MendelIHT provides some simulation utilities that help users explore the function and capabilities of iterative hard thresholding. 
 
 ```@docs
   simulate_random_snparray
+  
 ```
 
 !!! note
-    Simulating a SnpArray with $n$ subjects and $p$ SNPs requires roughly $n \times p \times 4$ bits. Make sure you have enough RAM before simulating very large SnpArrays.
+    Simulating a SnpArray with $n$ subjects and $p$ SNPs requires roughly $n \times p \times 4$ bits of RAM. Make sure you have enough RAM before simulating very large SnpArrays.
 
 ```@docs
   simulate_random_response
