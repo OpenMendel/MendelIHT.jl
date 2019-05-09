@@ -1,9 +1,9 @@
 """
     loglikelihood(y::AbstractVector, xb::AbstractVector, d::UnivariateDistribution)
 
-This function calculates the loglikelihood of observing `y` given `μ` = g^{-1}(xb)
-and some distribution `d` from the exp family. Note that loglikelihood is the sum 
-of the logpdfs for each observation. For each logpdf, we 
+Calculates the loglikelihood of observing `y` given mean `μ` and some distribution 
+`d`. Note that loglikelihood is the sum of the logpdfs for each observation. 
+For each logpdf from Normal, Gamma, and InverseGaussian, we scale by dispersion. 
 """
 function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
                        μ::AbstractVector{T}) where {T <: Float}
@@ -267,11 +267,22 @@ end
 """
     project_k!(x::AbstractVector, k::Integer)
 
-This function projects a vector `x` onto the set S_k = { y in R^p : || y ||_0 <= k }.
+Sets all but the largest `k` entries of `x` to 0. 
 
-Arguments:
-- `b` is the vector to project.
-- `k` is the number of components of `b` to preserve.
+# Examples:
+```julia-repl
+julia> x = [1.0; 2.0; 3.0];
+julia> project_k!(x, 2)
+julia> x
+3-element Array{Float64,1}:
+ 0.0
+ 2.0
+ 3.0
+ ```
+
+# Arguments:
+- `x`: the vector to project.
+- `k`: the number of components of `x` to preserve.
 """
 function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
     a = abs(partialsort(x, k, by=abs, rev=true))
@@ -284,8 +295,26 @@ end
     project_group_sparse!(y::AbstractVector, group::AbstractVector, J::Integer, k::Integer)
 
 Projects the vector y onto the set with at most J active groups and at most
-k active predictors per group. The variable group encodes group membership. Currently
-assumes there are no unknown or overlaping group membership.
+k active predictors per group. Currently assumes there are no unknown or overlaping 
+group membership.
+
+# Examples
+```julia-repl
+J, k, n = 2, 3, 20
+y = collect(1.0:20.0);
+y_copy = copy(y);
+group = rand(1:5, n);
+project_group_sparse!(y, group, J, k);
+for i = 1:length(y)
+    println(i,"  ",group[i],"  ",y[i],"  ",y_copy[i])
+end
+```
+
+# Arguments 
+- `y`: The vector to project
+- `group`: Vector encoding group membership
+- `J`: Max number of non-zero group
+- `k`: Max number of non-zero predictor per group`
 """
 function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64},
     J::Int64, k::Int64) where {T <: Float}
@@ -326,9 +355,11 @@ end
 
 Calculates the prior weight based on minor allele frequencies. 
 
-Returns an array of weights where 
-    ```w[i] = 1 / (2 * sqrt(p[i] (1 - p[i]))) ∈ (1, ∞)```
-here `p` is the minor allele frequency computed by `maf()` in SnpArrays. 
+Returns an array of weights where `w[i] = 1 / (2 * sqrt(p[i] (1 - p[i]))) ∈ (1, ∞).`
+Here `p` is the minor allele frequency computed by `maf()` in SnpArrays. 
+
+- `x`: A SnpArray 
+- `max_weight`: Maximum weight for any predictor. Defaults to `Inf`. 
 """
 function maf_weights(x::SnpArray; max_weight::T = Inf) where {T <: Float}
     p = maf(x)
@@ -408,11 +439,13 @@ end
 """
     initialize_beta!(v::IHTVariable, y::AbstractVector, x::SnpArray, d::UnivariateDistribution, l::Link)
 
-When initilizing the model β, for each covariate we fit a bivariate regression with 
-itself and the intercept. Fitting is done using scoring (newton) algorithm in GLM.jl. 
-The average of the intercept over all fits is used as the its initial guess. 
+Fits a bivariate regression with each β_i and the intercept.
 
-This function is quite slow and not memory efficient. 
+Used to find a good starting β. Fitting is done using scoring (newton) algorithm 
+implemented in `GLM.jl`. The average of the intercept over all fits is used as 
+the the initial guess. 
+
+Note: this function is quite slow and not memory efficient. 
 """
 function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::SnpArray,
                           d::UnivariateDistribution, l::Link) where {T <: Float}
