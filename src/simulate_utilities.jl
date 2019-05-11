@@ -13,7 +13,7 @@ the simulation to generate samples where at least `min_ma` (defaults to 5) are p
 - `s`: name of the simulated SnpArray that will be created on the current directory
 
 # Optional Arguments:
-- `mafs`: vector of desired minor allele freuqencies
+- `mafs`: vector of desired minor allele freuqencies (uniform(0, 0.5) by default)
 - `min_ma`: the minimum number of minor alleles that must be present for each SNP (defaults to 5)
 """
 function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}; 
@@ -191,9 +191,9 @@ end
 Creates .bim and .bed files from a SnpArray. 
 
 # Arguments:
-`x`: A SnpArray (i.e. `.bed` file on the disk) for which you wish to create corresponding `.bim` and `.fam` files.
-`name`: string that should match the `.bed` file (Do not include `.bim` or `.fam` extensions in `name`).
-`y`: Trait vector that will go in to the 6th column of `.fam` file. 
+- `x`: A SnpArray (i.e. `.bed` file on the disk) for which you wish to create corresponding `.bim` and `.fam` files.
+- `name`: string that should match the `.bed` file (Do not include `.bim` or `.fam` extensions in `name`).
+- `y`: Trait vector that will go in to the 6th column of `.fam` file. 
 """
 function make_bim_fam_files(x::SnpArray, y, name::String)
     ly = length(y)

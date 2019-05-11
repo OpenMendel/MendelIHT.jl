@@ -1,10 +1,13 @@
 """
-    cv_iht(d, l, x, z, y, J, path, num_fold)
+    cv_iht(d, l, x, z, y, J, path, q)
 
-Performs q-fold cross validation and returns the deviance residuals for each model. 
+For each model specified in `path`, performs `q`-fold cross validation and 
+returns the (averaged) deviance residuals. 
 
-Each CPU runs a different model for a given fold. To use this function, start julia 
-using 4 (the more the better) processors by:
+The purpose of this function is to find the best sparsity level `k`, judiciously obtained
+from selecting the model with the minimum out-of-sample error. By default, each CPU runs 
+a different model for a given fold. To use this function, start julia using 4 processors 
+(the more the better) by:
 
     julia> using Distributed
     julia> addprocs(4)
@@ -17,7 +20,7 @@ using 4 (the more the better) processors by:
 - `y`: Response vector
 - `J`: The number of maximum groups
 - `path`: Vector storing different model sizes
-- `num_fold`: Number of cross validation folds. For large data do not set this to be greater than 5
+- `q`: Number of cross validation folds. For large data do not set this to be greater than 5
 
 # Optional Arguments: 
 - `group` vector storing group membership
@@ -37,10 +40,10 @@ function cv_iht(
     y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int},
-    num_fold :: Int64;
+    q        :: Int64;
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
-    folds    :: DenseVector{Int} = rand(1:num_fold, size(x, 1)),
+    folds    :: DenseVector{Int} = rand(1:q, size(x, 1)),
     init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
@@ -50,9 +53,9 @@ function cv_iht(
 
     # preallocate mean squared error matrix
     nmodels = length(path)
-    mses = zeros(nmodels, num_fold)
+    mses = zeros(nmodels, q)
 
-    for fold in 1:num_fold
+    for fold in 1:q
         # find entries that are for test sets and train sets
         test_idx  = folds .== fold
         train_idx = .!test_idx
@@ -62,7 +65,7 @@ function cv_iht(
     end
 
     #weight mses for each fold by their size before averaging
-    mse = meanloss(mses, num_fold, folds)
+    mse = meanloss(mses, q, folds)
 
     # find best model size and print cross validation result
     k = path[argmin(mse)] :: Int
@@ -174,8 +177,8 @@ end
 """
 This function scale mean squared errors (deviance residuals) for each fold by its own fold size.
 """
-function meanloss(fitloss::Matrix{Float64}, num_fold::Int64, folds::DenseVector{Int})
-    ninfold = zeros(Int, num_fold)
+function meanloss(fitloss::Matrix{Float64}, q::Int64, folds::DenseVector{Int})
+    ninfold = zeros(Int, q)
     for fold in folds
         ninfold[fold] += 1
     end

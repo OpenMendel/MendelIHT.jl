@@ -1,8 +1,10 @@
 """
-    loglikelihood(y::AbstractVector, xb::AbstractVector, d::UnivariateDistribution)
+    loglikelihood(d::UnivariateDistribution, y::AbstractVector, μ::AbstractVector)
 
 Calculates the loglikelihood of observing `y` given mean `μ` and some distribution 
-`d`. Note that loglikelihood is the sum of the logpdfs for each observation. 
+`d`. 
+
+Note that loglikelihood is the sum of the logpdfs for each observation. 
 For each logpdf from Normal, Gamma, and InverseGaussian, we scale by dispersion. 
 """
 function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
@@ -271,14 +273,15 @@ Sets all but the largest `k` entries of `x` to 0.
 
 # Examples:
 ```julia-repl
-julia> x = [1.0; 2.0; 3.0];
-julia> project_k!(x, 2)
+using MendelIHT
+x = [1.0; 2.0; 3.0]
+project_k!(x, 2) # keep 2 largest entry
 julia> x
 3-element Array{Float64,1}:
  0.0
  2.0
  3.0
- ```
+```
 
 # Arguments:
 - `x`: the vector to project.
@@ -300,11 +303,12 @@ group membership.
 
 # Examples
 ```julia-repl
+using MendelIHT
 J, k, n = 2, 3, 20
-y = collect(1.0:20.0);
-y_copy = copy(y);
-group = rand(1:5, n);
-project_group_sparse!(y, group, J, k);
+y = collect(1.0:20.0)
+y_copy = copy(y)
+group = rand(1:5, n)
+project_group_sparse!(y, group, J, k)
 for i = 1:length(y)
     println(i,"  ",group[i],"  ",y[i],"  ",y_copy[i])
 end
@@ -417,26 +421,6 @@ function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMatr
 end
 
 """
-This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
-where A1 is a snpmatrix and A2 is a dense Matrix{Float}. Used for cleaner code. 
-
-Here we are separating the computation because A1 is stored in compressed form while A2 is 
-uncompressed (float64) matrix. This means that they cannot be stored in the same data 
-structure. 
-"""
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::SnpBitMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
-    SnpArrays.mul!(C1, Transpose(A1), B1)
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
-end
-
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
-    LinearAlgebra.mul!(C1, Transpose(A1), B1)
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
-end
-
-"""
     initialize_beta!(v::IHTVariable, y::AbstractVector, x::SnpArray, d::UnivariateDistribution, l::Link)
 
 Fits a bivariate regression with each β_i and the intercept.
@@ -461,6 +445,26 @@ function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::SnpArray,
         v.b[i] = temp_glm.pp.beta0[2]
     end
     v.c[1] = intercept / p
+end
+
+"""
+This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
+where A1 is a snpmatrix and A2 is a dense Matrix{Float}. Used for cleaner code. 
+
+Here we are separating the computation because A1 is stored in compressed form while A2 is 
+uncompressed (float64) matrix. This means that they cannot be stored in the same data 
+structure. 
+"""
+function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::SnpBitMatrix{T},
+        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+    SnpArrays.mul!(C1, Transpose(A1), B1)
+    LinearAlgebra.mul!(C2, Transpose(A2), B2)
+end
+
+function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMatrix{T},
+        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+    LinearAlgebra.mul!(C1, Transpose(A1), B1)
+    LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
 """

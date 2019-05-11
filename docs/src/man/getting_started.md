@@ -79,7 +79,8 @@ When you have group and weight information, you input them as optional arguments
 ```Julia
     g = #import group vector
     w = #import weight vector
-    result = L0_reg(x, xbm, z, y, 1, k, d(), l, group=g, weight=w)
+    J = length(unique(g)) # specify number of non-zero groups
+    result = L0_reg(x, xbm, z, y, J, k, d(), l, group=g, weight=w)
 ```
 
 ## Simulation Utilities
