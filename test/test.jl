@@ -994,7 +994,7 @@ l = canonicallink(d())
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, = simulate_random_snparray(n, p, "tmp")
+x, = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 2) # the intercept
 z[:, 2] .= randn(n)
@@ -1004,7 +1004,7 @@ true_b = zeros(p)
 true_b[1:k-2] = randn(k-2)
 shuffle!(true_b)
 correct_position = findall(!iszero, true_b)
-true_c = [3.0; 3.5]
+true_c = [0.1; 0.1]
 
 #simulate phenotype
 prob = linkinv.(l, xbm * true_b .+ z * true_c)
@@ -1134,4 +1134,36 @@ Random.seed!(2019)
 @benchmark test3(z) setup=(z=rand(1000, 1000))
 @benchmark test4(z) setup=(z=rand(1000, 1000))
 @benchmark standardize!(@view(z[:, 2:end])) setup=(z=rand(1000, 1000))
+
+
+
+function _scale!(des1::AbstractVector{T}, v1::AbstractVector{T}, w1::AbstractVector{T}, 
+         des2::AbstractVector{T}, v2::AbstractVector{T}, w2::AbstractVector{T}) where {T <: Float64}
+    copyto!(des1, v1 .* w1)
+    copyto!(des2, v2 .* w2)
+end
+
+n=1000
+
+@benchmark _scale!(des1, v1, w1, des2, v2, w2) setup=(des1 = zeros(n),des2 = zeros(n),v1 = rand(n),v2 = rand(n),w1 = rand(n),w2 = rand(n))
+
+full_grad = zeros(2000)
+weight = rand(2000)
+b = rand(1000)
+c = rand(1000)
+
+function test_scale(b, c, full_grad, weight)
+    lb = length(b)
+    lf = length(full_grad)
+    copyto!(v.b, @view(full_grad[1:lb]) ./ @view(v.weight[1:lb]))
+    copyto!(v.c, @view(full_grad[lb+1:lf]) ./ @view(v.weight[lb+1:lf]))
+end
+
+@benchmark test_scale(b, c, full_grad, weight) setup=(b=rand(100000),c = rand(100000),full_grad = zeros(200000),weight = rand(200000))
+
+
+
+
+
+
 

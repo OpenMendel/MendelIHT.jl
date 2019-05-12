@@ -4,7 +4,7 @@
 
 | **Documentation** | **Build Status** | **Code Coverage**  |
 |-------------------|------------------|--------------------|
-| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://biona001.github.io/MendelIHT.jl/latest) | [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) | [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg)](https://coveralls.io/github/biona001/MendelIHT.jl)  [![codecov](https://codecov.io/gh/biona001/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/biona001/MendelIHT.jl)
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://biona001.github.io/MendelIHT.jl/latest) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://biona001.github.io/MendelIHT.jl/stable) | [![Build Status](https://travis-ci.org/biona001/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/biona001/MendelIHT.jl) [![Build status](https://ci.appveyor.com/api/projects/status/s7dxx48g1ol9hqi0?svg=true)](https://ci.appveyor.com/project/biona001/mendeliht-jl) | [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg)](https://coveralls.io/github/biona001/MendelIHT.jl)  [![codecov](https://codecov.io/gh/biona001/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/biona001/MendelIHT.jl)
 
 ## Installation
 
@@ -18,6 +18,7 @@ The order of installation is important!
 ## Documentation
 
 + [**Latest**](https://biona001.github.io/MendelIHT.jl/latest/)
++ [**Stable**](https://biona001.github.io/MendelIHT.jl/stable/)
 
 ## Why Iterative Hard Thresholding for GWAS? 
 

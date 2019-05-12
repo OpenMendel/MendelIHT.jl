@@ -31,19 +31,19 @@ z = ones(n, 1)
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 # specify weights 
-# weight = ones(p)
+weight = ones(p + 1)
 # group = ones(Int, p + 1)
 # J = 1
 # v = IHTVariables(x, z, y, J, k, group, weight)
 # @code_warntype v.b
-# weight[correct_position] .= 2.0
+weight[correct_position] .= 2.0
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, use_maf=false, weight=weight)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false) seconds=60
 # @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 
-make_bim_fam_files(x, y, "tmp")
+# make_bim_fam_files(x, y, "tmp")
 
 #check result
 compare_model = DataFrame(
@@ -56,6 +56,75 @@ println("Total found predictors = " * string(length(findall(!iszero, result.beta
 
 #clean up
 rm("tmp.bed", force=true)
+
+
+
+
+
+
+#testing if IHT finds intercept and/or nongenetic covariates, normal response
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using GLM
+
+#simulat data with k true predictors, from distribution d and with link l.
+n = 1000
+p = 10000
+k = 10
+d = Normal
+l = canonicallink(d())
+
+#set random seed
+Random.seed!(1111)
+
+#construct snpmatrix, covariate files, and true model b
+x, = simulate_random_snparray(n, p, "tmp.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 2) # the intercept
+z[:, 2] .= randn(n)
+
+#define true_b and true_c
+true_b = zeros(p)
+true_b[1:k-2] = randn(k-2)
+shuffle!(true_b)
+correct_position = findall(!iszero, true_b)
+true_c = [0.1; 0.1]
+
+#add weight vector
+weight = ones(p + 2)
+weight[correct_position] .= 2.0
+weight[p + 1:end] .= 19.0
+
+#simulate phenotype
+prob = linkinv.(l, xbm * true_b .+ z * true_c)
+y = [rand(d(i)) for i in prob]
+
+#run result
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, weight=weight)
+
+#compare with correct answer
+compare_model = DataFrame(
+    position    = correct_position,
+    true_β      = true_b[correct_position], 
+    estimated_β = result.beta[correct_position])
+
+compare_model = DataFrame(
+    true_c      = true_c[1:2], 
+    estimated_c = result.c[1:2])
+
+#clean up
+rm("tmp.bed", force=true)
+
+
+
+
+
 
 
 
@@ -354,10 +423,6 @@ result = iht_run_many_models(d(), l, x, z, y, 1, path, parallel=true, debias=tru
 
 #clean up
 rm("tmp.bed", force=true)
-
-
-
-
 
 
 
