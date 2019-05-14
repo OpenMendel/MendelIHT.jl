@@ -56,6 +56,27 @@ Distributions (listed with their canonical link) that work with `L0_reg` and `cv
                Gamma (InverseLink) **(not tested)**
      InverseGaussian (InverseSquareLink) **(not tested)**
 
+Examples of these distributions in their default value (code from [this post](https://github.com/JuliaStats/GLM.jl/issues/289)):
+
+
+```julia
+using Distributions, PyPlot
+figure(figsize=(6,5))
+dfxs = [Bernoulli(),Gamma(),InverseGaussian(),NegativeBinomial(),Normal(),Poisson()]
+dnames = ["Bernoulli","Gamma","InverseGaussian","NegativeBinomial","Normal","Poisson"]
+for i in 1:length(dfxs)
+    subplot(7,1,i); subplots_adjust(hspace=0)
+    PyPlot.plt.hist(rand(dfxs[i], 100000),-7.5:0.1:7.5,align="left",label="x");xticks(-8:8)
+    ax= gca()
+    ax.yaxis.set_visible(false);ax.spines["left"].set_visible(false);ax.spines["right"].set_visible(false);ax.spines["top"].set_visible(false)
+    i !== length(dfxs) && ax.xaxis.set_visible(false);annotate(dnames[i],xy=[0,0.5],xycoords="axes fraction",ha="right",va="center")
+end
+```
+
+
+![png](output_6_0.png)
+
+
 Available link functions are:
 
     CauchitLink
