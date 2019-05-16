@@ -128,7 +128,7 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool) where {T <: Float}
 
     # first calculate step size 
-    η = iht_stepsize(v, z, d)
+    η = iht_stepsize(v, z, d, l)
 
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
     _iht_gradstep(v, η, J, k, full_grad)
@@ -151,7 +151,7 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         copyto!(v.c, v.c0)
         _iht_gradstep(v, η, J, k, full_grad)
 
-        # recompute η = xb, μ = g^{-1}(η), and loglikelihood to see if we're now increasing
+        # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
         update_μ!(v.μ, v.xb + v.zc, l)
         new_logl = loglikelihood(d, y, v.μ)
@@ -161,7 +161,7 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     end
 
     # compute score with the new mean μ
-    score!(v, xbm, z, y)
+    score!(d, l, v, xbm, z, y)
 
     # check for finiteness before moving to the next iteration
     isnan(new_logl) && throw(error("Loglikelihood function is NaN, aborting..."))

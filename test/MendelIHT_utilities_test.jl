@@ -101,23 +101,25 @@ end
     # as they are calculated right now, because the code seems to work well
    	
    	Random.seed!(1993)
+    d = Normal()
+    l = IdentityLink()
    	(x, z, y, v) = test_data()
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	score!(v, xbm, z, y)
+	score!(d, l, v, xbm, z, y)
 
 	@test all(v.df[1:3] .≈ [8.057330896198419; -2.229495636684423; 9.948528223937274])
 	@test v.df2[1] ≈ 500.8665816573597
 
    	(x, z, y, v) = test_data()
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	score!(v, xbm, z, y)
+	score!(d, l, v, xbm, z, y)
 
 	@test all(v.df[1:3] .≈ [-12.569757729532215; 8.237144382138629; 9.625154193038197])
 	@test v.df2[1] ≈ 503.8433996263735
 
    	(x, z, y, v) = test_data()
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	score!(v, xbm, z, y)
+	score!(d, l, v, xbm, z, y)
 
 	@test all(v.df[1:3] .≈ [-2.2634046444623226; -5.266454260596382; -1.5449038662162529])
 	@test v.df2[1] ≈ 507.55935638764254
@@ -317,38 +319,42 @@ end
 
     Random.seed!(1234)
     d = Normal()
+    l = canonicallink(d)
     x, z, y, v = test_data()
     v.df .= rand(1000)
     v.xk .= rand(1000, 9)
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d) ≈ 0.0006414336637728858
+    @test MendelIHT.iht_stepsize(v, z, d, l) ≈ 0.0006414336637728858
 
     d = Poisson()
+    l = canonicallink(d)
     x, z, y, v = test_data()
     v.df .= rand(1000)
     v.xk .= rand(1000, 9)
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d) ≈ 0.0010994366974406494
+    @test MendelIHT.iht_stepsize(v, z, d, l) ≈ 6.440657641991925e-5
 
     d = NegativeBinomial()
+    l = LogLink()
     x, z, y, v = test_data()
     v.df .= rand(1000)
     v.xk .= rand(1000, 9)
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d) ≈ 0.0006083627295116991
+    @test MendelIHT.iht_stepsize(v, z, d, l) ≈ 6.606936547001659e-5
 
     d = Bernoulli()
+    l = canonicallink(d)
     x, z, y, v = test_data()
     v.df .= rand(1000)
     v.xk .= rand(1000, 9)
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d) ≈ 0.002972243353525584
+    @test MendelIHT.iht_stepsize(v, z, d, l) ≈ 0.0004864093320174198
 end

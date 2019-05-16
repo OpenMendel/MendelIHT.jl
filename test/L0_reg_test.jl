@@ -91,16 +91,15 @@ end
 
 	#run result
 	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
-
 	@test length(result.beta) == 10000
-	@test findall(!iszero, result.beta) == [298;2384;2631;3157;5891;8753;8755;8931;9089;9132;]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.09782661074388528;
-					 -0.36830837115840914;0.09514696719963855;0.09104333556191194;
-					  0.1230560872858021;0.11135891871817567;0.1218641543906103;
-					  0.12273632575405301;0.2862304169426138;-0.12549910922077942])
+	@test findall(!iszero, result.beta) == [298; 2384; 2631; 2830; 5891; 8753; 8755; 8931; 9089; 9132]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.11388053193848852;
+		 -0.3656121710593458;   0.09709100199204676;  0.09256790216077444;  
+		 0.11213018219691534;  0.1130270932574973;  0.11976499548849275;  
+		 0.12654688802664316;  0.2774765841714746; -0.12145467673669649])
 	@test result.c[1] == 0.0
 	@test result.k == 10
-	@test result.logl ≈ -1294.1802742245898
+	@test result.logl ≈ -1294.11508418671
 end
 
 @testset "L0_reg NegativeBinomial" begin
@@ -128,14 +127,14 @@ end
 	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 
 	@test length(result.beta) == 10000
-	@test findall(!iszero, result.beta) == [597;934;1610;1774;2384;5413;5614;8993;9089;9132]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.07471089315588644;
-					  0.06824738097247512;0.089093226877418;-0.14171970320079133;
-					 -0.2827036218127259;0.11046965153493468;0.07975790830109869;
-					  -0.1051485450596645;0.24700913860512314;-0.1758665445728541])
+	@test findall(!iszero, result.beta) == [1245; 1610; 1774; 2384; 5234; 5413; 5614; 8993; 9089; 9132]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.12780331198500003;
+		  0.11830730412942037; -0.17035163566280925; -0.3046187195569113;  
+		  0.10000147030695117;  0.10954401862602865;  0.09732482177469551;
+		 -0.09572322132444466;  0.26774034142677433; -0.19351730458773397])
 	@test result.c[1] == 0.0
 	@test result.k == 10
-	@test result.logl ≈ -1394.1176126291837
+	@test result.logl ≈ -1390.9675106956904
 end
 
 @testset "L0_reg with non-genetic covariates" begin

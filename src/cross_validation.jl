@@ -112,7 +112,7 @@ function iht_run_many_models(
 
     #display result and then return
     showinfo && print_a_bunch_of_path_results(loglikelihoods, path)
-    return [path loglikelihoods]
+    return loglikelihoods
 end
 
 """

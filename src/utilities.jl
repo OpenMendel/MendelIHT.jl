@@ -71,16 +71,22 @@ function update_xb!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}) where 
 end
 
 """
-    score = X^T * (y - g^{-1}(xb)) = [X^T * (y - g^{-1}(xb)) ; Z^T (y - g^{-1}(xb)))
+    score = X^T * W * (y - g(x^T b))
 
-This function calculates the score (gradient) for different glm models. X stores the snpmatrix
+Calculates the score (gradient) for different glm models. 
+
+W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ). 
+
+# Arguments 
+- `x`: stores the snpmatrix
 and Z stores intercept + other non-genetic covariates. The resulting score is stored in
 v.df and v.df2, respectively. 
 """
-function score!(v::IHTVariable{T}, x::SnpBitMatrix{T}, z::AbstractMatrix{T},
-    y::AbstractVector{T}) where {T <: Float}
+function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
+    x::SnpBitMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}) where {T <: Float}
     @inbounds for i in eachindex(y)
-        v.r[i] = y[i] - v.μ[i]
+        w = mueta(l, v.xb[i]) / glmvar(d, v.μ[i])
+        v.r[i] = w * (y[i] - v.μ[i])
     end
     At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
 end
@@ -144,7 +150,7 @@ function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::Matrix{T},
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v.μ, v.xb + v.zc, l)
-    score!(v, xbm, z, y)
+    score!(d, l, v, xbm, z, y)
 
     # find J*k largest entries in magnitude and set everything else to 0. 
     a = partialsort([v.df; v.df2], k * J, by=abs, rev=true)
@@ -385,18 +391,25 @@ function save_prev!(v::IHTVariable{T}) where {T <: Float}
 end
 
 """
-This function computes the best step size μ for normal responses. 
+Computes the best step size η = v'v / v'Jv
+
+Here v is the score and J is the information matrix. The information matrix is 
+computed by J = g'(xb) / var(μ), where we assume the dispersion ϕ = 1. 
 """
 function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T}, 
-                      d::UnivariateDistribution) where {T <: Float}
+                      d::UnivariateDistribution, l::Link) where {T <: Float}
     
     # first store relevant components of gradient
     copyto!(v.gk, view(v.df, v.idx))
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
     
+    #use zdf2 as temporary storage
+    v.xgk .+= v.zdf2
+    v.zdf2 .= mueta.(l, v.xb).^2 ./ glmvar.(d, v.μ)
+    
     # now compute and return step size. Note non-genetic covariates are separated from x
-    denom = Transpose(v.xgk + v.zdf2) * Diagonal(glmvar.(d, v.μ)) * (v.xgk + v.zdf2)
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
+    denom = Transpose(v.xgk) * Diagonal(v.zdf2) * v.xgk
     return (numer / denom) :: T
 end
 

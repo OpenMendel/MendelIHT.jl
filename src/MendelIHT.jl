@@ -4,7 +4,7 @@ module MendelIHT
 
 	import Distances: euclidean, chebyshev, sqeuclidean
 	import Base.show
-	import GLM: glmvar, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
+	import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
 
 	using SnpArrays
 	using DataFrames

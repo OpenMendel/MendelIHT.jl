@@ -1165,5 +1165,32 @@ end
 
 
 
+function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T}, 
+                      d::UnivariateDistribution, l::Link) where {T <: Float64}
+    
+    # first store relevant components of gradient
+    copyto!(v.gk, view(v.df, v.idx))
+    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
+    
+    #use zdf2 as temporary storage
+    v.xgk .+= v.zdf2
+    v.zdf2 .= mueta.(l, v.xb).^2 ./ glmvar.(d, v.μ)
+    
+    # now compute and return step size. Note non-genetic covariates are separated from x
+    numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
+    denom = Transpose(v.xgk) * Diagonal(v.zdf2) * v.xgk
+    return (numer / denom) :: T
+end
+
+function test(x, y, z)
+    x .+= y
+    y .= mueta.(IdentityLink(), z).^2 ./ glmvar.(Normal(), z)
+end
 
 
+function test2(x, y, z)
+    @inbounds for i in eachindex(x)
+        x[i] += y[i]
+        y[i] = mueta(IdentityLink(), z[i])^2 / glmvar(Normal(), z[i])
+    end
+end

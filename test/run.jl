@@ -11,10 +11,10 @@ using LinearAlgebra
 using GLM
 
 #simulat data with k true predictors, from distribution d and with link l.
-n = 1000
-p = 10000
+n = 5000
+p = 30000
 k = 10
-d = Normal
+d = Bernoulli
 l = canonicallink(d())
 # l = LogLink()
 
@@ -31,16 +31,16 @@ z = ones(n, 1)
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 # specify weights 
-weight = ones(p + 1)
+# weight = ones(p + 1)
 # group = ones(Int, p + 1)
 # J = 1
 # v = IHTVariables(x, z, y, J, k, group, weight)
 # @code_warntype v.b
-weight[correct_position] .= 2.0
+# weight[correct_position] .= 2.0
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, use_maf=false, weight=weight)
-# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false) seconds=60
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, use_maf=false)
+# @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false) seconds=60
 # @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 
 # make_bim_fam_files(x, y, "tmp")
@@ -55,7 +55,7 @@ println("Total time was " * string(result.time))
 println("Total found predictors = " * string(length(findall(!iszero, result.beta[correct_position]))))
 
 #clean up
-rm("tmp.bed", force=true)
+rm("test1.bed", force=true)
 
 
 
@@ -204,6 +204,7 @@ n = 1000
 p = 10000
 k = 10
 d = Gamma
+# l = canonicallink(d())
 l = LogLink()
 θ = 1 #scale parameter for gamma
 
@@ -282,7 +283,7 @@ mean_parameter = 1 ./ μ #mean parameter for inverse gaussian distribution
 y = [rand(d(i, λ)) for i in mean_parameter]
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false, convg=true)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true) seconds = 60
 
 #check result
@@ -391,10 +392,10 @@ using BenchmarkTools
 using GLM
 
 #simulat data
-n = 1000
-p = 12000
+n = 2000
+p = 10000
 k = 10 # number of true predictors
-d = Poisson
+d = Normal
 l = canonicallink(d())
 
 #set random seed
@@ -420,6 +421,8 @@ path = collect(1:20)
 
 #run results
 result = iht_run_many_models(d(), l, x, z, y, 1, path, parallel=true, debias=true);
+@benchmark iht_run_many_models(d(), l, x, z, y, 1, path, parallel=true, debias=true) seconds=60
+
 
 #clean up
 rm("tmp.bed", force=true)
