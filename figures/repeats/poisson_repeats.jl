@@ -54,8 +54,8 @@ end
 function run()
     #simulat data with k true predictors, from distribution d and with link l.
     repeats = 100 #how many repeats should I run
-    n = 5000
-    p = 100000
+    n = 1000
+    p = 10000
     d = Poisson
     l = canonicallink(d())
     debias = true
