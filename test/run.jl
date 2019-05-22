@@ -1,3 +1,74 @@
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using DelimitedFiles
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using GLM
+# using Plots
+
+#simulat data with k true predictors, from distribution d and with link l.
+n = 1000
+p = 10000
+k = 10
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
+
+#set random seed
+# Random.seed!(1111)
+
+#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
+x = simulate_random_snparray(n, p, "test1.bed")
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(n, 1)
+
+# simulate response, true model b, and the correct non-0 positions of b
+true_b = zeros(p)
+true_b[1:10] .= collect(0.1:0.1:1.0)
+shuffle!(true_b)
+correct_position = findall(x -> x != 0, true_b)
+
+#simulate phenotypes (e.g. vector y)
+if d == Normal || d == Poisson || d == Bernoulli
+    prob = linkinv.(l, xbm * true_b)
+    clamp!(prob, -20, 20)
+    y = [rand(d(i)) for i in prob]
+elseif d == NegativeBinomial
+    nn = 10
+    μ = linkinv.(l, xbm * true_b)
+    clamp!(μ, -20, 20)
+    prob = 1 ./ (1 .+ μ ./ nn)
+    y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
+elseif d == Gamma
+    μ = linkinv.(l, xbm * true_b)
+    β = 1 ./ μ # here β is the rate parameter for gamma distribution
+    y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
+end
+y = Float64.(y)
+histogram(y)
+
+#run IHT
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+
+#check result
+compare_model = DataFrame(
+    position    = correct_position,
+    true_β      = true_b[correct_position], 
+    estimated_β = result.beta[correct_position])
+println("Total iteration number was " * string(result.iter))
+println("Total time was " * string(result.time))
+println("Total found predictors = " * string(length(findall(!iszero, result.beta[correct_position]))))
+
+#clean up
+rm("test1.bed", force=true)
+
+
+
+
 #BELOW ARE SIMULATION FOR normal, bernoulli, and poisson
 using Revise
 using MendelIHT
@@ -11,27 +82,29 @@ using LinearAlgebra
 using GLM
 
 #simulat data with k true predictors, from distribution d and with link l.
-n = 5000
-p = 30000
+n = 1000
+p = 10000
 k = 10
-d = Bernoulli
+d = Normal
 l = canonicallink(d())
 # l = LogLink()
 
 #set random seed
-Random.seed!(1111)
+# Random.seed!(1111)
 
 #construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-x, = simulate_random_snparray(n, p, "test1.bed")
+x = simulate_random_snparray(n, p, "test1.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1)
 # z[:, 2] .= randn(n)
 
 # simulate response, true model b, and the correct non-0 positions of b
 y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+# maximum(y)
 
 # specify weights 
-# weight = ones(p + 1)
+weight = ones(p + 1)
+weight[1:p] .= maf_weights(x)
 # group = ones(Int, p + 1)
 # J = 1
 # v = IHTVariables(x, z, y, J, k, group, weight)
@@ -84,7 +157,7 @@ l = canonicallink(d())
 Random.seed!(1111)
 
 #construct snpmatrix, covariate files, and true model b
-x, = simulate_random_snparray(n, p, "tmp.bed")
+x = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 2) # the intercept
 z[:, 2] .= randn(n)
@@ -155,7 +228,7 @@ nn = 10 #number of tries for binomial/negative-binomial
 Random.seed!(2019)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p, "tmp.bed")
+x = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
@@ -212,7 +285,7 @@ l = LogLink()
 Random.seed!(2019)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p, "tmp.bed")
+x = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
@@ -268,7 +341,7 @@ l = LogLink()
 Random.seed!(2019)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p, "tmp.bed")
+x = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
@@ -334,7 +407,7 @@ l = canonicallink(d())
 Random.seed!(2018)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p, "tmp.bed")
+x = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
@@ -354,7 +427,7 @@ num_folds = 4
 folds = rand(1:num_folds, size(x, 1))
 
 #compute cross validation
-mses = cv_iht(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=true, parallel=true);
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, use_maf=false, debias=true, parallel=true);
 
 #compute l0 result using best estimate for k
 k_est = argmin(mses)
@@ -402,7 +475,7 @@ l = canonicallink(d())
 Random.seed!(2019)
 
 #construct snpmatrix, covariate files, and true model b
-x, maf = simulate_random_snparray(n, p, "tmp.bed")
+x = simulate_random_snparray(n, p, "tmp.bed")
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 true_b = zeros(p)
@@ -456,7 +529,7 @@ l = canonicallink(d())
 Random.seed!(33)
 
 #construct snpmatrix, covariate files, and true model b
-x, = simulate_random_snparray(n, p, undef)
+x = simulate_random_snparray(n, p, undef)
 xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 z = ones(n, 1) # the intercept
 

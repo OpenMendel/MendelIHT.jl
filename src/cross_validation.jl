@@ -12,6 +12,10 @@ a different model for a given fold. To use this function, start julia using 4 pr
     julia> using Distributed
     julia> addprocs(4)
 
+# Warning
+Do not remove files with random file names when you run this function. There are 
+memory mapped files that will be deleted automatically once they are no longer needed.
+
 # Arguments
 - `d`: A distribution (e.g. Normal, Bernoulli)
 - `l`: A link function (e.g. Loglink, ProbitLink)
@@ -128,8 +132,8 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
                     debias::Bool=false, showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
 
     # create directory for memory mapping
-    train_file = "train_tmp$fold.bed"
-    test_file = "test_tmp$fold.bed"
+    train_file = randstring(100) * ".bed"
+    test_file = randstring(100) * ".bed"
 
     # first allocate arrays needed for computing deviance residuals
     p, q = size(x, 2), size(z, 2)

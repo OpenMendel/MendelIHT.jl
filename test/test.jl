@@ -1194,3 +1194,58 @@ function test2(x, y, z)
         y[i] = mueta(IdentityLink(), z[i])^2 / glmvar(Normal(), z[i])
     end
 end
+
+
+
+
+
+
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using DelimitedFiles
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using GLM
+
+#simulat data with k true predictors, from distribution d and with link l.
+n = 1000
+p = 10000
+k = 10
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
+
+#set random seed
+Random.seed!(1111)
+
+for i in 1:10
+    #construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
+    mafs = clamp!(0.5rand(p), 0.1, 0.5)
+    x = simulate_random_snparray(n, p, "test1.bed", mafs=mafs)
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    z = ones(n, 1)
+
+    # simulate response, true model b, and the correct non-0 positions of b
+    y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+
+    # specify weights 
+    weight = ones(p + 1)
+    weight[1:p] .= maf_weights(x, max_weight=2.0)
+
+    #run IHT
+    result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, use_maf=false)
+    result_weighted = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, use_maf=false, weight=weight)
+
+    #check result
+    compare_model = DataFrame(
+        unweighted = result.beta[correct_position], 
+        weighted   = result_weighted.beta[correct_position])
+    @show compare_model
+
+    #clean up
+    rm("test1.bed", force=true)
+end
+

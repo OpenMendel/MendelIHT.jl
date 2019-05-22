@@ -20,7 +20,7 @@ function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInit
                                   mafs::Vector{Float64}=zeros(Float64, p), min_ma::Int = 5)
     
     if mafs != zeros(Float64, p)
-        return _random_snparray(n, p, s, mafs, min_ma)
+        return _random_snparray(n, p, s, mafs, min_ma=min_ma)
     end
 
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
@@ -41,7 +41,7 @@ function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInit
     end
 
     #fill the SnpArray with the corresponding x_tmp entry
-    return _make_snparray(A1, A2, s), mafs
+    return _make_snparray(A1, A2, s)
 end
 
 """
@@ -136,9 +136,11 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int,
     #simulate phenotypes (e.g. vector y)
     if d == Normal || d == Poisson || d == Bernoulli
         prob = linkinv.(l, xbm * true_b)
+        clamp!(prob, -20, 20)
         y = [rand(d(i)) for i in prob]
     elseif d == NegativeBinomial
         μ = linkinv.(l, xbm * true_b)
+        clamp!(μ, -20, 20)
         prob = 1 ./ (1 .+ μ ./ nn)
         y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
     elseif d == Gamma
@@ -152,7 +154,7 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int,
 end
 
 """
-    adhoc_add_correlation(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
+    adhoc_add_correlation!(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
 
 Makes 1 SNP (a column of `x`) correlate with SNPs in `location` with correlation coefficient roughly `ρ`.
 
@@ -162,7 +164,7 @@ Makes 1 SNP (a column of `x`) correlate with SNPs in `location` with correlation
 - `pos`: the position of the target SNP that everything would be correlated to
 - `location`: All the SNPs that shall be correlated with the SNP at position `pos` with correlation `ρ`.
 """
-function adhoc_add_correlation(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
+function adhoc_add_correlation!(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
     @assert 0 <= ρ <= 1 "correlation coefficient must be in (0, 1) but was $ρ"
 
     for loc in location 
