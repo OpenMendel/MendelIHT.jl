@@ -60,14 +60,14 @@ end
 
 """
 This function update the linear predictors `xb` with the new proposed b. We clamp the max
-value of each entry to (-30, 30) because certain distributions (e.g. Poisson) have exponential
+value of each entry to (-20, 20) because certain distributions (e.g. Poisson) have exponential
 link functions, which causes overflow.
 """
 function update_xb!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}) where {T <: Float}
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-    clamp!(v.xb, -30, 30)
-    clamp!(v.zc, -30, 30)
+    clamp!(v.xb, -20, 20)
+    clamp!(v.zc, -20, 20)
 end
 
 """
@@ -76,16 +76,11 @@ end
 Calculates the score (gradient) for different glm models. 
 
 W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ). 
-
-# Arguments 
-- `x`: stores the snpmatrix
-and Z stores intercept + other non-genetic covariates. The resulting score is stored in
-v.df and v.df2, respectively. 
 """
 function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
     x::SnpBitMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}) where {T <: Float}
     @inbounds for i in eachindex(y)
-        w = mueta(l, v.xb[i]) / glmvar(d, v.μ[i])
+        w = mueta(l, v.xb[i] + v.zc[i]) / glmvar(d, v.μ[i])
         v.r[i] = w * (y[i] - v.μ[i])
     end
     At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
@@ -198,7 +193,7 @@ includes either one of the following:
 
 Note for Posison, NegativeBinomial, and Gamma, we require model coefficients to be 
 "small" to prevent loglikelihood blowing up in first few iteration. This is accomplished 
-by clamping η = xb values to be in (-30, 30)
+by clamping η = xb values to be in (-20, 20)
 """
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
     (prev_logl > logl) && (η_step < nstep)
@@ -393,8 +388,8 @@ end
 """
 Computes the best step size η = v'v / v'Jv
 
-Here v is the score and J is the information matrix. The information matrix is 
-computed by J = g'(xb) / var(μ), where we assume the dispersion ϕ = 1. 
+Here v is the score and J is the expected information matrix, which is 
+computed by J = g'(xb) / var(μ), assuming dispersion is 1
 """
 function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T}, 
                       d::UnivariateDistribution, l::Link) where {T <: Float}
@@ -405,8 +400,8 @@ function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T},
     
     #use zdf2 as temporary storage
     v.xgk .+= v.zdf2
-    v.zdf2 .= mueta.(l, v.xb).^2 ./ glmvar.(d, v.μ)
-    
+    v.zdf2 .= mueta.(l, v.xb + v.zc).^2 ./ glmvar.(d, v.μ)
+
     # now compute and return step size. Note non-genetic covariates are separated from x
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
     denom = Transpose(v.xgk) * Diagonal(v.zdf2) * v.xgk

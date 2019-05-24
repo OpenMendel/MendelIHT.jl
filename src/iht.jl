@@ -43,8 +43,8 @@ function L0_reg(
     show_info :: Bool = true,  # print things when model didn't converge
     init      :: Bool = false, # not efficient. whether to initialize β to sensible values
     tol       :: T = 1e-4,     # tolerance for tracking convergence
-    max_iter  :: Int = 200,    # maximum IHT iterations
-    max_step  :: Int = 3,      # maximum backtracking for each iteration
+    max_iter  :: Int = 100,    # maximum IHT iterations
+    max_step  :: Int = 5,      # maximum backtracking for each iteration
 ) where {T <: Float}
 
     #start timer
@@ -109,6 +109,7 @@ function L0_reg(
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
         if converged
+        # if iter > 1 && abs(next_logl - logl) < tol * (abs(logl) + 1.0)
             tot_time = time() - start_time
             mm_iter  = iter
             break
