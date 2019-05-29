@@ -3,7 +3,7 @@
 # error = Merged with joblog
 #$ -o joblog.$JOB_ID
 #$ -j y
-#$ -pe shared 6
+#$ -pe shared 10
 #$ -l h_rt=24:00:00,h_data=3.5G
 # Email address to notify
 ## $ -M $USER@mal
@@ -22,7 +22,7 @@ which julia
 
 # run julia code
 echo "julia negativebinomial_cv_nodebias.jl, debias=false"
-pwd; julia /u/home/b/biona001/cross_validation/negativebinomial_cv_nodebias.jl
+pwd; julia /u/home/b/biona001/cross_validation/negativebinomial/nodebias/negativebinomial_cv_nodebias.jl
 
 #echo job info on joblog:
 echo "Job $JOB_ID ended on:   " `hostname -s`
