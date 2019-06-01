@@ -1,0 +1,26 @@
+Job 83003 started on:    n6093
+Job 83003 started on:    Thu May 23 10:42:16 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 10000, run = 5
+/u/home/b/biona001/benchmark
+Did not converge!!!!! The run time for IHT was 1.5014870166778564 seconds and model size was10
+Job 83003 ended on:    n6093
+Job #JOB_ID ended on:    Thu May 23 10:57:10 PDT 2019
+Job 83003 started on:    n6093
+Job 83003 started on:    Thu May 23 10:57:18 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 20000, run = 5
+/u/home/b/biona001/benchmark
+Did not converge!!!!! The run time for IHT was 1.5012500286102295 seconds and model size was10
+Job 83003 ended on:    n6093
+Job #JOB_ID ended on:    Thu May 23 11:27:28 PDT 2019

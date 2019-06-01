@@ -20,11 +20,11 @@ module li
 which julia
 
 #  Job array indexes
-#$ -t 1-5:1
+#$ -t 10000-120000:10000
 
 # run julia code
-echo "julia benchmark_poisson.jl, where debias = true, n = 90300, run = $SGE_TASK_ID"
-pwd; julia /u/home/b/biona001/benchmark/benchmark_poisson.jl 90300 $SGE_TASK_ID
+echo "julia benchmark_poisson_nodebias.jl, where debias = false, n = $SGE_TASK_ID, run = 5"
+pwd; julia /u/home/b/biona001/benchmark/benchmark_poisson_nodebias.jl $SGE_TASK_ID 5
 
 #echo job info on joblog:
 echo "Job $JOB_ID ended on:   " `hostname -s`

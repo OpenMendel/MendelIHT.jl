@@ -1,0 +1,142 @@
+Job 82981 started on:    n7168
+Job 82981 started on:    Wed May 22 00:24:18 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 10000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n6098
+Job 82981 started on:    Wed May 22 00:24:36 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 20000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n7086
+Job 82981 started on:    Wed May 22 00:34:25 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 30000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n7090
+Job 82981 started on:    Wed May 22 00:38:51 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 40000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n7168
+Job 82981 started on:    Wed May 22 00:38:59 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 50000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n6093
+Job 82981 started on:    Wed May 22 00:40:54 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 60000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n6106
+Job 82981 started on:    Wed May 22 00:46:05 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 70000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n6143
+Job 82981 started on:    Wed May 22 00:47:50 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 80000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 ended on:    n6098
+Job #JOB_ID ended on:    Wed May 22 00:51:39 PDT 2019
+Job 82981 started on:    n6098
+Job 82981 started on:    Wed May 22 00:51:44 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 90000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n6094
+Job 82981 started on:    Wed May 22 01:00:03 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 100000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n7166
+Job 82981 started on:    Wed May 22 01:00:31 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 110000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 started on:    n6100
+Job 82981 started on:    Wed May 22 01:00:58 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 3
+/u/home/b/biona001/benchmark
+Job 82981 ended on:    n7086
+Job #JOB_ID ended on:    Wed May 22 01:14:53 PDT 2019
+Job 82981 ended on:    n7090
+Job #JOB_ID ended on:    Wed May 22 01:32:55 PDT 2019
+Job 82981 ended on:    n7168
+Job #JOB_ID ended on:    Wed May 22 01:46:43 PDT 2019
+Job 82981 ended on:    n6093
+Job #JOB_ID ended on:    Wed May 22 02:02:06 PDT 2019
+Job 82981 ended on:    n6106
+Job #JOB_ID ended on:    Wed May 22 02:20:49 PDT 2019
+Job 82981 ended on:    n6143
+Job #JOB_ID ended on:    Wed May 22 02:36:03 PDT 2019
+Job 82981 ended on:    n6098
+Job #JOB_ID ended on:    Wed May 22 02:53:43 PDT 2019
+Job 82981 ended on:    n6094
+Job #JOB_ID ended on:    Wed May 22 03:15:45 PDT 2019
+Job 82981 ended on:    n7166
+Job #JOB_ID ended on:    Wed May 22 03:31:04 PDT 2019
+Job 82981 ended on:    n6100
+Job #JOB_ID ended on:    Wed May 22 03:46:37 PDT 2019

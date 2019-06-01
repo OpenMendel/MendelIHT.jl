@@ -1,0 +1,144 @@
+Job 94899 started on:    n7140
+Job 94899 started on:    Mon May 27 16:35:07 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 10000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n6098
+Job 94899 started on:    Mon May 27 16:42:42 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 20000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n6135
+Job 94899 started on:    Mon May 27 16:45:29 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 30000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n7092
+Job 94899 started on:    Mon May 27 16:45:34 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 40000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n6091
+Job 94899 started on:    Mon May 27 16:46:44 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 50000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n6150
+Job 94899 started on:    Mon May 27 16:55:01 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 60000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n7167
+Job 94899 started on:    Mon May 27 17:02:26 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 70000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 ended on:    n7140
+Job #JOB_ID ended on:    Mon May 27 17:10:33 PDT 2019
+Job 94899 started on:    n7140
+Job 94899 started on:    Mon May 27 17:10:39 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 80000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n7103
+Job 94899 started on:    Mon May 27 17:40:39 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 90000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n6087
+Job 94899 started on:    Mon May 27 18:06:29 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 100000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n6141
+Job 94899 started on:    Mon May 27 18:08:34 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 110000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 started on:    n6144
+Job 94899 started on:    Mon May 27 18:15:32 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_poisson.jl, where debias = true, n = 120000, run = 2
+/u/home/b/biona001/benchmark
+Job 94899 ended on:    n6135
+Job #JOB_ID ended on:    Mon May 27 19:17:21 PDT 2019
+Job 94899 ended on:    n7092
+Job #JOB_ID ended on:    Mon May 27 19:24:11 PDT 2019
+Did not converge!!!!! The run time for IHT was 10194.288151979446 seconds and model size was10
+Job 94899 ended on:    n6098
+Job #JOB_ID ended on:    Mon May 27 19:54:21 PDT 2019
+Job 94899 ended on:    n6091
+Job #JOB_ID ended on:    Mon May 27 20:05:26 PDT 2019
+Job 94899 ended on:    n6150
+Job #JOB_ID ended on:    Mon May 27 21:03:44 PDT 2019
+Job 94899 ended on:    n7167
+Job #JOB_ID ended on:    Mon May 27 21:47:14 PDT 2019
+Job 94899 ended on:    n7140
+Job #JOB_ID ended on:    Mon May 27 22:08:38 PDT 2019
+Job 94899 ended on:    n7103
+Job #JOB_ID ended on:    Mon May 27 23:30:22 PDT 2019
+Job 94899 ended on:    n6087
+Job #JOB_ID ended on:    Tue May 28 00:44:25 PDT 2019
+Did not converge!!!!! The run time for IHT was 55616.9706389904 seconds and model size was10
+Job 94899 ended on:    n6141
+Job #JOB_ID ended on:    Tue May 28 11:37:33 PDT 2019
