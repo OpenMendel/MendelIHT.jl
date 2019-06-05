@@ -80,7 +80,9 @@ W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ).
 function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
     x::SnpBitMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}) where {T <: Float}
     @inbounds for i in eachindex(y)
-        w = mueta(l, v.xb[i] + v.zc[i]) / glmvar(d, v.μ[i])
+        # η = clamp(v.xb[i] + v.zc[i], -20, 20)
+        η = v.xb[i] + v.zc[i]
+        w = mueta(l, η) / glmvar(d, v.μ[i])
         v.r[i] = w * (y[i] - v.μ[i])
     end
     At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
@@ -142,6 +144,15 @@ group.
 function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::Matrix{T},
                            y::Vector{T}, d::UnivariateDistribution, l::Link, J::Int, 
                            k::Int) where {T <: Float}
+    # find the intercept by Newton's method
+    ybar = mean(y)
+    for iteration = 1:20 
+        g1 = linkinv(l, v.c[1])
+        g2 = mueta(l, v.c[1])
+        v.c[1] = v.c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
+        abs(g1 - ybar) < 1e-10 && break
+    end
+    v.zc .= z * v.c
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v.μ, v.xb + v.zc, l)

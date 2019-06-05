@@ -87,7 +87,7 @@ function L0_reg(
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            show_info && printstyled("Did not converge!!!!! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
+            show_info && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
             break
         end
 
@@ -167,7 +167,7 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     # check for finiteness before moving to the next iteration
     isnan(new_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
     isinf(new_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
-    isinf(η) && throw(error("step size not finite! it is $η and max df is " * string(maximum(v.gk)) * "!!\n"))
+    isinf(η) && throw(error("step size not finite! it is $η and max gradient is " * string(maximum(v.gk)) * "!!\n"))
 
     return η::T, η_step::Int, new_logl::T
 end #function iht_one_step
