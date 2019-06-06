@@ -1,0 +1,46 @@
+Job 173913 started on:    n9840
+Job 173913 started on:    Wed Jun 5 17:12:24 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3        5) xz/5.2.2         9) java/1.8.0_111
+  2) julia/1.0.1      6) pcre/8.39       10) R/3.5.1
+  3) zlib/1.2.8       7) curl/7.49.1
+  4) bzip2/1.0.6      8) intel/18.0.2
+/u/local/apps/julia/1.0.1/bin/julia
+julia run.jl, run = 5
+/u/home/b/biona001/precision_recall/poisson/run5
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+┌ Warning: RCall.jl: Loading required package: Matrix
+│ Loading required package: foreach
+│ Loaded glmnet 2.0-16
+│ 
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Loading required package: pscl
+│ Classes and Methods for R developed in the
+│ Political Science Computational Laboratory
+│ Department of Political Science
+│ Stanford University
+│ Simon Jackman
+│ hurdle and zeroinfl functions by Achim Zeileis
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Loading required package: boot
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+ERROR: LoadError: UndefVarError: total_runs not defined
+Stacktrace:
+ [1] run() at /u/home/b/biona001/precision_recall/poisson/run5/run.jl:183
+ [2] run2() at /u/home/b/biona001/precision_recall/poisson/run5/run.jl:225
+ [3] top-level scope at none:0
+ [4] include at ./boot.jl:317 [inlined]
+ [5] include_relative(::Module, ::String) at ./loading.jl:1041
+ [6] include(::Module, ::String) at ./sysimg.jl:29
+ [7] exec_options(::Base.JLOptions) at ./client.jl:229
+ [8] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/precision_recall/poisson/run5/run.jl:251
+Job 173913 ended on:    n9840
+Job #JOB_ID ended on:    Wed Jun 5 17:16:46 PDT 2019

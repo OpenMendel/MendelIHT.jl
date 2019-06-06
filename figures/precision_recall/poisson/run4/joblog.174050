@@ -1,0 +1,189 @@
+Job 174050 started on:    n9951
+Job 174050 started on:    Wed Jun 5 17:41:33 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3        5) xz/5.2.2         9) java/1.8.0_111
+  2) julia/1.0.1      6) pcre/8.39       10) R/3.5.1
+  3) zlib/1.2.8       7) curl/7.49.1
+  4) bzip2/1.0.6      8) intel/18.0.2
+/u/local/apps/julia/1.0.1/bin/julia
+julia run.jl, run = 4
+/u/home/b/biona001/precision_recall/poisson/run4
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+┌ Warning: RCall.jl: Loading required package: Matrix
+│ Loading required package: foreach
+│ Loaded glmnet 2.0-16
+│ 
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Loading required package: pscl
+│ Classes and Methods for R developed in the
+│ Political Science Computational Laboratory
+│ Department of Political Science
+│ Stanford University
+│ Simon Jackman
+│ hurdle and zeroinfl functions by Achim Zeileis
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Loading required package: boot
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+ERROR: LoadError: REvalError: Error in solve.default(as.matrix(fit$hessian)) : 
+  system is computationally singular: reciprocal condition number = 1.74388e-16
+Calls: summary -> zeroinfl -> solve -> solve.default
+in expression starting at /u/home/b/biona001/precision_recall/poisson/run4/run.jl:252
+current run = 31
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run4".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β  │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64  │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼──────────┼────────────────┼───────────────┤
+│ 1   │ 0.2     │ 0.0      │ 0.0      │ true           │ false         │
+│ 2   │ 1.0     │ 0.653015 │ 0.537835 │ true           │ true          │
+│ 3   │ 0.4     │ 0.0      │ 0.168367 │ true           │ false         │
+│ 4   │ 0.9     │ 0.661781 │ 0.524689 │ true           │ true          │
+│ 5   │ 0.1     │ 0.0      │ 0.0      │ false          │ false         │
+│ 6   │ 0.5     │ 0.35092  │ 0.292916 │ true           │ true          │
+│ 7   │ 0.7     │ 0.467788 │ 0.365364 │ true           │ true          │
+│ 8   │ 0.6     │ 0.370182 │ 0.278867 │ true           │ true          │
+│ 9   │ 0.8     │ 0.0      │ 0.161977 │ false          │ false         │
+│ 10  │ 0.3     │ 0.0      │ 0.082529 │ true           │ false         │
+IHT true positives = 5
+IHT false positives = 1
+IHT false negatives = 5
+LASSO true positives = 8
+LASSO false positives = 6
+LASSO false negatives = 2
+marginal true positives = 8
+marginal false positives = 1298
+marginal false negatives = 2
+zero inflated poisson true positives = 5
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 5
+
+current run = 32
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run4".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β  │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64  │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼──────────┼────────────────┼───────────────┤
+│ 1   │ 1.0     │ 0.625256 │ 0.557832 │ true           │ true          │
+│ 2   │ 0.1     │ 0.0      │ 0.0      │ false          │ false         │
+│ 3   │ 0.8     │ 0.393148 │ 0.387911 │ true           │ false         │
+│ 4   │ 0.7     │ 0.430809 │ 0.376951 │ true           │ true          │
+│ 5   │ 0.6     │ 0.432126 │ 0.371029 │ true           │ true          │
+│ 6   │ 0.9     │ 0.464512 │ 0.446079 │ true           │ true          │
+│ 7   │ 0.4     │ 0.160675 │ 0.136326 │ true           │ false         │
+│ 8   │ 0.2     │ 0.0      │ 0.0      │ true           │ false         │
+│ 9   │ 0.5     │ 0.228675 │ 0.230238 │ true           │ false         │
+│ 10  │ 0.3     │ 0.182769 │ 0.122605 │ true           │ false         │
+IHT true positives = 8
+IHT false positives = 1
+IHT false negatives = 2
+LASSO true positives = 8
+LASSO false positives = 68
+LASSO false negatives = 2
+marginal true positives = 9
+marginal false positives = 1541
+marginal false negatives = 1
+zero inflated poisson true positives = 4
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 6
+
+current run = 33
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run4".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+Job 174050 ended on:    n9951
+Job #JOB_ID ended on:    Wed Jun 5 18:20:18 PDT 2019

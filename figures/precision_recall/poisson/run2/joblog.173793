@@ -1,0 +1,13 @@
+Job 173793 started on:    n9856
+Job 173793 started on:    Wed Jun 5 16:36:17 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia run.jl, run = 2
+/u/home/b/biona001/precision_recall/poisson/run2
+/work/UGE/8.6.4/n9856/job_scripts/173793: line 24: /u/home/b/biona001/precision_recall/poisson/run2/run.sh: Permission denied
+Job 173793 ended on:    n9856
+Job #JOB_ID ended on:    Wed Jun 5 16:36:17 PDT 2019

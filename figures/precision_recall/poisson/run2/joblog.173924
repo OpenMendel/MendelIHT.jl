@@ -1,0 +1,108 @@
+Job 173924 started on:    n9833
+Job 173924 started on:    Wed Jun 5 17:19:03 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3        5) xz/5.2.2         9) java/1.8.0_111
+  2) julia/1.0.1      6) pcre/8.39       10) R/3.5.1
+  3) zlib/1.2.8       7) curl/7.49.1
+  4) bzip2/1.0.6      8) intel/18.0.2
+/u/local/apps/julia/1.0.1/bin/julia
+julia run.jl, run = 2
+/u/home/b/biona001/precision_recall/poisson/run2
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+┌ Warning: RCall.jl: Loading required package: Matrix
+│ Loading required package: foreach
+│ Loaded glmnet 2.0-16
+│ 
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Loading required package: pscl
+│ Classes and Methods for R developed in the
+│ Political Science Computational Laboratory
+│ Department of Political Science
+│ Stanford University
+│ Simon Jackman
+│ hurdle and zeroinfl functions by Achim Zeileis
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Loading required package: boot
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+ERROR: LoadError: BoundsError: attempt to access 10-element Array{Float64,1} at index [11]
+Stacktrace:
+ [1] setindex! at ./array.jl:769 [inlined]
+ [2] run() at /u/home/b/biona001/precision_recall/poisson/run2/run.jl:205
+ [3] run2() at /u/home/b/biona001/precision_recall/poisson/run2/run.jl:226
+ [4] top-level scope at none:0
+ [5] include at ./boot.jl:317 [inlined]
+ [6] include_relative(::Module, ::String) at ./loading.jl:1041
+ [7] include(::Module, ::String) at ./sysimg.jl:29
+ [8] exec_options(::Base.JLOptions) at ./client.jl:229
+ [9] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/precision_recall/poisson/run2/run.jl:252
+current run = 11
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run2".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β   │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64   │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼───────────┼────────────────┼───────────────┤
+│ 1   │ 0.1     │ 0.0      │ 0.0065292 │ false          │ false         │
+│ 2   │ 0.7     │ 0.409431 │ 0.314573  │ true           │ true          │
+│ 3   │ 0.6     │ 0.30393  │ 0.283733  │ true           │ true          │
+│ 4   │ 0.5     │ 0.345598 │ 0.259965  │ true           │ true          │
+│ 5   │ 0.3     │ 0.0      │ 0.0736968 │ true           │ false         │
+│ 6   │ 0.4     │ 0.244678 │ 0.180492  │ true           │ true          │
+│ 7   │ 0.9     │ 0.649058 │ 0.546522  │ true           │ true          │
+│ 8   │ 0.8     │ 0.296913 │ 0.305488  │ true           │ false         │
+│ 9   │ 1.0     │ 0.654342 │ 0.577311  │ true           │ true          │
+│ 10  │ 0.2     │ 0.0      │ 0.01043   │ false          │ false         │
+IHT true positives = 7
+IHT false positives = 1
+IHT false negatives = 3
+LASSO true positives = 10
+LASSO false positives = 59
+LASSO false negatives = 0
+marginal true positives = 8
+marginal false positives = 1451
+marginal false negatives = 2
+zero inflated poisson true positives = 6
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 4
+
+Job 173924 ended on:    n9833
+Job #JOB_ID ended on:    Wed Jun 5 17:37:43 PDT 2019

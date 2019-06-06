@@ -19,6 +19,8 @@ the simulation to generate samples where at least `min_ma` (defaults to 5) are p
 function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}; 
                                   mafs::Vector{Float64}=zeros(Float64, p), min_ma::Int = 5)
     
+    @assert all(0.0 .<= mafs .<= 0.5) "Minor allele frequencies must be all in the range (0, 0.5)"
+
     if mafs != zeros(Float64, p)
         return _random_snparray(n, p, s, mafs, min_ma=min_ma)
     end
