@@ -12,7 +12,7 @@
 	Random.seed!(2019)
 
 	#construct snpmatrix, covariate files, and true model b
-	x, = simulate_random_snparray(n, p, undef)
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1) # the intercept
 
@@ -50,7 +50,7 @@ end
 	Random.seed!(2019)
 
 	#construct snpmatrix, covariate files, and true model b
-	x, = simulate_random_snparray(n, p, undef)
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1) # the intercept
 
@@ -87,7 +87,7 @@ end
 	Random.seed!(2019)
 
 	#construct snpmatrix, covariate files, and true model b
-	x, = simulate_random_snparray(n, p, undef)
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1) # the intercept
 
@@ -102,12 +102,13 @@ end
 	# run threaded IHT
 	mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true)
 
-	@test argmin(mses) == 8
-	@test all(mses ≈ [ 608.5185864156908; 554.4890824202639; 523.8764295950825; 488.1264552861322; 
-		453.96213697247924; 405.75784144607996; 407.60270764148606; 386.52624780749767; 
-		404.2623938995897; 400.28588172665775; 410.4472342338546; 420.15069559686253; 
-		438.96623067486007; 439.0234436551872; 435.80703098554704; 455.9718487859483; 
-		458.74746026812716; 453.8387031450877; 447.4324667811566; 447.62284814476243])
+	@test argmin(mses) == 7
+	@test all(mses ≈ [ 612.6766519782327; 554.4890824202639; 522.4053768900791; 
+		485.3207425983446; 445.78015443806163;412.2320772688479; 382.6698340685961; 
+		385.9384838080234;394.81185628720675; 405.7743050802736; 406.27235883258606;
+		413.3816413610929; 423.313949398366; 425.98190340196277;427.5153001291356; 
+		420.3871855662542; 440.9354230778697;445.96512112259165; 455.5151967326286; 
+		437.7447856125584])
 end
 
 @testset "cv_iht NegativeBinomial" begin
@@ -124,7 +125,7 @@ end
 	Random.seed!(2019)
 
 	#construct snpmatrix, covariate files, and true model b
-	x, = simulate_random_snparray(n, p, undef)
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1) # the intercept
 
@@ -139,13 +140,13 @@ end
 	# run threaded IHT
 	mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true)
 
-	@test argmin(mses) == 7
-	@test all(mses ≈ [296.9598675726054;270.34288882337495;253.56107225530195;
-		245.6356378490944; 234.28391512742712; 229.51458911435097; 224.75045932979236;
-		228.108101541521; 233.99579309666166; 238.7778890065921; 240.77103129427257;
-		240.9249395339163; 247.92544806689114;246.05439848327285; 253.95193468780303;
-		247.0237203616466; 255.3074217938908; 254.37748596787372; 263.15056242825057;
-		269.0935738286553])
+	@test argmin(mses) == 6
+	@test all(mses ≈ [ 299.29083418540984; 277.1588834992124; 254.24543899850323; 
+		239.65111105625778; 234.28391512742712; 226.11206626366229; 231.00815753407852;
+		 230.28151617161788; 234.06225621624264; 235.33924496682374; 237.76185304461012; 
+		 241.4319393553253; 247.51432485217947; 249.26308636719477; 248.54094497173412; 
+		 253.51544251902232; 259.8047937477371; 253.51719798579745; 263.6992561532014; 
+		 263.43746844493137])
 end
 
 @testset "iht_run_many_models normal" begin
@@ -159,7 +160,7 @@ end
 	Random.seed!(2019)
 
 	#construct snpmatrix, covariate files, and true model b
-	x, = simulate_random_snparray(n, p, undef)
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1) # the intercept
 
@@ -191,7 +192,3 @@ end
 	@test result[19] ≈ -1351.709447505716
 	@test result[20] ≈ -1343.1979015928894
 end
-
-
-
-

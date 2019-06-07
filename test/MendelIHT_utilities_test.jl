@@ -1,5 +1,5 @@
 function test_data()
-	x, = simulate_random_snparray(1000, 1000, undef)
+	x = simulate_random_snparray(1000, 1000, undef)
 	z = ones(1000, 1)
 	y = rand(1000)
     v = IHTVariables(x, z, y, 1, 10, Int[], Float64[]) #J = 1, k = 10
@@ -197,7 +197,7 @@ end
 
 	# first compute the correct answer by converting each column to floats and call std() directly
 	n, p = 10000, 10000
-	x, = simulate_random_snparray(n, p, undef)
+	x = simulate_random_snparray(n, p, undef)
 	storage = zeros(n)
 	answer  = zeros(p)
     for i in 1:p
@@ -277,7 +277,7 @@ end
 
 @testset "maf_weights" begin
     Random.seed!(33)
-    x, = simulate_random_snparray(1000, 10000, undef)
+    x = simulate_random_snparray(1000, 10000, undef)
     m = maf(x)
     p = maf_weights(x)
 

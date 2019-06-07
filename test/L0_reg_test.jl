@@ -12,7 +12,7 @@
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x, = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, "test1.bed")
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
@@ -47,7 +47,7 @@ end
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x, = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, "test1.bed")
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
@@ -82,7 +82,7 @@ end
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x, = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, "test1.bed")
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
@@ -92,14 +92,15 @@ end
 	#run result
 	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 	@test length(result.beta) == 10000
-	@test findall(!iszero, result.beta) == [298; 2384; 2631; 2830; 5891; 8753; 8755; 8931; 9089; 9132]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.11388053193848852;
-		 -0.3656121710593458;   0.09709100199204676;  0.09256790216077444;  
-		 0.11213018219691534;  0.1130270932574973;  0.11976499548849275;  
-		 0.12654688802664316;  0.2774765841714746; -0.12145467673669649])
+	@test findall(!iszero, result.beta) == [298; 606; 2384; 5891; 7067; 8753; 8755; 8931; 9089; 9132]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.10999211487301704;
+		-0.09628969787009399; -0.3660582504298778;  0.11767397809862554;  
+		0.09686501699067837;  0.11419451741236888;  0.12373749347128933;  
+		0.11916107757737655;  0.2904980599350941; -0.12920302008477738])
 	@test result.c[1] == 0.0
 	@test result.k == 10
-	@test result.logl ≈ -1294.11508418671
+	@test result.logl ≈ -1293.4456256102478
+	@test result.iter == 14
 end
 
 @testset "L0_reg NegativeBinomial" begin
@@ -116,7 +117,7 @@ end
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x, = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, "test1.bed")
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
@@ -127,14 +128,15 @@ end
 	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 
 	@test length(result.beta) == 10000
-	@test findall(!iszero, result.beta) == [1245; 1610; 1774; 2384; 5234; 5413; 5614; 8993; 9089; 9132]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.12780331198500003;
-		  0.11830730412942037; -0.17035163566280925; -0.3046187195569113;  
-		  0.10000147030695117;  0.10954401862602865;  0.09732482177469551;
-		 -0.09572322132444466;  0.26774034142677433; -0.19351730458773397])
+	@test findall(!iszero, result.beta) == [1245; 1774; 1982; 2384; 5413; 5440; 5614; 7166; 9089; 9132;]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.13251205076442696;
+		-0.16906821875893546;  0.12865324984770152; -0.30791709019019947;  
+		0.1202449253579259; 0.12545318690748591;  0.10252799982767402;  
+		0.12937785947321034;  0.27113364351607033;-0.19797373419860373])
 	@test result.c[1] == 0.0
 	@test result.k == 10
-	@test result.logl ≈ -1390.9675106956904
+	@test result.logl ≈ -1387.341396480908
+	@test result.iter == 9
 end
 
 @testset "L0_reg with non-genetic covariates" begin
@@ -151,7 +153,7 @@ end
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x, = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, "test1.bed")
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 2) # the intercept
 	z[:, 2] .= randn(n)
@@ -174,13 +176,13 @@ end
 	@test length(result.c) == 2
 	@test findall(!iszero, result.beta) == [2984;4147;4604;6105;6636;7575;8271;9300]
 	@test findall(!iszero, result.c) == [1;2]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [  1.0811374923376877;
-					 -0.2117325990806942;-0.3322506195614783;0.40318468184323303;
-					 -0.1318587627854617;1.6695482354179885;
-					  0.3151131120568996;-1.596709800901686])
-	@test all(result.c .≈ [2.9310914541779707; 3.467035167731262])
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [  1.0813690725698488;
+ 		-0.21167725381808253; -0.3320058055771102; 0.40296120706642935; 
+ 		-0.1320095894527104;  1.6694054572246806;  0.3151337065844457; 
+ 		-1.5967591054279828])
+	@test all(result.c .≈ [2.931093515105184; 3.4674609432737893])
 	@test result.k == 10
-	@test result.logl ≈ -1372.8965392691769
+	@test result.logl ≈ -1372.8963328607294
 
 	#clean up
 	rm("test1.bed", force=true)
