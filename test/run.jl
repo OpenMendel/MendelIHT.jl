@@ -11,15 +11,15 @@ using GLM
 using Plots
 
 #simulat data with k true predictors, from distribution d and with link l.
-n = 1000
-p = 10000
-k = 10
-d = Poisson
+n = 5000
+p = 100000
+k = 5
+d = Normal
 l = canonicallink(d())
 # l = LogLink()
 
 #set random seed
-Random.seed!(2019)
+# Random.seed!(2019)
 
 #construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 x = simulate_random_snparray(n, p, "test1.bed")
@@ -28,8 +28,8 @@ z = ones(n, 1)
 
 # simulate response, true model b, and the correct non-0 positions of b
 true_b = zeros(p)
-# true_b[1:4] .= [0.1; 0.25; 0.5; 0.8]
-true_b[1:k] .= collect(0.1:0.1:1.0)
+true_b[1:5] = [0.01; 0.05; 0.1; 0.25; 0.5]
+# true_b[1:k] .= collect(0.1:0.1:1.0)
 true_c = [4.0]
 # true_b[1:k] = rand(Normal(0, 0.3), k)
 shuffle!(true_b)
@@ -58,9 +58,9 @@ elseif d == Gamma
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
 y = Float64.(y)
-histogram(y, bins=30)
-mean(y)
-var(y)
+# histogram(y, bins=30)
+# mean(y)
+# var(y)
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, show_info=true)
