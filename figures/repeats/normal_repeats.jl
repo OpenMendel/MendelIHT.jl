@@ -10,9 +10,9 @@ using DelimitedFiles
 
 #run n repeats of L0_reg using the same X and b, but different y
 function repeat(
+    n        :: Int,
+    p        :: Int,
     repeats  :: Int, 
-    x        :: SnpArray,
-    xbm      :: SnpBitMatrix,
     z        :: AbstractMatrix{Float64},
     true_b   :: Vector{Float64},
     cor_pos  :: Vector{Int}, #correct position of the true model
@@ -20,14 +20,19 @@ function repeat(
     l        :: Link,
     debias   :: Bool
 )
-    n = size(xbm, 1)
     k = size(cor_pos, 1)
     estimated_β = zeros(k, repeats)
     
-    for i in 1:repeats
+    Threads.@threads for i in 1:repeats
+        # simulat SNP data
+        mafs = rand(Uniform(0.05, 0.5), p)
+        x = simulate_random_snparray(n, p, undef)
+        xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+
         #simulate phenotypes (e.g. vector y)
         if d == Normal || d == Poisson || d == Bernoulli
             prob = linkinv.(l, xbm * true_b)
+            clamp!(prob, -20, 20)
             y = [rand(d(i)) for i in prob]
         elseif d == NegativeBinomial
             nn = 10
@@ -54,7 +59,7 @@ end
 function run()
     #simulat data with k true predictors, from distribution d and with link l.
     repeats = 100 #how many repeats should I run
-    n = 5000
+    n = 10000
     p = 100000
     d = Normal
     l = canonicallink(d())
@@ -63,24 +68,25 @@ function run()
     # set random seed for reproducibility
     Random.seed!(2019)
 
-    # simulat SNP data
-    x, = simulate_random_snparray(n, p, undef)
-    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-    z = ones(n, 1) # intercept
+    # intercept
+    z = ones(n, 1)
 
     #construct true model b
     true_b = zeros(p)
-    true_b[1:4] = [0.1; 0.25; 0.5; 0.8]
+    true_b[1:6] = [0.01; 0.03; 0.05; 0.1; 0.25; 0.5]
     shuffle!(true_b)
     correct_position = findall(x -> x != 0, true_b)
 
     #run repeats and save to file
-    result = repeat(repeats, x, xbm, z, true_b, correct_position, d, l, debias)
+    result = repeat(n, p, repeats, z, true_b, correct_position, d, l, debias)
     if debias
         writedlm("./repeats/$d" * "_$repeats", result)
+        writedlm("./repeats/order.txt", true_b[correct_position])
     else
         writedlm("./repeats_nodebias/$d" * "_$repeats", result)
+        writedlm("./repeats_nodebias/order.txt", true_b[correct_position])
     end
 end
 
 run()
+

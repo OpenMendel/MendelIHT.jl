@@ -1,0 +1,12 @@
+Job 206042 started on:    n2038
+Job 206042 started on:    Wed Jun 12 15:34:11 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia logistic nodebias
+/u/home/b/biona001/generate_repeats
+Job 206042 ended on:    n2038
+Job #JOB_ID ended on:    Wed Jun 12 17:23:33 PDT 2019
