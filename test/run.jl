@@ -11,15 +11,15 @@ using GLM
 using Plots
 
 #simulat data with k true predictors, from distribution d and with link l.
-n = 5000
-p = 100000
-k = 5
+n = 1000
+p = 10000
+k = 10
 d = Normal
 l = canonicallink(d())
 # l = LogLink()
 
 #set random seed
-# Random.seed!(2019)
+Random.seed!(2019)
 
 #construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 x = simulate_random_snparray(n, p, "test1.bed")
@@ -28,8 +28,8 @@ z = ones(n, 1)
 
 # simulate response, true model b, and the correct non-0 positions of b
 true_b = zeros(p)
-true_b[1:5] = [0.01; 0.05; 0.1; 0.25; 0.5]
-# true_b[1:k] .= collect(0.1:0.1:1.0)
+# true_b[1:5] = [0.01; 0.05; 0.1; 0.25; 0.5]
+true_b[1:k] .= collect(0.1:0.1:1.0)
 true_c = [4.0]
 # true_b[1:k] = rand(Normal(0, 0.3), k)
 shuffle!(true_b)
@@ -46,9 +46,9 @@ if d == Normal || d == Bernoulli || d == Poisson
     # k = k + 1
 elseif d == NegativeBinomial
     nn = 10
-    # μ = linkinv.(l, xbm * true_b)
-    μ = linkinv.(l, xbm * true_b + z * true_c)
-    k = k + 1
+    μ = linkinv.(l, xbm * true_b)
+    # μ = linkinv.(l, xbm * true_b + z * true_c)
+    # k = k + 1
     clamp!(μ, -20, 20)
     prob = 1 ./ (1 .+ μ ./ nn)
     y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
@@ -63,8 +63,7 @@ y = Float64.(y)
 # var(y)
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, show_info=true)
-# result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true)
+result2 = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
 
 #check result
 compare_model = DataFrame(

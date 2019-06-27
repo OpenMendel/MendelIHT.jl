@@ -10,7 +10,7 @@ the simulation to generate samples where at least `min_ma` (defaults to 5) are p
 # Arguments:
 - `n`: number of samples
 - `p`: number of SNPs
-- `s`: name of the simulated SnpArray that will be created on the current directory
+- `s`: name of SnpArray that will be created (memory mapped) in the current directory. To not memory map, use `undef`.
 
 # Optional Arguments:
 - `mafs`: vector of desired minor allele freuqencies (uniform(0, 0.5) by default)
@@ -52,7 +52,7 @@ It will create a random SnpArray in the current directory without missing value,
 where each SNP has at least 5 minor alleles. 
 """
 function _random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}, 
-                                  mafs::Vector{Float64}; min_ma::Int = 5)
+                          mafs::Vector{Float64}; min_ma::Int = 5)
     all(0.0 .<= mafs .<= 0.5) || throw(ArgumentError("vector of minor allele frequencies must be in (0, 0.5)"))
     any(mafs .<= 0.0005) && @warn("Provided minor allele frequencies contain entries smaller than 0.0005, simulation may take long if sample size is small and min_ma = $min_ma is large")
 
@@ -94,6 +94,91 @@ function _make_snparray(A1::BitArray, A2::BitArray, s::Union{String, UndefInitia
         end
     end
     return x
+end
+
+"""
+    simulate_correlated_snparray(n, p, s; block_length, hap, prob)
+
+Simulates a SnpArray with correlation. SNPs are divided into blocks where each
+adjacent SNP is the same with probability prob. There are no correlation between blocks.
+
+# Arguments:
+- `n`: number of samples
+- `p`: number of SNPs
+- `s`: name of SnpArray that will be created (memory mapped) in the current directory. To not memory map, use `undef`.
+
+# Optional arguments:
+- `block_length`: length of each LD block
+- `hap`: number of haplotypes to simulate for each block
+- `prob`: with probability `prob` an adjacent SNP would be the same. 
+"""
+function simulate_correlated_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}; 
+            block_length::Int64=20, hap::Int=20, prob::Float64=0.75)
+    
+    @assert mod(p, block_length) == 0 "block_length ($block_length) is not divible by p ($p)"
+    @assert 0 < prob < 1 "transition probably should be between 0 and 1, got $prob"
+
+    x = SnpArray(s, n, p)
+    haplotypes = zeros(hap, block_length)
+    snps = zeros(block_length)
+    blocks = Int(p / block_length)
+
+    @inbounds for b in 1:blocks
+
+        #create pool of haplotypes for each block
+        _sample_haptotypes!(haplotypes, prob)
+
+        for i in 1:n
+            #sample 2 haplotypes with replacement from the pool of haplotypes
+            row1 = rand(1:hap)
+            row2 = rand(1:hap)
+            for j in 1:block_length
+                snps[j] = haplotypes[row1, j] + haplotypes[row2, j]
+            end
+
+            #copy haplotypes into x
+            _copy_blocks!(x, i, snps, b, block_length)
+        end
+    end
+
+    return x
+end
+
+function _sample_haptotypes!(haplotypes::Matrix, prob::Float64)
+    n, p = size(haplotypes)
+    fill!(haplotypes, 0)
+
+    @inbounds for i in 1:n
+        cur_row_sum = 0
+        while cur_row_sum == 0
+            curr = rand(0:1)
+            haplotypes[i, 1] = curr
+            cur_row_sum += curr
+            for j in 2:p
+                stay = rand(Bernoulli(prob)) #stay = 1 means retain the current value
+                curr = (stay == 1 ? curr : 1 - curr)
+                haplotypes[i, j] = curr
+                cur_row_sum += curr
+            end
+        end
+    end
+end
+
+function _copy_blocks!(x::SnpArray, row, snps, cur_block, block_length)
+    #copy sampled snps into SnpArray
+    @inbounds for k in 1:length(snps)
+        c = snps[k]
+        col = (cur_block - 1) * block_length + k
+        if c == 0
+            x[row, col] = 0x00
+        elseif c == 1
+            x[row, col] = 0x02
+        elseif c == 2
+            x[row, col] = 0x03
+        else
+            throw(error("SNP values should be 0, 1, or 2 but was $c"))
+        end
+    end
 end
 
 """
@@ -172,10 +257,9 @@ function adhoc_add_correlation!(x::SnpArray, ρ::Float64, pos::Int64, location::
     for loc in location 
         for i in 1:size(x, 1)
             prob = rand(Bernoulli(ρ))
-            prob == 1 && (x[i, loc] = x[i, pos]) #make 2nd column the same as 1st ~90% of the time
+            prob == 1 && (x[i, loc] = x[i, pos]) #make 2nd column the same as 1st ~ρ% of the time
         end
         corr = cor(x[:, loc], x[:, pos])
-        println("for SNP $loc the simulated correlation is $corr")
     end
 end
 

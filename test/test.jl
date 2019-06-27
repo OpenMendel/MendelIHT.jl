@@ -1293,3 +1293,33 @@ function graph(inter)
     y = Float64.(y)
     return histogram(y, bin=50)
 end
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using DelimitedFiles
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using Statistics
+using GLM
+using BenchmarkTools
+
+n = 1000
+p = 10000
+x = simulate_correlated_snparray(n, p, undef, prob=0.75)
+
+col1, col2 = zeros(n), zeros(n)
+for i in 1:19
+    copyto!(col1, @view(x[:, i]), center=true, scale=true)
+    copyto!(col2, @view(x[:, i+1]), center=true, scale=true)
+    println(cor(col1, col2))
+end
+
+@benchmark simulate_random_snparray(n, p, undef)
+@benchmark simulate_correlated_snparray(n, p, undef)
+
+
+
