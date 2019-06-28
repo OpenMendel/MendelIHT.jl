@@ -14,9 +14,9 @@ using Plots
 n = 1000
 p = 10000
 k = 10
-d = Normal
-l = canonicallink(d())
-# l = LogLink()
+d = NegativeBinomial
+# l = canonicallink(d())
+l = LogLink()
 
 #set random seed
 Random.seed!(2019)
@@ -45,7 +45,7 @@ if d == Normal || d == Bernoulli || d == Poisson
     # y = [rand(d(i)) for i in prob]
     # k = k + 1
 elseif d == NegativeBinomial
-    nn = 10
+    nn = 1
     μ = linkinv.(l, xbm * true_b)
     # μ = linkinv.(l, xbm * true_b + z * true_c)
     # k = k + 1
@@ -58,12 +58,12 @@ elseif d == Gamma
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
 y = Float64.(y)
-# histogram(y, bins=30)
+histogram(y, bins=30)
 # mean(y)
 # var(y)
 
 #run IHT
-result2 = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
 
 #check result
 compare_model = DataFrame(

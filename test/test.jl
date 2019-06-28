@@ -1312,6 +1312,12 @@ p = 10000
 x = simulate_correlated_snparray(n, p, undef, prob=0.75)
 
 col1, col2 = zeros(n), zeros(n)
+copyto!(col1, @view(x[:, 1]));
+copyto!(col2, @view(x[:, 2]));
+cor(col1, col2)
+sum(col1 .== col2)
+
+col1, col2 = zeros(n), zeros(n)
 for i in 1:19
     copyto!(col1, @view(x[:, i]), center=true, scale=true)
     copyto!(col2, @view(x[:, i+1]), center=true, scale=true)

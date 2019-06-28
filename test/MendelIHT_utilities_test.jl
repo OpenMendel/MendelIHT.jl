@@ -7,6 +7,15 @@ function test_data()
 	return (x, z, y, v)
 end
 
+function test_correlated_data()
+    x = simulate_correlated_snparray(1000, 1000, undef)
+    z = ones(1000, 1)
+    y = rand(1000)
+    v = IHTVariables(x, z, y, 1, 10, Int[], Float64[]) #J = 1, k = 10
+
+    return (x, z, y, v)
+end
+
 @testset "loglikelihood" begin
 	Random.seed!(2019)
 
