@@ -1,0 +1,26 @@
+Job 107044 started on:    n7418
+Job 107044 started on:    Mon May 27 06:16:40 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia poisson_cv.jl, debias=true
+/u/home/b/biona001/cross_validation/poisson/yesdebias
+ERROR: LoadError: MethodError: no method matching SnpBitMatrix{Float64}(::UInt8; model=Val{1}(), center=true, scale=true)
+Closest candidates are:
+  SnpBitMatrix{Float64}(::Any, !Matched::Any, !Matched::Any, !Matched::Any, !Matched::Any, !Matched::Any, !Matched::Any, !Matched::Any, !Matched::Any) where T at /u/home/b/biona001/.julia/packages/SnpArrays/nv844/src/linalg.jl:2 got unsupported keyword arguments "model", "center", "scale"
+  SnpBitMatrix{Float64}(!Matched::Union{SnpArray, SubArray{UInt8,1,SnpArray,I,L} where L where I, SubArray{UInt8,2,SnpArray,I,L} where L where I}; model, center, scale) where T<:AbstractFloat at /u/home/b/biona001/.julia/packages/SnpArrays/nv844/src/linalg.jl:18
+Stacktrace:
+ [1] run_cv(::Int64, ::Int64, ::Int64, ::Bool, ::UnionAll, ::LogLink) at /u/home/b/biona001/cross_validation/poisson/yesdebias/poisson_cv.jl:21
+ [2] run() at /u/home/b/biona001/cross_validation/poisson/yesdebias/poisson_cv.jl:77
+ [3] top-level scope at none:0
+ [4] include at ./boot.jl:317 [inlined]
+ [5] include_relative(::Module, ::String) at ./loading.jl:1041
+ [6] include(::Module, ::String) at ./sysimg.jl:29
+ [7] exec_options(::Base.JLOptions) at ./client.jl:229
+ [8] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/cross_validation/poisson/yesdebias/poisson_cv.jl:88
+Job 107044 ended on:    n7418
+Job #JOB_ID ended on:    Mon May 27 06:18:03 PDT 2019

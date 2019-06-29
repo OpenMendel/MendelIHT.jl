@@ -1,14 +1,14 @@
 using Distributed
 addprocs(4)
 
-using MendelIHT
-using SnpArrays
-using DataFrames
-using Distributions
-using Random
-using LinearAlgebra
-using GLM
-using Test
+@everywhere using MendelIHT
+@everywhere using SnpArrays
+@everywhere using DataFrames
+@everywhere using Distributions
+@everywhere using Random
+@everywhere using LinearAlgebra
+@everywhere using GLM
+@everywhere using Test
 
 # write your own tests here
 include("MendelIHT_utilities_test.jl")

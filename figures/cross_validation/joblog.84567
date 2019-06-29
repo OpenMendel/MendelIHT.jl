@@ -1,0 +1,85 @@
+Job 84567 started on:    n7053
+Job 84567 started on:    Tue May 21 22:47:49 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia normal_cv_nodebias.jl, debias=false
+/u/home/b/biona001/cross_validation/normal
+ERROR: LoadError: ArgumentError: filesize of train_tmp3.bed is not a multiple of 1007
+Stacktrace:
+ [1] #SnpArray#10(::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::Type, ::String, ::Int64, ::String) at /u/home/b/biona001/.julia/packages/SnpArrays/nv844/src/snparray.jl:32
+ [2] Type at /u/home/b/biona001/.julia/packages/SnpArrays/nv844/src/snparray.jl:20 [inlined]
+ [3] Type at /u/home/b/biona001/.julia/packages/SnpArrays/nv844/src/snparray.jl:75 [inlined]
+ [4] #train_and_validate#28(::Array{Int64,1}, ::Array{Float64,1}, ::Bool, ::Bool, ::Bool, ::Bool, ::Bool, ::Function, ::BitArray{1}, ::BitArray{1}, ::Normal{Float64}, ::IdentityLink, ::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Array{Int64,1}, ::Int64) at /u/home/b/biona001/.julia/packages/MendelIHT/34V5C/src/cross_validation.jl:143
+ [5] #train_and_validate at ./none:0 [inlined]
+ [6] #cv_iht#24(::Array{Int64,1}, ::Array{Float64,1}, ::Array{Int64,1}, ::Bool, ::Bool, ::Bool, ::Bool, ::Bool, ::typeof(cv_iht), ::Normal{Float64}, ::IdentityLink, ::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Array{Int64,1}, ::Int64) at /u/home/b/biona001/.julia/packages/MendelIHT/34V5C/src/cross_validation.jl:64
+ [7] (::getfield(MendelIHT, Symbol("#kw##cv_iht")))(::NamedTuple{(:folds, :use_maf, :debias, :parallel),Tuple{Array{Int64,1},Bool,Bool,Bool}}, ::typeof(cv_iht), ::Normal{Float64}, ::IdentityLink, ::SnpArray, ::Array{Float64,2}, ::Array{Float64,1}, ::Int64, ::Array{Int64,1}, ::Int64) at ./none:0
+ [8] macro expansion at ./util.jl:289 [inlined]
+ [9] run_cv(::Int64, ::Int64, ::Int64, ::Bool, ::UnionAll, ::IdentityLink) at /u/home/b/biona001/cross_validation/normal/normal_cv_nodebias.jl:53
+ [10] run() at /u/home/b/biona001/cross_validation/normal/normal_cv_nodebias.jl:78
+ [11] top-level scope at none:0
+ [12] include at ./boot.jl:317 [inlined]
+ [13] include_relative(::Module, ::String) at ./loading.jl:1041
+ [14] include(::Module, ::String) at ./sysimg.jl:29
+ [15] exec_options(::Base.JLOptions) at ./client.jl:229
+ [16] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/cross_validation/normal/normal_cv_nodebias.jl:89
+
+
+Crossvalidation Results:
+	k	MSE
+	1	3949.6733890784617
+	2	3153.7229215927205
+	3	2462.0322298982046
+	4	1953.7078776176133
+	5	1562.9530862480337
+	6	1298.6470004932048
+	7	1141.6756435800598
+	8	1053.1718709818704
+	9	1009.9710336364421
+	10	1003.2186512440297
+	11	1008.1210450487042
+	12	1016.6080946786489
+	13	1019.3210059754812
+	14	1025.0229576963652
+	15	1029.3973731189626
+	16	1032.3755567233984
+	17	1033.2038071597585
+	18	1035.5235218557323
+	19	1042.509898175991
+	20	1041.937442323222
+
+The lowest MSE is achieved at k = 10 
+
+
+
+Crossvalidation Results:
+	k	MSE
+	1	3819.690825403597
+	2	3022.379199451531
+	3	2404.9461142481014
+	4	1953.0115451532165
+	5	1600.0567924488564
+	6	1335.8486413161127
+	7	1169.2839138872048
+	8	1081.8878748834627
+	9	1046.7439770840724
+	10	1035.7034455096896
+	11	1036.4962322436818
+	12	1041.0196532074613
+	13	1043.8231331595684
+	14	1047.5085810245164
+	15	1052.7634240406442
+	16	1057.8128606868702
+	17	1060.8000124024652
+	18	1064.7284740364162
+	19	1064.7286484791143
+	20	1065.051583679934
+
+The lowest MSE is achieved at k = 10 
+
+Job 84567 ended on:    n7053
+Job #JOB_ID ended on:    Tue May 21 22:56:41 PDT 2019

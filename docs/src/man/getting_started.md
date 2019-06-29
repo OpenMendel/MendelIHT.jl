@@ -36,7 +36,7 @@ A standard analysis runs only 2 functions, other than importing data.
 
 !!! note 
 
-    **Do not** delete intermediate files (e.g. `train.bed`) created by `cv_iht`. These are memory-mapped files necessary for cross validation. In order to successfully create these files, **you must have `x` GB of free space on your hard disk** where `x` is your `.bed` file size.
+    **Do not** delete intermediate files with random file names created by `cv_iht`. These are memory-mapped files necessary for cross validation. In order to successfully create these files, **you must have `x` GB of free space on your hard disk** where `x` is your `.bed` file size.
 
 
 ```@docs

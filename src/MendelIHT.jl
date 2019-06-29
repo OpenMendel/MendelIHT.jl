@@ -6,6 +6,7 @@ module MendelIHT
 	import Base.show
 	import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
 
+	using GLM
 	using SnpArrays
 	using DataFrames
 	using Random
@@ -19,6 +20,7 @@ module MendelIHT
 	export IHTVariables, use_A2_as_minor_allele, make_snparray, standardize!
 	export std_reciprocal, project_group_sparse!, save_prev!, maf_weights
 	export simulate_random_response, adhoc_add_correlation, cv_iht
+	export simulate_correlated_snparray
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}

@@ -12,6 +12,10 @@ a different model for a given fold. To use this function, start julia using 4 pr
     julia> using Distributed
     julia> addprocs(4)
 
+# Warning
+Do not remove files with random file names when you run this function. There are 
+memory mapped files that will be deleted automatically once they are no longer needed.
+
 # Arguments
 - `d`: A distribution (e.g. Normal, Bernoulli)
 - `l`: A link function (e.g. Loglink, ProbitLink)
@@ -35,7 +39,7 @@ a different model for a given fold. To use this function, start julia using 4 pr
 function cv_iht(
     d        :: UnivariateDistribution,
     l        :: Link,
-    x        :: SnpArray,
+    x        :: Union{AbstractMatrix, SnpArray},
     z        :: AbstractMatrix{T},
     y        :: AbstractVector{T},
     J        :: Int64,
@@ -85,7 +89,7 @@ engaging in full cross validation.
 function iht_run_many_models(
     d        :: UnivariateDistribution,
     l        :: Link,
-    x        :: SnpArray,
+    x        :: Union{AbstractMatrix, SnpArray},
     z        :: AbstractMatrix{T},
     y        :: AbstractVector{T},
     J        :: Int64,
@@ -100,9 +104,13 @@ function iht_run_many_models(
 ) where {T <: Float}
 
     # for each k, run L0_reg and store the loglikelihoods
-    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    typeof(x) == SnpArray && (xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);)
     results = (parallel ? pmap : map)(path) do k
-        return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+        if typeof(x) == SnpArray 
+            return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+        else 
+            return L0_reg(x, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+        end
     end
 
     loglikelihoods = zeros(size(path, 1))
@@ -128,8 +136,8 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
                     debias::Bool=false, showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
 
     # create directory for memory mapping
-    train_file = "train_tmp$fold.bed"
-    test_file = "test_tmp$fold.bed"
+    train_file = randstring(100) * ".bed"
+    test_file = randstring(100) * ".bed"
 
     # first allocate arrays needed for computing deviance residuals
     p, q = size(x, 2), size(z, 2)
@@ -173,6 +181,52 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
 
     return mses
 end
+
+function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
+                    l::Link, x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
+                    path::DenseVector{Int}, fold::Int; group::AbstractVector{Int}=Int[],
+                    weight::AbstractVector{T}=T[], init::Bool=false, use_maf::Bool=false, 
+                    debias::Bool=false, showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
+
+    # first allocate arrays needed for computing deviance residuals
+    p, q = size(x, 2), size(z, 2)
+    nmodels = length(path)
+    test_size = sum(test_idx)
+    xb = zeros(T, test_size)
+    zc = zeros(T, test_size)
+    μ  = zeros(T, test_size)
+
+    # allocate train model
+    x_train = x[train_idx, :]
+    # copyto!(x_train, @view(x[train_idx, :]))
+    # x_trainbm = SnpBitMatrix{Float64}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+    # allocate test model
+    x_test = x[test_idx, :]
+    # copyto!(x_test, @view(x[test_idx, :]))
+    # x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+    # allocate group and weight vectors if supplied
+    group_train = (group == Int[] ? Int[] : group[train_idx])
+    weight_train = (weight == T[] ? T[] : weight[train_idx])
+    
+    # for each k in path, run L0_reg and compute mse
+    mses = (parallel ? pmap : map)(path) do k
+
+        #run IHT on training model with given k
+        result = L0_reg(x_train, z[train_idx, :], y[train_idx], 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=showinfo)
+
+        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
+        A_mul_B!(xb, zc, x_test, z[test_idx, :], result.beta, result.c) 
+        update_μ!(μ, xb .+ zc, l)
+
+        # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
+        return deviance(d, y[test_idx], μ)
+    end
+
+    return mses
+end
+
 
 """
 This function scale mean squared errors (deviance residuals) for each fold by its own fold size.

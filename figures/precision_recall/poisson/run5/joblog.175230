@@ -1,0 +1,625 @@
+Job 175230 started on:    n9801
+Job 175230 started on:    Wed Jun 5 20:54:56 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3        5) xz/5.2.2         9) java/1.8.0_111
+  2) julia/1.0.1      6) pcre/8.39       10) R/3.5.1
+  3) zlib/1.2.8       7) curl/7.49.1
+  4) bzip2/1.0.6      8) intel/18.0.2
+/u/local/apps/julia/1.0.1/bin/julia
+julia run.jl, run = 5
+/u/home/b/biona001/precision_recall/poisson/run5
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+[ Info: Loading DataFrames support into Gadfly.jl
+┌ Warning: RCall.jl: Loading required package: Matrix
+│ Loading required package: foreach
+│ Loaded glmnet 2.0-16
+│ 
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Loading required package: pscl
+│ Classes and Methods for R developed in the
+│ Political Science Computational Laboratory
+│ Department of Political Science
+│ Stanford University
+│ Simon Jackman
+│ hurdle and zeroinfl functions by Achim Zeileis
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+┌ Warning: RCall.jl: Loading required package: boot
+└ @ RCall ~/.julia/packages/RCall/ffM0W/src/io.jl:113
+current run = 41
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β   │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64   │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼───────────┼────────────────┼───────────────┤
+│ 1   │ 0.4     │ 0.249068 │ 0.214339  │ true           │ false         │
+│ 2   │ 0.5     │ 0.389848 │ 0.313345  │ true           │ true          │
+│ 3   │ 1.0     │ 0.626135 │ 0.610237  │ true           │ true          │
+│ 4   │ 0.7     │ 0.453147 │ 0.425151  │ true           │ true          │
+│ 5   │ 0.3     │ 0.220769 │ 0.198177  │ true           │ false         │
+│ 6   │ 0.8     │ 0.521012 │ 0.453721  │ true           │ true          │
+│ 7   │ 0.2     │ 0.0      │ 0.0637618 │ true           │ false         │
+│ 8   │ 0.9     │ 0.531801 │ 0.532497  │ true           │ true          │
+│ 9   │ 0.6     │ 0.336416 │ 0.330195  │ true           │ true          │
+│ 10  │ 0.1     │ 0.0      │ 0.0       │ true           │ false         │
+IHT true positives = 8
+IHT false positives = 1
+IHT false negatives = 2
+LASSO true positives = 9
+LASSO false positives = 135
+LASSO false negatives = 1
+marginal true positives = 10
+marginal false positives = 1306
+marginal false negatives = 0
+zero inflated poisson true positives = 6
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 4
+
+current run = 42
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β   │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64   │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼───────────┼────────────────┼───────────────┤
+│ 1   │ 0.8     │ 0.482119 │ 0.438598  │ true           │ true          │
+│ 2   │ 0.3     │ 0.0      │ 0.0658034 │ true           │ true          │
+│ 3   │ 0.4     │ 0.272982 │ 0.184351  │ true           │ false         │
+│ 4   │ 0.2     │ 0.0      │ 0.0672616 │ true           │ false         │
+│ 5   │ 0.9     │ 0.446952 │ 0.444777  │ true           │ true          │
+│ 6   │ 0.6     │ 0.367507 │ 0.33565   │ true           │ true          │
+│ 7   │ 0.5     │ 0.336151 │ 0.243104  │ true           │ true          │
+│ 8   │ 0.7     │ 0.411407 │ 0.380971  │ true           │ true          │
+│ 9   │ 1.0     │ 0.484606 │ 0.504045  │ true           │ false         │
+│ 10  │ 0.1     │ 0.0      │ 0.0464251 │ true           │ false         │
+IHT true positives = 7
+IHT false positives = 1
+IHT false negatives = 3
+LASSO true positives = 10
+LASSO false positives = 89
+LASSO false negatives = 0
+marginal true positives = 10
+marginal false positives = 1738
+marginal false negatives = 0
+zero inflated poisson true positives = 6
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 4
+
+current run = 43
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β     │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64     │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼─────────────┼────────────────┼───────────────┤
+│ 1   │ 0.3     │ 0.0      │ 0.098641    │ true           │ false         │
+│ 2   │ 0.5     │ 0.313122 │ 0.245037    │ true           │ true          │
+│ 3   │ 1.0     │ 0.632013 │ 0.584521    │ true           │ true          │
+│ 4   │ 0.1     │ 0.0      │ 0.000911601 │ false          │ false         │
+│ 5   │ 0.2     │ 0.0      │ 0.0840911   │ true           │ false         │
+│ 6   │ 0.9     │ 0.592679 │ 0.543876    │ true           │ true          │
+│ 7   │ 0.6     │ 0.353578 │ 0.320316    │ true           │ true          │
+│ 8   │ 0.7     │ 0.406185 │ 0.389817    │ true           │ false         │
+│ 9   │ 0.8     │ 0.472715 │ 0.466907    │ true           │ true          │
+│ 10  │ 0.4     │ 0.0      │ 0.121292    │ true           │ false         │
+IHT true positives = 6
+IHT false positives = 1
+IHT false negatives = 4
+LASSO true positives = 10
+LASSO false positives = 70
+LASSO false negatives = 0
+marginal true positives = 9
+marginal false positives = 1495
+marginal false negatives = 1
+zero inflated poisson true positives = 5
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 5
+
+current run = 44
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β  │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64  │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼──────────┼────────────────┼───────────────┤
+│ 1   │ 0.3     │ 0.205599 │ 0.180851 │ true           │ true          │
+│ 2   │ 0.1     │ 0.0      │ 0.0      │ false          │ false         │
+│ 3   │ 0.2     │ 0.0      │ 0.101828 │ true           │ false         │
+│ 4   │ 0.6     │ 0.381525 │ 0.381856 │ true           │ true          │
+│ 5   │ 0.8     │ 0.524078 │ 0.521385 │ true           │ true          │
+│ 6   │ 0.4     │ 0.238483 │ 0.225187 │ true           │ true          │
+│ 7   │ 0.5     │ 0.366851 │ 0.309109 │ true           │ false         │
+│ 8   │ 0.7     │ 0.512167 │ 0.484263 │ true           │ true          │
+│ 9   │ 0.9     │ 0.679544 │ 0.626836 │ true           │ true          │
+│ 10  │ 1.0     │ 0.720485 │ 0.674193 │ true           │ true          │
+IHT true positives = 8
+IHT false positives = 2
+IHT false negatives = 2
+LASSO true positives = 9
+LASSO false positives = 171
+LASSO false negatives = 1
+marginal true positives = 9
+marginal false positives = 1480
+marginal false negatives = 1
+zero inflated poisson true positives = 7
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 3
+
+current run = 45
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β   │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64   │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼───────────┼────────────────┼───────────────┤
+│ 1   │ 0.5     │ 0.239248 │ 0.21631   │ true           │ true          │
+│ 2   │ 0.6     │ 0.355235 │ 0.320276  │ true           │ true          │
+│ 3   │ 0.4     │ 0.258148 │ 0.225184  │ true           │ false         │
+│ 4   │ 0.1     │ 0.0      │ 0.0166625 │ true           │ false         │
+│ 5   │ 0.2     │ 0.0      │ 0.063441  │ true           │ false         │
+│ 6   │ 0.9     │ 0.586394 │ 0.55428   │ true           │ true          │
+│ 7   │ 0.7     │ 0.417944 │ 0.399017  │ true           │ true          │
+│ 8   │ 1.0     │ 0.664385 │ 0.615423  │ true           │ true          │
+│ 9   │ 0.8     │ 0.52976  │ 0.500428  │ true           │ true          │
+│ 10  │ 0.3     │ 0.204675 │ 0.124994  │ true           │ false         │
+IHT true positives = 8
+IHT false positives = 1
+IHT false negatives = 2
+LASSO true positives = 10
+LASSO false positives = 101
+LASSO false negatives = 0
+marginal true positives = 10
+marginal false positives = 1475
+marginal false negatives = 0
+zero inflated poisson true positives = 6
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 4
+
+current run = 46
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β   │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64   │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼───────────┼────────────────┼───────────────┤
+│ 1   │ 0.1     │ 0.0      │ 0.0       │ false          │ false         │
+│ 2   │ 1.0     │ 0.64756  │ 0.602815  │ true           │ true          │
+│ 3   │ 0.9     │ 0.581089 │ 0.589217  │ true           │ true          │
+│ 4   │ 0.2     │ 0.0      │ 0.0709573 │ true           │ false         │
+│ 5   │ 0.7     │ 0.333816 │ 0.363613  │ true           │ true          │
+│ 6   │ 0.3     │ 0.206515 │ 0.155645  │ true           │ false         │
+│ 7   │ 0.8     │ 0.469322 │ 0.487676  │ true           │ true          │
+│ 8   │ 0.4     │ 0.217979 │ 0.198204  │ true           │ true          │
+│ 9   │ 0.6     │ 0.427346 │ 0.364188  │ true           │ true          │
+│ 10  │ 0.5     │ 0.344837 │ 0.268629  │ true           │ false         │
+IHT true positives = 8
+IHT false positives = 1
+IHT false negatives = 2
+LASSO true positives = 9
+LASSO false positives = 120
+LASSO false negatives = 1
+marginal true positives = 9
+marginal false positives = 1489
+marginal false negatives = 1
+zero inflated poisson true positives = 6
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 4
+
+current run = 47
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β   │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64   │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼───────────┼────────────────┼───────────────┤
+│ 1   │ 0.3     │ 0.0      │ 0.106141  │ true           │ false         │
+│ 2   │ 0.2     │ 0.0      │ 0.0742565 │ true           │ false         │
+│ 3   │ 0.1     │ 0.0      │ 0.0       │ false          │ false         │
+│ 4   │ 0.5     │ 0.332268 │ 0.298479  │ true           │ true          │
+│ 5   │ 0.4     │ 0.230336 │ 0.21113   │ true           │ true          │
+│ 6   │ 1.0     │ 0.595425 │ 0.633346  │ true           │ true          │
+│ 7   │ 0.9     │ 0.57714  │ 0.588483  │ true           │ true          │
+│ 8   │ 0.6     │ 0.385306 │ 0.368354  │ true           │ true          │
+│ 9   │ 0.8     │ 0.571939 │ 0.537534  │ true           │ true          │
+│ 10  │ 0.7     │ 0.492845 │ 0.419905  │ true           │ true          │
+IHT true positives = 7
+IHT false positives = 1
+IHT false negatives = 3
+LASSO true positives = 9
+LASSO false positives = 173
+LASSO false negatives = 1
+marginal true positives = 9
+marginal false positives = 1474
+marginal false negatives = 1
+zero inflated poisson true positives = 7
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 3
+
+current run = 48
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β   │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64   │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼───────────┼────────────────┼───────────────┤
+│ 1   │ 0.8     │ 0.400272 │ 0.420898  │ true           │ false         │
+│ 2   │ 0.1     │ 0.0      │ 0.0       │ false          │ false         │
+│ 3   │ 0.4     │ 0.0      │ 0.192553  │ true           │ true          │
+│ 4   │ 0.2     │ 0.0      │ 0.0368113 │ true           │ false         │
+│ 5   │ 0.3     │ 0.0      │ 0.0958588 │ true           │ false         │
+│ 6   │ 0.7     │ 0.458446 │ 0.387046  │ true           │ true          │
+│ 7   │ 0.9     │ 0.561349 │ 0.518489  │ true           │ true          │
+│ 8   │ 0.6     │ 0.410029 │ 0.330818  │ true           │ true          │
+│ 9   │ 1.0     │ 0.714816 │ 0.595931  │ true           │ true          │
+│ 10  │ 0.5     │ 0.28166  │ 0.273577  │ true           │ true          │
+IHT true positives = 6
+IHT false positives = 1
+IHT false negatives = 4
+LASSO true positives = 9
+LASSO false positives = 54
+LASSO false negatives = 1
+marginal true positives = 9
+marginal false positives = 1633
+marginal false negatives = 1
+zero inflated poisson true positives = 6
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 4
+
+current run = 49
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β   │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64   │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼───────────┼────────────────┼───────────────┤
+│ 1   │ 0.8     │ 0.404237 │ 0.429619  │ true           │ true          │
+│ 2   │ 0.5     │ 0.248804 │ 0.206796  │ true           │ true          │
+│ 3   │ 0.9     │ 0.509212 │ 0.516491  │ true           │ true          │
+│ 4   │ 0.6     │ 0.320808 │ 0.281455  │ true           │ true          │
+│ 5   │ 1.0     │ 0.542528 │ 0.547801  │ true           │ true          │
+│ 6   │ 0.7     │ 0.388044 │ 0.342916  │ true           │ true          │
+│ 7   │ 0.3     │ 0.0      │ 0.137745  │ false          │ false         │
+│ 8   │ 0.2     │ 0.0      │ 0.0757487 │ true           │ false         │
+│ 9   │ 0.4     │ 0.209481 │ 0.193058  │ false          │ false         │
+│ 10  │ 0.1     │ 0.0      │ 0.0304417 │ true           │ false         │
+IHT true positives = 7
+IHT false positives = 1
+IHT false negatives = 3
+LASSO true positives = 10
+LASSO false positives = 124
+LASSO false negatives = 0
+marginal true positives = 8
+marginal false positives = 1463
+marginal false negatives = 2
+zero inflated poisson true positives = 6
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 4
+
+current run = 50
+ 
+ 
+     Welcome to OpenMendel's
+      GWAS analysis option
+        version 0.5.0
+ 
+ 
+Reading the data.
+
+The current working directory is "/u/home/b/biona001/precision_recall/poisson/run5".
+
+Keywords modified by the user:
+
+  affected_designator = 2
+  control_file = tmp_control.txt
+  output_table = tmp_table.txt
+  pedigree_file = tmp.fam
+  plink_field_separator = 	
+  plink_input_basename = tmp
+  regression = poisson
+  regression_formula = Trait ~
+  snpdata_file = tmp.bed
+  snpdefinition_file = tmp.bim
+ 
+ 
+Analyzing the data.
+
+ 
+ 
+Mendel's analysis is finished.
+
+compare_model = 10×5 DataFrame
+│ Row │ true_β  │ IHT_β    │ lasso_β  │ marginal_found │ zero_inf_Pois │
+│     │ Float64 │ Float64  │ Float64  │ Bool           │ Bool          │
+├─────┼─────────┼──────────┼──────────┼────────────────┼───────────────┤
+│ 1   │ 0.1     │ 0.0      │ 0.0      │ false          │ false         │
+│ 2   │ 0.5     │ 0.353087 │ 0.285284 │ true           │ true          │
+│ 3   │ 0.3     │ 0.0      │ 0.11114  │ true           │ false         │
+│ 4   │ 0.7     │ 0.421487 │ 0.381124 │ true           │ true          │
+│ 5   │ 0.9     │ 0.448144 │ 0.440894 │ true           │ true          │
+│ 6   │ 1.0     │ 0.536341 │ 0.552297 │ true           │ true          │
+│ 7   │ 0.4     │ 0.0      │ 0.172125 │ true           │ false         │
+│ 8   │ 0.8     │ 0.455851 │ 0.450376 │ true           │ true          │
+│ 9   │ 0.2     │ 0.0      │ 0.101884 │ true           │ false         │
+│ 10  │ 0.6     │ 0.384009 │ 0.30942  │ true           │ true          │
+IHT true positives = 6
+IHT false positives = 1
+IHT false negatives = 4
+LASSO true positives = 9
+LASSO false positives = 112
+LASSO false negatives = 1
+marginal true positives = 9
+marginal false positives = 1442
+marginal false negatives = 1
+zero inflated poisson true positives = 6
+zero inflated poisson  false positives = 0
+zero inflated poisson  false negatives = 4
+
+Job 175230 ended on:    n9801
+Job #JOB_ID ended on:    Wed Jun 5 23:07:19 PDT 2019

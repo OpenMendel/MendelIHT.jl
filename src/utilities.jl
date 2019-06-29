@@ -60,14 +60,15 @@ end
 
 """
 This function update the linear predictors `xb` with the new proposed b. We clamp the max
-value of each entry to (-30, 30) because certain distributions (e.g. Poisson) have exponential
+value of each entry to (-20, 20) because certain distributions (e.g. Poisson) have exponential
 link functions, which causes overflow.
 """
-function update_xb!(v::IHTVariable{T}, x::SnpArray, z::AbstractMatrix{T}) where {T <: Float}
-    copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true)
+function update_xb!(v::IHTVariable{T}, x::Union{SnpArray, AbstractMatrix}, 
+                    z::AbstractMatrix{T}) where {T <: Float}
+    typeof(x) == SnpArray ? copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) : copyto!(v.xk, @view(x[:, v.idx]))
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
-    clamp!(v.xb, -30, 30)
-    clamp!(v.zc, -30, 30)
+    clamp!(v.xb, -20, 20)
+    clamp!(v.zc, -20, 20)
 end
 
 """
@@ -76,16 +77,14 @@ end
 Calculates the score (gradient) for different glm models. 
 
 W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ). 
-
-# Arguments 
-- `x`: stores the snpmatrix
-and Z stores intercept + other non-genetic covariates. The resulting score is stored in
-v.df and v.df2, respectively. 
 """
 function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
-    x::SnpBitMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}) where {T <: Float}
+                x::Union{SnpBitMatrix, AbstractMatrix}, z::AbstractMatrix{T}, 
+                y::AbstractVector{T}) where {T <: Float}
     @inbounds for i in eachindex(y)
-        w = mueta(l, v.xb[i]) / glmvar(d, v.μ[i])
+        # η = clamp(v.xb[i] + v.zc[i], -20, 20)
+        η = v.xb[i] + v.zc[i]
+        w = mueta(l, η) / glmvar(d, v.μ[i])
         v.r[i] = w * (y[i] - v.μ[i])
     end
     At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
@@ -144,13 +143,22 @@ the score as nonzero components of b. This function set v.idx = 1 for those indi
 `J` is the maximum number of active groups, and `k` is the maximum number of predictors per
 group. 
 """
-function init_iht_indices!(v::IHTVariable{T}, xbm::SnpBitMatrix, z::Matrix{T},
-                           y::Vector{T}, d::UnivariateDistribution, l::Link, J::Int, 
-                           k::Int) where {T <: Float}
+function init_iht_indices!(v::IHTVariable{T}, x::Union{SnpBitMatrix, AbstractMatrix}, 
+                           z::AbstractMatrix{T},y::Vector{T}, d::UnivariateDistribution, 
+                           l::Link, J::Int, k::Int) where {T <: Float}
+    # find the intercept by Newton's method
+    ybar = mean(y)
+    for iteration = 1:20 
+        g1 = linkinv(l, v.c[1])
+        g2 = mueta(l, v.c[1])
+        v.c[1] = v.c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
+        abs(g1 - ybar) < 1e-10 && break
+    end
+    v.zc .= z * v.c
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v.μ, v.xb + v.zc, l)
-    score!(d, l, v, xbm, z, y)
+    score!(d, l, v, x, z, y)
 
     # find J*k largest entries in magnitude and set everything else to 0. 
     a = partialsort([v.df; v.df2], k * J, by=abs, rev=true)
@@ -198,7 +206,7 @@ includes either one of the following:
 
 Note for Posison, NegativeBinomial, and Gamma, we require model coefficients to be 
 "small" to prevent loglikelihood blowing up in first few iteration. This is accomplished 
-by clamping η = xb values to be in (-30, 30)
+by clamping η = xb values to be in (-20, 20)
 """
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
     (prev_logl > logl) && (η_step < nstep)
@@ -393,8 +401,8 @@ end
 """
 Computes the best step size η = v'v / v'Jv
 
-Here v is the score and J is the information matrix. The information matrix is 
-computed by J = g'(xb) / var(μ), where we assume the dispersion ϕ = 1. 
+Here v is the score and J is the expected information matrix, which is 
+computed by J = g'(xb) / var(μ), assuming dispersion is 1
 """
 function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T}, 
                       d::UnivariateDistribution, l::Link) where {T <: Float}
@@ -405,8 +413,8 @@ function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T},
     
     #use zdf2 as temporary storage
     v.xgk .+= v.zdf2
-    v.zdf2 .= mueta.(l, v.xb).^2 ./ glmvar.(d, v.μ)
-    
+    v.zdf2 .= mueta.(l, v.xb + v.zc).^2 ./ glmvar.(d, v.μ)
+
     # now compute and return step size. Note non-genetic covariates are separated from x
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
     denom = Transpose(v.xgk) * Diagonal(v.zdf2) * v.xgk
@@ -436,28 +444,33 @@ end
 """
     initialize_beta!(v::IHTVariable, y::AbstractVector, x::SnpArray, d::UnivariateDistribution, l::Link)
 
-Fits a bivariate regression with each β_i and the intercept.
+Fits a univariate regression (+ intercept) with each β_i corresponding to `x`'s predictor.
 
 Used to find a good starting β. Fitting is done using scoring (newton) algorithm 
-implemented in `GLM.jl`. The average of the intercept over all fits is used as 
-the the initial guess. 
+implemented in `GLM.jl`. The intial intercept is separately fitted using in init_iht_indices(). 
 
 Note: this function is quite slow and not memory efficient. 
 """
-function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::SnpArray,
+function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::Union{SnpArray, AbstractMatrix},
                           d::UnivariateDistribution, l::Link) where {T <: Float}
     n, p = size(x)
     temp_matrix = ones(n, 2)           # n by 2 matrix of the intercept and 1 single covariate
     temp_glm = initialize_glm_object() # preallocating in a dumb ways
 
     intercept = 0.0
-    for i in 1:p
-        copyto!(@view(temp_matrix[:, 2]), @view(x[:, i]), center=true, scale=true)
-        temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-        intercept += temp_glm.pp.beta0[1]
-        v.b[i] = temp_glm.pp.beta0[2]
+    if typeof(x) == SnpArray
+        for i in 1:p
+            copyto!(@view(temp_matrix[:, 2]), @view(x[:, i]), center=true, scale=true)
+            temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
+            v.b[i] = temp_glm.pp.beta0[2]
+        end
+    else 
+        for i in 1:p
+            temp_matrix[:, 2] .= x[:, i]
+            temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
+            v.b[i] = temp_glm.pp.beta0[2]
+        end
     end
-    v.c[1] = intercept / p
 end
 
 """

@@ -1,0 +1,144 @@
+Job 82984 started on:    n6093
+Job 82984 started on:    Wed May 22 02:02:10 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 10000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 started on:    n7157
+Job 82984 started on:    Wed May 22 02:03:06 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 20000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 started on:    n6099
+Job 82984 started on:    Wed May 22 02:11:45 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 30000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 ended on:    n6093
+Job #JOB_ID ended on:    Wed May 22 02:16:26 PDT 2019
+Job 82984 started on:    n6093
+Job 82984 started on:    Wed May 22 02:16:33 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 40000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 started on:    n6106
+Job 82984 started on:    Wed May 22 02:20:56 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 50000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 started on:    n7135
+Job 82984 started on:    Wed May 22 02:23:38 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 60000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 started on:    n7081
+Job 82984 started on:    Wed May 22 02:26:36 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 70000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 ended on:    n7157
+Job #JOB_ID ended on:    Wed May 22 02:30:01 PDT 2019
+Job 82984 started on:    n7157
+Job 82984 started on:    Wed May 22 02:30:06 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 80000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 started on:    n6143
+Job 82984 started on:    Wed May 22 02:36:09 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 90000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 started on:    n6091
+Job 82984 started on:    Wed May 22 02:36:30 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 100000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 started on:    n7090
+Job 82984 started on:    Wed May 22 02:40:41 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 110000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 ended on:    n6099
+Job #JOB_ID ended on:    Wed May 22 02:52:21 PDT 2019
+Job 82984 started on:    n6099
+Job 82984 started on:    Wed May 22 02:52:26 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia benchmark_normal.jl, where debias = true, n = 120000, run = 1
+/u/home/b/biona001/benchmark
+Job 82984 ended on:    n6093
+Job #JOB_ID ended on:    Wed May 22 03:10:48 PDT 2019
+Job 82984 ended on:    n6106
+Job #JOB_ID ended on:    Wed May 22 03:28:27 PDT 2019
+Job 82984 ended on:    n7135
+Job #JOB_ID ended on:    Wed May 22 03:44:43 PDT 2019
+Job 82984 ended on:    n7081
+Job #JOB_ID ended on:    Wed May 22 04:01:24 PDT 2019
+Job 82984 ended on:    n7157
+Job #JOB_ID ended on:    Wed May 22 04:18:39 PDT 2019
+Job 82984 ended on:    n6143
+Job #JOB_ID ended on:    Wed May 22 04:38:00 PDT 2019
+Job 82984 ended on:    n6091
+Job #JOB_ID ended on:    Wed May 22 04:52:11 PDT 2019
+Job 82984 ended on:    n7090
+Job #JOB_ID ended on:    Wed May 22 05:10:27 PDT 2019
+Job 82984 ended on:    n6099
+Job #JOB_ID ended on:    Wed May 22 05:36:38 PDT 2019

@@ -1,6 +1,6 @@
 #first add workers
 using Distributed
-addprocs(5)
+addprocs(10)
 nprocs()
 
 #load packages into all worker
@@ -17,23 +17,46 @@ using DelimitedFiles
 
 function run_cv(n :: Int64, p :: Int64, k :: Int64, debias :: Bool, d::UnionAll, l::Link)
     #construct snpmatrix, covariate files, and true model b
-    x, = simulate_random_snparray(n, p, undef)
+    x = simulate_random_snparray(n, p, "test1.bed")
     xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-    z = ones(n, 1) # the intercept
+    z = ones(n, 1)
 
-    # simulate response, true model b, and the correct non-0 positions of b
-    y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+    #define true_b 
+    true_b = zeros(p)
+    true_b[1:10] .= collect(0.1:0.1:1.0)
+    shuffle!(true_b)
+    correct_position = findall(!iszero, true_b)
 
+    #simulate phenotypes (e.g. vector y)
+    if d == Normal || d == Poisson || d == Bernoulli
+        prob = linkinv.(l, xbm * true_b)
+        clamp!(prob, -20, 20)
+        y = [rand(d(i)) for i in prob]
+    elseif d == NegativeBinomial
+        nn = 10
+        μ = linkinv.(l, xbm * true_b)
+        clamp!(μ, -20, 20)
+        prob = 1 ./ (1 .+ μ ./ nn)
+        y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
+    elseif d == Gamma
+        μ = linkinv.(l, xbm * true_b)
+        β = 1 ./ μ # here β is the rate parameter for gamma distribution
+        y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
+    end
+    y = Float64.(y)
+    
     #specify path and folds
     path = collect(1:20)
     num_folds = 5
     folds = rand(1:num_folds, size(x, 1))
 
     #compute cross validation
-    result = @timed cv_iht_distributed(d(), l, x, z, y, 1, path, folds, num_folds, use_maf=false, debias=debias, parallel=true);
+    result = @timed cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, use_maf=false, debias=debias, parallel=true);
     dr = result[1]
     runtime = result[2] #seconds
     memory = result[3] / 1e6  #MB
+
+    rm("test1.bed", force=true)
 
     return dr, runtime, memory
 end
@@ -43,7 +66,7 @@ function run()
     repeats = 30
     n = 5000
     p = 50000
-    k = 10 # number of true predictors
+    k = 10
     d = NegativeBinomial
     l = LogLink()
     debias = true

@@ -1194,3 +1194,138 @@ function test2(x, y, z)
         y[i] = mueta(IdentityLink(), z[i])^2 / glmvar(Normal(), z[i])
     end
 end
+
+
+
+
+
+
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using DelimitedFiles
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using GLM
+
+#simulat data with k true predictors, from distribution d and with link l.
+n = 1000
+p = 10000
+k = 10
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
+
+#set random seed
+Random.seed!(1111)
+
+for i in 1:10
+    #construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
+    mafs = clamp!(0.5rand(p), 0.1, 0.5)
+    x = simulate_random_snparray(n, p, "test1.bed", mafs=mafs)
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    z = ones(n, 1)
+
+    # simulate response, true model b, and the correct non-0 positions of b
+    y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+
+    # specify weights 
+    weight = ones(p + 1)
+    weight[1:p] .= maf_weights(x, max_weight=2.0)
+
+    #run IHT
+    result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, use_maf=false)
+    result_weighted = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, use_maf=false, weight=weight)
+
+    #check result
+    compare_model = DataFrame(
+        unweighted = result.beta[correct_position], 
+        weighted   = result_weighted.beta[correct_position])
+    @show compare_model
+
+    #clean up
+    rm("test1.bed", force=true)
+end
+
+
+function graph(inter)
+    n = 1000
+    p = 10000
+    k = 10
+    d = Poisson
+    l = canonicallink(d())
+    # l = LogLink()
+
+    #set random seed
+    Random.seed!(2019)
+
+    #construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
+    x = simulate_random_snparray(n, p, "test1.bed")
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    z = ones(n, 1)
+
+    # simulate response, true model b, and the correct non-0 positions of b
+    true_b = zeros(p)
+    # true_b[1:4] .= [0.1; 0.25; 0.5; 0.8]
+    true_b[1:10] .= collect(0.1:0.1:1.0)
+    # true_b[1:k] = rand(Normal(0, 0.3), k)
+    shuffle!(true_b)
+    correct_position = findall(!iszero, true_b)
+
+    #simulate phenotypes (e.g. vector y)
+    if d == Normal || d == Poisson || d == Bernoulli
+        prob = linkinv.(l, xbm * true_b .+ inter)
+        clamp!(prob, -20, 20)
+        y = [rand(d(i)) for i in prob]
+    elseif d == NegativeBinomial
+        nn = 10
+        μ = linkinv.(l, xbm * true_b)
+        clamp!(μ, -20, 20)
+        prob = 1 ./ (1 .+ μ ./ nn)
+        y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
+    elseif d == Gamma
+        μ = linkinv.(l, xbm * true_b)
+        β = 1 ./ μ # here β is the rate parameter for gamma distribution
+        y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
+    end
+    y = Float64.(y)
+    return histogram(y, bin=50)
+end
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using DelimitedFiles
+using BenchmarkTools
+using Random
+using LinearAlgebra
+using Statistics
+using GLM
+using BenchmarkTools
+
+n = 1000
+p = 10000
+x = simulate_correlated_snparray(n, p, undef, prob=0.75)
+
+col1, col2 = zeros(n), zeros(n)
+copyto!(col1, @view(x[:, 1]));
+copyto!(col2, @view(x[:, 2]));
+cor(col1, col2)
+sum(col1 .== col2)
+
+col1, col2 = zeros(n), zeros(n)
+for i in 1:19
+    copyto!(col1, @view(x[:, i]), center=true, scale=true)
+    copyto!(col2, @view(x[:, i+1]), center=true, scale=true)
+    println(cor(col1, col2))
+end
+
+@benchmark simulate_random_snparray(n, p, undef)
+@benchmark simulate_correlated_snparray(n, p, undef)
+
+
+

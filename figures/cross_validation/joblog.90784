@@ -1,0 +1,20 @@
+Job 90784 started on:    n6013
+Job 90784 started on:    Wed May 22 19:59:41 PDT 2019
+
+The 'gcc/4.9.3' module is being loaded
+
+Currently Loaded Modulefiles:
+  1) gcc/4.9.3     2) julia/1.0.1
+/u/local/apps/julia/1.0.1/bin/julia
+julia negativebinomial_cv_nodebias.jl, debias=false
+/u/home/b/biona001/cross_validation/negativebinomial/nodebias
+ERROR: LoadError: syntax: missing comma or ) in argument list
+Stacktrace:
+ [1] include at ./boot.jl:317 [inlined]
+ [2] include_relative(::Module, ::String) at ./loading.jl:1041
+ [3] include(::Module, ::String) at ./sysimg.jl:29
+ [4] exec_options(::Base.JLOptions) at ./client.jl:229
+ [5] _start() at ./client.jl:421
+in expression starting at /u/home/b/biona001/cross_validation/negativebinomial/nodebias/negativebinomial_cv_nodebias.jl:40
+Job 90784 ended on:    n6013
+Job #JOB_ID ended on:    Wed May 22 20:00:25 PDT 2019

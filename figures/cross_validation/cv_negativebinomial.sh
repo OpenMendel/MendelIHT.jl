@@ -3,7 +3,7 @@
 # error = Merged with joblog
 #$ -o joblog.$JOB_ID
 #$ -j y
-#$ -pe shared 6
+#$ -pe shared 10
 #$ -l h_rt=24:00:00,h_data=3.5G
 # Email address to notify
 ## $ -M $USER@mal
