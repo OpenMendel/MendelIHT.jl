@@ -1,3 +1,5 @@
+using GLM
+
 @testset "L0_reg normal" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
@@ -166,7 +168,7 @@ end
 	true_c = [3.0; 3.5]
 
 	#simulate phenotype
-	prob = linkinv.(l, xbm * true_b .+ z * true_c)
+	prob = GLM.linkinv.(l, xbm * true_b .+ z * true_c)
 	y = [rand(d(i)) for i in prob]
 
 	#run result
@@ -235,12 +237,12 @@ end
         
     # simulate phenotype
     if d == Normal || d == Bernoulli || d == Poisson
-        prob = linkinv.(l, x_float * true_b)
+        prob = GLM.linkinv.(l, x_float * true_b)
         clamp!(prob, -20, 20)
         y = [rand(d(i)) for i in prob]
     elseif d == NegativeBinomial
         nn = 10
-        μ = linkinv.(l, x_float * true_b)
+        μ = GLM.linkinv.(l, x_float * true_b)
         clamp!(μ, -20, 20)
         prob = 1 ./ (1 .+ μ ./ nn)
         y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
