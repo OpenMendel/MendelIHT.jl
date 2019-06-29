@@ -11,6 +11,6 @@ addprocs(4)
 @everywhere using Test
 
 # write your own tests here
-@everywhere include("MendelIHT_utilities_test.jl")
-@everywhere include("L0_reg_test.jl")
-@everywhere include("cv_iht_test.jl")
+include("MendelIHT_utilities_test.jl")
+include("L0_reg_test.jl")
+include("cv_iht_test.jl")
