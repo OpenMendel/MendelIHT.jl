@@ -4,8 +4,10 @@ module MendelIHT
 
 	import Distances: euclidean, chebyshev, sqeuclidean
 	import Base.show
-	import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
+	import GLM.checky
+	# import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
 
+	using GLM
 	using SnpArrays
 	using DataFrames
 	using Random
