@@ -24,11 +24,6 @@ The order of installation is important!
 
 Because it is (figures taken from our manuscript, which is to be published):
 
-### Fast & Memory Efficient
-
-Benchmark results on 1 million SNPs and various sample size:
-![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/benchmark/yes_debias.png)
-
 ### Accurate
 
 ![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/accuracy.png)
@@ -51,8 +46,8 @@ Bibtex:
 
 ```
 @article{zhou2019openmendel,
-  title={OpenMendel: a cooperative programming project for statistical genetics},
-  author={Zhou, Hua and Sinsheimer, Janet S and Bates, Douglas M and Chu, Benjamin B and German, Christopher A and Ji, Sarah S and Keys, Kevin L and Kim, Juhyun and Ko, Seyoon and Mosher, Gordon D and others},
+  title={{OpenMendel: a cooperative programming project for statistical genetics}},
+  author={Zhou, Hua and Sinsheimer, Janet S and Bates, Douglas M and Chu, Benjamin B and German, Christopher A and Ji, Sarah S and Keys, Kevin L and Kim, Juhyun and Ko, Seyoon and Mosher, Gordon D and Jeanette, Papp C and Sobel, Eric M and Zhai, Jing and Zhou, Jin J and Lange, Kenneth},
   journal={Human genetics},
   pages={1--11},
   year={2019},

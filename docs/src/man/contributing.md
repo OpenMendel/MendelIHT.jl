@@ -21,8 +21,8 @@ Bibtex:
 
 ```
 @article{zhou2019openmendel,
-  title={OpenMendel: a cooperative programming project for statistical genetics},
-  author={Zhou, Hua and Sinsheimer, Janet S and Bates, Douglas M and Chu, Benjamin B and German, Christopher A and Ji, Sarah S and Keys, Kevin L and Kim, Juhyun and Ko, Seyoon and Mosher, Gordon D and others},
+  title={{OpenMendel: a cooperative programming project for statistical genetics}},
+  author={Zhou, Hua and Sinsheimer, Janet S and Bates, Douglas M and Chu, Benjamin B and German, Christopher A and Ji, Sarah S and Keys, Kevin L and Kim, Juhyun and Ko, Seyoon and Mosher, Gordon D and Jeanette, Papp C and Sobel, Eric M and Zhai, Jing and Zhou, Jin J and Lange, Kenneth},
   journal={Human genetics},
   pages={1--11},
   year={2019},

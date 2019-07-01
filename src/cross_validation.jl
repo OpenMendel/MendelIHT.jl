@@ -5,7 +5,8 @@ For each model specified in `path`, performs `q`-fold cross validation and
 returns the (averaged) deviance residuals. 
 
 The purpose of this function is to find the best sparsity level `k`, judiciously obtained
-from selecting the model with the minimum out-of-sample error. By default, each CPU runs 
+from selecting the model with the minimum out-of-sample error. Automatically finds the 
+correct version of `L0_reg` to use depending on the type of `x`. By default, each CPU runs 
 a different model for a given fold. To use this function, start julia using 4 processors 
 (the more the better) by:
 
