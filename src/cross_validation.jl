@@ -40,7 +40,7 @@ memory mapped files that will be deleted automatically once they are no longer n
 function cv_iht(
     d        :: UnivariateDistribution,
     l        :: Link,
-    x        :: Union{AbstractMatrix, SnpArray},
+    x        :: Union{AbstractMatrix{T}, SnpArray},
     z        :: AbstractMatrix{T},
     y        :: AbstractVector{T},
     J        :: Int64,
@@ -90,7 +90,7 @@ engaging in full cross validation.
 function iht_run_many_models(
     d        :: UnivariateDistribution,
     l        :: Link,
-    x        :: Union{AbstractMatrix, SnpArray},
+    x        :: Union{AbstractMatrix{T}, SnpArray},
     z        :: AbstractMatrix{T},
     y        :: AbstractVector{T},
     J        :: Int64,
@@ -105,7 +105,7 @@ function iht_run_many_models(
 ) where {T <: Float}
 
     # for each k, run L0_reg and store the loglikelihoods
-    typeof(x) == SnpArray && (xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);)
+    typeof(x) == SnpArray && (xbm = SnpBitMatrix{T}(x, model=ADDITIVE_MODEL, center=true, scale=true);)
     results = (parallel ? pmap : map)(path) do k
         if typeof(x) == SnpArray 
             return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
@@ -151,12 +151,12 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     # allocate train model
     x_train = SnpArray(train_file, sum(train_idx), p)
     copyto!(x_train, @view(x[train_idx, :]))
-    x_trainbm = SnpBitMatrix{Float64}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
+    x_trainbm = SnpBitMatrix{T}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # allocate test model
     x_test = SnpArray(test_file, test_size, p)
     copyto!(x_test, @view(x[test_idx, :]))
-    x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
+    x_testbm = SnpBitMatrix{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # allocate group and weight vectors if supplied
     group_train = (group == Int[] ? Int[] : group[train_idx])

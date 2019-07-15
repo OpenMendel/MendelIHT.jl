@@ -1,7 +1,7 @@
 """
 Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
 """
-mutable struct IHTVariable{T <: Float64}
+mutable struct IHTVariable{T <: Float}
     b      :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
     b0     :: Vector{T}     # estimated model for genotype matrix in the previous iteration
     xb     :: Vector{T}     # vector that holds x*b
@@ -78,7 +78,7 @@ immutable objects that house results returned from IHT run.
 The first `g` stands for generalized as in GLM, the second `g` stands for group.
 """
 struct ggIHTResults{T <: Float}
-    time  :: T
+    time  :: Union{Float64, Float32}
     logl  :: T
     iter  :: Int64
     beta  :: Vector{T}

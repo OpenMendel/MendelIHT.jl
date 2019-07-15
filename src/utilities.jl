@@ -9,12 +9,12 @@ For each logpdf from Normal, Gamma, and InverseGaussian, we scale by dispersion.
 """
 function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
                        μ::AbstractVector{T}) where {T <: Float}
-    logl = zero(T)
+    logl = 0.0
     ϕ = MendelIHT.deviance(d, y, μ) / length(y)
     @inbounds for i in eachindex(y)
         logl += loglik_obs(d, y[i], μ[i], 1, ϕ) #wt = 1 because only have 1 sample to estimate a given mean 
     end
-    return logl
+    return T(logl)
 end
 
 """
@@ -45,7 +45,7 @@ The deviance of a GLM can be evaluated as the sum of the squared deviance residu
 of sqared deviance residuals is accomplished by `devresid` which is implemented in GLM.jl
 """
 function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
-    dev = zero(T)
+    dev = 0.0
     @inbounds for i in eachindex(y)
         dev += devresid(d, y[i], μ[i])
     end
