@@ -1,3 +1,7 @@
+# Paper 
+
+A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v1).
+
 # This folder contains the following:
 
 + Code to reproduce all simulated data used in figures and tables of our manuscript.
