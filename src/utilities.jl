@@ -503,3 +503,50 @@ function initialize_glm_object()
     y = rand(0:1, 100)
     return fit(GeneralizedLinearModel, x, y, d(), l)
 end
+
+"""
+    naive_impute(x, destination)
+
+Imputes missing entries of a SnpArray using the mode of each SNP, and
+saves the result in a new file called destination in current directory. 
+Non-missing entries are the same. 
+"""
+function naive_impute(x::SnpArray, destination::String)
+    n, p = size(x)
+    y = SnpArray(destination, n, p)
+
+    @inbounds for j in 1:p
+
+        #identify mode
+        entry0, entry1, entry2 = 0, 0, 0
+        for i in 1:n
+            if x[i, j] == 0x00 
+                y[i, j] = 0x00
+                entry0 += 1
+            elseif x[i, j] == 0x02 
+                y[i, j] = 0x02
+                entry1 += 1
+            elseif x[i, j] == 0x03 
+                y[i, j] = 0x03
+                entry2 += 1
+            end
+        end
+        most_often = max(entry0, entry1, entry2)
+        missing_entry = 0x00
+        if most_often == entry1
+            missing_entry = 0x02
+        elseif most_often == entry2
+            missing_entry = 0x03
+        end
+
+        # impute 
+        for i in 1:n
+            if x[i, j] == 0x01 
+                y[i, j] = missing_entry
+            end
+        end
+    end
+
+    return nothing
+end
+

@@ -58,7 +58,7 @@ elseif d == Gamma
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
 y = Float64.(y)
-histogram(y, bins=30)
+# histogram(y, bins=30)
 # mean(y)
 # var(y)
 
@@ -641,5 +641,24 @@ println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
 println("Total found predictors = " * string(length(findall(!iszero, result.beta[correct_position]))))
 
+
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using Random
+using LinearAlgebra
+using GLM
+using CSV
+using BenchmarkTools
+
+Random.seed!(1201)
+x = SnpArray(undef, 1000, 1000)
+@time naive_impute(x, "hi.bed")
 
 
