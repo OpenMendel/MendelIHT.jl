@@ -20,7 +20,7 @@ module MendelIHT
 	export IHTVariables, use_A2_as_minor_allele, make_snparray, standardize!
 	export std_reciprocal, project_group_sparse!, save_prev!, maf_weights
 	export simulate_random_response, adhoc_add_correlation, cv_iht
-	export simulate_correlated_snparray, naive_impute
+	export simulate_correlated_snparray, naive_impute, cv_iht_distribute_fold
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}
