@@ -31,6 +31,7 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `group` vector storing group membership
 - `weight` vector storing vector of weights containing prior knowledge on each SNP
 - `folds`: Vector that separates the sample into q disjoint subsets
+- `destin`: Directory where intermediate files will be generated. Directory name must end with `/`.
 - `init`: Boolean indicating whether we should initialize IHT algorithm at a good starting guess
 - `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
 - `debias`: Boolean indicating whether we should debias at each IHT step
@@ -49,6 +50,7 @@ function cv_iht(
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: DenseVector{Int} = rand(1:q, size(x, 1)),
+    destin   :: String = "./",
     init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
@@ -66,7 +68,7 @@ function cv_iht(
         train_idx = .!test_idx
 
         # validate trained models on test data by computing deviance residuals
-        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, fold, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, showinfo=false, parallel=parallel)
+        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, fold, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, showinfo=false, parallel=parallel)
     end
 
     #weight mses for each fold by their size before averaging
@@ -97,6 +99,7 @@ function cv_iht_distribute_fold(
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: DenseVector{Int} = rand(1:q, size(x, 1)),
+    destin   :: String = "./", 
     init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
@@ -108,8 +111,8 @@ function cv_iht_distribute_fold(
     mses = (parallel ? pmap : map)(1:q) do fold
         test_idx  = folds .== fold
         train_idx = .!test_idx
-        betas, cs = pfold_train(train_idx, x, z, y, J, d, l, path, fold, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, showinfo=false)
-        return pfold_validate(test_idx, betas, cs, x, z, y, J, d, l, path, fold, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, showinfo=false)
+        betas, cs = pfold_train(train_idx, x, z, y, J, d, l, path, fold, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, showinfo=false)
+        return pfold_validate(test_idx, betas, cs, x, z, y, J, d, l, path, fold, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, showinfo=false)
     end
 
     #weight mses for each fold by their size before averaging
@@ -176,12 +179,13 @@ on the test set. This deviance residuals vector is returned
 function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
                     l::Link, x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
                     path::DenseVector{Int}, fold::Int; group::AbstractVector{Int}=Int[],
-                    weight::AbstractVector{T}=T[], init::Bool=false, use_maf::Bool=false, 
-                    debias::Bool=false, showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
+                    weight::AbstractVector{T}=T[], init::Bool=false, destin::String = "./",
+                    use_maf::Bool=false, debias::Bool=false, showinfo::Bool=true, 
+                    parallel::Bool=false) where {T <: Float}
 
     # create directory for memory mapping
-    train_file = randstring(100) * ".bed"
-    test_file = randstring(100) * ".bed"
+    train_file = destin * randstring(100) * ".bed"
+    test_file  = destin * randstring(100) * ".bed"
 
     # first allocate arrays needed for computing deviance residuals
     p, q = size(x, 2), size(z, 2)
@@ -227,10 +231,11 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
 end
 
 function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
-                    l::Link, x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
-                    path::DenseVector{Int}, fold::Int; group::AbstractVector{Int}=Int[],
-                    weight::AbstractVector{T}=T[], init::Bool=false, use_maf::Bool=false, 
-                    debias::Bool=false, showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
+                    l::Link, x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, 
+                    J::Int64, path::DenseVector{Int}, fold::Int; group::AbstractVector{Int}=Int[],
+                    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
+                    use_maf::Bool=false, debias::Bool=false, showinfo::Bool=true, 
+                    parallel::Bool=false) where {T <: Float}
 
     # first allocate arrays needed for computing deviance residuals
     p, q = size(x, 2), size(z, 2)
@@ -272,15 +277,14 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
 end
 
 function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
-                    y::AbstractVector{T}, J::Int64, d::UnivariateDistribution,
-                    l::Link, path::DenseVector{Int}, fold::Int64; 
-                    group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-                    init::Bool=false, use_maf::Bool =false, max_iter::Int = 100,
-                    max_step::Int = 3, debias::Bool = false, showinfo::Bool = false
-                    ) where {T <: Float}
+    y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, l::Link, 
+    path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
+    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
+    use_maf::Bool =false, max_iter::Int = 100, max_step::Int = 3, 
+    debias::Bool = false, showinfo::Bool = false) where {T <: Float}
 
     # create directory for memory mapping
-    train_file = randstring(100) * ".bed"
+    train_file = destin * randstring(100) * ".bed"
 
     #preallocate arrays
     p, q = size(x, 2), size(z, 2)
@@ -312,15 +316,14 @@ on the test set. A vector of mse is returned, where each entry corresponds to th
 set on each fold with different sparsity parameter. 
 """
 function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::AbstractMatrix{T},
-                        x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64,
-                        d::UnivariateDistribution, l::Link, path::DenseVector{Int}, fold::Int64; 
-                        group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[], 
-                        init::Bool=false, use_maf::Bool = false, max_iter::Int = 100, 
-                        max_step::Int = 3, debias::Bool = false, showinfo::Bool = false
-                        ) where {T <: Float}
+    x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, 
+    l::Link, path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
+    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, use_maf::Bool = false, 
+    max_iter::Int = 100, max_step::Int = 3, debias::Bool = false, showinfo::Bool = false
+    ) where {T <: Float}
     
     # create directory for memory mapping
-    test_file = randstring(100) * ".bed"
+    test_file = destin * randstring(100) * ".bed"
 
     # preallocate arrays
     p, q = size(x, 2), size(z, 2)

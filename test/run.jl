@@ -526,8 +526,9 @@ folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT
 # result = iht_run_many_models(d(), l, x, z, y, 1, path);
-mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
-mses = cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
+destin = "/Users/biona001/Desktop/test/"
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, destin=destin, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
+mses = cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, destin=destin, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
 
 #benchmarking
 @benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=false) seconds=30 #33.800s, 135.13MiB
