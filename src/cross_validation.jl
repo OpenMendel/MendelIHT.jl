@@ -199,34 +199,40 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     x_train = SnpArray(train_file, sum(train_idx), p)
     copyto!(x_train, @view(x[train_idx, :]))
     x_trainbm = SnpBitMatrix{T}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
+    z_train = z[train_idx, :]
+    y_train = y[train_idx]
 
     # allocate test model
     x_test = SnpArray(test_file, test_size, p)
     copyto!(x_test, @view(x[test_idx, :]))
     x_testbm = SnpBitMatrix{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
+    z_test = z[test_idx, :]
+    y_test = y[test_idx]
 
     # allocate group and weight vectors if supplied
     group_train = (group == Int[] ? Int[] : group[train_idx])
     weight_train = (weight == T[] ? T[] : weight[train_idx])
     
     # for each k in path, run L0_reg and compute mse
-    mses = (parallel ? pmap : map)(path) do k
+    try
+        mses = (parallel ? pmap : map)(path) do k
 
-        #run IHT on training model with given k
-        result = L0_reg(x_train, x_trainbm, z[train_idx, :], y[train_idx], 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=showinfo)
+            #run IHT on training model with given k
+            result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=showinfo)
 
-        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-        A_mul_B!(xb, zc, x_testbm, z[test_idx, :], result.beta, result.c) 
-        update_μ!(μ, xb .+ zc, l)
+            # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
+            A_mul_B!(xb, zc, x_testbm, z_test, result.beta, result.c) 
+            update_μ!(μ, xb .+ zc, l)
 
-        # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-        return deviance(d, y[test_idx], μ)
+            # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
+            return deviance(d, y_test, μ)
+        end
+    finally 
+        #clean up 
+        rm(train_file, force=true)
+        rm(test_file, force=true)
     end
-
-    #clean up 
-    rm(train_file, force=true)
-    rm(test_file, force=true)
-
+    
     return mses
 end
 
@@ -245,15 +251,9 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     zc = zeros(T, test_size)
     μ  = zeros(T, test_size)
 
-    # allocate train model
+    # allocate train model and test models
     x_train = x[train_idx, :]
-    # copyto!(x_train, @view(x[train_idx, :]))
-    # x_trainbm = SnpBitMatrix{Float64}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
-
-    # allocate test model
     x_test = x[test_idx, :]
-    # copyto!(x_test, @view(x[test_idx, :]))
-    # x_testbm = SnpBitMatrix{Float64}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # allocate group and weight vectors if supplied
     group_train = (group == Int[] ? Int[] : group[train_idx])
@@ -297,15 +297,16 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
     copyto!(x_train, view(x, train_idx, :))
     x_trainbm = SnpBitMatrix{T}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
 
-    for i in 1:length(path)
-        k = path[i]
-        result = L0_reg(x_train, x_trainbm, z[train_idx, :], y[train_idx], 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
-        betas[:, i] .= result.beta
-        cs[:, i] .= result.c
+    try 
+        for i in 1:length(path)
+            k = path[i]
+            result = L0_reg(x_train, x_trainbm, z[train_idx, :], y[train_idx], 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            betas[:, i] .= result.beta
+            cs[:, i] .= result.c
+        end
+    finally
+        rm(train_file, force=true) #clean up
     end
-
-    #clean up
-    rm(train_file, force=true)   
 
     return betas, cs
 end
@@ -340,17 +341,18 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::Abstra
     x_testbm = SnpBitMatrix{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
 
     # for each computed model stored in betas, compute the deviance residuals (i.e. generalized mean squared error) on test set
-    for i = 1:size(betas, 2)
-        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-        A_mul_B!(xb, zc, x_testbm, z[test_idx, :], @view(betas[:, i]), @view(cs[:, i])) 
-        update_μ!(μ, xb .+ zc, l)
+    try
+        for i = 1:size(betas, 2)
+            # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
+            A_mul_B!(xb, zc, x_testbm, z[test_idx, :], @view(betas[:, i]), @view(cs[:, i])) 
+            update_μ!(μ, xb .+ zc, l)
 
-        # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-        mse[i] = deviance(d, y_test, μ)
+            # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
+            mse[i] = deviance(d, y_test, μ)
+        end
+    finally
+        rm(test_file, force=true) #clean up
     end
-
-    #clean up
-    rm(test_file, force=true)
 
     return mse
 end
