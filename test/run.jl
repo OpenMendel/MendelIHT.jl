@@ -58,7 +58,7 @@ elseif d == Gamma
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
 y = Float64.(y)
-histogram(y, bins=30)
+# histogram(y, bins=30)
 # mean(y)
 # var(y)
 
@@ -461,7 +461,7 @@ rm("tmp.bed", force=true)
 
 #RUN IHT with all CPU available
 using Distributed
-addprocs(4)
+addprocs(8)
 nprocs()
 
 using Revise
@@ -521,16 +521,18 @@ y = T.(y)
 
 #specify path and folds
 path = collect(1:20)
-num_folds = 3
+num_folds = 8
 folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT
 # result = iht_run_many_models(d(), l, x, z, y, 1, path);
-mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true)
+destin = "/Users/biona001/Desktop/test/"
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, destin=destin, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
+mses = cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, destin=destin, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
 
 #benchmarking
-@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true) seconds=60
-
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=false) seconds=30 #33.800s, 135.13MiB
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true) seconds=30  #6.055 s, 34.23 MiB
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, argmin(mses), d(), l, debias=true, init=false, use_maf=false)
@@ -552,10 +554,10 @@ rm("tmp.bed", force=true)
 
 # CROSS VALIDATION ON GENERAL MATRIX
 using Distributed
-addprocs(4)
+addprocs(8)
 nprocs()
 
-using Revise
+# @everywhere using Revise
 using MendelIHT
 using SnpArrays
 using DataFrames
@@ -569,15 +571,15 @@ using GLM
 n = 2000
 p = 10000
 k = 10
-d = NegativeBinomial
-# l = canonicallink(d())
-l = LogLink()
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
 
 #set random seed
 Random.seed!(2019)
 
 #construct x matrix and non genetic covariate (intercept)
-T = Float32
+T = Float64
 x = randn(T, n, p)
 z = ones(T, n, 1)
 
@@ -615,14 +617,18 @@ mean(y)
 var(y)
 
 #specify path and folds
-path = collect(1:20)
-num_folds = 5
+path = collect(1:50)
+num_folds = 8
 folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT
 # result = iht_run_many_models(d(), l, x, z, y, 1, path);
-mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true)
-# @benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true) seconds=60
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
+mses = cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
+
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=false) seconds=30#14.409s, 889.53 MiB 
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true) seconds=30 #19.509s, 465.59 MiB
+
 
 #run IHT
 result = L0_reg(x, z, y, 1, argmin(mses), d(), l, debias=true, init=false, use_maf=false)
@@ -638,5 +644,24 @@ println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
 println("Total found predictors = " * string(length(findall(!iszero, result.beta[correct_position]))))
 
+
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using Random
+using LinearAlgebra
+using GLM
+using CSV
+using BenchmarkTools
+
+Random.seed!(1201)
+x = SnpArray(undef, 1000, 1000)
+@time naive_impute(x, "hi.bed")
 
 

@@ -20,23 +20,9 @@ The order of installation is important!
 + [**Latest**](https://biona001.github.io/MendelIHT.jl/latest/)
 + [**Stable**](https://biona001.github.io/MendelIHT.jl/stable/)
 
-## Why Iterative Hard Thresholding for GWAS? 
-
-Because it is (figures taken from our manuscript, which is to be published):
-
-### Accurate
-
-![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/accuracy.png)
-
-### Reliable
-
-![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/iht_lasso_marginal.png)
-
-* Marginal tests indicate a traditional GWAS analysis from a SNP-by-SNP association test.
-
 ## Citation:
 
-A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v1). If you use `MendelIHT.jl` in an academic manuscript, please cite:
+A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v1). If you use `MendelIHT.jl`, please cite:
 
 ```
 Benjamin B. Chu, Kevin L. Keys, Janet S. Sinsheimer, and Kenneth Lange. Multivariate GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity. bioRxiv doi:10.1101/697755

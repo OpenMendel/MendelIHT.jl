@@ -120,7 +120,6 @@ function print_cv_results(io::IO, errors::Vector{T}, path::DenseVector{Int},
     for i = 1:length(errors)
         println(io, "\t", path[i], "\t", errors[i])
     end
-    println(io, "\nThe lowest MSE is achieved at k = $k \n")
 end
 # default IO for print_cv_results is STDOUT
 print_cv_results(errors::Vector{T}, path::DenseVector{Int}, k::Int) where {T <: Float} = print_cv_results(stdout, errors, path, k)
