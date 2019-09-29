@@ -19,7 +19,7 @@ end
 
 """
 This function is taken from GLM.jl from: 
-https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
+https://urldefense.proofpoint.com/v2/url?u=https-3A__github.com_JuliaStats_GLM.jl_blob_956a64e7df79e80405867238781f24567bd40c78_src_glmtools.jl-23L445&d=DwIGaQ&c=sJ6xIWYx-zLMB3EPkvcnVg&r=7sbWVWEGF5cmtB61wl7FFg&m=t0UYMxl1l6T9gQwevDjzKZl1EUq7cxc1N1Q251BQAUU&s=T5Tp_cvAeqiX2CbgYRm0yhX-Uzmeg5rRbOXvyDiwq_M&e= 
 
 Putting it here because it was not exported. 
 
@@ -70,6 +70,24 @@ function update_xb!(v::IHTVariable{T}, x::Union{SnpArray, AbstractMatrix},
     clamp!(v.xb, -20, 20)
     clamp!(v.zc, -20, 20)
 end
+
+# For NegativeBinomial
+function update_r!(d::NegativeBinomial, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
+    num = zero(T)
+    den = zero(T)
+    for i in eachindex(y)
+        for j = 0:y[i] - 1
+            num = num + (d.r /(d.r + j))  # numerator for r
+        end
+        p = d.r / (d.r + μ[i])
+        den = den + log(p)  # denominator for r
+    end
+    new_r = -(num)/den
+    d = NegativeBinomial(new_r, d.p)
+    return d
+end
+
+
 
 """
     score = X^T * W * (y - g(x^T b))
@@ -502,4 +520,71 @@ function initialize_glm_object()
     x = rand(100, 2)
     y = rand(0:1, 100)
     return fit(GeneralizedLinearModel, x, y, d(), l)
+end
+
+function mle_for_θ(y::AbstractVector, μ::AbstractVector; 
+                    θ::AbstractFloat = 1.0, maxIter=100, convTol=1.e-6)
+
+    function first_derivative(θ::Real)
+        tmp(yi, μi) = -(yi+θ)/(μi+θ) - log(μi+θ) + 1 + log(θ) + digamma(θ+yi) - digamma(θ)
+        return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
+    end
+
+    function second_derivative(θ::Real)
+        tmp(yi, μi) = (yi+θ)/(μi+θ)^2 - 2/(μi+θ) + 1/θ + trigamma(θ+yi) - trigamma(θ)
+        return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
+    end
+
+    function negbin_loglikelihood(θ::Real)
+        d_newton = NegativeBinomial(θ, 0.5)
+        return MendelIHT.loglikelihood(d_newton, y, μ)
+    end
+
+    function newton_increment(θ::Real)
+        # use gradient descent if hessian not positive definite
+        dx  = first_derivative(θ)
+        dx2 = second_derivative(θ)
+        if dx2 < 0
+            increment = first_derivative(θ) / second_derivative(θ)
+        else 
+            increment = first_derivative(θ)
+        end
+        # println(dx2)
+        return increment
+    end
+
+    new_θ    = 1.0
+    stepsize = 1.0
+    for i in 1:maxIter
+
+        # run 1 iteration of Newton's algorithm
+        increment = newton_increment(θ)
+        new_θ = θ - stepsize * increment
+
+        # linesearch
+        old_logl = negbin_loglikelihood(θ)
+        for j in 1:20
+            if new_θ <= 0
+                stepsize = stepsize / 2
+                new_θ = θ - stepsize * increment
+            else 
+                new_logl = negbin_loglikelihood(new_θ)
+                if old_logl >= new_logl
+                    stepsize = stepsize / 2
+                    new_θ = θ - stepsize * increment
+                else
+                    break
+                end
+            end
+        end
+
+        #check convergence
+        if abs(θ - new_θ) <= convTol
+            return new_θ
+        else
+            θ = new_θ
+        end
+    end
+
+    return θ
 end

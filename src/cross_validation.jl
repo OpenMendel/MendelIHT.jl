@@ -36,6 +36,7 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `debias`: Boolean indicating whether we should debias at each IHT step
 - `showinfo`: Whether we want IHT to print meaningful intermediate steps
 - `parallel`: Whether we want to run cv_iht using multiple CPUs (highly recommended)
+- 'est_r': For NegativeBinomial, update r using MM algorithm (est_r=1) or Newton's method (est_r=2)
 """
 function cv_iht(
     d        :: UnivariateDistribution,
@@ -53,7 +54,8 @@ function cv_iht(
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     showinfo :: Bool = true,
-    parallel :: Bool = false
+    parallel :: Bool = false,
+    est_r    :: Int = 0
 ) where {T <: Float}
 
     # preallocate mean squared error matrix
@@ -66,7 +68,7 @@ function cv_iht(
         train_idx = .!test_idx
 
         # validate trained models on test data by computing deviance residuals
-        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, fold, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, showinfo=false, parallel=parallel)
+        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, fold, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, showinfo=false, parallel=parallel, est_r=est_r)
     end
 
     #weight mses for each fold by their size before averaging
@@ -101,16 +103,17 @@ function iht_run_many_models(
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     showinfo :: Bool = true,
-    parallel :: Bool = false
+    parallel :: Bool = false,
+    est_r    :: Int = 0
 ) where {T <: Float}
 
     # for each k, run L0_reg and store the loglikelihoods
     typeof(x) == SnpArray && (xbm = SnpBitMatrix{T}(x, model=ADDITIVE_MODEL, center=true, scale=true);)
     results = (parallel ? pmap : map)(path) do k
         if typeof(x) == SnpArray 
-            return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, est_r=est_r, use_maf=use_maf, debias=debias, show_info=false)
         else 
-            return L0_reg(x, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            return L0_reg(x, z, y, 1, k, d, l, group=group, weight=weight, init=init, est_r=est_r, use_maf=use_maf, debias=debias, show_info=false)
         end
     end
 
@@ -134,7 +137,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
                     l::Link, x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
                     path::DenseVector{Int}, fold::Int; group::AbstractVector{Int}=Int[],
                     weight::AbstractVector{T}=T[], init::Bool=false, use_maf::Bool=false, 
-                    debias::Bool=false, showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
+                    debias::Bool=false, showinfo::Bool=true, parallel::Bool=false, est_r::Int=0) where {T <: Float}
 
     # create directory for memory mapping
     train_file = randstring(100) * ".bed"
@@ -166,11 +169,21 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     mses = (parallel ? pmap : map)(path) do k
 
         #run IHT on training model with given k
-        result = L0_reg(x_train, x_trainbm, z[train_idx, :], y[train_idx], 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=showinfo)
+        result = L0_reg(x_train, x_trainbm, z[train_idx, :], y[train_idx], 1, k, d, l, group=group_train, weight=weight_train, init=init, est_r=est_r, use_maf=use_maf, debias=debias, show_info=showinfo)
 
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
         A_mul_B!(xb, zc, x_testbm, z[test_idx, :], result.beta, result.c) 
         update_μ!(μ, xb .+ zc, l)
+        
+        # if Negative Binomial, update r
+        if typeof(d) == NegativeBinomial{Float64}
+            if est_r == 1
+                d = update_r!(d, y[test_idx], μ)
+            elseif est_r == 2   
+                new_r = mle_for_θ(y[test_idx], μ, θ=d.r)
+                d = NegativeBinomial(new_r, 0.5)
+            end
+        end
 
         # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
         return deviance(d, y[test_idx], μ)
@@ -187,7 +200,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
                     l::Link, x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
                     path::DenseVector{Int}, fold::Int; group::AbstractVector{Int}=Int[],
                     weight::AbstractVector{T}=T[], init::Bool=false, use_maf::Bool=false, 
-                    debias::Bool=false, showinfo::Bool=true, parallel::Bool=false) where {T <: Float}
+                    debias::Bool=false, showinfo::Bool=true, parallel::Bool=false, est_r::Int=0) where {T <: Float}
 
     # first allocate arrays needed for computing deviance residuals
     p, q = size(x, 2), size(z, 2)
@@ -213,13 +226,22 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     
     # for each k in path, run L0_reg and compute mse
     mses = (parallel ? pmap : map)(path) do k
-
         #run IHT on training model with given k
-        result = L0_reg(x_train, z[train_idx, :], y[train_idx], 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=showinfo)
+        result = L0_reg(x_train, z[train_idx, :], y[train_idx], 1, k, d, l, group=group_train, weight=weight_train, init=init, est_r=est_r, use_maf=use_maf, debias=debias, show_info=showinfo)
 
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
         A_mul_B!(xb, zc, x_test, z[test_idx, :], result.beta, result.c) 
         update_μ!(μ, xb .+ zc, l)
+        
+        # if Negative Binomial, update r
+        if typeof(d) == NegativeBinomial{Float64}
+            if est_r == 1
+                d = update_r!(d, y, v.μ)
+            elseif est_r == 2   
+                new_r = mle_for_θ(y, v.μ, θ=d.r)
+                d = NegativeBinomial(new_r, 0.5)
+            end
+        end
 
         # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
         return deviance(d, y[test_idx], μ)

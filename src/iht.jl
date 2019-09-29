@@ -42,6 +42,7 @@ function L0_reg(
     debias    :: Bool = false,
     show_info :: Bool = true,          # print things when model didn't converge
     init      :: Bool = false,         # not efficient. whether to initialize β to sensible values
+    est_r     :: Int = 0,              # If 1, estimate r using MM algorithm. If 2, estimate r using Newton's Method
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
@@ -96,7 +97,7 @@ function L0_reg(
         logl = next_logl
 
         # take one IHT step in positive score direction
-        (η, η_step, next_logl) = iht_one_step!(v, x, xbm, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf)
+        (η, η_step, next_logl, d) = iht_one_step!(v, x, xbm, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf, est_r)
 
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
@@ -116,7 +117,7 @@ function L0_reg(
         end
     end
 
-    return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+    return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group, d)
 end #function L0_reg
 
 """
@@ -150,6 +151,7 @@ function L0_reg(
     debias    :: Bool = false,
     show_info :: Bool = true,            # print things when model didn't converge
     init      :: Bool = false,           # not efficient. initializes β to sensible values
+    est_r     :: Int  = 0,               # If 1, estimate r using MM algorithm. If 2, estimate r using Newton's Method
     tol       :: T    = convert(T, 1e-4),# tolerance for tracking convergence
     max_iter  :: Int  = 100,             # maximum IHT iterations
     max_step  :: Int  = 5,               # maximum backtracking for each iteration
@@ -204,8 +206,8 @@ function L0_reg(
         logl = next_logl
 
         # take one IHT step in positive score direction
-        (η, η_step, next_logl) = iht_one_step!(v, x, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf)
-
+        (η, η_step, next_logl, d) = iht_one_step!(v, x, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf, est_r)
+        
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
             temp_glm = fit(GeneralizedLinearModel, v.xk, y, d, l)
@@ -224,7 +226,7 @@ function L0_reg(
         end
     end
 
-    return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group)
+    return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group, d)
 end #function L0_reg
 
 """
@@ -234,7 +236,7 @@ to avoid bad boundary cases.
 """
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool) where {T <: Float}
+    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, est_r::Int) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d, l)
@@ -245,6 +247,21 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v, x, z)
     update_μ!(v.μ, v.xb + v.zc, l)
+   
+    # if Negative Binomial, save previous r and update
+    if typeof(d) == NegativeBinomial{Float64}
+        old_r = d.r
+
+        # Using MM algorithm
+        if est_r == 1
+            d = update_r!(d, y, v.μ)
+
+        # Using Newton's method
+        elseif est_r == 2   
+            new_r = mle_for_θ(y, v.μ, θ=d.r)
+            d = NegativeBinomial(new_r, 0.5)
+        end
+    end
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(d, y, v.μ)
@@ -255,6 +272,11 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         # stephalving
         η /= 2
 
+        # if NegativeBinomial, reset r to previous r
+        if typeof(d) == NegativeBinomial{Float64}
+            d = NegativeBinomial(old_r, 0.5)
+        end
+
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
@@ -263,6 +285,17 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
         update_μ!(v.μ, v.xb + v.zc, l)
+
+        # if Negative Binomial, update r
+        if typeof(d) == NegativeBinomial{Float64}
+            if est_r == 1
+                d = update_r!(d, y, v.μ)
+            elseif est_r == 2   
+                new_r = mle_for_θ(y, v.μ, θ=d.r)
+                d = NegativeBinomial(new_r, 0.5)
+            end
+        end
+
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter
@@ -277,7 +310,7 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     isinf(new_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
     isinf(η) && throw(error("step size not finite! it is $η and max gradient is " * string(maximum(v.gk)) * "!!\n"))
 
-    return η::T, η_step::Int, new_logl::T
+    return η::T, η_step::Int, new_logl::T, d::UnivariateDistribution
 end #function iht_one_step
 
 """
@@ -285,7 +318,7 @@ Performs 1 iteration of the IHT algorithm given a general matrix of floating poi
 """
 function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool) where {T <: Float}
+    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, est_r::Int) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d, l)
@@ -296,6 +329,21 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v, x, z)
     update_μ!(v.μ, v.xb + v.zc, l)
+    
+    # if Negative Binomial, save previous r and update
+    if typeof(d) == NegativeBinomial{Float64}
+        old_r = d.r
+
+        # Using MM algorithm
+        if est_r == 1
+            d = update_r!(d, y, v.μ)
+
+        # Using Newton's method
+        elseif est_r == 2   
+            new_r = mle_for_θ(y, v.μ, θ=d.r)
+            d = NegativeBinomial(new_r, 0.5)
+        end
+    end
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(d, y, v.μ)
@@ -306,6 +354,11 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
         # stephalving
         η /= 2
 
+        # If NegativeBinomial, reset r to previous r
+        if typeof(d) == NegativeBinomial{Float64}
+            d = NegativeBinomial(old_r, 0.5)
+        end
+
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
@@ -314,6 +367,17 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
         # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
         update_μ!(v.μ, v.xb + v.zc, l)
+        
+        # If NegativeBinomial, update r
+        if typeof(d) == NegativeBinomial{Float64}
+            if est_r == 1
+                d = update_r!(d, y, v.μ)
+            elseif est_r == 2
+                new_r = mle_for_θ(y, v.μ, θ=d.r)
+                d = NegativeBinomial(new_r, 0.5)
+            end
+        end
+
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter
@@ -328,5 +392,5 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
     isinf(new_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
     isinf(η) && throw(error("step size not finite! it is $η and max gradient is " * string(maximum(v.gk)) * "!!\n"))
 
-    return η::T, η_step::Int, new_logl::T
+    return η::T, η_step::Int, new_logl::T, d::UnivariateDistribution
 end #function iht_one_step
