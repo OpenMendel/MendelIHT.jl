@@ -214,7 +214,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     weight_train = (weight == T[] ? T[] : weight[train_idx])
     
     # for each k in path, run L0_reg and compute mse
-    try
+    mses = try
         mses = (parallel ? pmap : map)(path) do k
 
             #run IHT on training model with given k
@@ -227,12 +227,14 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
             # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
             return deviance(d, y_test, μ)
         end
+
+        return mses
     finally 
         #clean up 
         rm(train_file, force=true)
         rm(test_file, force=true)
     end
-    
+
     return mses
 end
 
