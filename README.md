@@ -11,6 +11,8 @@
 Start Julia, press `]` to enter package manager mode, and type the following (after `pkg>`):
 ```
 (v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
 (v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
 ```
 The order of installation is important!
