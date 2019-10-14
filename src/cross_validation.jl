@@ -278,6 +278,13 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     return mses
 end
 
+"""
+Creates training model of `x` based on `train_idx` and returns `betas` and `cs` that stores the 
+estimated coefficients for genetic and non-genetic predictors. 
+
+This function initialize the training model as a memory-mapped file at a `destin`, which will
+be removed upon completion. 
+"""
 function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
     y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, l::Link, 
     path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
@@ -298,16 +305,47 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
     x_train = SnpArray(train_file, sum(train_idx), p)
     copyto!(x_train, view(x, train_idx, :))
     x_trainbm = SnpBitMatrix{T}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
+    y_train = y[train_idx]
+    z_train = z[train_idx, :]
 
     try 
         for i in 1:length(path)
             k = path[i]
-            result = L0_reg(x_train, x_trainbm, z[train_idx, :], y[train_idx], 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
             betas[:, i] .= result.beta
             cs[:, i] .= result.c
         end
     finally
         rm(train_file, force=true) #clean up
+    end
+
+    return betas, cs
+end
+
+function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractMatrix{T},
+    y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, l::Link, 
+    path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
+    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
+    use_maf::Bool =false, max_iter::Int = 100, max_step::Int = 3, 
+    debias::Bool = false, showinfo::Bool = false) where {T <: Float}
+
+    #preallocate arrays
+    p, q = size(x, 2), size(z, 2)
+    nmodels = length(path)
+    betas = zeros(T, p, nmodels)
+    cs = zeros(T, q, nmodels)
+
+    # allocate training model
+    x_train = x[train_idx, :]
+    y_train = y[train_idx]
+    z_train = z[train_idx, :]
+
+    # fit training model on various sparsity levels
+    for i in 1:length(path)
+        k = path[i]
+        result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+        betas[:, i] .= result.beta
+        cs[:, i] .= result.c
     end
 
     return betas, cs
@@ -341,12 +379,13 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::Abstra
     y_test = y[test_idx]
     copyto!(x_test, @view(x[test_idx, :]))
     x_testbm = SnpBitMatrix{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
+    z_test = z[test_idx, :]
 
     # for each computed model stored in betas, compute the deviance residuals (i.e. generalized mean squared error) on test set
     try
         for i = 1:size(betas, 2)
             # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-            A_mul_B!(xb, zc, x_testbm, z[test_idx, :], @view(betas[:, i]), @view(cs[:, i])) 
+            A_mul_B!(xb, zc, x_testbm, z_test, @view(betas[:, i]), @view(cs[:, i])) 
             update_μ!(μ, xb .+ zc, l)
 
             # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
@@ -359,6 +398,41 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::Abstra
     return mse
 end
 
+function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::AbstractMatrix{T},
+    x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, 
+    l::Link, path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
+    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, use_maf::Bool = false, 
+    max_iter::Int = 100, max_step::Int = 3, debias::Bool = false, showinfo::Bool = false
+    ) where {T <: Float}
+    
+    # create directory for memory mapping
+    test_file = destin * randstring(100) * ".bed"
+
+    # preallocate arrays
+    p, q = size(x, 2), size(z, 2)
+    test_size = sum(test_idx)
+    mse = zeros(T, length(path))
+    xb = zeros(T, test_size)
+    zc = zeros(T, test_size)
+    μ  = zeros(T, test_size)
+
+    # allocate test model
+    x_test = x[test_idx, :]
+    y_test = y[test_idx]
+    z_test = z[test_idx, :]
+
+    # Compute the deviance residuals on test set for each computed model stored in betas, c
+    for i = 1:size(betas, 2)
+        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
+        A_mul_B!(xb, zc, x_test, z_test, @view(betas[:, i]), @view(cs[:, i])) 
+        update_μ!(μ, xb .+ zc, l)
+
+        # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
+        mse[i] = deviance(d, y_test, μ)
+    end
+
+    return mse
+end
 """
 This function scale mean squared errors (deviance residuals) for each fold by its own fold size.
 """
