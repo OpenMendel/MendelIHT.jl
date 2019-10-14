@@ -22,6 +22,10 @@ The order of installation is important!
 + [**Latest**](https://biona001.github.io/MendelIHT.jl/latest/)
 + [**Stable**](https://biona001.github.io/MendelIHT.jl/stable/)
 
+## Video Introduction
+
+[![Video Introduction to MendelIHT.jl](https://github.com/biona001/MendelIHT.jl/blob/master/figures/video_intro.png)](https://www.youtube.com/watch?v=UPIKafShwFw)
+
 ## Citation:
 
 A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v1). If you use `MendelIHT.jl`, please cite:
