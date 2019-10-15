@@ -19,7 +19,7 @@ end
 
 """
 This function is taken from GLM.jl from: 
-https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
+https://urldefense.proofpoint.com/v2/url?u=https-3A__github.com_JuliaStats_GLM.jl_blob_956a64e7df79e80405867238781f24567bd40c78_src_glmtools.jl-23L445&d=DwIGaQ&c=sJ6xIWYx-zLMB3EPkvcnVg&r=7sbWVWEGF5cmtB61wl7FFg&m=t0UYMxl1l6T9gQwevDjzKZl1EUq7cxc1N1Q251BQAUU&s=T5Tp_cvAeqiX2CbgYRm0yhX-Uzmeg5rRbOXvyDiwq_M&e= 
 
 Putting it here because it was not exported. 
 
@@ -34,10 +34,10 @@ loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv
 loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 # We use the following parameterization for the Negative Binomial distribution:
-#    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
-# The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
-#    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
-# Hence, p = θ/(μ+θ)
+#    (Γ(r+y) / (Γ(r) * y!)) * μ^y * r^r / (μ+r)^{r+y}
+# The parameterization of NegativeBinomial(r=r, p) in Distributions.jl is
+#    Γ(r+y) / (y! * Γ(r)) * p^r(1-p)^y
+# Hence, p = r/(μ+r)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
@@ -69,6 +69,112 @@ function update_xb!(v::IHTVariable{T}, x::Union{SnpArray, AbstractMatrix},
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
     clamp!(v.xb, -20, 20)
     clamp!(v.zc, -20, 20)
+end
+
+"""
+Wrapper function to decide whether to use Newton or MM algorithm for estimating 
+the nuisance paramter of negative binomial regression. 
+"""
+function mle_for_r(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFloat,
+                   est_r::Symbol) where {T <: Float} 
+    if est_r == :MM
+        return update_r_MM(y, μ, r)
+    elseif est_r == :Newton
+        return update_r_newton(y, μ, r)
+    else
+        error("Only support method is Newton or MM, but got $est_r")
+    end
+
+    return nothing
+end
+
+"""
+Performs maximum loglikelihood estimation of the nuisance paramter for negative 
+binomial model using MM's algorithm. 
+"""
+function update_r_MM(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFloat) where {T <: Float}
+    num = zero(T)
+    den = zero(T)
+    for i in eachindex(y)
+        for j = 0:y[i] - 1
+            num = num + (r /(r + j))  # numerator for r
+        end
+        p = r / (r + μ[i])
+        den = den + log(p)  # denominator for r
+    end
+
+    return NegativeBinomial(-num / den, 0.5)
+end
+
+"""
+Performs maximum loglikelihood estimation of the nuisance paramter for negative 
+binomial model using Newton's algorithm. Will run a maximum of `maxIter` and
+convergence is defaulted to `convTol`.
+"""
+function update_r_newton(y::AbstractVector, μ::AbstractVector, r::AbstractFloat;
+                   maxIter=100, convTol=1.e-6)
+
+    function first_derivative(r::Real)
+        tmp(yi, μi) = -(yi+r)/(μi+r) - log(μi+r) + 1 + log(r) + digamma(r+yi) - digamma(r)
+        return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
+    end
+
+    function second_derivative(r::Real)
+        tmp(yi, μi) = (yi+r)/(μi+r)^2 - 2/(μi+r) + 1/r + trigamma(r+yi) - trigamma(r)
+        return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
+    end
+
+    function negbin_loglikelihood(r::Real)
+        d_newton = NegativeBinomial(r, 0.5)
+        return MendelIHT.loglikelihood(d_newton, y, μ)
+    end
+
+    function newton_increment(r::Real)
+        # use gradient descent if hessian not positive definite
+        dx  = first_derivative(r)
+        dx2 = second_derivative(r)
+        if dx2 < 0
+            increment = first_derivative(r) / second_derivative(r)
+        else 
+            increment = first_derivative(r)
+        end
+        return increment
+    end
+
+    new_r    = 1.0
+    stepsize = 1.0
+    for i in 1:maxIter
+
+        # run 1 iteration of Newton's algorithm
+        increment = newton_increment(r)
+        new_r = r - stepsize * increment
+
+        # linesearch
+        old_logl = negbin_loglikelihood(r)
+        for j in 1:20
+            if new_r <= 0
+                stepsize = stepsize / 2
+                new_r = r - stepsize * increment
+            else 
+                new_logl = negbin_loglikelihood(new_r)
+                if old_logl >= new_logl
+                    stepsize = stepsize / 2
+                    new_r = r - stepsize * increment
+                else
+                    break
+                end
+            end
+        end
+
+        #check convergence
+        if abs(r - new_r) <= convTol
+            return NegativeBinomial(new_r, 0.5)
+        else
+            r = new_r
+        end
+    end
+
+    return NegativeBinomial(r, 0.5)
 end
 
 """
@@ -549,4 +655,3 @@ function naive_impute(x::SnpArray, destination::String)
 
     return nothing
 end
-

@@ -1,22 +1,18 @@
+  
 """
     cv_iht(d, l, x, z, y, J, path, q)
-
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. 
-
 The purpose of this function is to find the best sparsity level `k`, judiciously obtained
 from selecting the model with the minimum out-of-sample error. Automatically finds the 
 correct version of `L0_reg` to use depending on the type of `x`. By default, each CPU runs 
 a different model for a given fold. To use this function, start julia using 4 processors 
 (the more the better) by:
-
     julia> using Distributed
     julia> addprocs(4)
-
 # Warning
 Do not remove files with random file names when you run this function. There are 
 memory mapped files that will be deleted automatically once they are no longer needed.
-
 # Arguments
 - `d`: A distribution (e.g. Normal, Bernoulli)
 - `l`: A link function (e.g. Loglink, ProbitLink)
@@ -26,7 +22,6 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `J`: The number of maximum groups
 - `path`: Vector storing different model sizes
 - `q`: Number of cross validation folds. For large data do not set this to be greater than 5
-
 # Optional Arguments: 
 - `group` vector storing group membership
 - `weight` vector storing vector of weights containing prior knowledge on each SNP
@@ -127,7 +122,6 @@ end
 
 """
 Runs IHT across many different model sizes specifed in `path`. 
-
 This is basically the same as `cv_iht` except we **DO NOT** validate each model 
 in a holdout set, meaning that this will definitely induce overfitting as we increase
 model size. Use this to perform a quick estimate a range of feasible model sizes before 

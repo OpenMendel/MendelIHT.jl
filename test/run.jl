@@ -665,19 +665,80 @@ println("Total found predictors = " * string(length(findall(!iszero, result.beta
 
 
 
+######## Esitmate negative binomial nuisance parameters
+
+# using Distributed
+#addprocs(4)
+
+#load necessary packages for running all examples below
 using Revise
+# using Debugger
 using MendelIHT
 using SnpArrays
 using DataFrames
 using Distributions
 using Random
 using LinearAlgebra
+using SpecialFunctions
 using GLM
-using CSV
+using DelimitedFiles
+using Statistics
 using BenchmarkTools
 
-Random.seed!(1201)
-x = SnpArray(undef, 1000, 1000)
-@time naive_impute(x, "hi.bed")
+
+n = 1000
+p = 10000
+k = 10
+d = NegativeBinomial
+l = LogLink()
+est_r = :MM     # Update r using MM algorithm
+
+# set random seed for reproducibility
+Random.seed!(728) 
+
+# simulate SNP matrix, store the result in a file called tmp.bed
+x = simulate_correlated_snparray(n, p, "tmp.bed")
+
+#construct the SnpBitMatrix type (needed for L0_reg() and simulate_random_response() below)
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+
+# intercept is the only nongenetic covariate
+z = ones(n, 1) 
+
+# simulate response y, true model b, and the correct non-0 positions of b
+y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l);
+
+# test L0_reg
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, est_r)
+
+mu = rand(1000)
+@code_warntype mle_for_r(y, mu, 1.0, :MM)
+
+#cross validation
+path = collect(1:20)
+num_folds = 3
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true, est_r=est_r);
+k_est = argmin(mses)
+result = L0_reg(x, xbm, z, y, 1, k_est, d(), l, est_r=est_r)
+
+
+# not using k_est from cross validation
+#result = L0_reg(x, xbm, z, y, 1, k, d(), l, est_r=est_r)
+#@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, est_r=est_r)
+
+compare_model = DataFrame(
+    true_β      = true_b[correct_position], 
+    estimated_β = result.beta[correct_position],
+    diff = true_b[correct_position] - result.beta[correct_position])
+
+sum(compare_model.diff)
+
+#@show compare_model
+
+#clean up
+rm("tmp.bed", force=true)
+
+
+
 
 

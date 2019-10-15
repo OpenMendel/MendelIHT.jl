@@ -5,6 +5,7 @@ module MendelIHT
 	import Distances: euclidean, chebyshev, sqeuclidean
 	import Base.show
 	import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
+	import SpecialFunctions: digamma, trigamma
 
 	using GLM
 	using SnpArrays
@@ -15,7 +16,7 @@ module MendelIHT
 	using SparseArrays
 	using Distributed
 
-	export loglikelihood, deviance, score!, L0_reg, iht_run_many_models
+	export loglikelihood, deviance, score!, L0_reg, iht_run_many_models, mle_for_r
 	export iht_path, simulate_random_snparray, make_bim_fam_files, project_k!
 	export IHTVariables, use_A2_as_minor_allele, make_snparray, standardize!
 	export std_reciprocal, project_group_sparse!, save_prev!, maf_weights
@@ -30,5 +31,6 @@ module MendelIHT
 	include("simulate_utilities.jl")
 	include("iht.jl")
 	include("cross_validation.jl")
+	include("negbinfit_nuisance.jl")
 
 end # end module

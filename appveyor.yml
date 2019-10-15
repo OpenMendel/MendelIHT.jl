@@ -1,11 +1,10 @@
 environment:
   matrix:
-  - julia_version: 0.7
-  - julia_version: 1
+  - julia_version: 1.0
+  - julia_version: 1.2
   - julia_version: nightly
 
 platform:
-  - x86 # 32-bit
   - x64 # 64-bit
 
 # Uncomment the following lines to allow failures on nightly julia
@@ -29,9 +28,10 @@ install:
   - ps: iex ((new-object net.webclient).DownloadString("https://raw.githubusercontent.com/JuliaCI/Appveyor.jl/version-1/bin/install.ps1"))
 
 build_script:
+  - echo "install SnpArrays and OrdinalMultinomialModels"
+  - C:\julia\bin\julia -e "using Pkg; Pkg.add([PackageSpec(url=\"https://github.com/OpenMendel/SnpArrays.jl.git\"), PackageSpec(url=\"https://github.com/biona001/MendelIHT.jl.git\")]);"
   - echo "%JL_BUILD_SCRIPT%"
-  - C:\julia\bin\julia -e "using Pkg; Pkg.add([PackageSpec(url="https://github.com/OpenMendel/SnpArrays.jl.git")]);%JL_BUILD_SCRIPT%" #trying to install snparrays
-  # - C:\julia\bin\julia -e "%JL_BUILD_SCRIPT%"
+  - C:\julia\bin\julia -e "%JL_BUILD_SCRIPT%"
 
 test_script:
   - echo "%JL_TEST_SCRIPT%"

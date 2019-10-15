@@ -86,6 +86,7 @@ struct ggIHTResults{T <: Float}
     J     :: Int64
     k     :: Int64
     group :: Vector{Int64}
+    d     :: UnivariateDistribution
     # ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
 end
 # ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
