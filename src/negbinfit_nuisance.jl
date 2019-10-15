@@ -1,31 +1,12 @@
 """
-    L0_reg(x, xbm, z, y, J, k, d, l)
+    Estimates the nuisance parameter in addition to estimating the mean using IHT. 
 
-Runs Iterative Hard Thresholding for GWAS data `x`, response `y`, and non-genetic
-covariates `z` on a specific sparsity parameter `k`. 
+We alternate between estimating the mean using IHT and estimating the nuisance parameter
+using maximum loglikelihood. Currently, only negative binomial regression supports estimating 
+nuisance paramter, and the method of choice includes Newton or MM. This can be specified with
+`est_r = :MM` or `est_r = :Newton`.
 
-One needs to construct a SnpBitMatrix type (`xbm`) before running this function.
-
-# Arguments:
-+ `x`: A SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
-+ `xbm`: The bitarray representation of `x`. This matrix is loaded in RAM and performs linear algebra. It's possible to set scale=false for xbm, especially when rare SNPs exist
-+ `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
-+ `y`: Response vector
-+ `J`: The number of maximum groups (set as 1 if no group infomation available)
-+ `k`: Number of non-zero predictors in each group
-+ `d`: A distribution (e.g. Normal, Poisson)
-+ `l`: A link function (e.g. Loglink, ProbitLink)
-
-# Optional Arguments: 
-+ `group` vector storing group membership
-+ `weight` vector storing vector of weights containing prior knowledge on each SNP
-+ `use_maf` indicates whether we want to scale the projection with minor allele frequencies (see paper)
-+ `debias` is boolean indicating whether we debias at each iteration (see paper)
-+ `show_info` boolean indicating whether we want to print results if model does not converge. Should set to false for multithread/multicore computing
-+ `init` boolean indicating whether we want to initialize β to sensible values through fitting. This is not efficient yet. 
-+ `tol` is used to track convergence
-+ `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
-+ `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
+Note: Convergence criteria does not track the `r` paramter. 
 """
 function L0_reg(
     x         :: SnpArray,
@@ -35,7 +16,8 @@ function L0_reg(
     J         :: Int,
     k         :: Int,
     d         :: UnivariateDistribution,
-    l         :: Link;
+    l         :: Link,
+    est_r     :: Symbol;
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
     use_maf   :: Bool = false, 
@@ -44,7 +26,7 @@ function L0_reg(
     init      :: Bool = false,         # not efficient. whether to initialize β to sensible values
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
-    max_step  :: Int = 5,              # maximum backtracking for each iteration
+    max_step  :: Int = 5               # maximum backtracking for each iteration
 ) where {T <: Float}
 
     #start timer
@@ -57,6 +39,7 @@ function L0_reg(
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     checky(y, d) # make sure response data y is in the form compatible with specified GLM
+    @assert typeof(d) <: NegativeBinomial "Only negative binomial regression currently supports nuisance parameter estimation"
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
@@ -96,7 +79,7 @@ function L0_reg(
         logl = next_logl
 
         # take one IHT step in positive score direction
-        (η, η_step, next_logl) = iht_one_step!(v, x, xbm, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf)
+        (η, η_step, next_logl, d) = iht_one_step!(v, x, xbm, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf, est_r)
 
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
@@ -143,7 +126,8 @@ function L0_reg(
     J         :: Int,
     k         :: Int,
     d         :: UnivariateDistribution,
-    l         :: Link;
+    l         :: Link,
+    est_r     :: Symbol;
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
     use_maf   :: Bool = false, 
@@ -165,6 +149,7 @@ function L0_reg(
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     checky(y, d) # make sure response data y is in the form compatible with specified GLM
+    @assert typeof(d) <: NegativeBinomial "Only negative binomial regression currently supports nuisance parameter estimation"
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
@@ -204,7 +189,7 @@ function L0_reg(
         logl = next_logl
 
         # take one IHT step in positive score direction
-        (η, η_step, next_logl) = iht_one_step!(v, x, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf)
+        (η, η_step, next_logl, d) = iht_one_step!(v, x, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf, est_r)
         
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
@@ -234,7 +219,8 @@ to avoid bad boundary cases.
 """
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool) where {T <: Float}
+    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, 
+    est_r::Symbol) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d, l)
@@ -245,6 +231,15 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v, x, z)
     update_μ!(v.μ, v.xb + v.zc, l)
+   
+    # Save previous r and update
+    old_r = d.r
+    if est_r == :MM
+        d = update_r!(d, y, v.μ)
+    elseif est_r == :Newton
+        new_r = mle_for_θ(y, v.μ, θ=d.r)
+        d = NegativeBinomial(new_r, 0.5)
+    end
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(d, y, v.μ)
@@ -255,6 +250,11 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         # stephalving
         η /= 2
 
+        # if NegativeBinomial, reset r to previous r
+        if typeof(d) == NegativeBinomial{Float64}
+            d = NegativeBinomial(old_r, 0.5)
+        end
+
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
@@ -263,6 +263,15 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
         update_μ!(v.μ, v.xb + v.zc, l)
+
+        # if Negative Binomial, update r
+        if est_r == :MM
+            d = update_r!(d, y, v.μ)
+        elseif est_r == :Newton
+            new_r = mle_for_θ(y, v.μ, θ=d.r)
+            d = NegativeBinomial(new_r, 0.5)
+        end
+
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter
@@ -285,7 +294,8 @@ Performs 1 iteration of the IHT algorithm given a general matrix of floating poi
 """
 function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool) where {T <: Float}
+    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, 
+    est_r::Symbol) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d, l)
@@ -296,6 +306,15 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v, x, z)
     update_μ!(v.μ, v.xb + v.zc, l)
+    
+    # save previous r and update
+    old_r = d.r
+    if est_r == :MM
+        d = update_r!(d, y, v.μ)
+    elseif est_r == :Newton
+        new_r = mle_for_θ(y, v.μ, θ=d.r)
+        d = NegativeBinomial(new_r, 0.5)
+    end
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(d, y, v.μ)
@@ -306,6 +325,11 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
         # stephalving
         η /= 2
 
+        # If NegativeBinomial, reset r to previous r
+        if typeof(d) == NegativeBinomial{Float64}
+            d = NegativeBinomial(old_r, 0.5)
+        end
+
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
@@ -314,6 +338,15 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
         # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
         update_μ!(v.μ, v.xb + v.zc, l)
+        
+        # update r
+        if est_r == :MM
+            d = update_r!(d, y, v.μ)
+        elseif est_r == :Newton
+            new_r = mle_for_θ(y, v.μ, θ=d.r)
+            d = NegativeBinomial(new_r, 0.5)
+        end
+
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter

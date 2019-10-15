@@ -31,5 +31,6 @@ module MendelIHT
 	include("simulate_utilities.jl")
 	include("iht.jl")
 	include("cross_validation.jl")
+	include("negbinfit_nuisance.jl")
 
 end # end module
