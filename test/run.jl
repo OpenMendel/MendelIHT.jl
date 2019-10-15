@@ -11,15 +11,15 @@ using GLM
 using Plots
 
 #simulat data with k true predictors, from distribution d and with link l.
-n = 1000
-p = 10000
+n = 5000
+p = 30000
 k = 10
-d = NegativeBinomial
-# l = canonicallink(d())
-l = LogLink()
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
 
 #set random seed
-Random.seed!(2019)
+Random.seed!(1111)
 
 #construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 x = simulate_random_snparray(n, p, "test1.bed")
@@ -37,7 +37,7 @@ correct_position = findall(!iszero, true_b)
 
 #simulate phenotypes (e.g. vector y)
 if d == Normal || d == Bernoulli || d == Poisson
-    prob = linkinv.(l, xbm * true_b)
+    prob = GLM.linkinv.(l, xbm * true_b)
     clamp!(prob, -20, 20)
     y = [rand(d(i)) for i in prob]
     # prob = linkinv.(l, xbm * true_b + z * true_c)
@@ -46,14 +46,14 @@ if d == Normal || d == Bernoulli || d == Poisson
     # k = k + 1
 elseif d == NegativeBinomial
     nn = 1
-    μ = linkinv.(l, xbm * true_b)
+    μ = GLM.linkinv.(l, xbm * true_b)
     # μ = linkinv.(l, xbm * true_b + z * true_c)
     # k = k + 1
     clamp!(μ, -20, 20)
     prob = 1 ./ (1 .+ μ ./ nn)
     y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
 elseif d == Gamma
-    μ = linkinv.(l, xbm * true_b)
+    μ = GLM.linkinv.(l, xbm * true_b)
     β = 1 ./ μ # here β is the rate parameter for gamma distribution
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
@@ -64,6 +64,7 @@ y = Float64.(y)
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
 
 #check result
 compare_model = DataFrame(
@@ -104,7 +105,7 @@ l = canonicallink(d())
 Random.seed!(1111)
 
 #construct x matrix and non genetic covariate (intercept)
-T = Float64
+T = Float32
 x = randn(T, n, p)
 z = ones(T, n, 1)
 
@@ -117,7 +118,7 @@ correct_position = findall(!iszero, true_b)
 
 #simulate phenotypes (e.g. vector y)
 if d == Normal || d == Bernoulli || d == Poisson
-    prob = linkinv.(l, x * true_b)
+    prob = GLM.linkinv.(l, x * true_b)
     clamp!(prob, -20, 20)
     y = [rand(d(i)) for i in prob]
     # prob = linkinv.(l, x * true_b + z * true_c)
@@ -126,14 +127,14 @@ if d == Normal || d == Bernoulli || d == Poisson
     # k = k + 1
 elseif d == NegativeBinomial
     nn = 10
-    μ = linkinv.(l, x * true_b)
+    μ = GLM.linkinv.(l, x * true_b)
     # μ = linkinv.(l, x * true_b + z * true_c)
     # k = k + 1
     clamp!(μ, -20, 20)
     prob = 1 ./ (1 .+ μ ./ nn)
     y = [rand(d(nn, Float64(i))) for i in prob] #number of failtures before nn success occurs
 elseif d == Gamma
-    μ = linkinv.(l, x * true_b)
+    μ = GLM.linkinv.(l, x * true_b)
     β = 1 ./ μ # here β is the rate parameter for gamma distribution
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
@@ -557,7 +558,7 @@ using Distributed
 addprocs(8)
 nprocs()
 
-using Revise
+# @everywhere using Revise
 using MendelIHT
 using SnpArrays
 using DataFrames
@@ -623,14 +624,26 @@ folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT
 # result = iht_run_many_models(d(), l, x, z, y, 1, path);
-mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
-mses = cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true)
+mses = cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true)
 
-@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=false) seconds=30#14.409s, 889.53 MiB 
-@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true) seconds=30 #19.509s, 465.59 MiB
+# default number of threads in BLAS
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30#14.146 s, 1.20 GiB
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30 #17.019 s, 619.66 MiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30 #14.475 s, 1.21 GiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30  #12.904 s, 295.80 KiB
 
-@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=false)
-@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
+BLAS.set_num_threads(1)
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30#17.346 s, 1.20 GiB
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30 #16.970 s, 619.66 MiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30 #17.014 s, 1.21 GiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30  #12.686 s, 295.80 KiB
+
+#export OPENBLAS_NUM_THREADS=1
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30#17.485 s, 1.20 GiB
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30 #17.867 s, 619.66 MiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30 #18.230 s, 1.21 GiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30  #12.991 s, 295.80 KiB
 
 
 #run IHT
