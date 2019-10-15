@@ -16,6 +16,7 @@ matrix:
 branches:
   only:
     - master
+    - develop
     - /release-.*/
 
 notifications:
@@ -28,8 +29,8 @@ install:
   - ps: iex ((new-object net.webclient).DownloadString("https://raw.githubusercontent.com/JuliaCI/Appveyor.jl/version-1/bin/install.ps1"))
 
 build_script:
-  - echo "install SnpArrays and OrdinalMultinomialModels"
-  - C:\julia\bin\julia -e "using Pkg; Pkg.add([PackageSpec(url=\"https://github.com/OpenMendel/SnpArrays.jl.git\"), PackageSpec(url=\"https://github.com/biona001/MendelIHT.jl.git\")]);"
+  - echo "install SnpArrays"
+  - C:\julia\bin\julia -e "using Pkg; Pkg.add([PackageSpec(url=\"https://github.com/OpenMendel/SnpArrays.jl.git\")]);"
   - echo "%JL_BUILD_SCRIPT%"
   - C:\julia\bin\julia -e "%JL_BUILD_SCRIPT%"
 
