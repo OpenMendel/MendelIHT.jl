@@ -34,10 +34,10 @@ loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv
 loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 # We use the following parameterization for the Negative Binomial distribution:
-#    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
-# The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
-#    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
-# Hence, p = θ/(μ+θ)
+#    (Γ(r+y) / (Γ(r) * y!)) * μ^y * r^r / (μ+r)^{r+y}
+# The parameterization of NegativeBinomial(r=r, p) in Distributions.jl is
+#    Γ(r+y) / (y! * Γ(r)) * p^r(1-p)^y
+# Hence, p = r/(μ+r)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
@@ -71,23 +71,111 @@ function update_xb!(v::IHTVariable{T}, x::Union{SnpArray, AbstractMatrix},
     clamp!(v.zc, -20, 20)
 end
 
-# For NegativeBinomial
-function update_r!(d::NegativeBinomial, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
+"""
+Wrapper function to decide whether to use Newton or MM algorithm for estimating 
+the nuisance paramter of negative binomial regression. 
+"""
+function mle_for_r(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFloat,
+                   est_r::Symbol) where {T <: Float} 
+    if est_r == :MM
+        return update_r_MM(y, μ, r)
+    elseif est_r == :Newton
+        return update_r_newton(y, μ, r)
+    else
+        error("Only support method is Newton or MM, but got $est_r")
+    end
+
+    return nothing
+end
+
+"""
+Performs maximum loglikelihood estimation of the nuisance paramter for negative 
+binomial model using MM's algorithm. 
+"""
+function update_r_MM(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFloat) where {T <: Float}
     num = zero(T)
     den = zero(T)
     for i in eachindex(y)
         for j = 0:y[i] - 1
-            num = num + (d.r /(d.r + j))  # numerator for r
+            num = num + (r /(r + j))  # numerator for r
         end
-        p = d.r / (d.r + μ[i])
+        p = r / (r + μ[i])
         den = den + log(p)  # denominator for r
     end
-    new_r = -(num)/den
-    d = NegativeBinomial(new_r, d.p)
-    return d
+
+    return NegativeBinomial(-num / den, 0.5)
 end
 
+"""
+Performs maximum loglikelihood estimation of the nuisance paramter for negative 
+binomial model using Newton's algorithm. Will run a maximum of `maxIter` and
+convergence is defaulted to `convTol`.
+"""
+function update_r_newton(y::AbstractVector, μ::AbstractVector, r::AbstractFloat;
+                   maxIter=100, convTol=1.e-6)
 
+    function first_derivative(r::Real)
+        tmp(yi, μi) = -(yi+r)/(μi+r) - log(μi+r) + 1 + log(r) + digamma(r+yi) - digamma(r)
+        return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
+    end
+
+    function second_derivative(r::Real)
+        tmp(yi, μi) = (yi+r)/(μi+r)^2 - 2/(μi+r) + 1/r + trigamma(r+yi) - trigamma(r)
+        return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
+    end
+
+    function negbin_loglikelihood(r::Real)
+        d_newton = NegativeBinomial(r, 0.5)
+        return MendelIHT.loglikelihood(d_newton, y, μ)
+    end
+
+    function newton_increment(r::Real)
+        # use gradient descent if hessian not positive definite
+        dx  = first_derivative(r)
+        dx2 = second_derivative(r)
+        if dx2 < 0
+            increment = first_derivative(r) / second_derivative(r)
+        else 
+            increment = first_derivative(r)
+        end
+        return increment
+    end
+
+    new_r    = 1.0
+    stepsize = 1.0
+    for i in 1:maxIter
+
+        # run 1 iteration of Newton's algorithm
+        increment = newton_increment(r)
+        new_r = r - stepsize * increment
+
+        # linesearch
+        old_logl = negbin_loglikelihood(r)
+        for j in 1:20
+            if new_r <= 0
+                stepsize = stepsize / 2
+                new_r = r - stepsize * increment
+            else 
+                new_logl = negbin_loglikelihood(new_r)
+                if old_logl >= new_logl
+                    stepsize = stepsize / 2
+                    new_r = r - stepsize * increment
+                else
+                    break
+                end
+            end
+        end
+
+        #check convergence
+        if abs(r - new_r) <= convTol
+            return NegativeBinomial(new_r, 0.5)
+        else
+            r = new_r
+        end
+    end
+
+    return NegativeBinomial(r, 0.5)
+end
 
 """
     score = X^T * W * (y - g(x^T b))
@@ -520,73 +608,6 @@ function initialize_glm_object()
     x = rand(100, 2)
     y = rand(0:1, 100)
     return fit(GeneralizedLinearModel, x, y, d(), l)
-end
-
-function mle_for_θ(y::AbstractVector, μ::AbstractVector; 
-                   θ::AbstractFloat = 1.0, maxIter=100, convTol=1.e-6)
-
-    function first_derivative(θ::Real)
-        tmp(yi, μi) = -(yi+θ)/(μi+θ) - log(μi+θ) + 1 + log(θ) + digamma(θ+yi) - digamma(θ)
-        return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
-    end
-
-    function second_derivative(θ::Real)
-        tmp(yi, μi) = (yi+θ)/(μi+θ)^2 - 2/(μi+θ) + 1/θ + trigamma(θ+yi) - trigamma(θ)
-        return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
-    end
-
-    function negbin_loglikelihood(θ::Real)
-        d_newton = NegativeBinomial(θ, 0.5)
-        return MendelIHT.loglikelihood(d_newton, y, μ)
-    end
-
-    function newton_increment(θ::Real)
-        # use gradient descent if hessian not positive definite
-        dx  = first_derivative(θ)
-        dx2 = second_derivative(θ)
-        if dx2 < 0
-            increment = first_derivative(θ) / second_derivative(θ)
-        else 
-            increment = first_derivative(θ)
-        end
-        # println(dx2)
-        return increment
-    end
-
-    new_θ    = 1.0
-    stepsize = 1.0
-    for i in 1:maxIter
-
-        # run 1 iteration of Newton's algorithm
-        increment = newton_increment(θ)
-        new_θ = θ - stepsize * increment
-
-        # linesearch
-        old_logl = negbin_loglikelihood(θ)
-        for j in 1:20
-            if new_θ <= 0
-                stepsize = stepsize / 2
-                new_θ = θ - stepsize * increment
-            else 
-                new_logl = negbin_loglikelihood(new_θ)
-                if old_logl >= new_logl
-                    stepsize = stepsize / 2
-                    new_θ = θ - stepsize * increment
-                else
-                    break
-                end
-            end
-        end
-
-        #check convergence
-        if abs(θ - new_θ) <= convTol
-            return new_θ
-        else
-            θ = new_θ
-        end
-    end
-
-    return θ
 end
 
 """

@@ -232,14 +232,9 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     update_xb!(v, x, z)
     update_μ!(v.μ, v.xb + v.zc, l)
    
-    # Save previous r and update
+    # update r
     old_r = d.r
-    if est_r == :MM
-        d = update_r!(d, y, v.μ)
-    elseif est_r == :Newton
-        new_r = mle_for_θ(y, v.μ, θ=d.r)
-        d = NegativeBinomial(new_r, 0.5)
-    end
+    d = mle_for_r(y, v.μ, d.r, est_r)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(d, y, v.μ)
@@ -251,27 +246,17 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
         η /= 2
 
         # if NegativeBinomial, reset r to previous r
-        if typeof(d) == NegativeBinomial{Float64}
-            d = NegativeBinomial(old_r, 0.5)
-        end
+        d = NegativeBinomial(old_r, 0.5)
 
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
         _iht_gradstep(v, η, J, k, full_grad)
 
-        # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
+        # recompute η = xb, μ = g(η), nuisance paramter, and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
         update_μ!(v.μ, v.xb + v.zc, l)
-
-        # if Negative Binomial, update r
-        if est_r == :MM
-            d = update_r!(d, y, v.μ)
-        elseif est_r == :Newton
-            new_r = mle_for_θ(y, v.μ, θ=d.r)
-            d = NegativeBinomial(new_r, 0.5)
-        end
-
+        d = mle_for_r(y, v.μ, d.r, est_r)
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter
@@ -307,14 +292,9 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
     update_xb!(v, x, z)
     update_μ!(v.μ, v.xb + v.zc, l)
     
-    # save previous r and update
+    # update r
     old_r = d.r
-    if est_r == :MM
-        d = update_r!(d, y, v.μ)
-    elseif est_r == :Newton
-        new_r = mle_for_θ(y, v.μ, θ=d.r)
-        d = NegativeBinomial(new_r, 0.5)
-    end
+    d = mle_for_r(y, v.μ, d.r, est_r)
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(d, y, v.μ)
@@ -325,28 +305,18 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
         # stephalving
         η /= 2
 
-        # If NegativeBinomial, reset r to previous r
-        if typeof(d) == NegativeBinomial{Float64}
-            d = NegativeBinomial(old_r, 0.5)
-        end
+        # reset r 
+        d = NegativeBinomial(old_r, 0.5)
 
         # recompute gradient step
         copyto!(v.b, v.b0)
         copyto!(v.c, v.c0)
         _iht_gradstep(v, η, J, k, full_grad)
 
-        # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
+        # recompute η = xb, μ = g(η), nuisance paramter, and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
         update_μ!(v.μ, v.xb + v.zc, l)
-        
-        # update r
-        if est_r == :MM
-            d = update_r!(d, y, v.μ)
-        elseif est_r == :Newton
-            new_r = mle_for_θ(y, v.μ, θ=d.r)
-            d = NegativeBinomial(new_r, 0.5)
-        end
-
+        d = mle_for_r(y, v.μ, d.r, est_r)
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter

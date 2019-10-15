@@ -711,7 +711,8 @@ y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l);
 # test L0_reg
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, est_r)
 
-
+mu = rand(1000)
+@code_warntype mle_for_r(y, mu, 1.0, :MM)
 
 #cross validation
 path = collect(1:20)
