@@ -523,7 +523,7 @@ function initialize_glm_object()
 end
 
 function mle_for_θ(y::AbstractVector, μ::AbstractVector; 
-                    θ::AbstractFloat = 1.0, maxIter=100, convTol=1.e-6)
+                   θ::AbstractFloat = 1.0, maxIter=100, convTol=1.e-6)
 
     function first_derivative(θ::Real)
         tmp(yi, μi) = -(yi+θ)/(μi+θ) - log(μi+θ) + 1 + log(θ) + digamma(θ+yi) - digamma(θ)

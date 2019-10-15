@@ -26,6 +26,7 @@ One needs to construct a SnpBitMatrix type (`xbm`) before running this function.
 + `tol` is used to track convergence
 + `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
 + `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
++ `est_r` specifies which method to use for estimating nuisance parameter in negative binomial regression. Can be :MM or :Newton.
 """
 function L0_reg(
     x         :: SnpArray,
@@ -42,10 +43,10 @@ function L0_reg(
     debias    :: Bool = false,
     show_info :: Bool = true,          # print things when model didn't converge
     init      :: Bool = false,         # not efficient. whether to initialize β to sensible values
-    est_r     :: Int = 0,              # If 1, estimate r using MM algorithm. If 2, estimate r using Newton's Method
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
+    est_r     :: Union{Symbol, Nothing}=nothing 
 ) where {T <: Float}
 
     #start timer
@@ -151,10 +152,10 @@ function L0_reg(
     debias    :: Bool = false,
     show_info :: Bool = true,            # print things when model didn't converge
     init      :: Bool = false,           # not efficient. initializes β to sensible values
-    est_r     :: Int  = 0,               # If 1, estimate r using MM algorithm. If 2, estimate r using Newton's Method
     tol       :: T    = convert(T, 1e-4),# tolerance for tracking convergence
     max_iter  :: Int  = 100,             # maximum IHT iterations
     max_step  :: Int  = 5,               # maximum backtracking for each iteration
+    est_r     :: Union{Symbol, Nothing}=nothing 
 ) where {T <: Float}
     
     #start timer
@@ -236,7 +237,8 @@ to avoid bad boundary cases.
 """
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, est_r::Int) where {T <: Float}
+    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, 
+    est_r::Union{Symbol, Nothing}) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d, l)
@@ -252,12 +254,9 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
     if typeof(d) == NegativeBinomial{Float64}
         old_r = d.r
 
-        # Using MM algorithm
-        if est_r == 1
+        if est_r == :MM
             d = update_r!(d, y, v.μ)
-
-        # Using Newton's method
-        elseif est_r == 2   
+        elseif est_r == :Newton
             new_r = mle_for_θ(y, v.μ, θ=d.r)
             d = NegativeBinomial(new_r, 0.5)
         end
@@ -288,9 +287,9 @@ function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::Abs
 
         # if Negative Binomial, update r
         if typeof(d) == NegativeBinomial{Float64}
-            if est_r == 1
+            if est_r == :MM
                 d = update_r!(d, y, v.μ)
-            elseif est_r == 2   
+            elseif est_r == :Newton
                 new_r = mle_for_θ(y, v.μ, θ=d.r)
                 d = NegativeBinomial(new_r, 0.5)
             end
@@ -318,7 +317,8 @@ Performs 1 iteration of the IHT algorithm given a general matrix of floating poi
 """
 function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix, 
     y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, est_r::Int) where {T <: Float}
+    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, 
+    est_r::Union{Symbol, Nothing}) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d, l)
@@ -335,11 +335,11 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
         old_r = d.r
 
         # Using MM algorithm
-        if est_r == 1
+        if est_r == :MM
             d = update_r!(d, y, v.μ)
 
         # Using Newton's method
-        elseif est_r == 2   
+        elseif est_r == :Newton
             new_r = mle_for_θ(y, v.μ, θ=d.r)
             d = NegativeBinomial(new_r, 0.5)
         end
@@ -370,9 +370,9 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix,
         
         # If NegativeBinomial, update r
         if typeof(d) == NegativeBinomial{Float64}
-            if est_r == 1
+            if est_r == :MM
                 d = update_r!(d, y, v.μ)
-            elseif est_r == 2
+            elseif est_r == :Newton
                 new_r = mle_for_θ(y, v.μ, θ=d.r)
                 d = NegativeBinomial(new_r, 0.5)
             end
