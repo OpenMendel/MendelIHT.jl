@@ -110,11 +110,14 @@ MendelIHT provides some simulation utilities that help users explore the functio
 
 ```@docs
   simulate_random_snparray
-  
+```
+
+```@docs
+  simulate_correlated_snparray
 ```
 
 !!! note
-    Simulating a SnpArray with $n$ subjects and $p$ SNPs requires roughly $n \times p \times 4$ bits of RAM. Make sure you have enough RAM before simulating very large SnpArrays.
+    Simulating a SnpArray with $n$ subjects and $p$ SNPs requires up to $4np$ bits of RAM. Make sure you have enough RAM before simulating very large SnpArrays.
 
 ```@docs
   simulate_random_response
@@ -154,8 +157,3 @@ MendelIHT additionally provides useful utilities that may be of interest to a fe
 ```@docs
   maf_weights
 ```
-
-```@docs
-  initialize_beta!
-```
-

@@ -185,9 +185,7 @@ end
     simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, d::UnionAll, l::Link)
 
 This function simulates a random response (trait) vector `y` based on provided x, β, distirbution,
-and link function. 
-
-When the distribution is from Poisson, Gamma, or Negative Binomial, we simulate `β ∼ N(0, 0.3)` 
+and link function. When the distribution is from Poisson, Gamma, or Negative Binomial, we simulate `β ∼ N(0, 0.3)` 
 to roughly ensure the mean of response `y` doesn't become too large. For other distributions,
 we choose `β ∼ N(0, 1)`. 
 

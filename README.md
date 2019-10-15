@@ -11,6 +11,8 @@
 Start Julia, press `]` to enter package manager mode, and type the following (after `pkg>`):
 ```
 (v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
 (v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
 ```
 The order of installation is important!
@@ -20,42 +22,14 @@ The order of installation is important!
 + [**Latest**](https://biona001.github.io/MendelIHT.jl/latest/)
 + [**Stable**](https://biona001.github.io/MendelIHT.jl/stable/)
 
-## Why Iterative Hard Thresholding for GWAS? 
+## Video Introduction
 
-Because it is (figures taken from our manuscript, which is to be published):
-
-### Fast & Memory Efficient
-
-Benchmark results on 1 million SNPs and various sample size:
-![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/benchmark/yes_debias.png)
-
-### Accurate
-
-![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/accuracy.png)
-
-### Reliable
-
-![](https://github.com/biona001/MendelIHT.jl/blob/master/figures/iht_lasso_marginal.png)
-
-* Marginal tests indicate a traditional GWAS analysis from a SNP-by-SNP association test.
+[![Video Introduction to MendelIHT.jl](https://github.com/biona001/MendelIHT.jl/blob/master/figures/video_intro.png)](https://www.youtube.com/watch?v=UPIKafShwFw)
 
 ## Citation:
 
-If you use `MendelIHT.jl` in an academic manuscript, please cite:
+A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v1). If you use `MendelIHT.jl`, please cite:
 
 ```
-Zhou, Hua, et al. "OpenMendel: a cooperative programming project for statistical genetics." Human genetics (2019): 1-11.
-```
-
-Bibtex:
-
-```
-@article{zhou2019openmendel,
-  title={OpenMendel: a cooperative programming project for statistical genetics},
-  author={Zhou, Hua and Sinsheimer, Janet S and Bates, Douglas M and Chu, Benjamin B and German, Christopher A and Ji, Sarah S and Keys, Kevin L and Kim, Juhyun and Ko, Seyoon and Mosher, Gordon D and others},
-  journal={Human genetics},
-  pages={1--11},
-  year={2019},
-  publisher={Springer}
-}
+Benjamin B. Chu, Kevin L. Keys, Janet S. Sinsheimer, and Kenneth Lange. Multivariate GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity. bioRxiv doi:10.1101/697755
 ```

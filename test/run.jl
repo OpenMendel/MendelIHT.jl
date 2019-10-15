@@ -11,15 +11,15 @@ using GLM
 using Plots
 
 #simulat data with k true predictors, from distribution d and with link l.
-n = 1000
-p = 10000
+n = 5000
+p = 30000
 k = 10
-d = NegativeBinomial
-# l = canonicallink(d())
-l = LogLink()
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
 
 #set random seed
-Random.seed!(2019)
+Random.seed!(1111)
 
 #construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 x = simulate_random_snparray(n, p, "test1.bed")
@@ -37,7 +37,7 @@ correct_position = findall(!iszero, true_b)
 
 #simulate phenotypes (e.g. vector y)
 if d == Normal || d == Bernoulli || d == Poisson
-    prob = linkinv.(l, xbm * true_b)
+    prob = GLM.linkinv.(l, xbm * true_b)
     clamp!(prob, -20, 20)
     y = [rand(d(i)) for i in prob]
     # prob = linkinv.(l, xbm * true_b + z * true_c)
@@ -46,24 +46,25 @@ if d == Normal || d == Bernoulli || d == Poisson
     # k = k + 1
 elseif d == NegativeBinomial
     nn = 1
-    μ = linkinv.(l, xbm * true_b)
+    μ = GLM.linkinv.(l, xbm * true_b)
     # μ = linkinv.(l, xbm * true_b + z * true_c)
     # k = k + 1
     clamp!(μ, -20, 20)
     prob = 1 ./ (1 .+ μ ./ nn)
     y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
 elseif d == Gamma
-    μ = linkinv.(l, xbm * true_b)
+    μ = GLM.linkinv.(l, xbm * true_b)
     β = 1 ./ μ # here β is the rate parameter for gamma distribution
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
 y = Float64.(y)
-histogram(y, bins=30)
+# histogram(y, bins=30)
 # mean(y)
 # var(y)
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
 
 #check result
 compare_model = DataFrame(
@@ -104,11 +105,12 @@ l = canonicallink(d())
 Random.seed!(1111)
 
 #construct x matrix and non genetic covariate (intercept)
-x = randn(n, p)
-z = ones(n, 1)
+T = Float32
+x = randn(T, n, p)
+z = ones(T, n, 1)
 
 # simulate response, true model b, and the correct non-0 positions of b
-true_b = zeros(p)
+true_b = zeros(T, p)
 true_b[1:k] .= collect(0.1:0.1:1.0)
 true_c = [4.0]
 shuffle!(true_b)
@@ -116,7 +118,7 @@ correct_position = findall(!iszero, true_b)
 
 #simulate phenotypes (e.g. vector y)
 if d == Normal || d == Bernoulli || d == Poisson
-    prob = linkinv.(l, x * true_b)
+    prob = GLM.linkinv.(l, x * true_b)
     clamp!(prob, -20, 20)
     y = [rand(d(i)) for i in prob]
     # prob = linkinv.(l, x * true_b + z * true_c)
@@ -125,25 +127,25 @@ if d == Normal || d == Bernoulli || d == Poisson
     # k = k + 1
 elseif d == NegativeBinomial
     nn = 10
-    μ = linkinv.(l, x * true_b)
+    μ = GLM.linkinv.(l, x * true_b)
     # μ = linkinv.(l, x * true_b + z * true_c)
     # k = k + 1
     clamp!(μ, -20, 20)
     prob = 1 ./ (1 .+ μ ./ nn)
-    y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
+    y = [rand(d(nn, Float64(i))) for i in prob] #number of failtures before nn success occurs
 elseif d == Gamma
-    μ = linkinv.(l, x * true_b)
+    μ = GLM.linkinv.(l, x * true_b)
     β = 1 ./ μ # here β is the rate parameter for gamma distribution
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
-y = Float64.(y)
+y = T.(y)
 # histogram(y, bins=30)
 mean(y)
 var(y)
 
 #run IHT
 result = L0_reg(x, z, y, 1, k, d(), l, debias=false)
-# @benchmark result = L0_reg(x, z, y, 1, k, d(), l, debias=false)
+@benchmark result = L0_reg(x, z, y, 1, k, d(), l, debias=false)
 
 #check result
 compare_model = DataFrame(
@@ -460,7 +462,7 @@ rm("tmp.bed", force=true)
 
 #RUN IHT with all CPU available
 using Distributed
-addprocs(4)
+addprocs(8)
 nprocs()
 
 using Revise
@@ -485,12 +487,13 @@ l = LogLink()
 Random.seed!(33)
 
 #construct snpmatrix, covariate files, and true model b
+T = Float32
 x = simulate_random_snparray(n, p, undef)
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-z = ones(n, 1) # the intercept
+xbm = SnpBitMatrix{T}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+z = ones(T, n, 1) # the intercept
 
 # simulate response, true model b, and the correct non-0 positions of b
-true_b = zeros(p)
+true_b = zeros(T, p)
 # true_b[1:4] .= [0.1; 0.25; 0.5; 0.8]
 true_b[1:10] .= collect(0.1:0.1:1.0)
 # true_b[1:k] = rand(Normal(0, 0.3), k)
@@ -499,36 +502,38 @@ correct_position = findall(!iszero, true_b)
 
 #simulate phenotypes (e.g. vector y)
 if d == Normal || d == Poisson || d == Bernoulli
-    prob = linkinv.(l, xbm * true_b)
+    prob = GLM.linkinv.(l, xbm * true_b)
     clamp!(prob, -20, 20)
     y = [rand(d(i)) for i in prob]
 elseif d == NegativeBinomial
     nn = 10
-    μ = linkinv.(l, xbm * true_b)
+    μ = GLM.linkinv.(l, xbm * true_b)
     clamp!(μ, -20, 20)
     prob = 1 ./ (1 .+ μ ./ nn)
-    y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
+    y = [rand(d(nn, Float64(i))) for i in prob] #number of failtures before nn success occurs
 elseif d == Gamma
-    μ = linkinv.(l, xbm * true_b)
+    μ = GLM.linkinv.(l, xbm * true_b)
     β = 1 ./ μ # here β is the rate parameter for gamma distribution
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
-y = Float64.(y)
+y = T.(y)
 # histogram(y)
 # var(y) / mean(y)
 
 #specify path and folds
 path = collect(1:20)
-num_folds = 5
+num_folds = 8
 folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT
 # result = iht_run_many_models(d(), l, x, z, y, 1, path);
-mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true)
+destin = "/Users/biona001/Desktop/"
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, destin=destin, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
+mses = cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, destin=destin, folds=folds, init=false, use_maf=false, debias=false, parallel=true)
 
 #benchmarking
-@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true) seconds=60
-
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=false) seconds=30 #33.800s, 135.13MiB
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=false, parallel=true) seconds=30  #6.055 s, 34.23 MiB
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, argmin(mses), d(), l, debias=true, init=false, use_maf=false)
@@ -550,10 +555,10 @@ rm("tmp.bed", force=true)
 
 # CROSS VALIDATION ON GENERAL MATRIX
 using Distributed
-addprocs(4)
+addprocs(8)
 nprocs()
 
-using Revise
+# @everywhere using Revise
 using MendelIHT
 using SnpArrays
 using DataFrames
@@ -567,27 +572,28 @@ using GLM
 n = 2000
 p = 10000
 k = 10
-d = NegativeBinomial
-# l = canonicallink(d())
-l = LogLink()
+d = Normal
+l = canonicallink(d())
+# l = LogLink()
 
 #set random seed
 Random.seed!(2019)
 
 #construct x matrix and non genetic covariate (intercept)
-x = randn(n, p)
-z = ones(n, 1)
+T = Float32
+x = randn(T, n, p)
+z = ones(T, n, 1)
 
 # simulate response, true model b, and the correct non-0 positions of b
-true_b = zeros(p)
+true_b = zeros(T, p)
 true_b[1:k] .= collect(0.1:0.1:1.0)
-true_c = [4.0]
+true_c = [T.(4.0)]
 shuffle!(true_b)
 correct_position = findall(!iszero, true_b)
 
 #simulate phenotypes (e.g. vector y)
 if d == Normal || d == Bernoulli || d == Poisson
-    prob = linkinv.(l, x * true_b)
+    prob = GLM.linkinv.(l, x * true_b)
     clamp!(prob, -20, 20)
     y = [rand(d(i)) for i in prob]
     # prob = linkinv.(l, x * true_b + z * true_c)
@@ -596,30 +602,49 @@ if d == Normal || d == Bernoulli || d == Poisson
     # k = k + 1
 elseif d == NegativeBinomial
     nn = 10
-    μ = linkinv.(l, x * true_b)
+    μ = GLM.linkinv.(l, x * true_b)
     # μ = linkinv.(l, x * true_b + z * true_c)
     # k = k + 1
     clamp!(μ, -20, 20)
     prob = 1 ./ (1 .+ μ ./ nn)
-    y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
+    y = [rand(d(nn, Float64(i))) for i in prob] #number of failtures before nn success occurs
 elseif d == Gamma
-    μ = linkinv.(l, x * true_b)
+    μ = GLM.linkinv.(l, x * true_b)
     β = 1 ./ μ # here β is the rate parameter for gamma distribution
     y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
 end
-y = Float64.(y)
+y = T.(y)
 mean(y)
 var(y)
 
 #specify path and folds
-path = collect(1:20)
-num_folds = 5
+path = collect(1:50)
+num_folds = 8
 folds = rand(1:num_folds, size(x, 1))
 
 # run threaded IHT
 # result = iht_run_many_models(d(), l, x, z, y, 1, path);
-mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true)
-# @benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, init=false, use_maf=false, debias=true, parallel=true) seconds=60
+mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true)
+mses = cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true)
+
+# default number of threads in BLAS
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30#14.146 s, 1.20 GiB
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30 #17.019 s, 619.66 MiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30 #14.475 s, 1.21 GiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30  #12.904 s, 295.80 KiB
+
+BLAS.set_num_threads(1)
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30#17.346 s, 1.20 GiB
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30 #16.970 s, 619.66 MiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30 #17.014 s, 1.21 GiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30  #12.686 s, 295.80 KiB
+
+#export OPENBLAS_NUM_THREADS=1
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30#17.485 s, 1.20 GiB
+@benchmark cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30 #17.867 s, 619.66 MiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=false) seconds=30 #18.230 s, 1.21 GiB
+@benchmark cv_iht_distribute_fold(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, parallel=true) seconds=30  #12.991 s, 295.80 KiB
+
 
 #run IHT
 result = L0_reg(x, z, y, 1, argmin(mses), d(), l, debias=true, init=false, use_maf=false)
@@ -635,5 +660,24 @@ println("Total iteration number was " * string(result.iter))
 println("Total time was " * string(result.time))
 println("Total found predictors = " * string(length(findall(!iszero, result.beta[correct_position]))))
 
+
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using Random
+using LinearAlgebra
+using GLM
+using CSV
+using BenchmarkTools
+
+Random.seed!(1201)
+x = SnpArray(undef, 1000, 1000)
+@time naive_impute(x, "hi.bed")
 
 

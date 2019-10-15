@@ -40,11 +40,11 @@ function L0_reg(
     weight    :: AbstractVector{T} = T[],
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
-    show_info :: Bool = true,  # print things when model didn't converge
-    init      :: Bool = false, # not efficient. whether to initialize β to sensible values
-    tol       :: T = 1e-4,     # tolerance for tracking convergence
-    max_iter  :: Int = 100,    # maximum IHT iterations
-    max_step  :: Int = 5,      # maximum backtracking for each iteration
+    show_info :: Bool = true,          # print things when model didn't converge
+    init      :: Bool = false,         # not efficient. whether to initialize β to sensible values
+    tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
+    max_iter  :: Int = 100,            # maximum IHT iterations
+    max_step  :: Int = 5,              # maximum backtracking for each iteration
 ) where {T <: Float}
 
     #start timer
@@ -69,7 +69,7 @@ function L0_reg(
 
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k, group, weight)             # Placeholder variable for cleaner code
-    full_grad = zeros(size(x, 2) + size(z, 2))                 # Preallocated vector for efficiency
+    full_grad = zeros(T, size(x, 2) + size(z, 2))              # Preallocated vector for efficiency
     init_iht_indices!(v, xbm, z, y, d, l, J, k)                # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x for first iteration
     debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
@@ -148,13 +148,13 @@ function L0_reg(
     weight    :: AbstractVector{T} = T[],
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
-    show_info :: Bool = true,  # print things when model didn't converge
-    init      :: Bool = false, # not efficient. whether to initialize β to sensible values
-    tol       :: T = 1e-4,     # tolerance for tracking convergence
-    max_iter  :: Int = 100,    # maximum IHT iterations
-    max_step  :: Int = 5,      # maximum backtracking for each iteration
+    show_info :: Bool = true,            # print things when model didn't converge
+    init      :: Bool = false,           # not efficient. initializes β to sensible values
+    tol       :: T    = convert(T, 1e-4),# tolerance for tracking convergence
+    max_iter  :: Int  = 100,             # maximum IHT iterations
+    max_step  :: Int  = 5,               # maximum backtracking for each iteration
 ) where {T <: Float}
-
+    
     #start timer
     start_time = time()
 
@@ -168,16 +168,16 @@ function L0_reg(
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
-    tot_time    = 0.0               # compute time *within* L0_reg
+    tot_time    = zero(T)           # compute time *within* L0_reg
     next_logl   = oftype(tol,-Inf)  # loglikelihood
-    the_norm    = 0.0               # norm(b - b0)
-    scaled_norm = 0.0               # the_norm / (norm(b0) + 1)
+    the_norm    = zero(T)           # norm(b - b0)
+    scaled_norm = zero(T)           # the_norm / (norm(b0) + 1)
     η_step      = 0                 # counts number of backtracking steps for η
     converged   = false             # scaled_norm < tol?
 
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k, group, weight) # Placeholder variable for cleaner code
-    full_grad = zeros(size(x, 2) + size(z, 2))     # Preallocated vector for efficiency
+    full_grad = zeros(T, size(x, 2) + size(z, 2))  # Preallocated vector for efficiency
     init_iht_indices!(v, x, z, y, d, l, J, k)      # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]))              # store relevant components of x for first iteration
     debias && (temp_glm = initialize_glm_object()) # Preallocated GLM variable for debiasing

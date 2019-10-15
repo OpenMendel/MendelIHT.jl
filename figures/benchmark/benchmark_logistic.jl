@@ -18,7 +18,7 @@ function time_logistic_response(
 	Random.seed!(1111)
 
 	#construct snpmatrix, covariate files, and true model b
-	x, = simulate_random_snparray(n, p, undef)
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1) # the intercept
 
