@@ -225,8 +225,8 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
         return mses
     finally 
         #clean up 
-        rm(train_file, force=true)
-        rm(test_file, force=true)
+        rm(train_file, recursive=true)
+        rm(test_file, recursive=true)
     end
 
     return mses
@@ -310,7 +310,7 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
             cs[:, i] .= result.c
         end
     finally
-        rm(train_file, force=true) #clean up
+        rm(train_file, recursive=true) #clean up
     end
 
     return betas, cs
@@ -386,7 +386,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::Abstra
             mse[i] = deviance(d, y_test, μ)
         end
     finally
-        rm(test_file, force=true) #clean up
+        rm(test_file, recursive=true) #clean up
     end
 
     return mse
