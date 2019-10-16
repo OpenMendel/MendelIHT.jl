@@ -25,7 +25,7 @@ before_script: # install dependent unregistered packages
   - julia -e 'using Pkg; Pkg.add([PackageSpec(url="https://github.com/OpenMendel/SnpArrays.jl.git")]);'
 
 after_script:
-  - travis_wait 20 julia -e 'using Pkg, MendelIHT; cd(joinpath(dirname(pathof(MendelIHT)), "..")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder()); Coveralls.submit(process_folder())'
+  - julia -e 'using Pkg, MendelIHT; cd(joinpath(dirname(pathof(MendelIHT)), "..")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder()); Coveralls.submit(process_folder())'
 
 jobs:
   include:
