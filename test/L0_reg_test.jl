@@ -297,3 +297,60 @@ end
 		 -0.1815202361606688
 		 -0.25255175830728194])
 end
+
+@testset "Negative binomial nuisance parameter" begin
+	n = 1000
+	p = 10000
+	k = 10
+	d = NegativeBinomial
+	l = LogLink()
+
+	# set random seed for reproducibility
+	Random.seed!(1111) 
+
+	# simulate SnpArrays data
+	x = simulate_correlated_snparray(n, p, undef)
+	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+	z = ones(n, 1) 
+	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l, r=10);
+
+	@time newton = L0_reg(x, xbm, z, y, 1, k, d(), l, :Newton)
+	@test typeof(newton.d) == NegativeBinomial{Float64}
+	@test newton.d.p == 0.5 # p parameter not used 
+	@test newton.d.r ≈ 10.40018090964441
+
+	@time mm = L0_reg(x, xbm, z, y, 1, k, d(), l, :MM)
+	@test typeof(mm.d) == NegativeBinomial{Float64}
+	@test mm.d.p == 0.5
+	@test mm.d.r ≈ 4.771639838049489
+
+	# simulate floating point data
+	Random.seed!(1111) 
+	T = Float32
+	x = randn(T, n, p)
+	z = ones(T, n, 1) 
+
+	# simulate true model b, and the correct non-0 positions of b
+	true_b = zeros(T, p)
+	true_b[1:k] .= collect(0.1:0.1:1.0)
+	true_c = [T.(4.0)]
+	shuffle!(true_b)
+
+	# simulate response
+	r = 20
+    μ = GLM.linkinv.(l, x * true_b)
+    clamp!(μ, -20, 20)
+    prob = 1 ./ (1 .+ μ ./ r)
+    y = [rand(d(r, Float64(i))) for i in prob] 
+    y = T.(y)
+
+	@time newton = L0_reg(x, z, y, 1, k, d(), l, :Newton)
+	@test typeof(newton.d) == NegativeBinomial{Float64}
+	@test newton.d.p == 0.5 
+	@test newton.d.r ≈ 4.474794675700129 #newton can underestimate or severely overestimate
+
+	@time mm = L0_reg(x, z, y, 1, k, d(), l, :MM)
+	@test typeof(mm.d) == NegativeBinomial{Float64}
+	@test mm.d.p == 0.5
+	@test mm.d.r ≈ 4.391742679342831 #MM tends to underestimate
+end

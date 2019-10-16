@@ -197,11 +197,11 @@ we choose `β ∼ N(0, 1)`.
 - `l`: The link function. Input `canonicallink(d())` if you want to use the canonical link of `d`.
 
 # Optional arguments 
-- `nn`: The number of success until stopping in negative binomial regression, defaults to 10
+- `r`: The number of success until stopping in negative binomial regression, defaults to 10
 - `α`: Shape parameter of the gamma distribution, defaults to 1
 """
 function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, 
-                                  d::UnionAll, l::Link; nn = 10,
+                                  d::UnionAll, l::Link; r = 10,
                                   α = 1) where {T <: Float}
     n, p = size(x)
     if (typeof(d) <: NegativeBinomial) || (typeof(d) <: Gamma)
@@ -226,8 +226,8 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int,
     elseif d == NegativeBinomial
         μ = linkinv.(l, xbm * true_b)
         clamp!(μ, -20, 20)
-        prob = 1 ./ (1 .+ μ ./ nn)
-        y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
+        prob = 1 ./ (1 .+ μ ./ r)
+        y = [rand(d(r, i)) for i in prob] #number of failtures before r success occurs
     elseif d == Gamma
         μ = linkinv.(l, xbm * true_b)
         β = 1 ./ μ # here β is the rate parameter for gamma distribution
@@ -254,21 +254,10 @@ function adhoc_add_correlation!(x::SnpArray, ρ::Float64, pos::Int64, location::
 
     for loc in location 
         for i in 1:size(x, 1)
-            prob = rand(Bernoulli(ρ))
-            prob == 1 && (x[i, loc] = x[i, pos]) #make 2nd column the same as 1st ~ρ% of the time
+            rand(Bernoulli(ρ)) && (x[i, loc] = x[i, pos]) #make 2nd column the same as 1st ~ρ% of the time
         end
         corr = cor(x[:, loc], x[:, pos])
     end
-end
-
-"""
-    simulate_rare_variants(mafs::Vector{Float64}, penetrance::Vector{Float64}, cases::Int, controls::Int)
-
-TODO: implement Algrithm 1 of https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3025646/
-"""
-function simulate_rare_variants(mafs::Vector{Float64}, penetrance::Vector{Float64}, 
-                                cases::Int, controls::Int)
-    return nothing # not implemented yet
 end
 
 """

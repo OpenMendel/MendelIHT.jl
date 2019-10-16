@@ -25,7 +25,7 @@
 	folds = rand(1:num_folds, size(x, 1))
 
 	# cross validation routine that distributes `path` (with debias) 
-	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true);
+	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true)
 	@test argmin(distribute_path_debias) == 11
 	@test all(distribute_path_debias ≈ [1927.0765190526674;1443.8787350418297;1080.0413162424918;
 		898.2611345915562;700.2502074095313;507.3948750413776;391.9679112461845;
@@ -88,7 +88,7 @@ end
 	folds = rand(1:num_folds, size(x, 1))
 
 	# cross validation routine that distributes `path` (with debias) 
-	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true);
+	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true)
 	@test argmin(distribute_path_debias) == 12
 	@test all(distribute_path_debias ≈ [ 1380.6565486523607; 1065.9071386995029;  872.6759379053509;  659.9512415455504;
 		  507.95468586447487;  435.42564150445935;  381.97145182134796;  353.3874985986886;
@@ -205,7 +205,7 @@ end
 	folds = rand(1:num_folds, size(x, 1))
 
 	# cross validation routine that distributes `path` (with debias) 
-	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true);
+	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true)
 	@test argmin(distribute_path_debias) == 7
 	@test all(distribute_path_debias .≈ [ 257.6449700029333; 243.38693629922395; 223.07132106240928; 208.63589906660434;
 		 200.79539897703896; 199.16737833822066; 198.3115289117867; 200.15665119335674;
@@ -260,7 +260,7 @@ end
 	folds = rand(1:num_folds, size(x, 1))
 
 	# cross validation routine that distributes `path` (with debias) 
-	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true);
+	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true)
 	@test argmin(distribute_path_debias) == 7
 	@test all(distribute_path_debias ≈ [ 612.6766519782327; 554.4890824202639; 522.4053768900791; 
 		485.3207425983446; 445.78015443806163;412.2320772688479; 382.6698340685961; 
@@ -324,7 +324,7 @@ end
 	folds = rand(1:num_folds, size(x, 1))
 
 	# cross validation routine that distributes `path` (with debias) 
-	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true);
+	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true)
 	@test argmin(distribute_path_debias) == 9
 	@test isapprox(distribute_path_debias, [ 2439.7858577999773; 2475.264523550615; 1973.7876065895484; 1644.5429713385843;
 		 1191.6012625437234;  962.0998240517529;  945.2135472991168;  803.4670649487925;
@@ -379,7 +379,7 @@ end
 	folds = rand(1:num_folds, size(x, 1))
 
 	# cross validation routine that distributes `path` (with debias) 
-	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true);
+	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true)
 	@test argmin(distribute_path_debias) == 6
 	@test all(distribute_path_debias ≈ [ 299.29083418540984; 277.1588834992124; 254.24543899850323; 
 		239.65111105625778; 234.28391512742712; 226.11206626366229; 231.00815753407852;
@@ -443,7 +443,7 @@ end
 	folds = rand(1:num_folds, size(x, 1))
 
 	# cross validation routine that distributes `path` (with debias) 
-	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true);
+	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true)
 	@test argmin(distribute_path_debias) == 9
 	@test isapprox(distribute_path_debias[1:19], [ 711.1148907867071; 656.0309209427922; 574.4763636279968; 384.47323689913634;
 		 337.75419026125724; 282.6397965594231; 259.41343256652266; 251.50847139462587;
@@ -491,7 +491,7 @@ end
 
 	#specify path and run a ton of models 
 	path = collect(1:20)
-	@time result = iht_run_many_models(d(), l, x, z, y, 1, path, verbose=false, parallel=true);
+	@time result = iht_run_many_models(d(), l, x, z, y, 1, path, verbose=false, parallel=true)
 
 	@test result[1] ≈ -2272.788840069668
 	@test result[2] ≈ -2144.4519706525098
