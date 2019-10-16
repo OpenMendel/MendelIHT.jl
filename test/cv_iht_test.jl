@@ -490,7 +490,7 @@ end
 
 	#specify path and run a ton of models 
 	path = collect(1:20)
-	result = iht_run_many_models(d(), l, x, z, y, 1, path, parallel=true);
+	@time result = iht_run_many_models(d(), l, x, z, y, 1, path, verbose=false, parallel=true);
 
 	@test result[1] ≈ -2272.788840069668
 	@test result[2] ≈ -2144.4519706525098

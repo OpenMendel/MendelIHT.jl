@@ -14,7 +14,7 @@ using GLM
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
@@ -49,7 +49,7 @@ end
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
@@ -84,7 +84,7 @@ end
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
@@ -119,7 +119,7 @@ end
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
@@ -155,7 +155,7 @@ end
 	Random.seed!(1111)
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
-	x = simulate_random_snparray(n, p, "test1.bed")
+	x = simulate_random_snparray(n, p, undef)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 2) # the intercept
 	z[:, 2] .= randn(n)
@@ -185,9 +185,6 @@ end
 	@test all(result.c .≈ [2.931093515105184; 3.4674609432737893])
 	@test result.k == 10
 	@test result.logl ≈ -1372.8963328607294
-
-	#clean up
-	rm("test1.bed", force=true)
 end
 
 @testset "L0_reg with correlated predictors and double sparsity" begin
@@ -216,7 +213,7 @@ end
     g[end] = membership[end]
     
     #simulate correlated snparray
-    x = simulate_correlated_snparray(n, p, "tmp.bed")
+    x = simulate_correlated_snparray(n, p, undef)
     z = ones(n, 1) # the intercept
     x_float = convert(Matrix{Float64}, x, model=ADDITIVE_MODEL, center=true, scale=true)
     
@@ -257,9 +254,6 @@ end
     J = 5
     k = 3
     grouped = L0_reg(x_float, z, y, J, k, d(), l, debias=false, group=g)
-
-    #clean up
-    rm("tmp.bed", force=true)
 
     @test ungrouped.iter == 36
     @test ungrouped.logl ≈ -1339.457450752207
