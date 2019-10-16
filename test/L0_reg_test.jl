@@ -317,12 +317,12 @@ end
 	@time newton = L0_reg(x, xbm, z, y, 1, k, d(), l, :Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 # p parameter not used 
-	@test newton.d.r ≈ 10.40018090964441
+	@test isapprox(newton.d.r, 10.40018090964441, atol=1e-4)
 
 	@time mm = L0_reg(x, xbm, z, y, 1, k, d(), l, :MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
-	@test mm.d.r ≈ 4.771639838049489
+	@test isapprox(mm.d.r, 4.771639838049489, atol=1e-4)
 
 	# simulate floating point data
 	Random.seed!(1111) 
@@ -347,10 +347,10 @@ end
 	@time newton = L0_reg(x, z, y, 1, k, d(), l, :Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 
-	@test newton.d.r ≈ 4.474794675700129 #newton can underestimate or severely overestimate
+	@test isapprox(newton.d.r, 4.474794675700129, atol=1e-4) #newton can underestimate or severely overestimate
 
 	@time mm = L0_reg(x, z, y, 1, k, d(), l, :MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
-	@test mm.d.r ≈ 4.391742679342831 #MM tends to underestimate
+	@test isapprox(mm.d.r, 4.391742679342831, atol=1e-4) #MM tends to underestimate
 end
