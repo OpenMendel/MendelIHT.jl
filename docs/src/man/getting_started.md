@@ -5,9 +5,13 @@ In this section, we outline the basic procedure to analyze your GWAS data with M
 
 ## Installation
 
+`MendelIHT.jl` have been tested on Julia 1.0 and 1.2 for Mac, Linus, and windows. A few features are disabled for windows users, and users will be warned when trying to use them.
+
 Press `]` to enter package manager mode and type the following (after `pkg>`):
 ```
 (v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
+(v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
 (v1.0) pkg> add https://github.com/biona001/MendelIHT.jl
 ```
 The order of installation is important!
@@ -17,7 +21,7 @@ The order of installation is important!
 Most analysis consists of 3 simple steps:
 
 1. Import data.
-2. Run `cv_iht` to determine best model size.
+2. Run cross validation: either `cv_iht` or `cv_iht_distribute_folds` to determine best model size.
 3. Run `L0_reg` to obtain final model.
 
 We believe the best way to learn is through examples. Head over to the example section on the left to see these steps in action. Nevertheless, below contains function signatures and use cautions that any users should be aware. 
@@ -28,15 +32,19 @@ We believe the best way to learn is through examples. Head over to the example s
 
 ## Core Functions
 
-A standard analysis runs only 2 functions, other than importing data.
+A standard analysis runs only 2 functions, other than importing data. For testing small problems (small number of folds), we recommend using `cv_iht`. This function cycles through the testing sets sequentially and fits different sparsity models in parallel. For larger problems where `L0_reg` takes a long time to run, one can instead run `cv_iht_distribute_fold`. This function fits different sparsity models sequentially but initializes all training/testing model in parallel, which consumes more memory (see below). The later strategy allows one to distribute different sparsity parameters to different computers, achieving greater parallel power. 
 
 ```@docs
   cv_iht
 ```   
 
+```@docs
+  cv_iht_distribute_fold
+```   
+
 !!! note 
 
-    **Do not** delete intermediate files with random file names created by `cv_iht`. These are memory-mapped files necessary for cross validation. In order to successfully create these files, **you must have `x` GB of free space on your hard disk** where `x` is your `.bed` file size.
+    **Do not** delete intermediate files with random file names created by `cv_iht` and `cv_iht_distribute_fold` (windows users will be instructed to manually do so via print statements). These are memory-mapped files necessary for cross validation. For `cv_iht`, **you must have `x` GB of free space and RAM on your hard disk** where `x` is your `.bed` file size. For `cv_iht_distribute_fold`, you must have approximately `(q - 1)/q * x` GB of free disk space and RAM. 
 
 
 ```@docs
@@ -156,4 +164,8 @@ MendelIHT additionally provides useful utilities that may be of interest to a fe
 
 ```@docs
   maf_weights
+```
+
+```@docs
+  naive_impute
 ```

@@ -17,6 +17,7 @@
 + Optional acceleration (debias) step to dramatically improve speed.
 + Ability to explicitly incorporate weights for predictors.
 + Ability to enforce within and between group sparsity. 
++ Estimates nuisance parameter for negative binomial regression using Newton or MM algorithm. 
 + Excellent flexibility to handle different data structures and complements well with other Julia packages.
 
 ## Manual Outline
