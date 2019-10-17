@@ -4,7 +4,7 @@
 
 | **Documentation** | **Build Status** | **Code Coverage**  |
 |-------------------|------------------|--------------------|
-| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://OpenMendel.github.io/MendelIHT.jl/latest) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://OpenMendel.github.io/MendelIHT.jl/stable) | [![Build Status](https://travis-ci.org/OpenMendel/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/OpenMendel/MendelIHT.jl) [![Build status](https://ci.appveyor.com/api/projects/status/s7dxx48g1ol9hqi0?svg=true)](https://ci.appveyor.com/project/biona001/mendeliht-jl) | [![Coverage Status](https://coveralls.io/repos/github/biona001/MendelIHT.jl/badge.svg)](https://coveralls.io/github/biona001/MendelIHT.jl)  [![codecov](https://codecov.io/gh/OpenMendel/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/OpenMendel/MendelIHT.jl)
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://OpenMendel.github.io/MendelIHT.jl/latest) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://OpenMendel.github.io/MendelIHT.jl/stable) | [![Build Status](https://travis-ci.org/OpenMendel/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/OpenMendel/MendelIHT.jl) [![Build status](https://ci.appveyor.com/api/projects/status/s7dxx48g1ol9hqi0?svg=true)](https://ci.appveyor.com/project/biona001/mendeliht-jl) | [![Coverage Status](https://coveralls.io/repos/github/OpenMendel/MendelIHT.jl/badge.svg?branch=master)](https://coveralls.io/github/OpenMendel/MendelIHT.jl?branch=master)  [![codecov](https://codecov.io/gh/OpenMendel/MendelIHT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/OpenMendel/MendelIHT.jl)
 
 ## Installation
 

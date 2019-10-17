@@ -15,7 +15,7 @@ makedocs(
 )
 
 deploydocs(
-    repo   = "github.com/biona001/MendelIHT.jl.git",
+    repo   = "github.com/OpenMendel/MendelIHT.jl.git",
     target = "build",
   	deps   = nothing,
   	make   = nothing,
