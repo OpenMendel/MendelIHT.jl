@@ -44,7 +44,7 @@ A standard analysis runs only 2 functions, other than importing data. For testin
 
 !!! note 
 
-    **Do not** delete intermediate files with random file names created by `cv_iht` and `cv_iht_distribute_fold` (windows users will be instructed to manually do so via print statements). These are memory-mapped files necessary for cross validation. For `cv_iht`, **you must have `x` GB of free space and RAM on your hard disk** where `x` is your `.bed` file size. For `cv_iht_distribute_fold`, you must have approximately `(q - 1)/q * x` GB of free disk space and RAM. 
+    **Do not** delete intermediate files with random file names created by `cv_iht` and `cv_iht_distribute_fold` (windows users will be instructed to manually do so via print statements). These are memory-mapped files necessary for cross validation. For `cv_iht`, **you must have `x` GB of free space and RAM on your hard disk** where `x` is your `.bed` file size. For `cv_iht_distribute_fold`, you must have enough RAM and disk space to fit all `q` training datasets simultaneously, each of which typically requires `(q - 1)/q * x` GB. 
 
 
 ```@docs

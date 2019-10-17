@@ -7,21 +7,22 @@ The purpose of this function is to find the best sparsity level `k`, judiciously
 from selecting the model with the minimum out-of-sample error. Automatically finds the 
 correct version of `L0_reg` to use depending on the type of `x`. By default, each CPU runs 
 a different model for a given fold. To use this function, start julia using 4 processors 
-(the more the better) by:
-    julia> using Distributed
-    julia> addprocs(4)
+(or more) by `using Distributed; addprocs(4)`.
+
 # Warning
 Do not remove files with random file names when you run this function. There are 
 memory mapped files that will be deleted automatically once they are no longer needed.
+
 # Arguments
 - `d`: A distribution (e.g. Normal, Bernoulli)
 - `l`: A link function (e.g. Loglink, ProbitLink)
 - `x`: A SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
 - `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
 - `y`: Response vector
-- `J`: The number of maximum groups
+- `J`: The number of maximum groups (set as 1 if no group infomation available)
 - `path`: Vector storing different model sizes
 - `q`: Number of cross validation folds. For large data do not set this to be greater than 5
+
 # Optional Arguments: 
 - `group` vector storing group membership
 - `weight` vector storing vector of weights containing prior knowledge on each SNP
@@ -81,6 +82,10 @@ Performs q-fold cross validation for Iterative hard thresholding to
 determine the best model size `k`. The function is the same as `cv_iht` 
 except here each `fold` is distributed to a different CPU as opposed 
 to each `path` to a different CPU. 
+
+This function has the edge over `cv_iht` because one can fit different 
+sparsity levels on different computers. But this is assuming you have 
+enough RAM and disk space to store all training data simultaneously.
 """
 function cv_iht_distribute_fold(
     d        :: UnivariateDistribution,

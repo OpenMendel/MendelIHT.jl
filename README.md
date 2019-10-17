@@ -26,10 +26,12 @@ The order of installation is important!
 
 [![Video Introduction to MendelIHT.jl](https://github.com/OpenMendel/MendelIHT.jl/blob/master/figures/video_intro.png)](https://www.youtube.com/watch?v=UPIKafShwFw)
 
-## Citation:
+## Citation and Reproducibility:
 
 A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v1). If you use `MendelIHT.jl`, please cite:
 
 ```
 Benjamin B. Chu, Kevin L. Keys, Janet S. Sinsheimer, and Kenneth Lange. Multivariate GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity. bioRxiv doi:10.1101/697755
 ```
+
+In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our preprint. The `Project.toml` and `Manifest.toml` files can be used together to instantiate the exact same computing environment as was used in our paper. For more information about `.toml` files, please visit Julia's [Pkg documentation](https://docs.julialang.org/en/v1.0/stdlib/Pkg/#Glossary-1). 
