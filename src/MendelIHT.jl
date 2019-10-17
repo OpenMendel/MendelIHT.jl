@@ -16,12 +16,13 @@ module MendelIHT
 	using SparseArrays
 	using Distributed
 
-	export loglikelihood, deviance, score!, L0_reg, iht_run_many_models, mle_for_r
-	export iht_path, simulate_random_snparray, make_bim_fam_files, project_k!
-	export IHTVariables, use_A2_as_minor_allele, make_snparray, standardize!
-	export std_reciprocal, project_group_sparse!, save_prev!, maf_weights
-	export simulate_random_response, adhoc_add_correlation, cv_iht
-	export simulate_correlated_snparray, naive_impute, cv_iht_distribute_fold
+	export L0_reg, cv_iht, cv_iht_distribute_fold, iht_run_many_models
+	export loglikelihood, deviance, score!, mle_for_r
+	export project_k!, project_group_sparse!
+	export IHTVariables, make_snparray, standardize!, maf_weights
+	export std_reciprocal, save_prev!, naive_impute
+	export simulate_random_snparray, simulate_correlated_snparray
+	export make_bim_fam_files, simulate_random_response, adhoc_add_correlation
 
 	# IHT will only work on single/double precision floats!
 	const Float = Union{Float64,Float32}
