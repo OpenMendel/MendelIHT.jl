@@ -100,7 +100,7 @@ z   = readdlm("../data/test1_covariates.txt") # 1st column intercept, 2nd column
 ```julia
 @show typeof(x)
 @show typeof(xbm)
-@show typeof(z); #non genetic covariates must be Array{Float64, 2} even if only the intercept is included
+@show typeof(z);
 ```
 
     typeof(x) = SnpArray
@@ -311,7 +311,7 @@ compare_model = DataFrame(
     estimated_β = result.beta[correct_position])
 @show compare_model
 
-#clean up
+#clean up. Windows user must do this step manually (outside notebook/REPL)
 rm("tmp.bed", force=true)
 ```
 
@@ -500,7 +500,7 @@ compare_model_nongenetics = DataFrame(
 @show compare_model_genetics
 @show compare_model_nongenetics
 
-#clean up
+#clean up. Windows user must do this step manually (outside notebook/REPL)
 rm("tmp.bed", force=true)
 ```
 
@@ -643,7 +643,7 @@ Now we illustrate that debiasing may dramatically reduce computational time (in 
 
 
 ```julia
-#clean up
+#clean up. Windows user must do this step manually (outside notebook/REPL)
 rm("tmp.bed", force=true)
 ```
 
