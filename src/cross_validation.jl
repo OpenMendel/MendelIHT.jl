@@ -24,6 +24,7 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `q`: Number of cross validation folds. For large data do not set this to be greater than 5
 
 # Optional Arguments: 
+- `est_r` Symbol for whether to estimate nuisance parameters. Only supported distribution is negative binomial and choices include :Newton or :MM.
 - `group` vector storing group membership
 - `weight` vector storing vector of weights containing prior knowledge on each SNP
 - `folds`: Vector that separates the sample into q disjoint subsets
@@ -43,6 +44,7 @@ function cv_iht(
     J        :: Int64,
     path     :: DenseVector{Int},
     q        :: Int64;
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: DenseVector{Int} = rand(1:q, size(x, 1)),
@@ -64,7 +66,7 @@ function cv_iht(
         train_idx = .!test_idx
 
         # validate trained models on test data by computing deviance residuals
-        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, fold, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, verbose=false, parallel=parallel)
+        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, fold, est_r, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, verbose=false, parallel=parallel)
     end
 
     #weight mses for each fold by their size before averaging
@@ -96,6 +98,7 @@ function cv_iht_distribute_fold(
     J        :: Int64,
     path     :: DenseVector{Int},
     q        :: Int64;
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: DenseVector{Int} = rand(1:q, size(x, 1)),
@@ -111,8 +114,8 @@ function cv_iht_distribute_fold(
     mses = (parallel ? pmap : map)(1:q) do fold
         test_idx  = folds .== fold
         train_idx = .!test_idx
-        betas, cs = pfold_train(train_idx, x, z, y, J, d, l, path, fold, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, verbose=false)
-        return pfold_validate(test_idx, betas, cs, x, z, y, J, d, l, path, fold, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, verbose=false)
+        betas, cs = pfold_train(train_idx, x, z, y, J, d, l, path, fold, est_r, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, verbose=false)
+        return pfold_validate(test_idx, betas, cs, x, z, y, J, d, l, path, fold, est_r, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, verbose=false)
     end
 
     #weight mses for each fold by their size before averaging
@@ -140,6 +143,7 @@ function iht_run_many_models(
     y        :: AbstractVector{T},
     J        :: Int64,
     path     :: DenseVector{Int};
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     init     :: Bool = false,
@@ -150,12 +154,20 @@ function iht_run_many_models(
 ) where {T <: Float}
 
     # for each k, run L0_reg and store the loglikelihoods
-    typeof(x) == SnpArray && (xbm = SnpBitMatrix{T}(x, model=ADDITIVE_MODEL, center=true, scale=true);)
     results = (parallel ? pmap : map)(path) do k
         if typeof(x) == SnpArray 
-            return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            xbm = SnpBitMatrix{T}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+            if est_r == :None
+                return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            else
+                return L0_reg(x, xbm, z, y, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            end
         else 
-            return L0_reg(x, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            if est_r == :None
+                return L0_reg(x, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            else
+                return L0_reg(x, z, y, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            end
         end
     end
 
@@ -177,7 +189,7 @@ on the test set. This deviance residuals vector is returned
 """
 function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
                     l::Link, x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
-                    path::DenseVector{Int}, fold::Int; group::AbstractVector{Int}=Int[],
+                    path::DenseVector{Int}, fold::Int, est_r::Symbol; group::AbstractVector{Int}=Int[],
                     weight::AbstractVector{T}=T[], init::Bool=false, destin::String = "./",
                     use_maf::Bool=false, debias::Bool=false, verbose::Bool=true, 
                     parallel::Bool=false) where {T <: Float}
@@ -217,7 +229,11 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
         mses = (parallel ? pmap : map)(path) do k
 
             #run IHT on training model with given k
-            result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+            if est_r == :None
+                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+            else
+                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, est_r, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+            end
 
             # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
             A_mul_B!(xb, zc, x_testbm, z_test, result.beta, result.c) 
@@ -243,7 +259,7 @@ end
 
 function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
                     l::Link, x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, 
-                    J::Int64, path::DenseVector{Int}, fold::Int; group::AbstractVector{Int}=Int[],
+                    J::Int64, path::DenseVector{Int}, fold::Int, est_r::Symbol; group::AbstractVector{Int}=Int[],
                     weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
                     use_maf::Bool=false, debias::Bool=false, verbose::Bool=true, 
                     parallel::Bool=false) where {T <: Float}
@@ -258,7 +274,11 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
 
     # allocate train model and test models
     x_train = x[train_idx, :]
+    z_train = z[train_idx, :]
+    y_train = y[train_idx]
     x_test = x[test_idx, :]
+    z_test = z[test_idx, :]
+    y_test = y[test_idx]
 
     # allocate group and weight vectors if supplied
     group_train = (group == Int[] ? Int[] : group[train_idx])
@@ -268,14 +288,18 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     mses = (parallel ? pmap : map)(path) do k
 
         #run IHT on training model with given k
-        result = L0_reg(x_train, z[train_idx, :], y[train_idx], 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+        if est_r == :None
+            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+        else
+            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, est_r, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+        end
 
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-        A_mul_B!(xb, zc, x_test, z[test_idx, :], result.beta, result.c) 
+        A_mul_B!(xb, zc, x_test, z_test, result.beta, result.c) 
         update_μ!(μ, xb .+ zc, l)
 
         # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-        return deviance(d, y[test_idx], μ)
+        return deviance(d, y_test, μ)
     end
 
     return mses
@@ -290,7 +314,7 @@ be removed upon completion.
 """
 function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
     y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, l::Link, 
-    path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
+    path::DenseVector{Int}, fold::Int64, est_r::Symbol; group::AbstractVector{Int}=Int[], 
     weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
     use_maf::Bool =false, max_iter::Int = 100, max_step::Int = 3, 
     debias::Bool = false, verbose::Bool = false) where {T <: Float}
@@ -314,7 +338,11 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
     try 
         for i in 1:length(path)
             k = path[i]
-            result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            if est_r == :None
+                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            else
+                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            end
             betas[:, i] .= result.beta
             cs[:, i] .= result.c
         end
@@ -331,7 +359,7 @@ end
 
 function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractMatrix{T},
     y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, l::Link, 
-    path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
+    path::DenseVector{Int}, fold::Int64, est_r::Symbol; group::AbstractVector{Int}=Int[], 
     weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
     use_maf::Bool =false, max_iter::Int = 100, max_step::Int = 3, 
     debias::Bool = false, verbose::Bool = false) where {T <: Float}
@@ -350,7 +378,11 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractMatri
     # fit training model on various sparsity levels
     for i in 1:length(path)
         k = path[i]
-        result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+        if est_r == :None
+            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+        else
+            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+        end    
         betas[:, i] .= result.beta
         cs[:, i] .= result.c
     end
@@ -365,7 +397,7 @@ set on each fold with different sparsity parameter.
 """
 function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::AbstractMatrix{T},
     x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, 
-    l::Link, path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
+    l::Link, path::DenseVector{Int}, fold::Int64, est_r::Symbol; group::AbstractVector{Int}=Int[], 
     weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, use_maf::Bool = false, 
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false, verbose::Bool = false
     ) where {T <: Float}
@@ -411,7 +443,7 @@ end
 
 function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::AbstractMatrix{T},
     x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, 
-    l::Link, path::DenseVector{Int}, fold::Int64; group::AbstractVector{Int}=Int[], 
+    l::Link, path::DenseVector{Int}, fold::Int64, est_r::Symbol; group::AbstractVector{Int}=Int[], 
     weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, use_maf::Bool = false, 
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false, verbose::Bool = false
     ) where {T <: Float}
