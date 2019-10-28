@@ -21,7 +21,7 @@ One needs to construct a SnpBitMatrix type (`xbm`) before running this function.
 + `weight` vector storing vector of weights containing prior knowledge on each SNP
 + `use_maf` indicates whether we want to scale the projection with minor allele frequencies (see paper)
 + `debias` is boolean indicating whether we debias at each iteration (see paper)
-+ `show_info` boolean indicating whether we want to print results if model does not converge. Should set to false for multithread/multicore computing
++ `verbose` boolean indicating whether we want to print results if model does not converge. Should set to false for multithread/multicore computing
 + `init` boolean indicating whether we want to initialize β to sensible values through fitting. This is not efficient yet. 
 + `tol` is used to track convergence
 + `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
@@ -40,7 +40,7 @@ function L0_reg(
     weight    :: AbstractVector{T} = T[],
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
-    show_info :: Bool = true,          # print things when model didn't converge
+    verbose   :: Bool = true,          # print things when model didn't converge
     init      :: Bool = false,         # not efficient. whether to initialize β to sensible values
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
@@ -87,7 +87,7 @@ function L0_reg(
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            show_info && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
+            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
             break
         end
 
@@ -148,7 +148,7 @@ function L0_reg(
     weight    :: AbstractVector{T} = T[],
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
-    show_info :: Bool = true,            # print things when model didn't converge
+    verbose   :: Bool = true,            # print things when model didn't converge
     init      :: Bool = false,           # not efficient. initializes β to sensible values
     tol       :: T    = convert(T, 1e-4),# tolerance for tracking convergence
     max_iter  :: Int  = 100,             # maximum IHT iterations
@@ -195,7 +195,7 @@ function L0_reg(
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            show_info && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
+            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
             break
         end
 

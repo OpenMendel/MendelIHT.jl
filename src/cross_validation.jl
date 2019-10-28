@@ -158,15 +158,15 @@ function iht_run_many_models(
         if typeof(x) == SnpArray 
             xbm = SnpBitMatrix{T}(x, model=ADDITIVE_MODEL, center=true, scale=true);
             if est_r == :None
-                return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+                return L0_reg(x, xbm, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, verbose=false)
             else
-                return L0_reg(x, xbm, z, y, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+                return L0_reg(x, xbm, z, y, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, verbose=false)
             end
         else 
             if est_r == :None
-                return L0_reg(x, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+                return L0_reg(x, z, y, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, verbose=false)
             else
-                return L0_reg(x, z, y, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+                return L0_reg(x, z, y, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, verbose=false)
             end
         end
     end
@@ -230,9 +230,9 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
 
             #run IHT on training model with given k
             if est_r == :None
-                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, verbose=verbose)
             else
-                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, est_r, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, est_r, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, verbose=verbose)
             end
 
             # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
@@ -289,9 +289,9 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
 
         #run IHT on training model with given k
         if est_r == :None
-            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, verbose=verbose)
         else
-            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, est_r, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, show_info=verbose)
+            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, est_r, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, verbose=verbose)
         end
 
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
@@ -339,9 +339,9 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
         for i in 1:length(path)
             k = path[i]
             if est_r == :None
-                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, verbose=false)
             else
-                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+                result = L0_reg(x_train, x_trainbm, z_train, y_train, 1, k, d, l, est_r, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, verbose=false)
             end
             betas[:, i] .= result.beta
             cs[:, i] .= result.c
@@ -379,9 +379,9 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractMatri
     for i in 1:length(path)
         k = path[i]
         if est_r == :None
-            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, verbose=false)
         else
-            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, show_info=false)
+            result = L0_reg(x_train, z_train, y_train, 1, k, d, l, group=group, weight=weight, init=init, use_maf=use_maf, debias=debias, verbose=false)
         end    
         betas[:, i] .= result.beta
         cs[:, i] .= result.c
