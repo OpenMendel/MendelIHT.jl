@@ -25,7 +25,7 @@
 	folds = rand(1:num_folds, size(x, 1))
 
 	# cross validation routine that distributes `path` (with debias) 
-	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=false, debias=true, parallel=true)
+	@time distribute_path_debias = cv_iht(d(), l, x, z, y, 1, path, num_folds, folds=folds, verbose=true, debias=true, parallel=true)
 	@test argmin(distribute_path_debias) == 11
 	@test all(distribute_path_debias ≈ [1927.0765190526674;1443.8787350418297;1080.0413162424918;
 		898.2611345915562;700.2502074095313;507.3948750413776;391.9679112461845;
@@ -497,7 +497,7 @@ end
 
 	#specify path and run a ton of models 
 	path = collect(1:20)
-	@time result = iht_run_many_models(d(), l, x, z, y, 1, path, verbose=false, parallel=true)
+	@time result = iht_run_many_models(d(), l, x, z, y, 1, path, verbose=true, parallel=true)
 
 	@test result[1] ≈ -2272.788840069668
 	@test result[2] ≈ -2144.4519706525098

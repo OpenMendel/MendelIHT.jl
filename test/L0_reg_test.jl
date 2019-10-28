@@ -23,6 +23,7 @@ using GLM
 
 	#run result
 	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	show(result)
 
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [2384;3352;3353;4093;5413;5609;7403;8753;9089;9132]
