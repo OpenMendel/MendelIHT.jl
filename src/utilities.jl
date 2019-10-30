@@ -418,9 +418,9 @@ end
     project_group_sparse!(y::AbstractVector, group::AbstractVector, J::Integer, k<:Real)
 
 When `k` is an integer, projects the vector `y` onto the set with at most `J` active groups 
-and at most `k` active predictors per group. When 0 < k < 1, `k` is treated as a percentage
-and top groups will preserve `k` percent of top predictors. Assumes there are no unknown or 
-overlaping group membership.
+and at most `k` active predictors per group. To have variable group sparsity level, input `k`
+as a vector of integers. We will preserve `k[1]` elements for group 1, `k[2]` predictors for 
+group 2...etc. This function assumes there are no unknown or overlaping group membership.
 
 Note: In the `group` vector, the first group must be 1, and the second group must be 2...etc. 
 
@@ -450,7 +450,7 @@ end
 - `y`: The vector to project
 - `group`: Vector encoding group membership
 - `J`: Max number of non-zero group
-- `k`: Positive integer or number ∈ (0, 1). 
+- `k`: Maximum predictors per group. Can be a positive integer or a vector of integers. 
 """
 function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64},
     J::Int64, k::Int64) where {T <: Float}
@@ -487,29 +487,18 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
 end
 
 function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64},
-    J::Int64, k::Float64) where {T <: Float}
-    
-    @assert 0 < k < 1 "k must be a percentage or a positive integer, but was $k"
-
+    J::Int64, k::Vector{Int}) where {T <: Float}
     groups = maximum(group)          # number of groups
     group_count = zeros(Int, groups) # counts number of predictors in each group
     group_norm = zeros(groups)       # l2 norm of each group
     perm = zeros(Int64, length(y))   # vector holding the permuation vector after sorting
     sortperm!(perm, y, by = abs, rev = true)
 
-    # compute max predictors per group
-    unique_groups = unique(group)
-    sort!(unique_groups)
-    group_max_size = zeros(Int, length(unique_groups))
-    for i in unique_groups
-        group_max_size[i] = ceil(k * count(x -> x == unique_groups[i], group))
-    end
-
     #calculate the magnitude of each group, where only top predictors contribute
     for i in eachindex(y)
         j = perm[i]
         n = group[j]
-        if group_count[n] < group_max_size[n]
+        if group_count[n] < k[n]
             group_norm[n] = group_norm[n] + y[j]^2
             group_count[n] = group_count[n] + 1
         end
@@ -523,7 +512,7 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
     for i in eachindex(y)
         j = perm[i]
         n = group[j]
-        if (group_rank[n] > J) || (group_count[n] > group_max_size[n])
+        if (group_rank[n] > J) || (group_count[n] > k[n])
             y[j] = 0.0
         else
             group_count[n] = group_count[n] + 1

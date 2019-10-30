@@ -275,26 +275,13 @@ end
     @test all(non_zero_entries .≈ [0.44267476307372516; -1.4199877945915547;
     								  -0.8857806660404711; -0.06177816577797742;])
 
-    # 2 active groups, 50% of active predictor per group, same group size, 9 total predictors
-    Random.seed!(2019)
-    J, k, n = 2, 0.5, 9
-    y = 5rand(n)
-    y_copy = copy(y)
-    group = repeat(1:3, inner=3)
-    project_group_sparse!(y, group, J, k)
-    non_zero_position = findall(!iszero, y)
-    non_zero_entries = y[non_zero_position]
-    @test all(non_zero_entries .== y_copy[non_zero_position])
-    @test all(non_zero_position .== [2; 3; 7; 9])
-    @test all(non_zero_entries .≈ [ 4.0893560514824445; 4.766162817671895; 
-                                    2.383191074361889; 4.688869864064461])
-
     # 2 active groups, 50% of active predictor per group, variable group size, 9 total predictors
     Random.seed!(1111)
-    J, k, n = 2, 0.5, 15
+    J, n = 2, 15
+    k = [1, 1, 2, 2, 3]
     y = 5rand(n)
     y_copy = copy(y)
-    group = [1; 2; 2; 3; 3; 3; 4; 4; 4; 4; 5; 5; 5; 5; 5] #max predictor per group = [1, 1, 2, 2, 3]
+    group = [1; 2; 2; 3; 3; 3; 4; 4; 4; 4; 5; 5; 5; 5; 5] 
     project_group_sparse!(y, group, J, k)
     non_zero_position = findall(!iszero, y)
     non_zero_entries = y[non_zero_position]
