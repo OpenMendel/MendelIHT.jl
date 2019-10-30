@@ -422,7 +422,7 @@ and at most `k` active predictors per group. When 0 < k < 1, `k` is treated as a
 and top groups will preserve `k` percent of top predictors. Assumes there are no unknown or 
 overlaping group membership.
 
-Note: In the `group` vector, the first group must be 1, and the second group must be 2 ...etc. 
+Note: In the `group` vector, the first group must be 1, and the second group must be 2...etc. 
 
 # Examples
 ```julia-repl
@@ -504,7 +504,6 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
     for i in unique_groups
         group_max_size[i] = ceil(k * count(x -> x == unique_groups[i], group))
     end
-    @show group_max_size
 
     #calculate the magnitude of each group, where only top predictors contribute
     for i in eachindex(y)

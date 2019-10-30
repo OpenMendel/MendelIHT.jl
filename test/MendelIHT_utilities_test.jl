@@ -1,7 +1,7 @@
 function test_data()
-	x = simulate_random_snparray(1000, 1000, undef)
-	z = ones(1000, 1)
-	y = rand(1000)
+    x = simulate_random_snparray(1000, 1000, undef)
+    z = ones(1000, 1)
+    y = rand(1000)
     v = IHTVariables(x, z, y, 1, 10, Int[], Float64[]) #J = 1, k = 10
 
 	return (x, z, y, v)
@@ -17,7 +17,7 @@ function test_correlated_data()
 end
 
 @testset "loglikelihood" begin
-	Random.seed!(2019)
+    Random.seed!(2019)
 
     d = Normal()
     μ = rand(1000000)
@@ -46,15 +46,15 @@ end
 end
 
 @testset "deviance" begin
-	# Need more test other than normal distribution!!
-	d = Normal
-	y = randn(1000)
-	μ = randn(1000)
+    # Need more test other than normal distribution!!
+    d = Normal
+    y = randn(1000)
+    μ = randn(1000)
     @test sum(abs2, y .- μ) ≈ MendelIHT.deviance(d(), y, μ)
 end
 
 @testset "update_μ!" begin
-	Random.seed!(2019)
+    Random.seed!(2019)
 
     d = Normal
     μ = zeros(1000)
@@ -87,16 +87,16 @@ end
 
 @testset "update_xb! and check_covariate_supp!" begin
    	Random.seed!(1111)
-	x, z, y, v = test_data()
+    x, z, y, v = test_data()
     v.idx[1:10] .= trues(10)
     v.b .= rand(1000)
-	tmp_x = convert(Matrix{Float64}, @view(x[:, v.idx]), center=true, scale=true)
+    tmp_x = convert(Matrix{Float64}, @view(x[:, v.idx]), center=true, scale=true)
 
     @test size(v.xk, 2) == 9 #IHTVariable is initialized to have k - 1 columns
 
-	MendelIHT.check_covariate_supp!(v)
+    MendelIHT.check_covariate_supp!(v)
 
-	@test size(v.xk, 2) == 10 
+    @test size(v.xk, 2) == 10 
 
     MendelIHT.update_xb!(v, x, z)
 
@@ -108,107 +108,107 @@ end
 @testset "score!" begin
     # Not sure how to "really" test this function, so I'm throwing in a lot of input/outputs
     # as they are calculated right now, because the code seems to work well
-   	
-   	Random.seed!(1993)
+
+    Random.seed!(1993)
     d = Normal()
     l = IdentityLink()
-   	(x, z, y, v) = test_data()
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	score!(d, l, v, xbm, z, y)
+    (x, z, y, v) = test_data()
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    score!(d, l, v, xbm, z, y)
 
-	@test all(v.df[1:3] .≈ [8.057330896198419; -2.229495636684423; 9.948528223937274])
-	@test v.df2[1] ≈ 500.8665816573597
+    @test all(v.df[1:3] .≈ [8.057330896198419; -2.229495636684423; 9.948528223937274])
+    @test v.df2[1] ≈ 500.8665816573597
 
-   	(x, z, y, v) = test_data()
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	score!(d, l, v, xbm, z, y)
+    (x, z, y, v) = test_data()
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    score!(d, l, v, xbm, z, y)
 
-	@test all(v.df[1:3] .≈ [-12.569757729532215; 8.237144382138629; 9.625154193038197])
-	@test v.df2[1] ≈ 503.8433996263735
+    @test all(v.df[1:3] .≈ [-12.569757729532215; 8.237144382138629; 9.625154193038197])
+    @test v.df2[1] ≈ 503.8433996263735
 
-   	(x, z, y, v) = test_data()
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	score!(d, l, v, xbm, z, y)
+    (x, z, y, v) = test_data()
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    score!(d, l, v, xbm, z, y)
 
-	@test all(v.df[1:3] .≈ [-2.2634046444623226; -5.266454260596382; -1.5449038662162529])
-	@test v.df2[1] ≈ 507.55935638764254
+    @test all(v.df[1:3] .≈ [-2.2634046444623226; -5.266454260596382; -1.5449038662162529])
+    @test v.df2[1] ≈ 507.55935638764254
 end
 
 @testset "_iht_gradstep" begin
-   	Random.seed!(1111)
+    Random.seed!(1111)
 
-	x, z, y, v = test_data()
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+    x, z, y, v = test_data()
+    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 
-	v.b[1:3] .= [1; 2; 3]
-	v.df[1:3] .= [1; 2; 3]
-	b = copy(v.b)
-	df = copy(v.df)
-	J = 1
-	k = 2
-	η = 0.9
+    v.b[1:3] .= [1; 2; 3]
+    v.df[1:3] .= [1; 2; 3]
+    b = copy(v.b)
+    df = copy(v.df)
+    J = 1
+    k = 2
+    η = 0.9
 
-	MendelIHT._iht_gradstep(v, η, J, k, [v.df; v.df2]) # this should keep 1 * 2 = 2 elements
+    MendelIHT._iht_gradstep(v, η, J, k, [v.df; v.df2]) # this should keep 1 * 2 = 2 elements
 
-	@test v.b[1] ≈ 0.0 # because first entry is smallest, it should be set to 0
-	@test v.b[2] ≈ (b + η*df)[2]
-	@test v.b[3] ≈ (b + η*df)[3]
-	@test all(v.b[4:end] .≈ 0.0)
-	@test all(v.c .≈ 0.0)
-	@test all(v.df .≈ df)
+    @test v.b[1] ≈ 0.0 # because first entry is smallest, it should be set to 0
+    @test v.b[2] ≈ (b + η*df)[2]
+    @test v.b[3] ≈ (b + η*df)[3]
+    @test all(v.b[4:end] .≈ 0.0)
+    @test all(v.c .≈ 0.0)
+    @test all(v.df .≈ df)
 end
 
 @testset "_choose!" begin
-	J = 1
-	k = 10
+    J = 1
+    k = 10
 
-   	Random.seed!(1111)
-	x, z, y, v = test_data()
-	v.idx[1:10] .= trues(10)
-	MendelIHT._choose!(v, J, k)
+    	Random.seed!(1111)
+    x, z, y, v = test_data()
+    v.idx[1:10] .= trues(10)
+    MendelIHT._choose!(v, J, k)
 
-	@test all(v.idx[1:10] .== trues(10))
-	@test v.idc[1] == false
+    @test all(v.idx[1:10] .== trues(10))
+    @test v.idc[1] == false
 
-	v.idx[1:11] .= trues(11)
-	MendelIHT._choose!(v, J, k)
+    v.idx[1:11] .= trues(11)
+    MendelIHT._choose!(v, J, k)
 
-	@test sum(v.idx[1:11]) == 10
+    @test sum(v.idx[1:11]) == 10
 
-	x, z, y, v = test_data()
-	v.idc .= true
-	MendelIHT._choose!(v, J, 1)
+    x, z, y, v = test_data()
+    v.idc .= true
+    MendelIHT._choose!(v, J, 1)
 
-	@test v.idc[1] == true
-	@test sum(v.idc) == 1
-	@test sum(v.idx) == 0
+    @test v.idc[1] == true
+    @test sum(v.idc) == 1
+    @test sum(v.idx) == 0
 
-	x, z, y, v = test_data()
-	v.idc .= true
-	v.idx[1:10] .= trues(10)
-	MendelIHT._choose!(v, J, k)
+    x, z, y, v = test_data()
+    v.idc .= true
+    v.idx[1:10] .= trues(10)
+    MendelIHT._choose!(v, J, k)
 
-	@test sum(v.idx) + sum(v.idc) == 10
+    @test sum(v.idx) + sum(v.idc) == 10
 end
 
 @testset "_iht_backtrack" begin
-	@test MendelIHT._iht_backtrack_(-150.0, -100.0, 1, 10) == true
-	@test MendelIHT._iht_backtrack_(-50.0, -100.0, 1, 10) == false
-	@test MendelIHT._iht_backtrack_(150.0, 100.0, 1, 10) == false
-	@test MendelIHT._iht_backtrack_(50.0, 100.0, 1, 10) == true
-	@test MendelIHT._iht_backtrack_(50.0, 100.0, 0, 3) == true
-	@test MendelIHT._iht_backtrack_(50.0, 100.0, 11, 10) == false
-	@test MendelIHT._iht_backtrack_(50.0, 100.0, 11, 11) == false
+    @test MendelIHT._iht_backtrack_(-150.0, -100.0, 1, 10) == true
+    @test MendelIHT._iht_backtrack_(-50.0, -100.0, 1, 10) == false
+    @test MendelIHT._iht_backtrack_(150.0, 100.0, 1, 10) == false
+    @test MendelIHT._iht_backtrack_(50.0, 100.0, 1, 10) == true
+    @test MendelIHT._iht_backtrack_(50.0, 100.0, 0, 3) == true
+    @test MendelIHT._iht_backtrack_(50.0, 100.0, 11, 10) == false
+    @test MendelIHT._iht_backtrack_(50.0, 100.0, 11, 11) == false
 end
 
 @testset "std_reciprocal" begin
 	Random.seed!(2019)
 
-	# first compute the correct answer by converting each column to floats and call std() directly
-	n, p = 10000, 10000
-	x = simulate_random_snparray(n, p, undef)
-	storage = zeros(n)
-	answer  = zeros(p)
+    # first compute the correct answer by converting each column to floats and call std() directly
+    n, p = 10000, 10000
+    x = simulate_random_snparray(n, p, undef)
+    storage = zeros(n)
+    answer  = zeros(p)
     for i in 1:p
     	copyto!(storage, @view(x[:, i]))
         answer[i] = std(storage)
@@ -251,37 +251,67 @@ end
     k = 100
     p = sortperm(x, rev = true)
     top_k_index = p[1:k]
-	last_k_index = p[k+1:end]
-	project_k!(x, k)
+    last_k_index = p[k+1:end]
+    project_k!(x, k)
 
-	@test all(x[top_k_index] .!= 0.0)
-	@test all(x[last_k_index] .== 0.0)
-end
+    @test all(x[top_k_index] .!= 0.0)
+    @test all(x[last_k_index] .== 0.0)
+    end
 
 @testset "project_group_sparse!" begin
 	Random.seed!(1914) 
 
-    m, n, k = 2, 3, 10 #2 active groups, 3 active predictors per group, 10 total predictors
-	y = randn(k);
-	group = rand(1:5, k);
-	x = copy(y)
-	project_group_sparse!(x, group, m, n)
+    #2 active groups, 3 active predictors per group, 10 total predictors
+    m, n, k = 2, 3, 10 
+    y = randn(k);
+    group = rand(1:5, k);
+    x = copy(y)
+    project_group_sparse!(x, group, m, n)
 
-	non_zero_position = findall(!iszero, x)
-	non_zero_entries = x[non_zero_position]
-	@test all(non_zero_entries .== y[non_zero_position])
-	@test all(non_zero_position .== [2; 6; 8; 10])
-	@test all(non_zero_entries .≈ [0.44267476307372516; -1.4199877945915547;
- 								  -0.8857806660404711; -0.06177816577797742;])
+    non_zero_position = findall(!iszero, x)
+    non_zero_entries = x[non_zero_position]
+    @test all(non_zero_entries .== y[non_zero_position])
+    @test all(non_zero_position .== [2; 6; 8; 10])
+    @test all(non_zero_entries .≈ [0.44267476307372516; -1.4199877945915547;
+    								  -0.8857806660404711; -0.06177816577797742;])
+
+    # 2 active groups, 50% of active predictor per group, same group size, 9 total predictors
+    Random.seed!(2019)
+    J, k, n = 2, 0.5, 9
+    y = 5rand(n)
+    y_copy = copy(y)
+    group = repeat(1:3, inner=3)
+    project_group_sparse!(y, group, J, k)
+    non_zero_position = findall(!iszero, y)
+    non_zero_entries = y[non_zero_position]
+    @test all(non_zero_entries .== y_copy[non_zero_position])
+    @test all(non_zero_position .== [2; 3; 7; 9])
+    @test all(non_zero_entries .≈ [ 4.0893560514824445; 4.766162817671895; 
+                                    2.383191074361889; 4.688869864064461])
+
+    # 2 active groups, 50% of active predictor per group, variable group size, 9 total predictors
+    Random.seed!(1111)
+    J, k, n = 2, 0.5, 15
+    y = 5rand(n)
+    y_copy = copy(y)
+    group = [1; 2; 2; 3; 3; 3; 4; 4; 4; 4; 5; 5; 5; 5; 5] #max predictor per group = [1, 1, 2, 2, 3]
+    project_group_sparse!(y, group, J, k)
+    non_zero_position = findall(!iszero, y)
+    non_zero_entries = y[non_zero_position]
+    @test all(non_zero_entries .== y_copy[non_zero_position])
+    @test all(non_zero_position .== [4; 6; 8; 10])
+    @test all(non_zero_entries .≈ [ 4.7474872008077575;3.5553749571315474;
+                                    3.2628432369515714;2.9128084220416506])
 
 	# test project_group_sparse! is equivalent to project_k! when max group = 1
-	m, n, k = 1, 10, 100000
-	group = ones(Int, k) #everybody is in the same group
-	y = randn(k)
-	x = copy(y)
-	project_k!(x, n)
-	project_group_sparse!(y, group, m, n)
-	@test all(x .== y)
+    Random.seed!(1323)
+    m, n, k = 1, 10, 100000
+    group = ones(Int, k) #everybody is in the same group
+    y = randn(k)
+    x = copy(y)
+    project_k!(x, n)
+    project_group_sparse!(y, group, m, n)
+    @test all(x .== y)
 end
 
 @testset "maf_weights" begin
@@ -302,25 +332,25 @@ end
 end
 
 @testset "save_prev!" begin
-   	Random.seed!(1111)
-	x, z, y, v = test_data()
+    Random.seed!(1111)
+    x, z, y, v = test_data()
 
-	v.b .= rand(1000)
-	v.xb .= rand(1000)
-	v.idx .= bitrand(1000)
-	v.idc .= true
-	v.c .= rand()
-	v.zc .= rand(1000)
+    v.b .= rand(1000)
+    v.xb .= rand(1000)
+    v.idx .= bitrand(1000)
+    v.idc .= true
+    v.c .= rand()
+    v.zc .= rand(1000)
 
-	save_prev!(v)
+    save_prev!(v)
 
-	@test all(v.b .== v.b0)
-	@test all(v.xb .== v.xb0)
-	@test all(v.idx .== v.idx0)
-	@test all(v.idc .== v.idc0)
-	@test all(v.c .== v.c0)
-	@test all(v.zc .== v.zc0)
-end
+    @test all(v.b .== v.b0)
+    @test all(v.xb .== v.xb0)
+    @test all(v.idx .== v.idx0)
+    @test all(v.idc .== v.idc0)
+    @test all(v.c .== v.c0)
+    @test all(v.zc .== v.zc0)
+    end
 
 @testset "iht_stepsize" begin
     # Not sure how to "really" test this function, so I'm throwing in a lot of input/outputs
