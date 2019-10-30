@@ -343,12 +343,12 @@ function std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T}) where {T <: Float}
 end
 
 """
-    standardize!(z::Matrix{Float64})
+    standardize!(z::Matrix)
 
 Standardizes each column of `z` to mean 0 and variance 1. Make sure you 
 do not standardize the intercept. 
 """
-@inline function standardize!(z::AbstractMatrix{Float64})
+@inline function standardize!(z::AbstractMatrix)
     n, q = size(z)
     μ = _mean(z)
     σ = _std(z, μ)
@@ -360,7 +360,7 @@ do not standardize the intercept.
     end
 end
 
-@inline function _mean(z::AbstractMatrix{Float64})
+@inline function _mean(z::AbstractMatrix)
     n, q = size(z)
     μ = zeros(q)
     @inbounds for j in 1:q
@@ -373,7 +373,7 @@ end
     return μ
 end
 
-function _std(z::AbstractMatrix{Float64}, μ::Vector{Float64})
+function _std(z::AbstractMatrix, μ::Vector)
     n, q = size(z)
     σ = zeros(q)
 

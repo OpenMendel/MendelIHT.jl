@@ -1,6 +1,6 @@
 # MendelIHT
 
-*A modern approach to analyze data from a Genome Wide Association Studies (GWAS)*
+**Iterative hard thresholding -** *a multiple regression approach to analyze data from a Genome Wide Association Studies (GWAS)*
 
 | **Documentation** | **Build Status** | **Code Coverage**  |
 |-------------------|------------------|--------------------|
