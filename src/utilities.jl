@@ -415,16 +415,28 @@ function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
 end
 
 """ 
-    project_group_sparse!(y::AbstractVector, group::AbstractVector, J::Integer, k::Integer)
+    project_group_sparse!(y::AbstractVector, group::AbstractVector, J::Integer, k<:Real)
 
-Projects the vector y onto the set with at most J active groups and at most
-k active predictors per group. Currently assumes there are no unknown or overlaping 
-group membership.
+When `k` is an integer, projects the vector `y` onto the set with at most `J` active groups 
+and at most `k` active predictors per group. When 0 < k < 1, `k` is treated as a percentage
+and top groups will preserve `k` percent of top predictors. Assumes there are no unknown or 
+overlaping group membership.
+
+Note: In the `group` vector, the first group must be 1, and the second group must be 2 ...etc. 
 
 # Examples
 ```julia-repl
 using MendelIHT
 J, k, n = 2, 3, 20
+y = collect(1.0:20.0)
+y_copy = copy(y)
+group = rand(1:5, n)
+project_group_sparse!(y, group, J, k)
+for i = 1:length(y)
+    println(i,"  ",group[i],"  ",y[i],"  ",y_copy[i])
+end
+
+J, k, n = 2, 0.9, 20
 y = collect(1.0:20.0)
 y_copy = copy(y)
 group = rand(1:5, n)
@@ -438,7 +450,7 @@ end
 - `y`: The vector to project
 - `group`: Vector encoding group membership
 - `J`: Max number of non-zero group
-- `k`: Max number of non-zero predictor per group`
+- `k`: Positive integer or number ∈ (0, 1). 
 """
 function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64},
     J::Int64, k::Int64) where {T <: Float}
@@ -467,6 +479,52 @@ function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64
         j = perm[i]
         n = group[j]
         if (group_rank[n] > J) || (group_count[n] > k)
+            y[j] = 0.0
+        else
+            group_count[n] = group_count[n] + 1
+        end
+    end
+end
+
+function project_group_sparse!(y::AbstractVector{T}, group::AbstractVector{Int64},
+    J::Int64, k::Float64) where {T <: Float}
+    
+    @assert 0 < k < 1 "k must be a percentage or a positive integer, but was $k"
+
+    groups = maximum(group)          # number of groups
+    group_count = zeros(Int, groups) # counts number of predictors in each group
+    group_norm = zeros(groups)       # l2 norm of each group
+    perm = zeros(Int64, length(y))   # vector holding the permuation vector after sorting
+    sortperm!(perm, y, by = abs, rev = true)
+
+    # compute max predictors per group
+    unique_groups = unique(group)
+    sort!(unique_groups)
+    group_max_size = zeros(Int, length(unique_groups))
+    for i in unique_groups
+        group_max_size[i] = ceil(k * count(x -> x == unique_groups[i], group))
+    end
+    @show group_max_size
+
+    #calculate the magnitude of each group, where only top predictors contribute
+    for i in eachindex(y)
+        j = perm[i]
+        n = group[j]
+        if group_count[n] < group_max_size[n]
+            group_norm[n] = group_norm[n] + y[j]^2
+            group_count[n] = group_count[n] + 1
+        end
+    end
+
+    #go through the top predictors in order. Set predictor to 0 if criteria not met
+    group_rank = zeros(Int64, length(group_norm))
+    sortperm!(group_rank, group_norm, rev = true)
+    group_rank = invperm(group_rank)
+    fill!(group_count, 1)
+    for i in eachindex(y)
+        j = perm[i]
+        n = group[j]
+        if (group_rank[n] > J) || (group_count[n] > group_max_size[n])
             y[j] = 0.0
         else
             group_count[n] = group_count[n] + 1

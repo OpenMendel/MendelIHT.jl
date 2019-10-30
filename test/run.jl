@@ -741,4 +741,31 @@ rm("tmp.bed", force=true)
 
 
 
+using Revise
+using MendelIHT
+using Random
+
+J, k, n = 2, 0.9, 20
+y = ones(n)
+y[5] = 3
+y_copy = copy(y)
+group = repeat(1:5, inner=4)
+project_group_sparse!(y, group, J, k)
+for i = 1:length(y)
+    println(i,"  ",group[i],"  ",y[i],"  ",y_copy[i])
+end
+
+
+Random.seed!(2019)
+J, k, n = 2, 0.5, 9
+y = 5rand(n)
+y_copy = copy(y)
+group = repeat(1:3, inner=3)
+project_group_sparse!(y, group, J, k)
+for i = 1:length(y)
+    println(i,"  ",group[i],"  ",y[i],"  ",y_copy[i])
+end
+
+
+
 
