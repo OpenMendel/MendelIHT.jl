@@ -27,7 +27,8 @@ mutable struct IHTVariable{T <: Float}
 end
 
 function IHTVariables(x::Union{SnpArray, AbstractMatrix}, z::AbstractMatrix{T}, y::AbstractVector{T}, 
-            J::Int, k::Int, group::AbstractVector{Int}, weight::AbstractVector{T}) where {T <: Float}
+            J::Int, k::Union{Int, Vector{Int}}, group::AbstractVector{Int}, weight::AbstractVector{T}
+            ) where {T <: Float}
 
     n = size(x, 1)
     p = size(x, 2)
@@ -49,12 +50,18 @@ function IHTVariables(x::Union{SnpArray, AbstractMatrix}, z::AbstractMatrix{T}, 
         throw(DimensionMismatch("weight must have length " * string(p + q) * " but was $lw"))
     end
 
+    if typeof(k) == Int64
+        columns = k
+    else
+        columns = sum(k)
+    end
+
     b      = zeros(T, p)
     b0     = zeros(T, p)
     xb     = zeros(T, n)
     xb0    = zeros(T, n)
-    xk     = zeros(T, n, J * k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    gk     = zeros(T, J * k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
+    xk     = zeros(T, n, J * columns - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    gk     = zeros(T, J * columns - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
     xgk    = zeros(T, n)
     idx    = falses(p)
     idx0   = falses(p)
@@ -84,7 +91,7 @@ struct ggIHTResults{T <: Float}
     beta  :: Vector{T}
     c     :: Vector{T}
     J     :: Int64
-    k     :: Int64
+    k     :: Union{Int64, Vector{Int}}
     group :: Vector{Int64}
     d     :: UnivariateDistribution
     # ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
@@ -102,8 +109,6 @@ function Base.show(io::IO, x::ggIHTResults)
     println(io, "\nCompute time (sec):     ", x.time)
     println(io, "Final loglikelihood:    ", x.logl)
     println(io, "Iterations:             ", x.iter)
-    println(io, "Max number of groups:   ", x.J)
-    println(io, "Max predictors/group:   ", x.k)
     println(io, "\nSelected genetic predictors:")
     print(io, DataFrame(Position=snp_position, Estimated_β=x.beta[snp_position]))
     println(io, "\n\nSelected nongenetic predictors:")

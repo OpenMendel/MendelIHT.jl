@@ -2,7 +2,9 @@
     L0_reg(x, xbm, z, y, J, k, d, l)
 
 Runs Iterative Hard Thresholding for GWAS data `x`, response `y`, and non-genetic
-covariates `z` on a specific sparsity parameter `k`. 
+covariates `z` on a specific sparsity parameter `k`. If `k` is a constant, then 
+each group will have the same sparsity level. To run doubly sparse IHT, construct 
+`k` to be a vector where `k[i]` indicates the max number of predictors for group `i`. 
 
 One needs to construct a SnpBitMatrix type (`xbm`) before running this function.
 
@@ -12,7 +14,7 @@ One needs to construct a SnpBitMatrix type (`xbm`) before running this function.
 + `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
 + `y`: Response vector
 + `J`: The number of maximum groups (set as 1 if no group infomation available)
-+ `k`: Number of non-zero predictors in each group
++ `k`: Number of non-zero predictors in each group. Can be a constant or a vector. 
 + `d`: A distribution (e.g. Normal, Poisson)
 + `l`: A link function (e.g. Loglink, ProbitLink)
 
@@ -33,7 +35,7 @@ function L0_reg(
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
     J         :: Int,
-    k         :: Int,
+    k         :: Union{Int, Vector{Int}},
     d         :: UnivariateDistribution,
     l         :: Link;
     group     :: AbstractVector{Int} = Int[],
@@ -52,11 +54,11 @@ function L0_reg(
 
     # first handle errors
     @assert J >= 0        "Value of J (max number of groups) must be nonnegative!\n"
-    @assert k >= 0        "Value of k (max predictors per group) must be nonnegative!\n"
     @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     checky(y, d) # make sure response data y is in the form compatible with specified GLM
+    check_group(k, group) # make sure sparsity parameter `k` is reasonable. 
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
@@ -70,7 +72,7 @@ function L0_reg(
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k, group, weight)             # Placeholder variable for cleaner code
     full_grad = zeros(T, size(x, 2) + size(z, 2))              # Preallocated vector for efficiency
-    init_iht_indices!(v, xbm, z, y, d, l, J, k)                # initialize non-zero indices
+    init_iht_indices!(v, xbm, z, y, d, l, J, k, group)         # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x for first iteration
     debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
 
@@ -87,7 +89,7 @@ function L0_reg(
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
+            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds\n", color=:red)
             break
         end
 
@@ -129,7 +131,7 @@ IHT algorithm that works on general matrices.
 + `z`: Other covariates. The column of intercept should go here.
 + `y`: Response vector
 + `J`: The number of maximum groups (set as 1 if no group infomation available)
-+ `k`: Number of non-zero predictors in each group
++ `k`: Number of non-zero predictors in each group. Can be an integer or a vector. 
 + `d`: A distribution (e.g. Normal, Poisson)
 + `l`: A link function (e.g. Loglink, ProbitLink)
 
@@ -141,7 +143,7 @@ function L0_reg(
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
     J         :: Int,
-    k         :: Int,
+    k         :: Union{Int, Vector{Int}},
     d         :: UnivariateDistribution,
     l         :: Link;
     group     :: AbstractVector{Int} = Int[],
@@ -160,11 +162,11 @@ function L0_reg(
 
     # first handle errors
     @assert J >= 0        "Value of J (max number of groups) must be nonnegative!\n"
-    @assert k >= 0        "Value of k (max predictors per group) must be nonnegative!\n"
     @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     checky(y, d) # make sure response data y is in the form compatible with specified GLM
+    check_group(k, group) # make sure sparsity parameter `k` is reasonable. 
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
@@ -176,11 +178,11 @@ function L0_reg(
     converged   = false             # scaled_norm < tol?
 
     # Initialize variables. 
-    v = IHTVariables(x, z, y, J, k, group, weight) # Placeholder variable for cleaner code
-    full_grad = zeros(T, size(x, 2) + size(z, 2))  # Preallocated vector for efficiency
-    init_iht_indices!(v, x, z, y, d, l, J, k)      # initialize non-zero indices
-    copyto!(v.xk, @view(x[:, v.idx]))              # store relevant components of x for first iteration
-    debias && (temp_glm = initialize_glm_object()) # Preallocated GLM variable for debiasing
+    v = IHTVariables(x, z, y, J, k, group, weight)      # Placeholder variable for cleaner code
+    full_grad = zeros(T, size(x, 2) + size(z, 2))       # Preallocated vector for efficiency
+    init_iht_indices!(v, x, z, y, d, l, J, k, group)    # initialize non-zero indices
+    copyto!(v.xk, @view(x[:, v.idx]))                   # store relevant components of x for first iteration
+    debias && (temp_glm = initialize_glm_object())      # Preallocated GLM variable for debiasing
 
     # If requested, compute initial guess for model b
     if init
@@ -195,7 +197,7 @@ function L0_reg(
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
+            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds\n", color=:red)
             break
         end
 
@@ -233,8 +235,9 @@ While IHT can strictly increase loglikelihood, we still allow it to potentially 
 to avoid bad boundary cases.
 """
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
-    y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool) where {T <: Float}
+    y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link, 
+    old_logl::T, full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool
+    ) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d, l)
@@ -284,8 +287,9 @@ end #function iht_one_step
 Performs 1 iteration of the IHT algorithm given a general matrix of floating point numbers. 
 """
 function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix, 
-    y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool) where {T <: Float}
+    y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, 
+    l::Link, old_logl::T, full_grad::AbstractVector{T}, iter::Int, nstep::Int, 
+    use_maf::Bool) where {T <: Float}
 
     # first calculate step size 
     η = iht_stepsize(v, z, d, l)

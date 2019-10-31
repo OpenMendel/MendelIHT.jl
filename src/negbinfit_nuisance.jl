@@ -1,5 +1,7 @@
 """
-    Estimates the nuisance parameter in addition to estimating the mean using IHT. 
+    L0_reg(x, xbm, z, y, J, k, d, l, est_r)
+
+Estimates the nuisance parameter in addition to estimating the mean using IHT. 
 
 We alternate between estimating the mean using IHT and estimating the nuisance parameter
 using maximum loglikelihood. Currently, only negative binomial regression supports estimating 
@@ -14,7 +16,7 @@ function L0_reg(
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
     J         :: Int,
-    k         :: Int,
+    k         :: Union{Int, Vector{Int}},
     d         :: UnivariateDistribution,
     l         :: Link,
     est_r     :: Symbol;
@@ -34,11 +36,11 @@ function L0_reg(
 
     # first handle errors
     @assert J >= 0        "Value of J (max number of groups) must be nonnegative!\n"
-    @assert k >= 0        "Value of k (max predictors per group) must be nonnegative!\n"
     @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     checky(y, d) # make sure response data y is in the form compatible with specified GLM
+    check_group(k, group) # make sure sparsity parameter `k` is reasonable. 
     @assert typeof(d) <: NegativeBinomial "Only negative binomial regression currently supports nuisance parameter estimation"
 
     # initialize constants
@@ -53,7 +55,7 @@ function L0_reg(
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k, group, weight)             # Placeholder variable for cleaner code
     full_grad = zeros(T, size(x, 2) + size(z, 2))              # Preallocated vector for efficiency
-    init_iht_indices!(v, xbm, z, y, d, l, J, k)                # initialize non-zero indices
+    init_iht_indices!(v, xbm, z, y, d, l, J, k, group)         # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) # store relevant components of x for first iteration
     debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
 
@@ -70,7 +72,7 @@ function L0_reg(
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
+            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds\n", color=:red)
             break
         end
 
@@ -103,28 +105,24 @@ function L0_reg(
 end #function L0_reg
 
 """
-    L0_reg(x, z, y, J, k, d, l)
+    L0_reg(x, z, y, J, k, d, l, est_r)
 
-IHT algorithm that works on general matrices. 
+Estimates the nuisance parameter in addition to estimating the mean using IHT. `x` is a 
+matrix of Float32 or Float64.
 
-# Arguments 
-+ `x`: A general matrix. User should standardize it first. 
-+ `z`: Other covariates. The column of intercept should go here.
-+ `y`: Response vector
-+ `J`: The number of maximum groups (set as 1 if no group infomation available)
-+ `k`: Number of non-zero predictors in each group
-+ `d`: A distribution (e.g. Normal, Poisson)
-+ `l`: A link function (e.g. Loglink, ProbitLink)
+We alternate between estimating the mean using IHT and estimating the nuisance parameter
+using maximum loglikelihood. Currently, only negative binomial regression supports estimating 
+nuisance paramter, and the method of choice includes Newton or MM. This can be specified with
+`est_r = :MM` or `est_r = :Newton`.
 
-# Optional Arguments
-Optional arguments are the same as the `L0_reg` that works on SnpArrays.
+Note: Convergence criteria does not track the `r` paramter. 
 """
 function L0_reg(
     x         :: AbstractMatrix{T},
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
     J         :: Int,
-    k         :: Int,
+    k         :: Union{Int, Vector{Int}},
     d         :: UnivariateDistribution,
     l         :: Link,
     est_r     :: Symbol;
@@ -144,11 +142,11 @@ function L0_reg(
 
     # first handle errors
     @assert J >= 0        "Value of J (max number of groups) must be nonnegative!\n"
-    @assert k >= 0        "Value of k (max predictors per group) must be nonnegative!\n"
     @assert max_iter >= 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step >= 0 "Value of max_step must be nonnegative!\n"
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     checky(y, d) # make sure response data y is in the form compatible with specified GLM
+    check_group(k, group) # make sure sparsity parameter `k` is reasonable. 
     @assert typeof(d) <: NegativeBinomial "Only negative binomial regression currently supports nuisance parameter estimation"
 
     # initialize constants
@@ -161,11 +159,11 @@ function L0_reg(
     converged   = false             # scaled_norm < tol?
 
     # Initialize variables. 
-    v = IHTVariables(x, z, y, J, k, group, weight) # Placeholder variable for cleaner code
-    full_grad = zeros(T, size(x, 2) + size(z, 2))  # Preallocated vector for efficiency
-    init_iht_indices!(v, x, z, y, d, l, J, k)      # initialize non-zero indices
-    copyto!(v.xk, @view(x[:, v.idx]))              # store relevant components of x for first iteration
-    debias && (temp_glm = initialize_glm_object()) # Preallocated GLM variable for debiasing
+    v = IHTVariables(x, z, y, J, k, group, weight)     # Placeholder variable for cleaner code
+    full_grad = zeros(T, size(x, 2) + size(z, 2))      # Preallocated vector for efficiency
+    init_iht_indices!(v, x, z, y, d, l, J, k, group)   # initialize non-zero indices
+    copyto!(v.xk, @view(x[:, v.idx]))                  # store relevant components of x for first iteration
+    debias && (temp_glm = initialize_glm_object())     # Preallocated GLM variable for debiasing
 
     # If requested, compute initial guess for model b
     if init
@@ -180,7 +178,7 @@ function L0_reg(
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds and model size was" * string(k) * "\n", color=:red)
+            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds\n", color=:red)
             break
         end
 
@@ -218,8 +216,8 @@ While IHT can strictly increase loglikelihood, we still allow it to potentially 
 to avoid bad boundary cases.
 """
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
-    y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, 
+    y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, 
+    l::Link, old_logl::T, full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, 
     est_r::Symbol) where {T <: Float}
 
     # first calculate step size 
@@ -278,7 +276,7 @@ end #function iht_one_step
 Performs 1 iteration of the IHT algorithm given a general matrix of floating point numbers. 
 """
 function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix, 
-    y::AbstractVector{T}, J::Int, k::Int, d::UnivariateDistribution, l::Link, old_logl::T, 
+    y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link, old_logl::T, 
     full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool, 
     est_r::Symbol) where {T <: Float}
 

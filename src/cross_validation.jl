@@ -1,13 +1,15 @@
   
 """
     cv_iht(d, l, x, z, y, J, path, q)
+
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. 
-The purpose of this function is to find the best sparsity level `k`, judiciously obtained
-from selecting the model with the minimum out-of-sample error. Automatically finds the 
-correct version of `L0_reg` to use depending on the type of `x`. By default, each CPU runs 
-a different model for a given fold. To use this function, start julia using 4 processors 
-(or more) by `using Distributed; addprocs(4)`.
+
+The purpose of this function is to find the best sparsity level `k`, obtained
+from selecting the model with the minimum out-of-sample error. Different cross
+validation folds are cycled through sequentially different `paths` are fitted
+in parallel on different CPUs. For doubly sprase projections, no routines exist 
+to cross validate different group sizes yet. 
 
 # Warning
 Do not remove files with random file names when you run this function. There are 
