@@ -199,7 +199,7 @@ end
 """
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int, 
+function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Union{Int, Vector{Int}}, 
                        full_grad::Vector{T}) where {T <: Float}
     lb = length(v.b)
     lw = length(v.weight)
@@ -236,7 +236,7 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Int,
     v.idc .= v.c .!= 0
     
     # if more than J*k entries are selected, randomly choose J*k of them
-    _choose!(v, J, k) 
+    typeof(k) == Int && _choose!(v, J, k) 
 
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
@@ -250,8 +250,9 @@ the score as nonzero components of b. This function set v.idx = 1 for those indi
 group. 
 """
 function init_iht_indices!(v::IHTVariable{T}, x::Union{SnpBitMatrix, AbstractMatrix}, 
-                           z::AbstractMatrix{T},y::Vector{T}, d::UnivariateDistribution, 
-                           l::Link, J::Int, k::Int) where {T <: Float}
+                           z::AbstractMatrix{T}, y::Vector{T}, d::UnivariateDistribution, 
+                           l::Link, J::Int, k::Union{Int, Vector{Int}}, group::Vector
+                           ) where {T <: Float}
     # find the intercept by Newton's method
     ybar = mean(y)
     for iteration = 1:20 
@@ -266,13 +267,21 @@ function init_iht_indices!(v::IHTVariable{T}, x::Union{SnpBitMatrix, AbstractMat
     update_μ!(v.μ, v.xb + v.zc, l)
     score!(d, l, v, x, z, y)
 
-    # find J*k largest entries in magnitude and set everything else to 0. 
-    a = partialsort([v.df; v.df2], k * J, by=abs, rev=true)
-    v.idx .= abs.(v.df) .>= abs(a)
-    v.idc .= abs.(v.df2) .>= abs(a)
+    # choose top entries based on largest gradient
+    if typeof(k) == Int 
+        a = partialsort([v.df; v.df2], k * J, by=abs, rev=true)
+        v.idx .= abs.(v.df) .>= abs(a)
+        v.idc .= abs.(v.df2) .>= abs(a)
 
-    # Choose randomly if more are selected
-    _choose!(v, J, k) 
+        # Choose randomly if more are selected
+        _choose!(v, J, k) 
+    else
+        ldf = length(v.df)
+        tmp = [v.df; v.df2]
+        project_group_sparse!(tmp, group, J, k) # k is a vector
+        v.idx[findall(!iszero, tmp[1:ldf])] .= true
+        v.idc[findall(!iszero, tmp[(ldf + 1):end])] .= true
+    end
 
     # make necessary resizing when necessary
     check_covariate_supp!(v)
@@ -282,8 +291,8 @@ end
 if more than J*k entries are selected after projection, randomly select top J*k entries.
 This can happen if entries of b are equal to each other.
 """
-function _choose!(v::IHTVariable{T}, J::Int, k::Int) where {T <: Float}
-    while sum(v.idx) + sum(v.idc) > J * k
+function _choose!(v::IHTVariable{T}, J::Int, sparsity::Int) where {T <: Float}
+    while sum(v.idx) + sum(v.idc) > J * sparsity
         idx_length = length(v.idx)
         all_idx = [v.idx; v.idc]
 
@@ -700,4 +709,17 @@ function naive_impute(x::SnpArray, destination::String)
     end
 
     return nothing
+end
+
+# small function to check sparsity parameter `k` is reasonable. 
+function check_group(k, group)
+    if typeof(k) <: Vector 
+        @assert length(group) > 1 "Doubly sparse projection specified (since k is a vector) but there are no group information." 
+        for i in 1:length(k)
+            group_member = count(x -> x == i, group)
+            group_member > k[i] || error("Maximum predictors for group $i was $(k[i]) but there are only $group_member predictors is this group. Please choose a smaller number.")
+        end
+    else
+        @assert k >= 0 "Value of k (max predictors per group) must be nonnegative!\n"
+    end
 end
