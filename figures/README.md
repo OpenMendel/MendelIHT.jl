@@ -44,9 +44,7 @@ This folder contains codes to reproduce Table 2. A single jupyter notebook `*.ip
 
 This folder contains code to reproduce Table 3. 
 
-+ `*.jl` are code that performs simulation, runs IHT on simulated data, and saves results. 
-+ `repeats` and `repeats_nodebias` are folders that saves the results of the analysis
-+ `IHT_reconstruction_results.ipynb` is the jupyter notebook that reads in different results, computes some summary statistics, and produces the data that went into Table 3. 
++ Four notebooks ending in `*.ipynb` for each response is used to simulate data, analyze data with IHT, and compute summary statistics. **Each individual results are displayed as well for maximum transparency.**
 
 ## double_sparse folder
 
