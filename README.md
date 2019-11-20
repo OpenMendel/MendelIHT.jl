@@ -28,10 +28,10 @@ The order of installation is important!
 
 ## Citation and Reproducibility:
 
-A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v1). If you use `MendelIHT.jl`, please cite:
+A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v2). If you use `MendelIHT.jl`, please cite:
 
 ```
-Benjamin B. Chu, Kevin L. Keys, Janet S. Sinsheimer, and Kenneth Lange. Multivariate GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity. bioRxiv doi:10.1101/697755
+Benjamin B. Chu, Kevin L. Keys, Christopher A. German, Hua Zhou, Jin J. Zhou, Janet S. Sinsheimer, Kenneth Lange. Iterative Hard Thresholding in GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity. bioRxiv doi:10.1101/697755
 ```
 
 In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our preprint. The `Project.toml` and `Manifest.toml` files can be used together to instantiate the exact same computing environment as was used in our paper. For more information about `.toml` files, please visit Julia's [Pkg documentation](https://docs.julialang.org/en/v1.0/stdlib/Pkg/#Glossary-1). 

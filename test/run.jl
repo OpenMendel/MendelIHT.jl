@@ -9,6 +9,7 @@ using Random
 using LinearAlgebra
 using GLM
 using Plots
+using ProfileView
 
 #simulat data with k true predictors, from distribution d and with link l.
 n = 5000
@@ -64,6 +65,10 @@ y = Float64.(y)
 
 #run IHT
 result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+
+@profview L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+@profview L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
+
 @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
 
 #check result
@@ -353,6 +358,7 @@ using Random
 using LinearAlgebra
 using BenchmarkTools
 using GLM
+using TraitSimulation
 
 #simulat data
 n = 1000
@@ -650,6 +656,7 @@ BLAS.set_num_threads(1)
 result = L0_reg(x, z, y, 1, argmin(mses), d(), l, debias=true, init=false, use_maf=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false) seconds=60
 # @code_warntype L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
+L0_reg(x, z, y, 1, 11, d(), l)
 
 #check result
 compare_model = DataFrame(
@@ -757,7 +764,7 @@ end
 
 
 Random.seed!(2019)
-J, k, n = 2, 0.5, 9
+J, n = 2, 0.5, 9
 y = 5rand(n)
 y_copy = copy(y)
 group = repeat(1:3, inner=3)
