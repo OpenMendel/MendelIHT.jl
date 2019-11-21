@@ -13,10 +13,10 @@ versioninfo()
     Commit 099e826241 (2018-12-18 01:34 UTC)
     Platform Info:
       OS: macOS (x86_64-apple-darwin14.5.0)
-      CPU: Intel(R) Core(TM) i7-3740QM CPU @ 2.70GHz
+      CPU: Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz
       WORD_SIZE: 64
       LIBM: libopenlibm
-      LLVM: libLLVM-6.0.0 (ORCJIT, ivybridge)
+      LLVM: libLLVM-6.0.0 (ORCJIT, skylake)
 
 
 
@@ -42,84 +42,90 @@ using BenchmarkTools
 
 We use [SnpArrays.jl](https://openmendel.github.io/SnpArrays.jl/latest/) as backend to process genotype files. Internally, the genotype file is a memory mapped [SnpArray](https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1), which will not be loaded into RAM. If you wish to run `L0_reg`, you need to convert a SnpArray into a [SnpBitMatrix](https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1), which consumes $n \times p \times 2$ bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as an `Array{Float64, 2}`. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. 
 
-### Reading Genotype data and Non-Genetic Covariates
+### Simulate example data (to be imported later)
+
+First we simulate an example PLINK trio (`.bim`, `.bed`, `.fam`) and non-genetic covariates, then we illustrate how to import them. For genotype matrix simulation, we simulate under the model:
+\begin{align*}
+x_{ij} & \sim \rm Binomial(2, \rho_j)\\
+\rho_j &\sim \rm Uniform(0, 0.5)
+\end{align*}
 
 
 ```julia
-pwd() #show current directory. 
+# rows and columns
+n = 1000
+p = 10000
+
+#random seed
+Random.seed!(1111)
+
+# simulate random `.bed` file
+x = simulate_random_snparray(n, p, "example.bed")
+
+# create accompanying `.bim`, `.fam` files (randomly generated)
+make_bim_fam_files(x, ones(n), "example")
+
+# simulate non-genetic covariates (in this case, we include intercept and sex)
+z = [ones(n, 1) rand(0:1, n)]
+writedlm("example_nongenetic_covariates.txt", z)
 ```
 
-
-
-
-    "/Users/biona001/.julia/dev/MendelIHT/docs/src/notebooks"
-
-
+### Reading Genotype data and Non-Genetic Covariates from disk
 
 
 ```julia
-x   = SnpArray("../data/test1.bed")
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-z   = readdlm("../data/test1_covariates.txt") # 1st column intercept, 2nd column sex
+x = SnpArray("example.bed")
+z = readdlm("example_nongenetic_covariates.txt")
 ```
 
 
 
 
     1000×2 Array{Float64,2}:
-     1.0  2.0
      1.0  1.0
-     1.0  2.0
+     1.0  0.0
+     1.0  0.0
+     1.0  1.0
+     1.0  0.0
+     1.0  0.0
+     1.0  1.0
+     1.0  0.0
      1.0  1.0
      1.0  1.0
-     1.0  1.0
-     1.0  2.0
-     1.0  1.0
-     1.0  1.0
-     1.0  1.0
-     1.0  1.0
-     1.0  2.0
+     1.0  0.0
+     1.0  0.0
      1.0  1.0
      ⋮       
+     1.0  0.0
      1.0  1.0
+     1.0  0.0
+     1.0  0.0
+     1.0  0.0
+     1.0  0.0
+     1.0  0.0
+     1.0  0.0
+     1.0  0.0
+     1.0  0.0
      1.0  1.0
-     1.0  1.0
-     1.0  2.0
-     1.0  2.0
-     1.0  2.0
-     1.0  1.0
-     1.0  2.0
-     1.0  1.0
-     1.0  1.0
-     1.0  2.0
-     1.0  1.0
+     1.0  0.0
 
-
-
-
-```julia
-@show typeof(x)
-@show typeof(xbm)
-@show typeof(z);
-```
-
-    typeof(x) = SnpArray
-    typeof(xbm) = SnpBitMatrix{Float64}
-    typeof(z) = Array{Float64,2}
 
 
 !!! note
 
-    (1) MendelIHT.jl assumes there are **NO missing genotypes**, and (2) the trios (`.bim`, `.bed`, `.fam`) must all be present in the same directory. 
+    (1) MendelIHT.jl assumes there are **NO missing genotypes**, (2) 1 always encode the minor allele, and (3) the trios (`.bim`, `.bed`, `.fam`) are all be present in the same directory. 
     
 ### Standardizing Non-Genetic Covariates.
 
-We recommend standardizing all genetic and non-genetic covarariates (including binary and categorical), except for the intercept. This ensures equal penalization for all predictors. `SnpBitMatrix` efficiently achieves this standardization for genotype data, but this must be done manually for non-genetic covariates prior to using `z` in `L0_reg` or `cv_iht`, as below:
+We recommend standardizing all genetic and non-genetic covarariates (including binary and categorical), except for the intercept. This ensures equal penalization for all predictors. For genotype matrix, `SnpBitMatrix` efficiently achieves this standardization. For non-genetic covariates, we use the built-in function `standardize!`. 
 
 
 ```julia
-# standardize all covariates (other than intercept) to mean 0 variance 1
-standardize!(@view(z[:, 2:end]))
+# SnpBitMatrix can automatically standardizes .bed file (without extra memory) and behaves like a matrix
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+
+# using view is important for correctness
+standardize!(@view(z[:, 2:end])) 
 z
 ```
 
@@ -127,38 +133,47 @@ z
 
 
     1000×2 Array{Float64,2}:
-     1.0   1.01969 
-     1.0  -0.979706
-     1.0   1.01969 
-     1.0  -0.979706
-     1.0  -0.979706
-     1.0  -0.979706
-     1.0   1.01969 
-     1.0  -0.979706
-     1.0  -0.979706
-     1.0  -0.979706
-     1.0  -0.979706
-     1.0   1.01969 
-     1.0  -0.979706
+     1.0   1.0015  
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0   1.0015  
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0   1.0015  
+     1.0  -0.997503
+     1.0   1.0015  
+     1.0   1.0015  
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0   1.0015  
      ⋮             
-     1.0  -0.979706
-     1.0  -0.979706
-     1.0  -0.979706
-     1.0   1.01969 
-     1.0   1.01969 
-     1.0   1.01969 
-     1.0  -0.979706
-     1.0   1.01969 
-     1.0  -0.979706
-     1.0  -0.979706
-     1.0   1.01969 
-     1.0  -0.979706
+     1.0  -0.997503
+     1.0   1.0015  
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0  -0.997503
+     1.0   1.0015  
+     1.0  -0.997503
 
 
 
-## Example 2: Quantitative Traits
 
-Quantitative traits are continuous phenotypes whose distribution can be modeled by the normal distribution. Then using the genotype matrix $\mathbf{X}$ and phenotype vector $\mathbf{y}$, we want to recover $\beta$ such that $\mathbf{y} \approx \mathbf{X}\beta$. 
+```julia
+# remove simulated data once they are no longer needed
+rm("example.bed", force=true)
+rm("example.bim", force=true)
+rm("example.fam", force=true)
+rm("example_nongenetic_covariates.txt", force=true)
+```
+
+## Example 2: Running IHT on Quantitative Traits
+
+Quantitative traits are continuous phenotypes whose distribution can be modeled by the normal distribution. Then using the genotype matrix $\mathbf{X}$ and phenotype vector $\mathbf{y}$, we want to recover $\beta$ such that $\mathbf{y} \approx \mathbf{X}\beta$. In this example, we assume we know the true sparsity level `k`. 
 
 ### Step 1: Import data
 
@@ -166,15 +181,13 @@ In Example 1 we illustrated how to import data into Julia. So here we use simula
 
 In this example, our model is simulated as:
 
-$$y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i$$
-
-$$x_{ij} \sim Binomial(2, p_j)$$
-
-$$p_j \sim Uniform(0, 0.5)$$
-
-$$\epsilon_i \sim N(0, 1)$$
-
-$$\beta_i \sim N(0, 1)$$
+\begin{align*}
+y_i &\sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i\\
+x_{ij} &\sim \rm Binomial(2, \rho_j)\\
+\rho_j &\sim \rm Uniform(0, 0.5)\\
+\epsilon_i &\sim \rm N(0, 1)\\
+\beta_i &\sim \rm N(0, 1)
+\end{align*}
 
 
 ```julia
@@ -221,29 +234,26 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
     
     Crossvalidation Results:
     	k	MSE
-    	1	1927.0765190526672
-    	2	1443.8788742220866
+    	1	1927.0765190526674
+    	2	1443.8788742220863
     	3	1080.041135323195
-    	4	862.2385953735205
+    	4	862.2385953735204
     	5	705.1014346627649
-    	6	507.394935936422
-    	7	391.9686876462285
+    	6	507.3949359364219
+    	7	391.96868764622843
     	8	368.45440222003174
-    	9	350.64279409251793
+    	9	350.642794092518
     	10	345.8380848576577
-    	11	350.51881472845776
+    	11	350.5188147284578
     	12	359.42391568519577
-    	13	363.7095696959907
+    	13	363.70956969599075
     	14	377.30732985896975
-    	15	381.0310879522695
-    	16	392.5643923838261
+    	15	381.0310879522694
+    	16	392.56439238382615
     	17	396.81166049333797
     	18	397.3010019298764
     	19	406.47023764639624
     	20	410.4672260807978
-    
-    The lowest MSE is achieved at k = 10 
-    
 
 
 !!! note 
@@ -263,7 +273,7 @@ According to our cross validation result, the best model size that minimizes dev
 
 ```julia
 k_est = argmin(mses)
-result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
+result = L0_reg(x, xbm, z, y, 1, k_est, d(), l) 
 ```
 
 
@@ -272,11 +282,9 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
     
     IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
     
-    Compute time (sec):     0.5040078163146973
+    Compute time (sec):     0.4252500534057617
     Final loglikelihood:    -1406.8807653835697
     Iterations:             6
-    Max number of groups:   1
-    Max predictors/group:   10
     
     Selected genetic predictors:
     10×2 DataFrame
@@ -339,17 +347,14 @@ We show how to use IHT to handle case-control studies, while handling non-geneti
 
 Again we use a simulated model:
 
-$$y_i \sim Bernoulli(\mathbf{x}_i^T\mathbf{\beta})$$
-
-$$x_{ij} \sim Binomial(2, p_j)$$
-
-$$p_j \sim Uniform(0, 0.5)$$
-
-$$\beta_i \sim N(0, 1)$$
-
-$$\beta_{intercept} = 1$$
-
-$$\beta_{sex} = 1.5$$
+\begin{align*}
+&y_i \sim \rm Bernoulli(\mathbf{x}_i^T\mathbf{\beta})\\
+&x_{ij} \sim \rm Binomial(2, \rho_j)\\
+&\rho_j \sim \rm Uniform(0, 0.5)\\
+&\beta_i \sim \rm N(0, 1)\\
+&\beta_{\rm intercept} = 1\\
+&\beta_{\rm sex} = 1.5
+\end{align*}
 
 We assumed there are $k=8$ genetic predictors and 2 non-genetic predictors (intercept and sex) that affects the trait. The simulation code in our package does not yet handle simulations with non-genetic predictors, so we must simulate these phenotypes manually. 
 
@@ -410,29 +415,26 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
     
     Crossvalidation Results:
     	k	MSE
-    	1	391.44413742296507
-    	2	365.94409558538405
-    	3	332.53357480884415
-    	4	270.9466574526783
-    	5	245.64667604806908
-    	6	234.1348150358823
-    	7	242.1326570535411
-    	8	237.8125739190615
-    	9	248.39984663655218
-    	10	247.42113174417304
-    	11	258.76386322638245
-    	12	263.02028089480876
-    	13	265.12598433158234
-    	14	279.28886892555727
-    	15	291.4334160383655
-    	16	320.2043997941196
-    	17	284.29817104006
-    	18	327.9803987249458
-    	19	332.2334866227556
-    	20	344.79544568090694
-    
-    The lowest MSE is achieved at k = 6 
-    
+    	1	391.44426892225727
+    	2	365.7520496496987
+    	3	332.3801926093215
+    	4	273.2081512206048
+    	5	253.31631985207758
+    	6	234.93701288953315
+    	7	221.997334181244
+    	8	199.01688783420346
+    	9	208.31087723164197
+    	10	216.00575628120708
+    	11	227.91834469184545
+    	12	242.42456871743065
+    	13	261.46346209331466
+    	14	263.5229307137862
+    	15	283.30379378951073
+    	16	328.2771991160804
+    	17	290.4512419547228
+    	18	350.3516280657363
+    	19	361.61016297810295
+    	20	418.2370935226805
 
 
 !!! tip
@@ -455,31 +457,31 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
 
 
     
-    IHT estimated 4 nonzero SNP predictors and 2 non-genetic predictors.
+    IHT estimated 6 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     3.0592892169952393
-    Final loglikelihood:    -341.107863135428
-    Iterations:             57
-    Max number of groups:   1
-    Max predictors/group:   6
+    Compute time (sec):     1.7605140209197998
+    Final loglikelihood:    -290.4509381564733
+    Iterations:             37
     
     Selected genetic predictors:
-    4×2 DataFrame
+    6×2 DataFrame
     │ Row │ Position │ Estimated_β │
     │     │ [90mInt64[39m    │ [90mFloat64[39m     │
     ├─────┼──────────┼─────────────┤
-    │ 1   │ 1152     │ 0.745372    │
-    │ 2   │ 1576     │ 1.3801      │
-    │ 3   │ 5765     │ -1.3558     │
-    │ 4   │ 5992     │ -1.47339    │
+    │ 1   │ 1152     │ 0.966731    │
+    │ 2   │ 1576     │ 1.56183     │
+    │ 3   │ 3411     │ 0.87674     │
+    │ 4   │ 5765     │ -1.75611    │
+    │ 5   │ 5992     │ -2.04506    │
+    │ 6   │ 8781     │ 0.760213    │
     
     Selected nongenetic predictors:
     2×2 DataFrame
     │ Row │ Position │ Estimated_β │
     │     │ [90mInt64[39m    │ [90mFloat64[39m     │
     ├─────┼──────────┼─────────────┤
-    │ 1   │ 1        │ 0.599159    │
-    │ 2   │ 2        │ 1.54466     │
+    │ 1   │ 1        │ 0.709909    │
+    │ 2   │ 2        │ 1.65049     │
 
 
 
@@ -508,39 +510,38 @@ rm("tmp.bed", force=true)
     │ Row │ true_β   │ estimated_β │
     │     │ Float64  │ Float64     │
     ├─────┼──────────┼─────────────┤
-    │ 1   │ 0.961937 │ 0.745372    │
+    │ 1   │ 0.961937 │ 0.966731    │
     │ 2   │ 0.189267 │ 0.0         │
-    │ 3   │ 1.74008  │ 1.3801      │
-    │ 4   │ 0.879004 │ 0.0         │
+    │ 3   │ 1.74008  │ 1.56183     │
+    │ 4   │ 0.879004 │ 0.87674     │
     │ 5   │ 0.213066 │ 0.0         │
-    │ 6   │ -1.74663 │ -1.3558     │
-    │ 7   │ -1.93402 │ -1.47339    │
-    │ 8   │ 0.632786 │ 0.0         │
+    │ 6   │ -1.74663 │ -1.75611    │
+    │ 7   │ -1.93402 │ -2.04506    │
+    │ 8   │ 0.632786 │ 0.760213    │
     compare_model_nongenetics = 2×2 DataFrame
     │ Row │ true_c  │ estimated_c │
     │     │ Float64 │ Float64     │
     ├─────┼─────────┼─────────────┤
-    │ 1   │ 1.0     │ 0.599159    │
-    │ 2   │ 1.5     │ 1.54466     │
+    │ 1   │ 1.0     │ 0.709909    │
+    │ 2   │ 1.5     │ 1.65049     │
 
 
 ## Example 4: Poisson Regression with Acceleration (i.e. debias)
 
 In this example, we show how debiasing can potentially achieve dramatic speedup. Our model is:
 
-$$y_i \sim Poisson(\mathbf{x}_i^T\mathbf{\beta})$$
-
-$$x_{ij} \sim Binomial(2, p_j)$$
-
-$$p_j \sim Uniform(0, 0.5)$$
-
-$$\beta_i \sim N(0, 0.3)$$
+\begin{align*}
+y_i &\sim \rm Poisson(\mathbf{x}_i^T \mathbf{\beta})\\
+x_{ij} &\sim \rm Binomial(2, \rho_j)\\
+\rho_j &\sim \rm Uniform(0, 0.5)\\
+\beta_i &\sim \rm N(0, 0.3)
+\end{align*}
 
 
 ```julia
 # Define model dimensions, true model size, distribution, and link functions
-n = 5000
-p = 30000
+n = 1000
+p = 10000
 k = 10
 d = Poisson
 l = canonicallink(d())
@@ -581,62 +582,62 @@ compare_model = DataFrame(
     │ Row │ position │ true_β     │ no_debias_β │ yes_debias_β │
     │     │ Int64    │ Float64    │ Float64     │ Float64      │
     ├─────┼──────────┼────────────┼─────────────┼──────────────┤
-    │ 1   │ 2105     │ 0.0155232  │ 0.0         │ 0.0          │
-    │ 2   │ 5852     │ 0.0747323  │ 0.0759218   │ 0.0775061    │
-    │ 3   │ 9219     │ 0.0233952  │ 0.0         │ 0.0          │
-    │ 4   │ 10362    │ -0.241167  │ -0.243655   │ -0.245874    │
-    │ 5   │ 15755    │ 0.278812   │ 0.28015     │ 0.283672     │
-    │ 6   │ 21188    │ 0.0540703  │ 0.0607867   │ 0.0621309    │
-    │ 7   │ 21324    │ -0.216701  │ -0.222548   │ -0.221695    │
-    │ 8   │ 21819    │ -0.0331256 │ -0.0599403  │ -0.0603646   │
-    │ 9   │ 25655    │ 0.0217997  │ 0.0         │ 0.0          │
-    │ 10  │ 29986    │ 0.354062   │ 0.361812    │ 0.361667     │
+    │ 1   │ 853      │ -0.389892  │ -0.384161   │ -0.38744     │
+    │ 2   │ 877      │ -0.0653099 │ 0.0         │ 0.0          │
+    │ 3   │ 924      │ 0.235865   │ 0.246213    │ 0.240514     │
+    │ 4   │ 2703     │ 0.17977    │ 0.237651    │ 0.225127     │
+    │ 5   │ 4241     │ 0.0851134  │ 0.0         │ 0.0894244    │
+    │ 6   │ 4783     │ -0.33761   │ -0.300663   │ -0.307515    │
+    │ 7   │ 5094     │ 0.208012   │ 0.223384    │ 0.215149     │
+    │ 8   │ 5284     │ -0.203127  │ -0.225593   │ -0.209308    │
+    │ 9   │ 7760     │ 0.0441809  │ 0.0         │ 0.0          │
+    │ 10  │ 8255     │ 0.310431   │ 0.287363    │ 0.301717     │
 
 
 ### Compare Speed and Memory Usage
 
-Now we illustrate that debiasing may dramatically reduce computational time (in this case 85%), at a cost of increasing the memory usage. In practice, this extra memory usage hardly matters because the matrix size will dominate for larger problems. See [here for complete benchmark figure.](https://github.com/biona001/MendelIHT.jl)
+Now we illustrate that debiasing may dramatically reduce computational time (in this case ~50%), at a cost of increasing the memory usage. In practice, this extra memory usage hardly matters because the matrix size will dominate for larger problems. See [our paper for complete benchmark figure.](https://www.biorxiv.org/content/10.1101/697755v2)
 
 
 ```julia
-@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false) seconds=30
+@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false) seconds=15
 ```
 
 
 
 
     BenchmarkTools.Trial: 
-      memory estimate:  4.96 MiB
-      allocs estimate:  531
+      memory estimate:  2.16 MiB
+      allocs estimate:  738
       --------------
-      minimum time:     7.194 s (0.00% GC)
-      median time:      7.390 s (0.00% GC)
-      mean time:        7.393 s (0.01% GC)
-      maximum time:     7.585 s (0.05% GC)
+      minimum time:     678.133 ms (0.00% GC)
+      median time:      718.579 ms (0.00% GC)
+      mean time:        718.396 ms (0.05% GC)
+      maximum time:     749.206 ms (0.00% GC)
       --------------
-      samples:          5
+      samples:          21
       evals/sample:     1
 
 
 
 
 ```julia
-@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true) seconds=30
+@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true) seconds=15
 ```
 
 
 
 
     BenchmarkTools.Trial: 
-      memory estimate:  11.83 MiB
-      allocs estimate:  1320
+      memory estimate:  2.62 MiB
+      allocs estimate:  1135
       --------------
-      minimum time:     6.121 s (0.06% GC)
-      median time:      6.318 s (0.00% GC)
-      mean time:        6.307 s (0.03% GC)
-      maximum time:     6.469 s (0.00% GC)
+      minimum time:     333.945 ms (0.00% GC)
+      median time:      344.313 ms (0.00% GC)
+      mean time:        344.025 ms (0.10% GC)
+      maximum time:     350.126 ms (0.87% GC)
       --------------
-      samples:          5
+      samples:          44
       evals/sample:     1
 
 

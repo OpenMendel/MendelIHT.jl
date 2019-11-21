@@ -14,19 +14,19 @@ If you encounter a bug or you need some user support, please [open a new issue h
 If you use `MendelIHT.jl` in an academic manuscript, please cite:
 
 ```
-Zhou, Hua, et al. "OpenMendel: a cooperative programming project for statistical genetics." Human genetics (2019): 1-11.
+Benjamin B. Chu, Kevin L. Keys, Christopher A. German, Hua Zhou, Jin J. Zhou, Janet S. Sinsheimer, Kenneth Lange. Iterative Hard Thresholding in GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity. bioRxiv doi:10.1101/697755
 ```
 
 Bibtex:
 
 ```
 @article{zhou2019openmendel,
-  title={{OpenMendel: a cooperative programming project for statistical genetics}},
-  author={Zhou, Hua and Sinsheimer, Janet S and Bates, Douglas M and Chu, Benjamin B and German, Christopher A and Ji, Sarah S and Keys, Kevin L and Kim, Juhyun and Ko, Seyoon and Mosher, Gordon D and Jeanette, Papp C and Sobel, Eric M and Zhai, Jing and Zhou, Jin J and Lange, Kenneth},
-  journal={Human genetics},
-  pages={1--11},
+  title={{Iterative Hard Thresholding in GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity}},
+  author={Chu, Benjamin B and Keys, Kevin L and German, Christopher A and Zhou, Hua and Zhou, Jin J and Sinsheimer, Janet S and Lange, Kenneth},
+  journal={BioRxiv},
+  pages={697755v2},
   year={2019},
-  publisher={Springer}
+  publisher={Cold Spring Harbor Laboratory}
 }
 ```
 
