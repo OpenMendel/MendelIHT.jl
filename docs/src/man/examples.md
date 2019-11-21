@@ -45,10 +45,8 @@ We use [SnpArrays.jl](https://openmendel.github.io/SnpArrays.jl/latest/) as back
 ### Simulate example data (to be imported later)
 
 First we simulate an example PLINK trio (`.bim`, `.bed`, `.fam`) and non-genetic covariates, then we illustrate how to import them. For genotype matrix simulation, we simulate under the model:
-\begin{align*}
-x_{ij} & \sim \rm Binomial(2, \rho_j)\\
-\rho_j &\sim \rm Uniform(0, 0.5)
-\end{align*}
+$$x_{ij} \sim \rm Binomial(2, \rho_j)$$
+$$\rho_j \sim \rm Uniform(0, 0.5)$$
 
 
 ```julia
@@ -181,13 +179,11 @@ In Example 1 we illustrated how to import data into Julia. So here we use simula
 
 In this example, our model is simulated as:
 
-\begin{align*}
-y_i &\sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i\\
-x_{ij} &\sim \rm Binomial(2, \rho_j)\\
-\rho_j &\sim \rm Uniform(0, 0.5)\\
-\epsilon_i &\sim \rm N(0, 1)\\
-\beta_i &\sim \rm N(0, 1)
-\end{align*}
+$$y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i$$
+$$x_{ij} \sim \rm Binomial(2, \rho_j)$$
+$$\rho_j \sim \rm Uniform(0, 0.5)$$
+$$\epsilon_i \sim \rm N(0, 1)$$
+$$\beta_i \sim \rm N(0, 1)$$
 
 
 ```julia
@@ -347,14 +343,12 @@ We show how to use IHT to handle case-control studies, while handling non-geneti
 
 Again we use a simulated model:
 
-\begin{align*}
-&y_i \sim \rm Bernoulli(\mathbf{x}_i^T\mathbf{\beta})\\
-&x_{ij} \sim \rm Binomial(2, \rho_j)\\
-&\rho_j \sim \rm Uniform(0, 0.5)\\
-&\beta_i \sim \rm N(0, 1)\\
-&\beta_{\rm intercept} = 1\\
-&\beta_{\rm sex} = 1.5
-\end{align*}
+$$y_i \sim \rm Bernoulli(\mathbf{x}_i^T\mathbf{\beta})$$
+$$x_{ij} \sim \rm Binomial(2, \rho_j)$$
+$$\rho_j \sim \rm Uniform(0, 0.5)$$
+$$\beta_i \sim \rm N(0, 1)$$
+$$\beta_{\rm intercept} = 1$$
+$$\beta_{\rm sex} = 1.5$$
 
 We assumed there are $k=8$ genetic predictors and 2 non-genetic predictors (intercept and sex) that affects the trait. The simulation code in our package does not yet handle simulations with non-genetic predictors, so we must simulate these phenotypes manually. 
 
@@ -530,12 +524,10 @@ rm("tmp.bed", force=true)
 
 In this example, we show how debiasing can potentially achieve dramatic speedup. Our model is:
 
-\begin{align*}
-y_i &\sim \rm Poisson(\mathbf{x}_i^T \mathbf{\beta})\\
-x_{ij} &\sim \rm Binomial(2, \rho_j)\\
-\rho_j &\sim \rm Uniform(0, 0.5)\\
-\beta_i &\sim \rm N(0, 0.3)
-\end{align*}
+$$y_i \sim \rm Poisson(\mathbf{x}_i^T \mathbf{\beta})$$
+$$x_{ij} \sim \rm Binomial(2, \rho_j)$$
+$$\rho_j \sim \rm Uniform(0, 0.5)$$
+$$\beta_i \sim \rm N(0, 0.3)$$
 
 
 ```julia
