@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · MendelIHT</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link href="../../assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>MendelIHT</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="../../search/"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li><a class="toctext" href="../../">Home</a></li><li><a class="toctext" href="../getting_started/">Getting Started</a></li><li class="current"><a class="toctext" href>Examples</a><ul class="internal"><li><a class="toctext" href="#Example-1:-How-to-Import-Data-1">Example 1: How to Import Data</a></li><li><a class="toctext" href="#Example-2:-Quantitative-Traits-1">Example 2: Quantitative Traits</a></li><li><a class="toctext" href="#Example-3:-Logistic-Regression-Controlling-for-Sex-1">Example 3: Logistic Regression Controlling for Sex</a></li><li><a class="toctext" href="#Example-4:-Poisson-Regression-with-Acceleration-(i.e.-debias)-1">Example 4: Poisson Regression with Acceleration (i.e. debias)</a></li><li><a class="toctext" href="#Other-examples-and-functionalities-1">Other examples and functionalities</a></li></ul></li><li><a class="toctext" href="../contributing/">Contributing</a></li></ul></nav><article id="docs"><header><nav><ul><li><a href>Examples</a></li></ul><a class="edit-page" href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/docs/src/man/examples.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>Examples</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="Examples-1" href="#Examples-1">Examples</a></h1><p>Here we give numerous example analysis of GWAS data with MendelIHT. </p><pre><code class="language-julia"># machine information for reproducibility
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · MendelIHT</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link href="../../assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>MendelIHT</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="../../search/"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li><a class="toctext" href="../../">Home</a></li><li><a class="toctext" href="../getting_started/">Getting Started</a></li><li class="current"><a class="toctext" href>Examples</a><ul class="internal"><li><a class="toctext" href="#Example-1:-How-to-Import-Data-1">Example 1: How to Import Data</a></li><li><a class="toctext" href="#Example-2:-Running-IHT-on-Quantitative-Traits-1">Example 2: Running IHT on Quantitative Traits</a></li><li><a class="toctext" href="#Example-3:-Logistic-Regression-Controlling-for-Sex-1">Example 3: Logistic Regression Controlling for Sex</a></li><li><a class="toctext" href="#Example-4:-Poisson-Regression-with-Acceleration-(i.e.-debias)-1">Example 4: Poisson Regression with Acceleration (i.e. debias)</a></li><li><a class="toctext" href="#Other-examples-and-functionalities-1">Other examples and functionalities</a></li></ul></li><li><a class="toctext" href="../contributing/">Contributing</a></li></ul></nav><article id="docs"><header><nav><ul><li><a href>Examples</a></li></ul><a class="edit-page" href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/docs/src/man/examples.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>Examples</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="Examples-1" href="#Examples-1">Examples</a></h1><p>Here we give numerous example analysis of GWAS data with MendelIHT. </p><pre><code class="language-julia"># machine information for reproducibility
 versioninfo()</code></pre><pre><code class="language-none">Julia Version 1.0.3
 Commit 099e826241 (2018-12-18 01:34 UTC)
 Platform Info:
   OS: macOS (x86_64-apple-darwin14.5.0)
-  CPU: Intel(R) Core(TM) i7-3740QM CPU @ 2.70GHz
+  CPU: Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-6.0.0 (ORCJIT, ivybridge)</code></pre><pre><code class="language-julia">#first add workers needed for parallel computing. Add only as many CPU cores available
+  LLVM: libLLVM-6.0.0 (ORCJIT, skylake)</code></pre><pre><code class="language-julia">#first add workers needed for parallel computing. Add only as many CPU cores available
 using Distributed
 addprocs(4)
 
@@ -21,67 +21,89 @@ using LinearAlgebra
 using GLM
 using DelimitedFiles
 using Statistics
-using BenchmarkTools</code></pre><h2><a class="nav-anchor" id="Example-1:-How-to-Import-Data-1" href="#Example-1:-How-to-Import-Data-1">Example 1: How to Import Data</a></h2><p>We use <a href="https://openmendel.github.io/SnpArrays.jl/latest/">SnpArrays.jl</a> as backend to process genotype files. Internally, the genotype file is a memory mapped <a href="https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1">SnpArray</a>, which will not be loaded into RAM. If you wish to run <code>L0_reg</code>, you need to convert a SnpArray into a <a href="https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1">SnpBitMatrix</a>, which consumes <span>$n \times p \times 2$</span> bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as an <code>Array{Float64, 2}</code>. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. </p><h3><a class="nav-anchor" id="Reading-Genotype-data-and-Non-Genetic-Covariates-1" href="#Reading-Genotype-data-and-Non-Genetic-Covariates-1">Reading Genotype data and Non-Genetic Covariates</a></h3><pre><code class="language-julia">pwd() #show current directory. </code></pre><pre><code class="language-none">&quot;/Users/biona001/.julia/dev/MendelIHT/docs/src/notebooks&quot;</code></pre><pre><code class="language-julia">x   = SnpArray(&quot;../data/test1.bed&quot;)
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-z   = readdlm(&quot;../data/test1_covariates.txt&quot;) # 1st column intercept, 2nd column sex</code></pre><pre><code class="language-none">1000×2 Array{Float64,2}:
- 1.0  2.0
+using BenchmarkTools</code></pre><h2><a class="nav-anchor" id="Example-1:-How-to-Import-Data-1" href="#Example-1:-How-to-Import-Data-1">Example 1: How to Import Data</a></h2><p>We use <a href="https://openmendel.github.io/SnpArrays.jl/latest/">SnpArrays.jl</a> as backend to process genotype files. Internally, the genotype file is a memory mapped <a href="https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1">SnpArray</a>, which will not be loaded into RAM. If you wish to run <code>L0_reg</code>, you need to convert a SnpArray into a <a href="https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1">SnpBitMatrix</a>, which consumes <span>$n \times p \times 2$</span> bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as an <code>Array{Float64, 2}</code>. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. </p><h3><a class="nav-anchor" id="Simulate-example-data-(to-be-imported-later)-1" href="#Simulate-example-data-(to-be-imported-later)-1">Simulate example data (to be imported later)</a></h3><p>First we simulate an example PLINK trio (<code>.bim</code>, <code>.bed</code>, <code>.fam</code>) and non-genetic covariates, then we illustrate how to import them. For genotype matrix simulation, we simulate under the model: \begin{align<em>} x<em>{ij} &amp; \sim \rm Binomial(2, \rho</em>j)\
+\rho_j &amp;\sim \rm Uniform(0, 0.5) \end{align</em>}</p><pre><code class="language-julia"># rows and columns
+n = 1000
+p = 10000
+
+#random seed
+Random.seed!(1111)
+
+# simulate random `.bed` file
+x = simulate_random_snparray(n, p, &quot;example.bed&quot;)
+
+# create accompanying `.bim`, `.fam` files (randomly generated)
+make_bim_fam_files(x, ones(n), &quot;example&quot;)
+
+# simulate non-genetic covariates (in this case, we include intercept and sex)
+z = [ones(n, 1) rand(0:1, n)]
+writedlm(&quot;example_nongenetic_covariates.txt&quot;, z)</code></pre><h3><a class="nav-anchor" id="Reading-Genotype-data-and-Non-Genetic-Covariates-from-disk-1" href="#Reading-Genotype-data-and-Non-Genetic-Covariates-from-disk-1">Reading Genotype data and Non-Genetic Covariates from disk</a></h3><pre><code class="language-julia">x = SnpArray(&quot;example.bed&quot;)
+z = readdlm(&quot;example_nongenetic_covariates.txt&quot;)</code></pre><pre><code class="language-none">1000×2 Array{Float64,2}:
  1.0  1.0
- 1.0  2.0
+ 1.0  0.0
+ 1.0  0.0
+ 1.0  1.0
+ 1.0  0.0
+ 1.0  0.0
+ 1.0  1.0
+ 1.0  0.0
  1.0  1.0
  1.0  1.0
- 1.0  1.0
- 1.0  2.0
- 1.0  1.0
- 1.0  1.0
- 1.0  1.0
- 1.0  1.0
- 1.0  2.0
+ 1.0  0.0
+ 1.0  0.0
  1.0  1.0
  ⋮       
+ 1.0  0.0
  1.0  1.0
+ 1.0  0.0
+ 1.0  0.0
+ 1.0  0.0
+ 1.0  0.0
+ 1.0  0.0
+ 1.0  0.0
+ 1.0  0.0
+ 1.0  0.0
  1.0  1.0
- 1.0  1.0
- 1.0  2.0
- 1.0  2.0
- 1.0  2.0
- 1.0  1.0
- 1.0  2.0
- 1.0  1.0
- 1.0  1.0
- 1.0  2.0
- 1.0  1.0</code></pre><pre><code class="language-julia">@show typeof(x)
-@show typeof(xbm)
-@show typeof(z);</code></pre><pre><code class="language-none">typeof(x) = SnpArray
-typeof(xbm) = SnpBitMatrix{Float64}
-typeof(z) = Array{Float64,2}</code></pre><div class="admonition note"><div class="admonition-title">Note</div><div class="admonition-text"><p>(1) MendelIHT.jl assumes there are <strong>NO missing genotypes</strong>, and (2) the trios (<code>.bim</code>, <code>.bed</code>, <code>.fam</code>) must all be present in the same directory. </p></div></div><h3><a class="nav-anchor" id="Standardizing-Non-Genetic-Covariates.-1" href="#Standardizing-Non-Genetic-Covariates.-1">Standardizing Non-Genetic Covariates.</a></h3><p>We recommend standardizing all genetic and non-genetic covarariates (including binary and categorical), except for the intercept. This ensures equal penalization for all predictors. <code>SnpBitMatrix</code> efficiently achieves this standardization for genotype data, but this must be done manually for non-genetic covariates prior to using <code>z</code> in <code>L0_reg</code> or <code>cv_iht</code>, as below:</p><pre><code class="language-julia"># standardize all covariates (other than intercept) to mean 0 variance 1
-standardize!(@view(z[:, 2:end]))
+ 1.0  0.0</code></pre><div class="admonition note"><div class="admonition-title">Note</div><div class="admonition-text"><p>(1) MendelIHT.jl assumes there are <strong>NO missing genotypes</strong>, (2) 1 always encode the minor allele, and (3) the trios (<code>.bim</code>, <code>.bed</code>, <code>.fam</code>) are all be present in the same directory. </p></div></div><h3><a class="nav-anchor" id="Standardizing-Non-Genetic-Covariates.-1" href="#Standardizing-Non-Genetic-Covariates.-1">Standardizing Non-Genetic Covariates.</a></h3><p>We recommend standardizing all genetic and non-genetic covarariates (including binary and categorical), except for the intercept. This ensures equal penalization for all predictors. For genotype matrix, <code>SnpBitMatrix</code> efficiently achieves this standardization. For non-genetic covariates, we use the built-in function <code>standardize!</code>. </p><pre><code class="language-julia"># SnpBitMatrix can automatically standardizes .bed file (without extra memory) and behaves like a matrix
+xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+
+# using view is important for correctness
+standardize!(@view(z[:, 2:end])) 
 z</code></pre><pre><code class="language-none">1000×2 Array{Float64,2}:
- 1.0   1.01969 
- 1.0  -0.979706
- 1.0   1.01969 
- 1.0  -0.979706
- 1.0  -0.979706
- 1.0  -0.979706
- 1.0   1.01969 
- 1.0  -0.979706
- 1.0  -0.979706
- 1.0  -0.979706
- 1.0  -0.979706
- 1.0   1.01969 
- 1.0  -0.979706
+ 1.0   1.0015  
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0   1.0015  
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0   1.0015  
+ 1.0  -0.997503
+ 1.0   1.0015  
+ 1.0   1.0015  
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0   1.0015  
  ⋮             
- 1.0  -0.979706
- 1.0  -0.979706
- 1.0  -0.979706
- 1.0   1.01969 
- 1.0   1.01969 
- 1.0   1.01969 
- 1.0  -0.979706
- 1.0   1.01969 
- 1.0  -0.979706
- 1.0  -0.979706
- 1.0   1.01969 
- 1.0  -0.979706</code></pre><h2><a class="nav-anchor" id="Example-2:-Quantitative-Traits-1" href="#Example-2:-Quantitative-Traits-1">Example 2: Quantitative Traits</a></h2><p>Quantitative traits are continuous phenotypes whose distribution can be modeled by the normal distribution. Then using the genotype matrix <span>$\mathbf{X}$</span> and phenotype vector <span>$\mathbf{y}$</span>, we want to recover <span>$\beta$</span> such that <span>$\mathbf{y} \approx \mathbf{X}\beta$</span>. </p><h3><a class="nav-anchor" id="Step-1:-Import-data-1" href="#Step-1:-Import-data-1">Step 1: Import data</a></h3><p>In Example 1 we illustrated how to import data into Julia. So here we use simulated data (<a href="https://github.com/biona001/MendelIHT.jl/blob/master/src/simulate_utilities.jl#L107">code</a>) because, only then, can we compare IHT&#39;s result to the true solution. Below we simulate a GWAS data with <span>$n=1000$</span> patients and <span>$p=10000$</span> SNPs. Here the quantitative trait vector are affected by <span>$k = 10$</span> causal SNPs, with no non-genetic confounders. </p><p>In this example, our model is simulated as:</p><div>\[y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i\]</div><div>\[x_{ij} \sim Binomial(2, p_j)\]</div><div>\[p_j \sim Uniform(0, 0.5)\]</div><div>\[\epsilon_i \sim N(0, 1)\]</div><div>\[\beta_i \sim N(0, 1)\]</div><pre><code class="language-julia"># Define model dimensions, true model size, distribution, and link functions
+ 1.0  -0.997503
+ 1.0   1.0015  
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0  -0.997503
+ 1.0   1.0015  
+ 1.0  -0.997503</code></pre><pre><code class="language-julia"># remove simulated data once they are no longer needed
+rm(&quot;example.bed&quot;, force=true)
+rm(&quot;example.bim&quot;, force=true)
+rm(&quot;example.fam&quot;, force=true)
+rm(&quot;example_nongenetic_covariates.txt&quot;, force=true)</code></pre><h2><a class="nav-anchor" id="Example-2:-Running-IHT-on-Quantitative-Traits-1" href="#Example-2:-Running-IHT-on-Quantitative-Traits-1">Example 2: Running IHT on Quantitative Traits</a></h2><p>Quantitative traits are continuous phenotypes whose distribution can be modeled by the normal distribution. Then using the genotype matrix <span>$\mathbf{X}$</span> and phenotype vector <span>$\mathbf{y}$</span>, we want to recover <span>$\beta$</span> such that <span>$\mathbf{y} \approx \mathbf{X}\beta$</span>. In this example, we assume we know the true sparsity level <code>k</code>. </p><h3><a class="nav-anchor" id="Step-1:-Import-data-1" href="#Step-1:-Import-data-1">Step 1: Import data</a></h3><p>In Example 1 we illustrated how to import data into Julia. So here we use simulated data (<a href="https://github.com/biona001/MendelIHT.jl/blob/master/src/simulate_utilities.jl#L107">code</a>) because, only then, can we compare IHT&#39;s result to the true solution. Below we simulate a GWAS data with <span>$n=1000$</span> patients and <span>$p=10000$</span> SNPs. Here the quantitative trait vector are affected by <span>$k = 10$</span> causal SNPs, with no non-genetic confounders. </p><p>In this example, our model is simulated as:</p><p>\begin{align<em>} y<em>i &amp;\sim \mathbf{x}</em>i^T\mathbf{\beta} + \epsilon<em>i\
+x</em>{ij} &amp;\sim \rm Binomial(2, \rho<em>j)\
+\rho</em>j &amp;\sim \rm Uniform(0, 0.5)\
+\epsilon<em>i &amp;\sim \rm N(0, 1)\
+\beta</em>i &amp;\sim \rm N(0, 1) \end{align</em>}</p><pre><code class="language-julia"># Define model dimensions, true model size, distribution, and link functions
 n = 1000
 p = 10000
 k = 10
@@ -105,35 +127,31 @@ y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l);</code><
 num_folds = 3
 mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is for number of groups</code></pre><pre><code class="language-none">Crossvalidation Results:
 	k	MSE
-	1	1927.0765190526672
-	2	1443.8788742220866
+	1	1927.0765190526674
+	2	1443.8788742220863
 	3	1080.041135323195
-	4	862.2385953735205
+	4	862.2385953735204
 	5	705.1014346627649
-	6	507.394935936422
-	7	391.9686876462285
+	6	507.3949359364219
+	7	391.96868764622843
 	8	368.45440222003174
-	9	350.64279409251793
+	9	350.642794092518
 	10	345.8380848576577
-	11	350.51881472845776
+	11	350.5188147284578
 	12	359.42391568519577
-	13	363.7095696959907
+	13	363.70956969599075
 	14	377.30732985896975
-	15	381.0310879522695
-	16	392.5643923838261
+	15	381.0310879522694
+	16	392.56439238382615
 	17	396.81166049333797
 	18	397.3010019298764
 	19	406.47023764639624
-	20	410.4672260807978
+	20	410.4672260807978</code></pre><div class="admonition note"><div class="admonition-title">Note</div><div class="admonition-text"><p><strong>DO NOT remove</strong> intermediate files with random filenames as generated by <code>cv_iht()</code>. These are necessary auxiliary files that will be automatically removed when cross validation completes. </p></div></div><div class="admonition tip"><div class="admonition-title">Tip</div><div class="admonition-text"><p>Because Julia employs a JIT compiler, the first round of any function call run will always take longer and consume extra memory. Therefore it is advised to always run a small &quot;test example&quot; (such as this one!) before running cross validation on a large dataset. </p></div></div><h3><a class="nav-anchor" id="Step-3:-Run-full-model-on-the-best-estimated-model-size-1" href="#Step-3:-Run-full-model-on-the-best-estimated-model-size-1">Step 3: Run full model on the best estimated model size</a></h3><p><code>cv_iht</code> finished in less than a minute. </p><p>According to our cross validation result, the best model size that minimizes deviance residuals (i.e. MSE on the q-th subset of samples) is attained at <span>$k = 10$</span>. That is, cross validation detected that we need 10 SNPs to achieve the best model size. Using this information, one can re-run the IHT algorithm on the <em>full</em> dataset to obtain the best estimated model.</p><pre><code class="language-julia">k_est = argmin(mses)
+result = L0_reg(x, xbm, z, y, 1, k_est, d(), l) </code></pre><pre><code class="language-none">IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
 
-The lowest MSE is achieved at k = 10</code></pre><div class="admonition note"><div class="admonition-title">Note</div><div class="admonition-text"><p><strong>DO NOT remove</strong> intermediate files with random filenames as generated by <code>cv_iht()</code>. These are necessary auxiliary files that will be automatically removed when cross validation completes. </p></div></div><div class="admonition tip"><div class="admonition-title">Tip</div><div class="admonition-text"><p>Because Julia employs a JIT compiler, the first round of any function call run will always take longer and consume extra memory. Therefore it is advised to always run a small &quot;test example&quot; (such as this one!) before running cross validation on a large dataset. </p></div></div><h3><a class="nav-anchor" id="Step-3:-Run-full-model-on-the-best-estimated-model-size-1" href="#Step-3:-Run-full-model-on-the-best-estimated-model-size-1">Step 3: Run full model on the best estimated model size</a></h3><p><code>cv_iht</code> finished in less than a minute. </p><p>According to our cross validation result, the best model size that minimizes deviance residuals (i.e. MSE on the q-th subset of samples) is attained at <span>$k = 10$</span>. That is, cross validation detected that we need 10 SNPs to achieve the best model size. Using this information, one can re-run the IHT algorithm on the <em>full</em> dataset to obtain the best estimated model.</p><pre><code class="language-julia">k_est = argmin(mses)
-result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)</code></pre><pre><code class="language-none">IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
-
-Compute time (sec):     0.5040078163146973
+Compute time (sec):     0.4252500534057617
 Final loglikelihood:    -1406.8807653835697
 Iterations:             6
-Max number of groups:   1
-Max predictors/group:   10
 
 Selected genetic predictors:
 10×2 DataFrame
@@ -171,7 +189,12 @@ rm(&quot;tmp.bed&quot;, force=true)</code></pre><pre><code class="language-none"
 │ 7   │ 0.693374 │ 0.673012    │
 │ 8   │ -0.67709 │ -0.709736   │
 │ 9   │ 0.14727  │ 0.16866     │
-│ 10  │ 1.03477  │ 1.08117     │</code></pre><h2><a class="nav-anchor" id="Example-3:-Logistic-Regression-Controlling-for-Sex-1" href="#Example-3:-Logistic-Regression-Controlling-for-Sex-1">Example 3: Logistic Regression Controlling for Sex</a></h2><p>We show how to use IHT to handle case-control studies, while handling non-genetic covariates. In this example, we fit a logistic regression model with IHT using simulated case-control data, while controling for sex as a nongenetic covariate. </p><h3><a class="nav-anchor" id="Step-1:-Import-Data-1" href="#Step-1:-Import-Data-1">Step 1: Import Data</a></h3><p>Again we use a simulated model:</p><div>\[y_i \sim Bernoulli(\mathbf{x}_i^T\mathbf{\beta})\]</div><div>\[x_{ij} \sim Binomial(2, p_j)\]</div><div>\[p_j \sim Uniform(0, 0.5)\]</div><div>\[\beta_i \sim N(0, 1)\]</div><div>\[\beta_{intercept} = 1\]</div><div>\[\beta_{sex} = 1.5\]</div><p>We assumed there are <span>$k=8$</span> genetic predictors and 2 non-genetic predictors (intercept and sex) that affects the trait. The simulation code in our package does not yet handle simulations with non-genetic predictors, so we must simulate these phenotypes manually. </p><pre><code class="language-julia"># Define model dimensions, true model size, distribution, and link functions
+│ 10  │ 1.03477  │ 1.08117     │</code></pre><h2><a class="nav-anchor" id="Example-3:-Logistic-Regression-Controlling-for-Sex-1" href="#Example-3:-Logistic-Regression-Controlling-for-Sex-1">Example 3: Logistic Regression Controlling for Sex</a></h2><p>We show how to use IHT to handle case-control studies, while handling non-genetic covariates. In this example, we fit a logistic regression model with IHT using simulated case-control data, while controling for sex as a nongenetic covariate. </p><h3><a class="nav-anchor" id="Step-1:-Import-Data-1" href="#Step-1:-Import-Data-1">Step 1: Import Data</a></h3><p>Again we use a simulated model:</p><p>\begin{align<em>} &amp;y<em>i \sim \rm Bernoulli(\mathbf{x}</em>i^T\mathbf{\beta})\
+&amp;x<em>{ij} \sim \rm Binomial(2, \rho</em>j)\
+&amp;\rho<em>j \sim \rm Uniform(0, 0.5)\
+&amp;\beta</em>i \sim \rm N(0, 1)\
+&amp;\beta<em>{\rm intercept} = 1\
+&amp;\beta</em>{\rm sex} = 1.5 \end{align</em>}</p><p>We assumed there are <span>$k=8$</span> genetic predictors and 2 non-genetic predictors (intercept and sex) that affects the trait. The simulation code in our package does not yet handle simulations with non-genetic predictors, so we must simulate these phenotypes manually. </p><pre><code class="language-julia"># Define model dimensions, true model size, distribution, and link functions
 n = 1000
 p = 10000
 k = 10
@@ -207,53 +230,51 @@ y = Float64.(y); # y must be floating point numbers</code></pre><h3><a class="na
 num_folds = 3
 mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is for number of groups</code></pre><pre><code class="language-none">Crossvalidation Results:
 	k	MSE
-	1	391.44413742296507
-	2	365.94409558538405
-	3	332.53357480884415
-	4	270.9466574526783
-	5	245.64667604806908
-	6	234.1348150358823
-	7	242.1326570535411
-	8	237.8125739190615
-	9	248.39984663655218
-	10	247.42113174417304
-	11	258.76386322638245
-	12	263.02028089480876
-	13	265.12598433158234
-	14	279.28886892555727
-	15	291.4334160383655
-	16	320.2043997941196
-	17	284.29817104006
-	18	327.9803987249458
-	19	332.2334866227556
-	20	344.79544568090694
+	1	391.44426892225727
+	2	365.7520496496987
+	3	332.3801926093215
+	4	273.2081512206048
+	5	253.31631985207758
+	6	234.93701288953315
+	7	221.997334181244
+	8	199.01688783420346
+	9	208.31087723164197
+	10	216.00575628120708
+	11	227.91834469184545
+	12	242.42456871743065
+	13	261.46346209331466
+	14	263.5229307137862
+	15	283.30379378951073
+	16	328.2771991160804
+	17	290.4512419547228
+	18	350.3516280657363
+	19	361.61016297810295
+	20	418.2370935226805</code></pre><div class="admonition tip"><div class="admonition-title">Tip</div><div class="admonition-text"><p>In our experience, using the <code>ProbitLink</code> for logistic regressions deliver better results than <code>LogitLink</code> (which is the canonical link). </p></div></div><h3><a class="nav-anchor" id="Step-3:-Run-full-model-on-the-best-estimated-model-size-2" href="#Step-3:-Run-full-model-on-the-best-estimated-model-size-2">Step 3: Run full model on the best estimated model size</a></h3><p><code>cv_iht</code> finished in about a minute. </p><p>Cross validation have declared that <span>$k_{best} = 8$</span>. Using this information, one can re-run the IHT algorithm on the <em>full</em> dataset to obtain the best estimated model.</p><pre><code class="language-julia">k_est = argmin(mses)
+result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)</code></pre><pre><code class="language-none">IHT estimated 6 nonzero SNP predictors and 2 non-genetic predictors.
 
-The lowest MSE is achieved at k = 6</code></pre><div class="admonition tip"><div class="admonition-title">Tip</div><div class="admonition-text"><p>In our experience, using the <code>ProbitLink</code> for logistic regressions deliver better results than <code>LogitLink</code> (which is the canonical link). </p></div></div><h3><a class="nav-anchor" id="Step-3:-Run-full-model-on-the-best-estimated-model-size-2" href="#Step-3:-Run-full-model-on-the-best-estimated-model-size-2">Step 3: Run full model on the best estimated model size</a></h3><p><code>cv_iht</code> finished in about a minute. </p><p>Cross validation have declared that <span>$k_{best} = 8$</span>. Using this information, one can re-run the IHT algorithm on the <em>full</em> dataset to obtain the best estimated model.</p><pre><code class="language-julia">k_est = argmin(mses)
-result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)</code></pre><pre><code class="language-none">IHT estimated 4 nonzero SNP predictors and 2 non-genetic predictors.
-
-Compute time (sec):     3.0592892169952393
-Final loglikelihood:    -341.107863135428
-Iterations:             57
-Max number of groups:   1
-Max predictors/group:   6
+Compute time (sec):     1.7605140209197998
+Final loglikelihood:    -290.4509381564733
+Iterations:             37
 
 Selected genetic predictors:
-4×2 DataFrame
+6×2 DataFrame
 │ Row │ Position │ Estimated_β │
 │     │ [90mInt64[39m    │ [90mFloat64[39m     │
 ├─────┼──────────┼─────────────┤
-│ 1   │ 1152     │ 0.745372    │
-│ 2   │ 1576     │ 1.3801      │
-│ 3   │ 5765     │ -1.3558     │
-│ 4   │ 5992     │ -1.47339    │
+│ 1   │ 1152     │ 0.966731    │
+│ 2   │ 1576     │ 1.56183     │
+│ 3   │ 3411     │ 0.87674     │
+│ 4   │ 5765     │ -1.75611    │
+│ 5   │ 5992     │ -2.04506    │
+│ 6   │ 8781     │ 0.760213    │
 
 Selected nongenetic predictors:
 2×2 DataFrame
 │ Row │ Position │ Estimated_β │
 │     │ [90mInt64[39m    │ [90mFloat64[39m     │
 ├─────┼──────────┼─────────────┤
-│ 1   │ 1        │ 0.599159    │
-│ 2   │ 2        │ 1.54466     │</code></pre><h3><a class="nav-anchor" id="Step-4-(only-for-simulated-data):-Check-final-model-against-simulation-2" href="#Step-4-(only-for-simulated-data):-Check-final-model-against-simulation-2">Step 4 (only for simulated data): Check final model against simulation</a></h3><p>Since all our data and model was simulated, we can see how well <code>cv_iht</code> combined with <code>L0_reg</code> estimated the true model. For this example, we find that IHT found both nongenetic predictor, but missed 2 genetic predictors. The 2 genetic predictors that we missed had much smaller effect size, so given that we only had 1000 samples, this is hardly surprising. </p><pre><code class="language-julia">compare_model_genetics = DataFrame(
+│ 1   │ 1        │ 0.709909    │
+│ 2   │ 2        │ 1.65049     │</code></pre><h3><a class="nav-anchor" id="Step-4-(only-for-simulated-data):-Check-final-model-against-simulation-2" href="#Step-4-(only-for-simulated-data):-Check-final-model-against-simulation-2">Step 4 (only for simulated data): Check final model against simulation</a></h3><p>Since all our data and model was simulated, we can see how well <code>cv_iht</code> combined with <code>L0_reg</code> estimated the true model. For this example, we find that IHT found both nongenetic predictor, but missed 2 genetic predictors. The 2 genetic predictors that we missed had much smaller effect size, so given that we only had 1000 samples, this is hardly surprising. </p><pre><code class="language-julia">compare_model_genetics = DataFrame(
     true_β      = true_b[correct_position], 
     estimated_β = result.beta[correct_position])
 
@@ -269,22 +290,25 @@ rm(&quot;tmp.bed&quot;, force=true)</code></pre><pre><code class="language-none"
 │ Row │ true_β   │ estimated_β │
 │     │ Float64  │ Float64     │
 ├─────┼──────────┼─────────────┤
-│ 1   │ 0.961937 │ 0.745372    │
+│ 1   │ 0.961937 │ 0.966731    │
 │ 2   │ 0.189267 │ 0.0         │
-│ 3   │ 1.74008  │ 1.3801      │
-│ 4   │ 0.879004 │ 0.0         │
+│ 3   │ 1.74008  │ 1.56183     │
+│ 4   │ 0.879004 │ 0.87674     │
 │ 5   │ 0.213066 │ 0.0         │
-│ 6   │ -1.74663 │ -1.3558     │
-│ 7   │ -1.93402 │ -1.47339    │
-│ 8   │ 0.632786 │ 0.0         │
+│ 6   │ -1.74663 │ -1.75611    │
+│ 7   │ -1.93402 │ -2.04506    │
+│ 8   │ 0.632786 │ 0.760213    │
 compare_model_nongenetics = 2×2 DataFrame
 │ Row │ true_c  │ estimated_c │
 │     │ Float64 │ Float64     │
 ├─────┼─────────┼─────────────┤
-│ 1   │ 1.0     │ 0.599159    │
-│ 2   │ 1.5     │ 1.54466     │</code></pre><h2><a class="nav-anchor" id="Example-4:-Poisson-Regression-with-Acceleration-(i.e.-debias)-1" href="#Example-4:-Poisson-Regression-with-Acceleration-(i.e.-debias)-1">Example 4: Poisson Regression with Acceleration (i.e. debias)</a></h2><p>In this example, we show how debiasing can potentially achieve dramatic speedup. Our model is:</p><div>\[y_i \sim Poisson(\mathbf{x}_i^T\mathbf{\beta})\]</div><div>\[x_{ij} \sim Binomial(2, p_j)\]</div><div>\[p_j \sim Uniform(0, 0.5)\]</div><div>\[\beta_i \sim N(0, 0.3)\]</div><pre><code class="language-julia"># Define model dimensions, true model size, distribution, and link functions
-n = 5000
-p = 30000
+│ 1   │ 1.0     │ 0.709909    │
+│ 2   │ 1.5     │ 1.65049     │</code></pre><h2><a class="nav-anchor" id="Example-4:-Poisson-Regression-with-Acceleration-(i.e.-debias)-1" href="#Example-4:-Poisson-Regression-with-Acceleration-(i.e.-debias)-1">Example 4: Poisson Regression with Acceleration (i.e. debias)</a></h2><p>In this example, we show how debiasing can potentially achieve dramatic speedup. Our model is:</p><p>\begin{align<em>} y<em>i &amp;\sim \rm Poisson(\mathbf{x}</em>i^T \mathbf{\beta})\
+x<em>{ij} &amp;\sim \rm Binomial(2, \rho</em>j)\
+\rho<em>j &amp;\sim \rm Uniform(0, 0.5)\
+\beta</em>i &amp;\sim \rm N(0, 0.3) \end{align</em>}</p><pre><code class="language-julia"># Define model dimensions, true model size, distribution, and link functions
+n = 1000
+p = 10000
 k = 10
 d = Poisson
 l = canonicallink(d())
@@ -308,34 +332,34 @@ yes_debias = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true);</code></pre><pre><
 │ Row │ position │ true_β     │ no_debias_β │ yes_debias_β │
 │     │ Int64    │ Float64    │ Float64     │ Float64      │
 ├─────┼──────────┼────────────┼─────────────┼──────────────┤
-│ 1   │ 2105     │ 0.0155232  │ 0.0         │ 0.0          │
-│ 2   │ 5852     │ 0.0747323  │ 0.0759218   │ 0.0775061    │
-│ 3   │ 9219     │ 0.0233952  │ 0.0         │ 0.0          │
-│ 4   │ 10362    │ -0.241167  │ -0.243655   │ -0.245874    │
-│ 5   │ 15755    │ 0.278812   │ 0.28015     │ 0.283672     │
-│ 6   │ 21188    │ 0.0540703  │ 0.0607867   │ 0.0621309    │
-│ 7   │ 21324    │ -0.216701  │ -0.222548   │ -0.221695    │
-│ 8   │ 21819    │ -0.0331256 │ -0.0599403  │ -0.0603646   │
-│ 9   │ 25655    │ 0.0217997  │ 0.0         │ 0.0          │
-│ 10  │ 29986    │ 0.354062   │ 0.361812    │ 0.361667     │</code></pre><h3><a class="nav-anchor" id="Compare-Speed-and-Memory-Usage-1" href="#Compare-Speed-and-Memory-Usage-1">Compare Speed and Memory Usage</a></h3><p>Now we illustrate that debiasing may dramatically reduce computational time (in this case 85%), at a cost of increasing the memory usage. In practice, this extra memory usage hardly matters because the matrix size will dominate for larger problems. See <a href="https://github.com/biona001/MendelIHT.jl">here for complete benchmark figure.</a></p><pre><code class="language-julia">@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false) seconds=30</code></pre><pre><code class="language-none">BenchmarkTools.Trial: 
-  memory estimate:  4.96 MiB
-  allocs estimate:  531
+│ 1   │ 853      │ -0.389892  │ -0.384161   │ -0.38744     │
+│ 2   │ 877      │ -0.0653099 │ 0.0         │ 0.0          │
+│ 3   │ 924      │ 0.235865   │ 0.246213    │ 0.240514     │
+│ 4   │ 2703     │ 0.17977    │ 0.237651    │ 0.225127     │
+│ 5   │ 4241     │ 0.0851134  │ 0.0         │ 0.0894244    │
+│ 6   │ 4783     │ -0.33761   │ -0.300663   │ -0.307515    │
+│ 7   │ 5094     │ 0.208012   │ 0.223384    │ 0.215149     │
+│ 8   │ 5284     │ -0.203127  │ -0.225593   │ -0.209308    │
+│ 9   │ 7760     │ 0.0441809  │ 0.0         │ 0.0          │
+│ 10  │ 8255     │ 0.310431   │ 0.287363    │ 0.301717     │</code></pre><h3><a class="nav-anchor" id="Compare-Speed-and-Memory-Usage-1" href="#Compare-Speed-and-Memory-Usage-1">Compare Speed and Memory Usage</a></h3><p>Now we illustrate that debiasing may dramatically reduce computational time (in this case ~50%), at a cost of increasing the memory usage. In practice, this extra memory usage hardly matters because the matrix size will dominate for larger problems. See <a href="https://www.biorxiv.org/content/10.1101/697755v2">our paper for complete benchmark figure.</a></p><pre><code class="language-julia">@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false) seconds=15</code></pre><pre><code class="language-none">BenchmarkTools.Trial: 
+  memory estimate:  2.16 MiB
+  allocs estimate:  738
   --------------
-  minimum time:     7.194 s (0.00% GC)
-  median time:      7.390 s (0.00% GC)
-  mean time:        7.393 s (0.01% GC)
-  maximum time:     7.585 s (0.05% GC)
+  minimum time:     678.133 ms (0.00% GC)
+  median time:      718.579 ms (0.00% GC)
+  mean time:        718.396 ms (0.05% GC)
+  maximum time:     749.206 ms (0.00% GC)
   --------------
-  samples:          5
-  evals/sample:     1</code></pre><pre><code class="language-julia">@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true) seconds=30</code></pre><pre><code class="language-none">BenchmarkTools.Trial: 
-  memory estimate:  11.83 MiB
-  allocs estimate:  1320
+  samples:          21
+  evals/sample:     1</code></pre><pre><code class="language-julia">@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true) seconds=15</code></pre><pre><code class="language-none">BenchmarkTools.Trial: 
+  memory estimate:  2.62 MiB
+  allocs estimate:  1135
   --------------
-  minimum time:     6.121 s (0.06% GC)
-  median time:      6.318 s (0.00% GC)
-  mean time:        6.307 s (0.03% GC)
-  maximum time:     6.469 s (0.00% GC)
+  minimum time:     333.945 ms (0.00% GC)
+  median time:      344.313 ms (0.00% GC)
+  mean time:        344.025 ms (0.10% GC)
+  maximum time:     350.126 ms (0.87% GC)
   --------------
-  samples:          5
+  samples:          44
   evals/sample:     1</code></pre><pre><code class="language-julia">#clean up. Windows user must do this step manually (outside notebook/REPL)
 rm(&quot;tmp.bed&quot;, force=true)</code></pre><h2><a class="nav-anchor" id="Other-examples-and-functionalities-1" href="#Other-examples-and-functionalities-1">Other examples and functionalities</a></h2><p>We invite users to experiment with additional functionalities. We explored a significant portion of them in our manuscript, with <a href="https://github.com/biona001/MendelIHT.jl/tree/master/figures">reproducible code</a>. This includes:</p><ul><li>Modeling some exotic distributions and using noncanonical link functions <a href="https://biona001.github.io/MendelIHT.jl/latest/man/getting_started/#Supported-GLM-models-and-Link-functions-1">listed here</a></li><li>Modeling SNP-SNP or SNP-environment interaction effects by explicitly including them in the nongenetic covariates <code>z</code>.</li><li>Doubly sparse projection (requires group information)</li><li>Weighted projections to favor certain SNPs (requires weight information)</li></ul><footer><hr/><a class="previous" href="../getting_started/"><span class="direction">Previous</span><span class="title">Getting Started</span></a><a class="next" href="../contributing/"><span class="direction">Next</span><span class="title">Contributing</span></a></footer></article></body></html>
