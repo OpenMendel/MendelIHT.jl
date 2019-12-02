@@ -45,6 +45,7 @@ We use [SnpArrays.jl](https://openmendel.github.io/SnpArrays.jl/latest/) as back
 ### Simulate example data (to be imported later)
 
 First we simulate an example PLINK trio (`.bim`, `.bed`, `.fam`) and non-genetic covariates, then we illustrate how to import them. For genotype matrix simulation, we simulate under the model:
+
 $$x_{ij} \sim \rm Binomial(2, \rho_j)$$
 $$\rho_j \sim \rm Uniform(0, 0.5)$$
 
@@ -278,7 +279,7 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
     
     IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
     
-    Compute time (sec):     0.4252500534057617
+    Compute time (sec):     0.4135408401489258
     Final loglikelihood:    -1406.8807653835697
     Iterations:             6
     
@@ -384,7 +385,7 @@ correct_position = findall(!iszero, true_b)
 true_c = [1.0; 1.5] 
 
 # simulate phenotype using genetic and nongenetic predictors
-prob = linkinv.(l, xbm * true_b .+ z * true_c)
+prob = GLM.linkinv.(l, xbm * true_b .+ z * true_c)
 y = [rand(d(i)) for i in prob]
 y = Float64.(y); # y must be floating point numbers
 ```
@@ -433,7 +434,7 @@ mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is fo
 
 !!! tip
 
-    In our experience, using the `ProbitLink` for logistic regressions deliver better results than `LogitLink` (which is the canonical link). 
+    In our experience, using the `ProbitLink` for logistic regressions deliver better results than `LogitLink` (which is the canonical link). But of course, one should choose the link that gives the higher loglikelihood. 
 
 ### Step 3: Run full model on the best estimated model size 
 
@@ -453,7 +454,7 @@ result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
     
     IHT estimated 6 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     1.7605140209197998
+    Compute time (sec):     1.6644580364227295
     Final loglikelihood:    -290.4509381564733
     Iterations:             37
     
@@ -602,12 +603,12 @@ Now we illustrate that debiasing may dramatically reduce computational time (in 
       memory estimate:  2.16 MiB
       allocs estimate:  738
       --------------
-      minimum time:     678.133 ms (0.00% GC)
-      median time:      718.579 ms (0.00% GC)
-      mean time:        718.396 ms (0.05% GC)
-      maximum time:     749.206 ms (0.00% GC)
+      minimum time:     673.188 ms (0.00% GC)
+      median time:      706.368 ms (0.00% GC)
+      mean time:        708.080 ms (0.04% GC)
+      maximum time:     741.125 ms (0.00% GC)
       --------------
-      samples:          21
+      samples:          22
       evals/sample:     1
 
 
@@ -624,12 +625,12 @@ Now we illustrate that debiasing may dramatically reduce computational time (in 
       memory estimate:  2.62 MiB
       allocs estimate:  1135
       --------------
-      minimum time:     333.945 ms (0.00% GC)
-      median time:      344.313 ms (0.00% GC)
-      mean time:        344.025 ms (0.10% GC)
-      maximum time:     350.126 ms (0.87% GC)
+      minimum time:     337.368 ms (0.00% GC)
+      median time:      350.194 ms (0.00% GC)
+      mean time:        349.958 ms (0.10% GC)
+      maximum time:     358.095 ms (0.00% GC)
       --------------
-      samples:          44
+      samples:          43
       evals/sample:     1
 
 
@@ -640,11 +641,291 @@ Now we illustrate that debiasing may dramatically reduce computational time (in 
 rm("tmp.bed", force=true)
 ```
 
+## Example 5: Negative Binomial regression with group information 
+
+In this example, we show how to include group information to perform doubly sparse projections. Here the final model would contain at most $J = 5$ groups where each group contains limited number of (prespecified) SNPs. For simplicity, we assume the sparsity parameter $k$ is known. 
+
+### Data simulation
+To illustrate the effect of group information and prior weights, we generated correlated genotype matrix according to the procedure outlined in [our paper](https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf). In this example, each SNP belongs to 1 of 500 disjoint groups containing 20 SNPs each; $j = 5$ distinct groups are each assigned $1,2,...,5$ causal SNPs with effect sizes randomly chosen from $\{−0.2,0.2\}$. In all there 15 causal SNPs.  For grouped-IHT, we assume perfect group information. That is, the selected groups containing 1∼5 causative SNPs are assigned maximum within-group sparsity $\lambda_g = 1,2,...,5$. The remaining groups are assigned $\lambda_g = 1$ (i.e. only 1 active predictor are allowed).
+
+
+```julia
+# define problem size
+d = NegativeBinomial
+l = LogLink()
+n = 1000
+p = 10000
+block_size = 20                  #simulation parameter
+num_blocks = Int(p / block_size) #simulation parameter
+
+# set seed
+Random.seed!(2019)
+
+# assign group membership
+membership = collect(1:num_blocks)
+g = zeros(Int64, p + 1)
+for i in 1:length(membership)
+    for j in 1:block_size
+        cur_row = block_size * (i - 1) + j
+        g[block_size*(i - 1) + j] = membership[i]
+    end
+end
+g[end] = membership[end]
+
+#simulate correlated snparray
+x = simulate_correlated_snparray(n, p, "tmp.bed")
+z = ones(n, 1) # the intercept
+x_float = convert(Matrix{Float64}, x, model=ADDITIVE_MODEL, center=true, scale=true)
+
+#simulate true model, where 5 groups each with 1~5 snps contribute
+true_b = zeros(p)
+true_groups = randperm(num_blocks)[1:5]
+sort!(true_groups)
+within_group = [randperm(block_size)[1:1], randperm(block_size)[1:2], 
+                randperm(block_size)[1:3], randperm(block_size)[1:4], 
+                randperm(block_size)[1:5]]
+correct_position = zeros(Int64, 15)
+for i in 1:5
+    cur_group = block_size * (true_groups[i] - 1)
+    cur_group_snps = cur_group .+ within_group[i]
+    start, last = Int(i*(i-1)/2 + 1), Int(i*(i+1)/2)
+    correct_position[start:last] .= cur_group_snps
+end
+for i in 1:15
+    true_b[correct_position[i]] = rand(-1:2:1) * 0.2
+end
+sort!(correct_position)
+
+# simulate phenotype
+r = 10 #nuisance parameter
+μ = GLM.linkinv.(l, x_float * true_b)
+clamp!(μ, -20, 20)
+prob = 1 ./ (1 .+ μ ./ r)
+y = [rand(d(r, i)) for i in prob] #number of failures before r success occurs
+y = Float64.(y);
+```
+
+
+```julia
+#run IHT without groups
+k = 15
+ungrouped = L0_reg(x_float, z, y, 1, k, d(), l, verbose=false)
+```
+
+
+
+
+    
+    IHT estimated 15 nonzero SNP predictors and 0 non-genetic predictors.
+    
+    Compute time (sec):     0.11840415000915527
+    Final loglikelihood:    -1441.522293255591
+    Iterations:             27
+    
+    Selected genetic predictors:
+    15×2 DataFrame
+    │ Row │ Position │ Estimated_β │
+    │     │ [90mInt64[39m    │ [90mFloat64[39m     │
+    ├─────┼──────────┼─────────────┤
+    │ 1   │ 3464     │ -0.234958   │
+    │ 2   │ 4383     │ -0.135693   │
+    │ 3   │ 4927     │ 0.158171    │
+    │ 4   │ 4938     │ -0.222613   │
+    │ 5   │ 5001     │ -0.193739   │
+    │ 6   │ 5011     │ -0.162718   │
+    │ 7   │ 5018     │ -0.190532   │
+    │ 8   │ 5090     │ 0.226509    │
+    │ 9   │ 5092     │ -0.17756    │
+    │ 10  │ 5100     │ -0.140337   │
+    │ 11  │ 7004     │ 0.151748    │
+    │ 12  │ 7011     │ 0.206449    │
+    │ 13  │ 7015     │ -0.284706   │
+    │ 14  │ 7016     │ 0.218126    │
+    │ 15  │ 9902     │ 0.119059    │
+    
+    Selected nongenetic predictors:
+    0×2 DataFrame
+
+
+
+
+
+```julia
+#run doubly sparse (group) IHT by specifying maximum number of SNPs for each group (in order)
+J = 5
+max_group_snps = ones(Int, num_blocks)
+max_group_snps[true_groups] .= collect(1:5)
+variable_group = L0_reg(x_float, z, y, J, max_group_snps, d(), l, verbose=false, group=g)
+```
+
+
+
+
+    
+    IHT estimated 15 nonzero SNP predictors and 0 non-genetic predictors.
+    
+    Compute time (sec):     0.30719614028930664
+    Final loglikelihood:    -1446.3808810786898
+    Iterations:             16
+    
+    Selected genetic predictors:
+    15×2 DataFrame
+    │ Row │ Position │ Estimated_β │
+    │     │ [90mInt64[39m    │ [90mFloat64[39m     │
+    ├─────┼──────────┼─────────────┤
+    │ 1   │ 3464     │ -0.245853   │
+    │ 2   │ 4927     │ 0.160904    │
+    │ 3   │ 4938     │ -0.213439   │
+    │ 4   │ 5001     │ -0.19624    │
+    │ 5   │ 5011     │ -0.149913   │
+    │ 6   │ 5018     │ -0.181966   │
+    │ 7   │ 5086     │ -0.0560478  │
+    │ 8   │ 5090     │ 0.21164     │
+    │ 9   │ 5092     │ -0.141968   │
+    │ 10  │ 5100     │ -0.157655   │
+    │ 11  │ 7004     │ 0.190224    │
+    │ 12  │ 7011     │ 0.21294     │
+    │ 13  │ 7015     │ -0.256058   │
+    │ 14  │ 7016     │ 0.19746     │
+    │ 15  │ 7020     │ 0.111755    │
+    
+    Selected nongenetic predictors:
+    0×2 DataFrame
+
+
+
+
+### Group IHT found 1 more SNPs than ungrouped IHT
+
+
+```julia
+#check result
+correct_position = findall(!iszero, true_b)
+compare_model = DataFrame(
+    position = correct_position,
+    correct_β = true_b[correct_position],
+    ungrouped_IHT_β = ungrouped.beta[correct_position], 
+    grouped_IHT_β = variable_group.beta[correct_position])
+@show compare_model
+println("\n")
+
+#clean up. Windows user must do this step manually (outside notebook/REPL)
+rm("tmp.bed", force=true)
+```
+
+    compare_model = 15×4 DataFrame
+    │ Row │ position │ correct_β │ ungrouped_IHT_β │ grouped_IHT_β │
+    │     │ Int64    │ Float64   │ Float64         │ Float64       │
+    ├─────┼──────────┼───────────┼─────────────────┼───────────────┤
+    │ 1   │ 3464     │ -0.2      │ -0.234958       │ -0.245853     │
+    │ 2   │ 4927     │ 0.2       │ 0.158171        │ 0.160904      │
+    │ 3   │ 4938     │ -0.2      │ -0.222613       │ -0.213439     │
+    │ 4   │ 5001     │ -0.2      │ -0.193739       │ -0.19624      │
+    │ 5   │ 5011     │ -0.2      │ -0.162718       │ -0.149913     │
+    │ 6   │ 5018     │ -0.2      │ -0.190532       │ -0.181966     │
+    │ 7   │ 5084     │ -0.2      │ 0.0             │ 0.0           │
+    │ 8   │ 5090     │ 0.2       │ 0.226509        │ 0.21164       │
+    │ 9   │ 5098     │ -0.2      │ 0.0             │ 0.0           │
+    │ 10  │ 5100     │ -0.2      │ -0.140337       │ -0.157655     │
+    │ 11  │ 7004     │ 0.2       │ 0.151748        │ 0.190224      │
+    │ 12  │ 7011     │ 0.2       │ 0.206449        │ 0.21294       │
+    │ 13  │ 7015     │ -0.2      │ -0.284706       │ -0.256058     │
+    │ 14  │ 7016     │ 0.2       │ 0.218126        │ 0.19746       │
+    │ 15  │ 7020     │ 0.2       │ 0.0             │ 0.111755      │
+    
+    
+
+
+## Example 6: Linear Regression with prior weights
+
+In this example, we show how to include (predetermined) prior weights for each SNP. You can check out [our paper](https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf) for references of why/how to choose these weights. In this case, we mimic our paper and randomly set $10\%$ of all SNPs to have a weight of $2.0$. Other predictors have weight of $1.0$. All causal SNPs have weights of $2.0$. Under this scenario, SNPs with weight $2.0$ is twice as likely to enter the model identified by IHT. 
+
+Our model is simulated as:
+
+$$y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i$$
+$$x_{ij} \sim \rm Binomial(2, \rho_j)$$
+$$\rho_j \sim \rm Uniform(0, 0.5)$$
+$$\epsilon_i \sim \rm N(0, 1)$$
+$$\beta_i \sim \rm N(0, 1)$$
+
+
+```julia
+#random seed
+Random.seed!(4)
+
+d = Normal
+l = canonicallink(d())
+n = 1000
+p = 10000
+k = 10
+
+# construct snpmatrix, covariate files, and true model b
+x = simulate_random_snparray(n, p, "tmp.bed")
+X = convert(Matrix{Float64}, x, center=true, scale=true)
+z = ones(n, 1) # the intercept
+    
+#define true_b 
+true_b = zeros(p)
+true_b[1:10] .= collect(0.1:0.1:1.0)
+shuffle!(true_b)
+correct_position = findall(!iszero, true_b)
+
+#simulate phenotypes (e.g. vector y)
+prob = GLM.linkinv.(l, X * true_b)
+clamp!(prob, -20, 20)
+y = [rand(d(i)) for i in prob]
+y = Float64.(y);
+```
+
+
+```julia
+# construct weight vector
+w = ones(p + 1)
+w[correct_position] .= 2.0
+one_tenth = round(Int, p/10)
+idx = rand(1:p, one_tenth)
+w[idx] .= 2.0; #randomly set ~1/10 of all predictors to 2
+```
+
+
+```julia
+#run IHT
+unweighted = L0_reg(X, z, y, 1, k, d(), l, verbose=false)
+weighted   = L0_reg(X, z, y, 1, k, d(), l, verbose=false, weight=w)
+
+#check result
+compare_model = DataFrame(
+    position    = correct_position,
+    correct     = true_b[correct_position],
+    unweighted  = unweighted.beta[correct_position], 
+    weighted    = weighted.beta[correct_position])
+@show compare_model
+println("\n")
+
+#clean up. Windows user must do this step manually (outside notebook/REPL)
+rm("tmp.bed", force=true)
+```
+
+    compare_model = 10×4 DataFrame
+    │ Row │ position │ correct │ unweighted │ weighted │
+    │     │ Int64    │ Float64 │ Float64    │ Float64  │
+    ├─────┼──────────┼─────────┼────────────┼──────────┤
+    │ 1   │ 1254     │ 0.4     │ 0.452245   │ 0.450405 │
+    │ 2   │ 1495     │ 0.3     │ 0.306081   │ 0.305738 │
+    │ 3   │ 4856     │ 0.8     │ 0.853536   │ 0.862223 │
+    │ 4   │ 5767     │ 0.1     │ 0.0        │ 0.117286 │
+    │ 5   │ 5822     │ 0.7     │ 0.656213   │ 0.651908 │
+    │ 6   │ 5945     │ 0.9     │ 0.891915   │ 0.894997 │
+    │ 7   │ 6367     │ 0.5     │ 0.469718   │ 0.472524 │
+    │ 8   │ 6996     │ 1.0     │ 0.963236   │ 0.973512 │
+    │ 9   │ 7052     │ 0.6     │ 0.602162   │ 0.600055 │
+    │ 10  │ 7980     │ 0.2     │ 0.231389   │ 0.234094 │
+    
+    
+
+
+In this case, weighted IHT found an extra predictor than non-weighted IHT.
+
 ## Other examples and functionalities
 
-We invite users to experiment with additional functionalities. We explored a significant portion of them in our manuscript, with [reproducible code](https://github.com/biona001/MendelIHT.jl/tree/master/figures). This includes:
-
-+ Modeling some exotic distributions and using noncanonical link functions [listed here](https://biona001.github.io/MendelIHT.jl/latest/man/getting_started/#Supported-GLM-models-and-Link-functions-1)
-+ Modeling SNP-SNP or SNP-environment interaction effects by explicitly including them in the nongenetic covariates `z`.
-+ Doubly sparse projection (requires group information)
-+ Weighted projections to favor certain SNPs (requires weight information)
+We explored a few more examples in our manuscript, with [reproducible code](https://github.com/biona001/MendelIHT.jl/tree/master/figures). We invite users to experiment with them as well. 
