@@ -278,15 +278,15 @@ function make_bim_fam_files(x::SnpArray, y, name::String)
     #create .bim file structure: https://www.cog-genomics.org/plink2/formats#bim
     open(name * ".bim", "w") do f
         for i in 1:p
-            write(f, "1 \t rs$i \t 0 \t 1 \t 1 \t 2 \n")
+            write(f, "1\t$i\t0\t1\t1\t2\n")
         end
     end
 
-    #create .fam file structure: https://www.cog-genomics.org/plink2/formats#bim
+    #create .fam file structure: https://www.cog-genomics.org/plink2/formats#fam
     open(name * ".fam", "w") do f
         for i in 1:n
             yi = y[i]
-            write(f, "$i \t 1 \t 0 \t 0 \t 1 \t $yi \n")
+            write(f, "$i\t1\t0\t0\t1\t$yi\n")
         end
     end
 end

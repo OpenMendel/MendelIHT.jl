@@ -46,12 +46,12 @@ if d == Normal || d == Bernoulli || d == Poisson
     # y = [rand(d(i)) for i in prob]
     # k = k + 1
 elseif d == NegativeBinomial
-    nn = 1
+    r = 1
     μ = GLM.linkinv.(l, xbm * true_b)
     # μ = linkinv.(l, xbm * true_b + z * true_c)
     # k = k + 1
     clamp!(μ, -20, 20)
-    prob = 1 ./ (1 .+ μ ./ nn)
+    prob = 1 ./ (1 .+ μ ./ r)
     y = [rand(d(nn, i)) for i in prob] #number of failtures before nn success occurs
 elseif d == Gamma
     μ = GLM.linkinv.(l, xbm * true_b)
@@ -356,7 +356,6 @@ using Distributions
 using BenchmarkTools
 using Random
 using LinearAlgebra
-using BenchmarkTools
 using GLM
 using TraitSimulation
 
