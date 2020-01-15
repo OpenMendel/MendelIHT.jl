@@ -10,16 +10,19 @@
 ## Package Feature
 
 + Analyze large GWAS datasets intuitively.
-+ Built-in parallel computing routines for `q-fold` cross-validation.
++ Built-in support for [PLINK binary files](https://www.cog-genomics.org/plink/1.9/input#bed) via [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) and [VCF files](https://en.wikipedia.org/wiki/Variant_Call_Format) via [VCFTools.jl](https://github.com/OpenMendel/VCFTools.jl).
++ Out-of-the-box parallel computing routines for `q-fold` cross-validation.
 + Fits a variety of generalized linear models with any choice of link function.
 + Computation directly on raw genotype files.
-+ Ability to include non-genetic covariates.
++ Efficient handlings for non-genetic covariates.
 + Optional acceleration (debias) step to dramatically improve speed.
 + Ability to explicitly incorporate weights for predictors.
 + Ability to enforce within and between group sparsity. 
 + Naive genotype imputation. 
 + Estimates nuisance parameter for negative binomial regression using Newton or MM algorithm. 
 + Excellent flexibility to handle different data structures and complements well with other Julia packages.
+
+Read [our paper](https://www.biorxiv.org/content/10.1101/697755v2) for more detail.
 
 ## Manual Outline
 
