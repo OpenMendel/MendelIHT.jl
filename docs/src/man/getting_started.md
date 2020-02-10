@@ -51,56 +51,6 @@ A standard analysis runs only 2 functions, other than importing data. For testin
   L0_reg
 ```
 
-## Supported GLM models and Link functions
-
-MendelIHT borrows distribution and link functions implementationed in [GLM.jl](http://juliastats.github.io/GLM.jl/stable/) and [Distributions.jl](https://juliastats.github.io/Distributions.jl/stable/)
-
-Distributions (listed with their canonical link) that work with `L0_reg` and `cv_iht` are:
-
-              Normal (IdentityLink)
-           Bernoulli (LogitLink)
-             Poisson (LogLink)
-    NegativeBinomial (LogLink)
-               Gamma (InverseLink) **(not tested)**
-     InverseGaussian (InverseSquareLink) **(not tested)**
-
-Examples of these distributions in their default value (code from [this post](https://github.com/JuliaStats/GLM.jl/issues/289)):
-
-
-```julia
-using Distributions, PyPlot
-figure(figsize=(6,5))
-dfxs = [Bernoulli(),Gamma(),InverseGaussian(),NegativeBinomial(),Normal(),Poisson()]
-dnames = ["Bernoulli","Gamma","InverseGaussian","NegativeBinomial","Normal","Poisson"]
-for i in 1:length(dfxs)
-    subplot(7,1,i); subplots_adjust(hspace=0)
-    PyPlot.plt.hist(rand(dfxs[i], 100000),-7.5:0.1:7.5,align="left",label="x");xticks(-8:8)
-    ax= gca()
-    ax.yaxis.set_visible(false);ax.spines["left"].set_visible(false);ax.spines["right"].set_visible(false);ax.spines["top"].set_visible(false)
-    i !== length(dfxs) && ax.xaxis.set_visible(false);annotate(dnames[i],xy=[0,0.5],xycoords="axes fraction",ha="right",va="center")
-end
-```
-
-
-![png](output_6_0.png)
-
-
-Available link functions are:
-
-    CauchitLink
-    CloglogLink
-    IdentityLink
-    InverseLink
-    InverseSquareLink
-    LogitLink
-    LogLink
-    ProbitLink
-    SqrtLink
-    
-!!! tip
-    
-    For logistic regression, the `ProbitLink` seems to work better than `LogitLink`. For `d = NegativeBinomial` or `d=Gamma`, the link function must be `LogLink`. 
-
 ## Specifying Groups and Weights
 
 When you have group and weight information, you input them as optional arguments in `L0_reg` and `cv_iht`. The weight vector is a vector of Float64, while the group vector is a vector of integers. For instance,

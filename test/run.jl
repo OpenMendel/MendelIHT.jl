@@ -241,7 +241,7 @@ l = LogLink()
 θ = 3 #scale parameter for gamma
 
 #set random seed
-Random.seed!(2019)
+Random.seed!(2021)
 
 #construct snpmatrix, covariate files, and true model b
 x = simulate_random_snparray(n, p, "tmp.bed")
@@ -254,13 +254,13 @@ shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 
 #simulate phenotypes (e.g. vector y) 
-μ = linkinv.(l, xbm * true_b)
+μ = GLM.linkinv.(l, xbm * true_b)
 clamp!(μ, -20, 20)
 y = [rand(d(i, θ)) for i in μ]
 histogram(y)
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true) seconds = 60
 
 #check result
@@ -312,14 +312,14 @@ shuffle!(true_b)
 correct_position = findall(x -> x != 0, true_b)
 
 #simulate phenotypes (e.g. vector y) 
-μ = linkinv.(l, xbm * true_b)
+μ = GLM.linkinv.(l, xbm * true_b)
 clamp!(μ, -20, 20)
 mean_parameter = 1 ./ μ #mean parameter for inverse gaussian distribution
 y = [rand(d(i, λ)) for i in mean_parameter]
 clamp!(y, 0, 20)
 
 #run IHT
-result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true, init=false, show_info=false)
+result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false)
 # @benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, show_info=false, convg=true) seconds = 60
 
 #check result
