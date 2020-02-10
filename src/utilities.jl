@@ -295,10 +295,13 @@ function _choose!(v::IHTVariable{T}, J::Int, sparsity::Int) where {T <: Float}
     nonzero = sum(v.idx) + sum(v.idc)
     if nonzero > J * sparsity
         z = zero(eltype(v.b))
-        non_zero_idx = findall(!iszero, v.b)
+        non_zero_idx = findall(!iszero, v.idx)
         excess = nonzero - J * sparsity
+        println(non_zero_idx)
+        println(excess)
         for pos in sample(non_zero_idx, excess, replace=false)
-            v.b[pos] = z
+            v.b[pos]   = z
+            v.idx[pos] = false
         end
     end
 end

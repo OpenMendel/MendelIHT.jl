@@ -162,7 +162,7 @@ end
     J = 1
     k = 10
 
-    	Random.seed!(1111)
+    Random.seed!(1111)
     x, z, y, v = test_data()
     v.idx[1:10] .= trues(10)
     MendelIHT._choose!(v, J, k)
