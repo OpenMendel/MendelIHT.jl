@@ -292,13 +292,14 @@ if more than J*k entries are selected after projection, randomly select top J*k 
 This can happen if entries of b are equal to each other.
 """
 function _choose!(v::IHTVariable{T}, J::Int, sparsity::Int) where {T <: Float}
-    while sum(v.idx) + sum(v.idc) > J * sparsity
-        idx_length = length(v.idx)
-        all_idx = [v.idx; v.idc]
-
-        nonzero_idx = findall(x -> x == true, all_idx) #find non-0 location
-        pos = nonzero_idx[rand(1:length(nonzero_idx))] #randomly set a non-0 entry to 0
-        pos > idx_length ? v.idc[pos - idx_length] = 0 : v.idx[pos] = 0
+    nonzero = sum(v.idx) + sum(v.idc)
+    if nonzero > J * sparsity
+        z = zero(eltype(v.b))
+        non_zero_idx = findall(!iszero, v.b)
+        excess = nonzero - J * sparsity
+        for pos in sample(non_zero_idx, excess, replace=false)
+            v.b[pos] = z
+        end
     end
 end
 
