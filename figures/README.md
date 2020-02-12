@@ -48,7 +48,7 @@ This folder contains code to reproduce Table 3.
 
 ## double_sparse folder
 
-This folder contains code to reproduce Table 4. 
+This folder contains code to reproduce Table 4 and 5. 
 
 A single jupyter notebook `doubly_sparse_simulated_data.ipynb` performs simulations, runs IHT on simulated data, and computes summary statistics. **Each individual results are displayed as well for maximum transparency.** The summary statistics turned into Table 4. 
 
@@ -56,20 +56,21 @@ The notebook `doubly_sparse-stampeed.ipynb` ran doubly-sparse IHT using real dat
 
 ## weights folder
 
-This folder contains code to reproduce Table 5. 
+This folder contains code to reproduce Table 6. 
 
 A single jupyter notebook `weights.ipynb` performs simulations, runs IHT on simulated data and computes summary statistics. **Each individual results are displayed as well for maximum transparency.** The summary statistics was turned into Table 5. 
 
 ## ukbiobank folder
 
-This folder contains code to reproduce Table 6. Raw data are not inside these folders, but can be downloaded from [ukbiobank](https://www.ukbiobank.ac.uk/) under Project ID 48152 and 15678. The data filtering process follows exactly the same protocol as 
+This folder contains code to reproduce Table 7 and Figure 4. Raw data are not inside these folders, but can be downloaded from [ukbiobank](https://www.ukbiobank.ac.uk/) under Project ID 48152 and 15678. The data filtering process follows exactly the same protocol as 
 ```
 German et al. "Ordered Multinomial Regression for Genetic Association Analysis of Ordinal Phenotypes at Biobank Scale (under review)"
 ```
+The logistic marginal results are also taken from the same paper. 
 
 ## stampeed	folder
 
-This folder contains code to reproduce Table 7. Raw data are not inside these folders, but can be [downloaded from DbGap](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/dataset.cgi?study_id=phs000276.v2.p1&pht=2005) under data accession pht002005.v1.p1.  
+This folder contains code to reproduce Table 8. Raw data are not inside these folders, but can be [downloaded from DbGap](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/dataset.cgi?study_id=phs000276.v2.p1&pht=2005) under data accession pht002005.v1.p1.  
 
 In `HDL` subfolder, `analyze_stampeed_HDL.ipynb` is the jupyter notebook that performed all data cleaning, processing, runs IHT, and compute summary statistics. Even steps not done in Julia are explicitly included. For instance, computation of top principal components was done with PLINK 2.0 alpha, but the exact command for doing that are displayed. `analyze_stampeed_HDL_binary.ipynb` contains result for which HDL was analyzed as a binary trait, truncating at 60ml/DL. Finally, we looked at correlation between SNPs associated with HDL, which is performed by the `Analyze correlation.ipynb` notebook. 
 

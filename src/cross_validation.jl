@@ -18,7 +18,7 @@ memory mapped files that will be deleted automatically once they are no longer n
 # Arguments
 - `d`: A distribution (e.g. Normal, Bernoulli)
 - `l`: A link function (e.g. Loglink, ProbitLink)
-- `x`: A SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
+- `x`: A SnpArray or general matrix. 
 - `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
 - `y`: Response vector
 - `J`: The number of maximum groups (set as 1 if no group infomation available)
@@ -26,9 +26,9 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `q`: Number of cross validation folds. For large data do not set this to be greater than 5
 
 # Optional Arguments: 
-- `est_r` Symbol for whether to estimate nuisance parameters. Only supported distribution is negative binomial and choices include :Newton or :MM.
-- `group` vector storing group membership
-- `weight` vector storing vector of weights containing prior knowledge on each SNP
+- `est_r`: Symbol for whether to estimate nuisance parameters. Only supported distribution is negative binomial and choices include :Newton or :MM.
+- `group`: vector storing group membership for each predictor
+- `weight`: vector storing vector of weights containing prior knowledge on each predictor
 - `folds`: Vector that separates the sample into q disjoint subsets
 - `destin`: Directory where intermediate files will be generated. Directory name must end with `/`.
 - `init`: Boolean indicating whether we should initialize IHT algorithm at a good starting guess
