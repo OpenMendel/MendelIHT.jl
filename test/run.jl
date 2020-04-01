@@ -775,3 +775,91 @@ end
 
 
 
+
+
+
+
+using Revise
+using LoopVectorization
+using Random
+using LinearAlgebra
+using BenchmarkTools
+
+function gemv_naive!(c, A, b)
+    @inbounds for j in 1:size(A, 2)
+        @simd for i in 1:size(A, 1)
+            c[i] += A[i, j] * b[j]
+        end
+    end
+end
+
+function gemv_avx!(c, A, b)
+    @avx for j in 1:size(A, 2), i in 1:size(A, 1)
+        c[i] += A[i, j] * b[j]
+    end
+end
+
+function gemv_avx2!(c, A, b)
+    @avx for i in 1:size(A, 1)
+        ci = zero(eltype(c))
+        for j in 1:size(A, 2)
+            ci += A[i, j] * b[j]
+        end
+        c[i] = ci
+    end
+end
+
+Random.seed!(2020)
+n = 1000
+A = rand(n, n)
+b = rand(n)
+c = zeros(n)
+c_avx = zeros(n)
+c_avx2 = zeros(n)
+c_true = zeros(n)
+
+# check correctness
+mul!(c_true, A, b)
+gemv_avx!(c_avx, A, b)
+gemv_avx2!(c_avx2, A, b)
+gemv_naive!(c, A, b)
+[c c_avx c_avx2 c_true]
+
+# efficiency (A = bitmatrix, 1000x1000)
+@benchmark mul!(c_true, A, b)      # 3.411 ms     (Julia's default)
+@benchmark gemv_naive!(c, A, b)    # 4.230 ms     (Looping using @simd and @inbounds)
+@benchmark gemv_avx!(c_avx, A, b)  # 566.309 μs   (using LoopVectorization)
+@benchmark gemv_avx2!(c_avx, A, b) # 572.952 μs   (using LoopVectorization with accumulator)
+
+# efficiency (A = bitmatrix, 10000x10000)
+@benchmark mul!(c_true, A, b)      # 341.411 ms  (Julia's default)
+@benchmark gemv_naive!(c, A, b)    # 424.198 ms  (Looping using @simd and @inbounds)
+@benchmark gemv_avx!(c_avx, A, b)  # 77.201 ms   (using LoopVectorization)
+@benchmark gemv_avx2!(c_avx, A, b) # 73.227 ms   (using LoopVectorization with accumulator)
+
+# efficiency (A = bitmatrix, 50000x50000)
+@benchmark mul!(c_true, A, b)      # 8.999 s   (Julia's default)
+@benchmark gemv_naive!(c, A, b)    # 10.207 s  (Looping using @simd and @inbounds)
+@benchmark gemv_avx!(c_avx, A, b)  # 2.685 s   (using LoopVectorization)
+@benchmark gemv_avx2!(c_avx, A, b) # 2.197 s   (using LoopVectorization with accumulator)
+
+# efficiency (A = bitmatrix, 100000x100000)
+@time mul!(c_true, A, b)      # 37.167032 s   (Julia's default)
+@time gemv_naive!(c, A, b)    # 42.665357 s   (Looping using @simd and @inbounds)
+@time gemv_avx!(c_avx, A, b)  # 17.452804 s   (using LoopVectorization)
+@time gemv_avx2!(c_avx, A, b) # 17.881693 s   (using LoopVectorization with accumulator)
+
+
+# efficiency (A = Matrix{Float64}, 1000x1000)
+BLAS.set_num_threads(1)
+@benchmark mul!(c_true, A, b)      # 137.602 μs   (Julia's default: calls BLAS)
+@benchmark gemv_naive!(c, A, b)    # 155.327 μs   (Looping using @simd and @inbounds)
+@benchmark gemv_avx!(c_avx, A, b)  # 174.087 μs   (using LoopVectorization)
+@benchmark gemv_avx2!(c_avx, A, b) # 189.796 μs   (using LoopVectorization with accumulator)
+
+# efficiency (A = Matrix{Float64}, 10000x10000)
+BLAS.set_num_threads(1)
+@benchmark mul!(c_true, A, b)      # 41.293 ms   (Julia's default: calls BLAS)
+@benchmark gemv_naive!(c, A, b)    # 47.362 ms   (Looping using @simd and @inbounds)
+@benchmark gemv_avx!(c_avx, A, b)  # 97.696 ms   (using LoopVectorization)
+@benchmark gemv_avx2!(c_avx, A, b) # 99.377 ms   (using LoopVectorization with accumulator)
