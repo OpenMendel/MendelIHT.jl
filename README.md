@@ -28,10 +28,16 @@ The order of installation is important!
 
 ## Citation and Reproducibility:
 
-A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v2). If you use `MendelIHT.jl`, please cite:
+See our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823?searchresult=1) for algorithmic details. If you use `MendelIHT.jl`, please cite:
 
 ```
-Benjamin B. Chu, Kevin L. Keys, Christopher A. German, Hua Zhou, Jin J. Zhou, Janet S. Sinsheimer, Kenneth Lange. Iterative Hard Thresholding in GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity. bioRxiv doi:10.1101/697755
+Benjamin B Chu, Kevin L Keys, Christopher A German, Hua Zhou, Jin J Zhou, Eric M Sobel, Janet S Sinsheimer, Kenneth Lange, Iterative hard thresholding in genome-wide association studies: Generalized linear models, prior weights, and double sparsity, GigaScience, Volume 9, Issue 6, June 2020, giaa044, https://doi.org/10.1093/gigascience/giaa044
 ```
 
 In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our preprint. The `Project.toml` and `Manifest.toml` files can be used together to instantiate the exact same computing environment as was used in our paper. For more information about `.toml` files, please visit Julia's [Pkg documentation](https://docs.julialang.org/en/v1.0/stdlib/Pkg/#Glossary-1). 
+
+## Bug fixes and user support
+
+If you encounter a bug or need user support, please open a new issue on Github. Please provide as much detail as possible for bug reports, ideally a sequence of reproducible code that lead to the error.
+
+PRs and feature requests are welcomed!

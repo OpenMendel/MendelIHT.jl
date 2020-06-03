@@ -1,6 +1,6 @@
 # Paper 
 
-A preprint of our paper is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/697755v2).
+Our paper is available [here](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823?searchresult=1).
 
 # This folder contains the following:
 
