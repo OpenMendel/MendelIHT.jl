@@ -5,10 +5,11 @@ addprocs(4)
 @everywhere using SnpArrays
 @everywhere using DataFrames
 @everywhere using Distributions
-@everywhere using Random
+@everywhere using StatsBase
 @everywhere using LinearAlgebra
 @everywhere using GLM
 @everywhere using Test
+@everywhere using Random
 
 # write your own tests here
 include("MendelIHT_utilities_test.jl")

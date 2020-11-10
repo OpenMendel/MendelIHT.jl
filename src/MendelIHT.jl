@@ -6,16 +6,14 @@ __precompile__()
     import Base.show
     import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
     import SpecialFunctions: digamma, trigamma
-    import StatsBase: sample
 
     using GLM
     using SnpArrays
     using DataFrames
-    using Random
     using LinearAlgebra
     using Distributions
-    using SparseArrays
     using Distributed
+    using Random
 
     export L0_reg, cv_iht, cv_iht_distribute_fold, iht_run_many_models
     export loglikelihood, deviance, score!, mle_for_r
