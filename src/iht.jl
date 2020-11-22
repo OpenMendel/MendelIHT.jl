@@ -6,11 +6,9 @@ covariates `z` on a specific sparsity parameter `k`. If `k` is a constant, then
 each group will have the same sparsity level. To run doubly sparse IHT, construct 
 `k` to be a vector where `k[i]` indicates the max number of predictors for group `i`. 
 
-One needs to construct a SnpBitMatrix type (`xbm`) before running this function.
-
 # Arguments:
-+ `x`: A SnpArray, which can be memory mapped to a file. Does not engage in any linear algebra
-+ `xbm`: The bitarray representation of `x`. This matrix is loaded in RAM and performs linear algebra. It's possible to set scale=false for xbm, especially when rare SNPs exist
++ `x`: A `SnpArray`, which can be memory mapped to a file. Does not engage in any linear algebra
++ `xbm`: A `SnpBitMatrix` or `SnpLinAlg` of `x`. This matrix performs linear algebra.
 + `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
 + `y`: Response vector
 + `J`: The number of maximum groups (set as 1 if no group infomation available)
@@ -31,8 +29,8 @@ One needs to construct a SnpBitMatrix type (`xbm`) before running this function.
 """
 function L0_reg(
     x         :: SnpArray,
-    xbm       :: SnpBitMatrix,
-    z         :: AbstractMatrix{T},
+    xbm       :: Union{SnpBitMatrix, SnpLinAlg},
+    z         :: AbstractVecOrMat{T},
     y         :: AbstractVector{T},
     J         :: Int,
     k         :: Union{Int, Vector{Int}},
@@ -83,13 +81,15 @@ function L0_reg(
     end
 
     # Begin 'iterative' hard thresholding algorithm
-    for iter = 1:max_iter
+    for iter in 1:max_iter
 
         # notify and return current model if maximum iteration exceeded
         if iter >= max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            verbose && printstyled("Did not converge after $max_iter iterations! The run time for IHT was " * string(tot_time) * " seconds\n", color=:red)
+            verbose && printstyled("Did not converge after $max_iter " * 
+                "iterations! The run time for IHT was " * string(tot_time) *
+                " seconds\n", color=:red)
             break
         end
 
@@ -98,7 +98,8 @@ function L0_reg(
         logl = next_logl
 
         # take one IHT step in positive score direction
-        (η, η_step, next_logl) = iht_one_step!(v, x, xbm, z, y, J, k, d, l, logl, full_grad, iter, max_step, use_maf)
+        (η, η_step, next_logl) = iht_one_step!(v, x, xbm, z, y, J, k, d, l, 
+            logl, full_grad, max_step)
 
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
@@ -234,9 +235,11 @@ This function performs 1 iteration of the IHT algorithm, backtracking a maximum 
 While IHT can strictly increase loglikelihood, we still allow it to potentially decrease 
 to avoid bad boundary cases.
 """
-function iht_one_step!(v::IHTVariable{T}, x::SnpArray, xbm::SnpBitMatrix, z::AbstractMatrix{T}, 
-    y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link, 
-    old_logl::T, full_grad::AbstractVector{T}, iter::Int, nstep::Int, use_maf::Bool
+function iht_one_step!(v::IHTVariable{T}, x::SnpArray, 
+    xbm::Union{SnpBitMatrix, SnpLinAlg}, z::AbstractMatrix{T}, 
+    y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}}, 
+    d::UnivariateDistribution, l::Link, old_logl::T, 
+    full_grad::AbstractVector{T}, nstep::Int, 
     ) where {T <: Float}
 
     # first calculate step size 

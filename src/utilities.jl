@@ -185,7 +185,7 @@ Calculates the score (gradient) for different glm models.
 W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ). 
 """
 function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
-                x::Union{SnpBitMatrix, AbstractMatrix}, z::AbstractMatrix{T}, 
+                x::AbstractMatrix, z::AbstractMatrix{T}, 
                 y::AbstractVector{T}) where {T <: Float}
     @inbounds for i in eachindex(y)
         # η = clamp(v.xb[i] + v.zc[i], -20, 20)
@@ -243,16 +243,17 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Union{Int, Vector{In
 end
 
 """
-When initializing the IHT algorithm, take largest elements in magnitude of each group of 
-the score as nonzero components of b. This function set v.idx = 1 for those indices. 
+When initializing the IHT algorithm, take largest elements in magnitude of each
+group of the score as nonzero components of b. This function set v.idx = 1 for
+those indices. 
 
-`J` is the maximum number of active groups, and `k` is the maximum number of predictors per
-group. 
+`J` is the maximum number of active groups, and `k` is the maximum number of
+predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable{T}, x::Union{SnpBitMatrix, AbstractMatrix}, 
-                           z::AbstractMatrix{T}, y::Vector{T}, d::UnivariateDistribution, 
-                           l::Link, J::Int, k::Union{Int, Vector{Int}}, group::Vector
-                           ) where {T <: Float}
+function init_iht_indices!(v::IHTVariable{T}, x::AbstractMatrix, 
+    z::AbstractMatrix{T}, y::Vector{T}, d::UnivariateDistribution, l::Link,
+    J::Int, k::Union{Int, Vector{Int}}, group::Vector
+    ) where {T <: Float}
     # find the intercept by Newton's method
     ybar = mean(y)
     for iteration = 1:20 
@@ -592,14 +593,16 @@ Here we are separating the computation because A1 is stored in compressed form w
 uncompressed (float64) matrix. This means that they cannot be stored in the same data 
 structure. 
 """
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::SnpBitMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
+    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractMatrix{T},
+    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
     SnpArrays.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
 end
 
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
+    A1::AbstractMatrix{T}, A2::AbstractMatrix{T}, B1::AbstractVector{T},
+    B2::AbstractVector{T}) where {T <: Float}
     LinearAlgebra.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
 end
@@ -644,14 +647,16 @@ Here we are separating the computation because A1 is stored in compressed form w
 uncompressed (float64) matrix. This means that they cannot be stored in the same data 
 structure. 
 """
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::SnpBitMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, 
+    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractMatrix{T},
+    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
     SnpArrays.mul!(C1, Transpose(A1), B1)
     LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
+    A1::AbstractMatrix{T}, A2::AbstractMatrix{T}, B1::AbstractVector{T},
+    B2::AbstractVector{T}) where {T <: Float}
     LinearAlgebra.mul!(C1, Transpose(A1), B1)
     LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end

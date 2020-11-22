@@ -14,6 +14,7 @@
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 	x = simulate_random_snparray(undef, n, p)
 	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+	# xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
 	z = ones(n, 1)
 
 	# simulate response, true model b, and the correct non-0 positions of b
@@ -21,6 +22,7 @@
 
 	#run result
 	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	# result = L0_reg(x, xla, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 	show(result)
 
 	@test length(result.beta) == 10000
