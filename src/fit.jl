@@ -1,10 +1,11 @@
 """
-    L0_reg(x, xbm, z, y, J, k, d, l)
+    fit(x, xbm, z, y, J, k, d, l)
 
-Runs Iterative Hard Thresholding for GWAS data `x`, response `y`, and non-genetic
-covariates `z` on a specific sparsity parameter `k`. If `k` is a constant, then 
-each group will have the same sparsity level. To run doubly sparse IHT, construct 
-`k` to be a vector where `k[i]` indicates the max number of predictors for group `i`. 
+Fits a model on `SnpArray` `x` (with `SnpBitMatrix` or `SnpLinAlg` as `xbm`), 
+response `y`, and non-genetic covariates `z` on a specific sparsity parameter 
+`k`. If `k` is a constant, then each group will have the same sparsity level. 
+To run doubly sparse IHT, construct `k` to be a vector where `k[i]` indicates 
+the max number of predictors for group `i`. 
 
 # Arguments:
 + `x`: A `SnpArray`, which can be memory mapped to a file. Does not engage in any linear algebra
@@ -27,7 +28,7 @@ each group will have the same sparsity level. To run doubly sparse IHT, construc
 + `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
 + `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 """
-function L0_reg(
+function fit(
     x         :: SnpArray,
     xbm       :: Union{SnpBitMatrix, SnpLinAlg},
     z         :: AbstractVecOrMat{T},
@@ -123,7 +124,7 @@ function L0_reg(
 end #function L0_reg
 
 """
-    L0_reg(x, z, y, J, k, d, l)
+fit(x, z, y, J, k, d, l)
 
 IHT algorithm that works on general matrices. 
 
@@ -139,7 +140,7 @@ IHT algorithm that works on general matrices.
 # Optional Arguments
 Optional arguments are the same as the `L0_reg` that works on SnpArrays.
 """
-function L0_reg(
+function fit(
     x         :: AbstractMatrix{T},
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},

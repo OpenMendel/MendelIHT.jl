@@ -1,5 +1,5 @@
 """
-    L0_reg(x, xbm, z, y, J, k, d, l, est_r)
+    fit(x, xbm, z, y, J, k, d, l, est_r)
 
 Estimates the nuisance parameter in addition to estimating the mean using IHT. 
 
@@ -10,7 +10,7 @@ nuisance paramter, and the method of choice includes Newton or MM. This can be s
 
 Note: Convergence criteria does not track the `r` paramter. 
 """
-function L0_reg(
+function fit(
     x         :: SnpArray,
     xbm       :: SnpBitMatrix,
     z         :: AbstractMatrix{T},
@@ -45,7 +45,7 @@ function L0_reg(
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
-    tot_time    = 0.0               # compute time *within* L0_reg
+    tot_time    = 0.0               # compute time *within* fit
     next_logl   = oftype(tol,-Inf)  # loglikelihood
     the_norm    = 0.0               # norm(b - b0)
     scaled_norm = 0.0               # the_norm / (norm(b0) + 1)
@@ -102,10 +102,10 @@ function L0_reg(
     end
 
     return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group, d)
-end #function L0_reg
+end #function fit
 
 """
-    L0_reg(x, z, y, J, k, d, l, est_r)
+    fit(x, z, y, J, k, d, l, est_r)
 
 Estimates the nuisance parameter in addition to estimating the mean using IHT. `x` is a 
 matrix of Float32 or Float64.
@@ -117,7 +117,7 @@ nuisance paramter, and the method of choice includes Newton or MM. This can be s
 
 Note: Convergence criteria does not track the `r` paramter. 
 """
-function L0_reg(
+function fit(
     x         :: AbstractMatrix{T},
     z         :: AbstractMatrix{T},
     y         :: AbstractVector{T},
@@ -151,7 +151,7 @@ function L0_reg(
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
-    tot_time    = zero(T)           # compute time *within* L0_reg
+    tot_time    = zero(T)           # compute time *within* fit
     next_logl   = oftype(tol,-Inf)  # loglikelihood
     the_norm    = zero(T)           # norm(b - b0)
     scaled_norm = zero(T)           # the_norm / (norm(b0) + 1)
@@ -208,7 +208,7 @@ function L0_reg(
     end
 
     return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group, d)
-end #function L0_reg
+end #function fit
 
 """
 This function performs 1 iteration of the IHT algorithm, backtracking a maximum of 5 times.

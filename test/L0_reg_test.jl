@@ -1,4 +1,4 @@
-@testset "L0_reg normal" begin
+@testset "fit normal" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
 	#simulat data with k true predictors, from distribution d and with link l.
@@ -21,8 +21,8 @@
 	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 	#run result
-	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
-	# result = L0_reg(x, xla, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	# result = fit(x, xla, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 	show(result)
 
 	@test length(result.beta) == 10000
@@ -36,7 +36,7 @@
 	@test result.logl ≈ -1407.2533232402275
 end
 
-@testset "L0_reg Bernoulli" begin
+@testset "fit Bernoulli" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
 	#simulat data with k true predictors, from distribution d and with link l.
@@ -58,7 +58,7 @@ end
 	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 	#run result
-	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [1733;1816;2384;5413;7067;8753;8908;9089;9132;9765]
@@ -71,7 +71,7 @@ end
 	@test result.logl ≈ -489.8770526620568
 end
 
-@testset "L0_reg Poisson" begin
+@testset "fit Poisson" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
 	#simulat data with k true predictors, from distribution d and with link l.
@@ -93,7 +93,7 @@ end
 	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 	#run result
-	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [298; 606; 2384; 5891; 7067; 8753; 8755; 8931; 9089; 9132]
 	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.10999211487301704;
@@ -106,7 +106,7 @@ end
 	@test result.iter == 14
 end
 
-@testset "L0_reg NegativeBinomial" begin
+@testset "fit NegativeBinomial" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
 	#simulat data with k true predictors, from distribution d and with link l.
@@ -128,7 +128,7 @@ end
 	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 	#run result
-	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [1245; 1774; 1982; 2384; 5413; 5440; 5614; 7166; 9089; 9132;]
@@ -142,7 +142,7 @@ end
 	@test result.iter == 9
 end
 
-@testset "L0_reg with non-genetic covariates" begin
+@testset "fit with non-genetic covariates" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
 	#simulat data with k true predictors, from distribution d and with link l.
@@ -173,7 +173,7 @@ end
 	y = [rand(d(i)) for i in prob]
 
 	#run result
-	result = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 
 	@test length(result.beta) == 10000
 	@test length(result.c) == 2
@@ -182,7 +182,7 @@ end
 	@test result.k == 10
 end
 
-@testset "L0_reg with correlated predictors and double sparsity" begin
+@testset "fit correlated predictors and double sparsity" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
 	#simulat data with k true predictors, from distribution d and with link l.
@@ -243,12 +243,12 @@ end
     
     #run IHT without groups
     k = 15
-    ungrouped = L0_reg(x_float, z, y, 1, k, d(), l, debias=false)
+    ungrouped = fit(x_float, z, y, 1, k, d(), l, debias=false)
 
     #run IHT with groups
     J = 5
     k = 3
-    grouped = L0_reg(x_float, z, y, J, k, d(), l, debias=false, group=g)
+    grouped = fit(x_float, z, y, J, k, d(), l, debias=false, group=g)
 
     @test length(findall(!iszero, ungrouped.beta)) == 15
     @test length(findall(!iszero, grouped.beta)) == 15
@@ -270,12 +270,12 @@ end
 	z = ones(n, 1) 
 	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l, r=10);
 
-	@time newton = L0_reg(x, xbm, z, y, 1, k, d(), l, :Newton)
+	@time newton = fit(x, xbm, z, y, 1, k, d(), l, :Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 # p parameter not used 
 	@test newton.d.r ≥ 0
 
-	@time mm = L0_reg(x, xbm, z, y, 1, k, d(), l, :MM)
+	@time mm = fit(x, xbm, z, y, 1, k, d(), l, :MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0
@@ -300,12 +300,12 @@ end
     y = [rand(d(r, Float64(i))) for i in prob] 
     y = T.(y)
 
-	@time newton = L0_reg(x, z, y, 1, k, d(), l, :Newton)
+	@time newton = fit(x, z, y, 1, k, d(), l, :Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 
 	@test newton.d.r ≥ 0
 
-	@time mm = L0_reg(x, z, y, 1, k, d(), l, :MM)
+	@time mm = fit(x, z, y, 1, k, d(), l, :MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0

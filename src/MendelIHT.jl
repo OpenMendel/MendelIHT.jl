@@ -15,7 +15,7 @@ __precompile__()
     using Distributed
     using Random
 
-    export L0_reg, cv_iht, cv_iht_distribute_fold, iht_run_many_models
+    export fit, cv_iht, cv_iht_distribute_fold, iht_run_many_models
     export loglikelihood, deviance, score!, mle_for_r
     export project_k!, project_group_sparse!
     export IHTVariables, make_snparray, standardize!, maf_weights
@@ -29,7 +29,7 @@ __precompile__()
     include("data_structures.jl")
     include("utilities.jl")
     include("simulate_utilities.jl")
-    include("iht.jl")
+    include("fit.jl")
     include("cross_validation.jl")
     include("negbinfit_nuisance.jl")
 
