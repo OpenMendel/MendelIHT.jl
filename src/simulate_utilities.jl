@@ -282,7 +282,7 @@ function make_bim_fam_files(x::SnpArray, y, name::String)
     #create .bim file structure: https://www.cog-genomics.org/plink2/formats#bim
     open(name * ".bim", "w") do f
         for i in 1:p
-            write(f, "1\trs$i\t0\t1\t1\t2\n")
+            write(f, "1\tsnp$i\t0\t1\t1\t2\n")
         end
     end
 

@@ -46,7 +46,7 @@ function fit(
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
-) where {T <: Float}
+    ) where T <: Float
 
     #start timer
     start_time = time()
@@ -237,7 +237,7 @@ While IHT can strictly increase loglikelihood, we still allow it to potentially 
 to avoid bad boundary cases.
 """
 function iht_one_step!(v::IHTVariable{T}, x::SnpArray, 
-    xbm::Union{SnpBitMatrix, SnpLinAlg}, z::AbstractMatrix{T}, 
+    xbm::Union{SnpBitMatrix, SnpLinAlg}, z::AbstractVecOrMat{T}, 
     y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}}, 
     d::UnivariateDistribution, l::Link, old_logl::T, 
     full_grad::AbstractVector{T}, nstep::Int, 
@@ -290,7 +290,7 @@ end #function iht_one_step
 """
 Performs 1 iteration of the IHT algorithm given a general matrix of floating point numbers. 
 """
-function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractMatrix, 
+function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix, z::AbstractVecOrMat, 
     y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, 
     l::Link, old_logl::T, full_grad::AbstractVector{T}, iter::Int, nstep::Int, 
     use_maf::Bool) where {T <: Float}

@@ -26,9 +26,10 @@ mutable struct IHTVariable{T <: Float}
     μ      :: Vector{T}     # mean of the current model: μ = g^{-1}(xb)
 end
 
-function IHTVariables(x::Union{SnpArray, AbstractMatrix}, z::AbstractMatrix{T}, y::AbstractVector{T}, 
-            J::Int, k::Union{Int, Vector{Int}}, group::AbstractVector{Int}, weight::AbstractVector{T}
-            ) where {T <: Float}
+function IHTVariables(x::Union{SnpArray, AbstractMatrix}, z::AbstractVecOrMat{T},
+    y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}},
+    group::AbstractVector{Int}, weight::AbstractVector{T}
+    ) where T <: Float
 
     n = size(x, 1)
     p = size(x, 2)
