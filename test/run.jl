@@ -863,3 +863,44 @@ BLAS.set_num_threads(1)
 @benchmark gemv_naive!(c, A, b)    # 47.362 ms   (Looping using @simd and @inbounds)
 @benchmark gemv_avx!(c_avx, A, b)  # 97.696 ms   (using LoopVectorization)
 @benchmark gemv_avx2!(c_avx, A, b) # 99.377 ms   (using LoopVectorization with accumulator)
+
+
+
+using Revise
+using SnpArrays
+using Test
+EUR = SnpArray(SnpArrays.datadir("EUR_subset.bed"))
+EURbm = SnpBitMatrix{Float64}(EUR, model=ADDITIVE_MODEL, center=true, scale=true);
+EURtrue_noscale = convert(Matrix{Float64}, EUR, model=ADDITIVE_MODEL, center=false, scale=false)
+EURtest = zeros(size(EUR))
+copyto!(EURtest, EURbm)
+@test all(EURtest .== EURtrue_noscale)
+
+EURtrue_scale = convert(Matrix{Float64}, EUR, center=true, scale=true)
+copyto!(EURtest, EURbm, center=true, scale=true)
+@test all(EURtest .≈ EURtrue_scale)
+
+x1, x2 = zeros(10, 10), zeros(10, 10)
+copyto!(x1, @view(EUR[1:10, 1:10]), center=false, scale=false)
+copyto!(x2, @view(EURbm[1:10, 1:10]))
+@test all(x1 .== x2)
+
+copyto!(x1, @view(EUR[1:10, 1:10]), center=true, scale=true)
+copyto!(x2, @view(EURbm[1:10, 1:10]), center=true, scale=true)
+@test all(x1 .== x2)
+
+
+using Revise
+using SnpArrays
+EUR = SnpArray(SnpArrays.datadir("EUR_subset.bed"))
+EURsla = SnpLinAlg{Float64}(EUR, model=ADDITIVE_MODEL, center=true, scale=true);
+
+EURtrue_noscale = convert(Matrix{Float64}, EUR, model=ADDITIVE_MODEL, center=false, scale=false)
+EURtest = zeros(size(EUR))
+copyto!(EURtest, EURsla)
+@test all(EURtest .== EURtrue_noscale)
+
+
+tmp = zeros(10, 10)
+# copyto!(tmp, @view(EURsla[1:10, 1:10]))
+copyto!(tmp, @view(EURbm[1:10, 1:10]))

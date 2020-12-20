@@ -21,8 +21,8 @@
 	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 	#run result
-	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
-	# result = fit(x, xla, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	# result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
 	show(result)
 
 	@test length(result.beta) == 10000

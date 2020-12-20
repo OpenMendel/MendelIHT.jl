@@ -1,4 +1,6 @@
 #### This script simulates example data in the /data/ folder.
+#### Phenotypes are stored in 6th column of the `.fam` files.
+
 using Revise
 using MendelIHT
 using SnpArrays
