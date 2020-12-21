@@ -1,5 +1,5 @@
 """
-    fit(x, xbm, z, y, J, k, d, l)
+    fit(y, x, z; kwargs...)
 
 Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
 and non-genetic covariates `z` on a specific sparsity parameter `k`. If `k` is 
@@ -29,7 +29,7 @@ of predictors for group `i`.
 """
 function fit(
     y         :: AbstractVector{T},
-    x         :: AbstracMatrix{T},
+    x         :: AbstractMatrix{T},
     z         :: AbstractVecOrMat{T};
     k         :: Union{Int, Vector{Int}} = 10,
     J         :: Int = 1,
@@ -121,14 +121,14 @@ function fit(
     return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group, d)
 end
 
-fit(y::AbstractVector{T}, x::AbstracMatrix{T}; kwargs...) where T = 
+fit(y::AbstractVector{T}, x::AbstractMatrix{T}; kwargs...) where T = 
     fit(y, x, ones(length(y)); kwargs...)
 
 """
 Performs 1 iteration of the IHT algorithm, backtracking a maximum of 5 times.
 We allow loglikelihood to potentially decrease to avoid bad boundary cases.
 """
-function iht_one_step!(v::IHTVariable{T}, x::AbstracMatrix,
+function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix,
     z::AbstractVecOrMat{T}, y::AbstractVector{T}, J::Int, k::Union{Int, 
     Vector{Int}}, d::UnivariateDistribution, l::Link, old_logl::T, 
     full_grad::AbstractVector{T}, nstep::Int, 

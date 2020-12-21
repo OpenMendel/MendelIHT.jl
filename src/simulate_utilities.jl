@@ -186,16 +186,15 @@ function _copy_blocks!(x::SnpArray, row, snps, cur_block, block_length)
 end
 
 """
-    simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, d::UnionAll, l::Link)
+    simulate_random_response(x, k, d, l; kwargs...)
 
-This function simulates a random response (trait) vector `y` based on provided x, β, distirbution,
-and link function. When the distribution is from Poisson, Gamma, or Negative Binomial, we simulate `β ∼ N(0, 0.3)` 
-to roughly ensure the mean of response `y` doesn't become too large. For other distributions,
-we choose `β ∼ N(0, 1)`. 
+This function simulates a random response (trait) vector `y`. When the 
+distribution `d` is from Poisson, Gamma, or Negative Binomial, we simulate 
+`β ∼ N(0, 0.3)` to roughly ensure the mean of response `y` doesn't become too
+large. For other distributions, we choose `β ∼ N(0, 1)`. 
 
 # Arguments
-- `x`: The SnpArray
-- `xbm`: SnpBitMatrix type of your SnpArray
+- `x`: Design matrix
 - `k`: the true number of predictors. 
 - `d`: The distribution of the simulated trait (note `typeof(d) = UnionAll` but `typeof(d())` is an actual distribution: e.g. Normal)
 - `l`: The link function. Input `canonicallink(d())` if you want to use the canonical link of `d`.
@@ -204,9 +203,8 @@ we choose `β ∼ N(0, 1)`.
 - `r`: The number of success until stopping in negative binomial regression, defaults to 10
 - `α`: Shape parameter of the gamma distribution, defaults to 1
 """
-function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, 
-                                  d::UnionAll, l::Link; r = 10,
-                                  α = 1) where {T <: Float}
+function simulate_random_response(x::AbstractMatrix, k::Int, 
+    d::UnionAll, l::Link; r = 10, α = 1)
     n, p = size(x)
     if (typeof(d) <: NegativeBinomial) || (typeof(d) <: Gamma)
         l == LogLink() || throw(ArgumentError("Distribution $d must use LogLink!"))
@@ -224,16 +222,16 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int,
 
     #simulate phenotypes (e.g. vector y)
     if d == Normal || d == Poisson || d == Bernoulli
-        prob = linkinv.(l, xbm * true_b)
+        prob = linkinv.(l, x * true_b)
         clamp!(prob, -20, 20)
         y = [rand(d(i)) for i in prob]
     elseif d == NegativeBinomial
-        μ = linkinv.(l, xbm * true_b)
+        μ = linkinv.(l, x * true_b)
         clamp!(μ, -20, 20)
         prob = 1 ./ (1 .+ μ ./ r)
         y = [rand(d(r, i)) for i in prob] #number of failtures before r success occurs
     elseif d == Gamma
-        μ = linkinv.(l, xbm * true_b)
+        μ = linkinv.(l, x * true_b)
         β = 1 ./ μ # here β is the rate parameter for gamma distribution
         y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
     end

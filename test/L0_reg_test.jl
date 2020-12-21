@@ -17,7 +17,7 @@
 	z = ones(n)
 
 	# simulate response, true model b, and the correct non-0 positions of b
-	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run result
 	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
