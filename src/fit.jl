@@ -1,23 +1,22 @@
 """
     fit(x, xbm, z, y, J, k, d, l)
 
-Fits a model on `SnpArray` `x` (with `SnpBitMatrix` or `SnpLinAlg` as `xbm`), 
-response `y`, and non-genetic covariates `z` on a specific sparsity parameter 
-`k`. If `k` is a constant, then each group will have the same sparsity level. 
-To run doubly sparse IHT, construct `k` to be a vector where `k[i]` indicates 
-the max number of predictors for group `i`. 
+Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
+and non-genetic covariates `z` on a specific sparsity parameter `k`. If `k` is 
+a constant, then each group will have the same sparsity level. To run doubly 
+sparse IHT, construct `k` to be a vector where `k[i]` indicates the max number
+of predictors for group `i`. 
 
 # Arguments:
-+ `x`: A `SnpArray`, which can be memory mapped to a file. Does not engage in any linear algebra
-+ `xbm`: A `SnpBitMatrix` or `SnpLinAlg` of `x`. This matrix performs linear algebra.
-+ `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
-+ `y`: Response vector
-+ `J`: The number of maximum groups (set as 1 if no group infomation available)
-+ `k`: Number of non-zero predictors in each group. Can be a constant or a vector. 
-+ `d`: A distribution (e.g. Normal, Poisson)
-+ `l`: A link function (e.g. Loglink, ProbitLink)
++ `y`: Response vector (phenotypes)
++ `x`: A `SnpBitMatrix` or `SnpLinAlg` (genotypes)
++ `z`: Matrix of non-genetic covariates. The first column should be the intercept (i.e. column of 1). 
 
-# Optional Arguments: 
+# Optional Arguments:
++ `k`: Number of non-zero predictors in each group. Can be a constant or a vector. 
++ `J`: The number of maximum groups (set as 1 if no group infomation available)
++ `d`: A distribution (e.g. Normal, Bernoulli, Poisson)
++ `l`: A link function (e.g. IdentityLink, LogitLink, ProbitLink)
 + `group` vector storing group membership
 + `weight` vector storing vector of weights containing prior knowledge on each SNP
 + `use_maf` indicates whether we want to scale the projection with minor allele frequencies (see paper)
@@ -29,13 +28,13 @@ the max number of predictors for group `i`.
 + `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 """
 function fit(
-    x         :: Union{SnpBitMatrix, SnpLinAlg},
-    z         :: AbstractVecOrMat{T},
     y         :: AbstractVector{T},
-    J         :: Int,
-    k         :: Union{Int, Vector{Int}},
-    d         :: UnivariateDistribution,
-    l         :: Link;
+    x         :: Union{SnpBitMatrix, SnpLinAlg},
+    z         :: AbstractVecOrMat{T};
+    k         :: Union{Int, Vector{Int}} = 10,
+    J         :: Int = 1,
+    d         :: UnivariateDistribution = Normal(),
+    l         :: Link = IdentityLink,
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
     use_maf   :: Bool = false, 

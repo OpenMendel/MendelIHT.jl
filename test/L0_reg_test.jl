@@ -13,16 +13,14 @@
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 	x = simulate_random_snparray(undef, n, p)
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	# xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	z = ones(n, 1)
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+	z = ones(n)
 
 	# simulate response, true model b, and the correct non-0 positions of b
 	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
 
 	#run result
-	# result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
-	result = fit(xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
 	show(result)
 
 	@test length(result.beta) == 10000
