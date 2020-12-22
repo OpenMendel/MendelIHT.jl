@@ -15,7 +15,7 @@ of predictors for group `i`.
 # Optional Arguments:
 + `k`: Number of non-zero predictors in each group. Can be a constant or a vector. 
 + `J`: The number of maximum groups (set as 1 if no group infomation available)
-+ `d`: A distribution (e.g. Normal, Bernoulli, Poisson)
++ `d`: Distribution of your phenotype (e.g. Normal, Bernoulli)
 + `l`: A link function (e.g. IdentityLink, LogitLink, ProbitLink)
 + `group` vector storing group membership
 + `weight` vector storing vector of weights containing prior knowledge on each SNP

@@ -1,5 +1,5 @@
 """
-    cv_iht(d, l, x, z, y, J, path, q)
+    cv_iht(y, x, z; kwargs...)
 
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. 
@@ -7,24 +7,23 @@ returns the (averaged) deviance residuals.
 The purpose of this function is to find the best sparsity level `k`, obtained
 from selecting the model with the minimum out-of-sample error. Different cross
 validation folds are cycled through sequentially different `paths` are fitted
-in parallel on different CPUs. For doubly sprase projections, no routines exist 
-to cross validate different group sizes yet. 
+in parallel on different CPUs. Currently there are no routines to cross validate
+different group sizes. 
 
 # Warning
 Do not remove files with random file names when you run this function. There are 
 memory mapped files that will be deleted automatically once they are no longer needed.
 
 # Arguments
-- `d`: A distribution (e.g. Normal, Bernoulli)
-- `l`: A link function (e.g. Loglink, ProbitLink)
-- `x`: A SnpArray or general matrix. 
+- `y`: Response vector (phenotypes)
+- `x`: A design matrix (genotypes) 
 - `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
-- `y`: Response vector
-- `J`: The number of maximum groups (set as 1 if no group infomation available)
-- `path`: Vector storing different model sizes
-- `q`: Number of cross validation folds. For large data do not set this to be greater than 5
 
 # Optional Arguments: 
+- `path`: Different model sizes to be tested in cross validation (default 1:20)
+- `q`: Number of cross validation folds. (default 5)
+- `d`: Distribution of your phenotype. (default Normal)
+- `l`: A link function (default IdentityLink)
 - `est_r`: Symbol for whether to estimate nuisance parameters. Only supported distribution is negative binomial and choices include :Newton or :MM.
 - `group`: vector storing group membership for each predictor
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
@@ -37,25 +36,24 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `parallel`: Whether we want to run cv_iht using multiple CPUs (highly recommended)
 """
 function cv_iht(
-    d        :: UnivariateDistribution,
-    l        :: Link,
-    x        :: Union{AbstractMatrix{T}, SnpArray},
-    z        :: AbstractMatrix{T},
-    y        :: AbstractVector{T},
-    J        :: Int64,
-    path     :: DenseVector{Int},
-    q        :: Int64;
+    y        :: AbstractVector,
+    x        :: AbstractMatrix,
+    z        :: AbstractVecOrMat;
+    d        :: UnivariateDistribution = Normal(),
+    l        :: Link = IdentityLink,
+    path     :: AbstractVector{<:Integer} = 1:20,
+    q        :: Int64,
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
-    weight   :: AbstractVector{T} = T[],
-    folds    :: DenseVector{Int} = rand(1:q, size(x, 1)),
+    weight   :: AbstractVector = Float64[],
+    folds    :: AbstractVector{Int} = rand(1:q, size(x, 1)),
     destin   :: String = "./",
     init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
     parallel :: Bool = false
-) where {T <: Float}
+    )
 
     # preallocate mean squared error matrix
     nmodels = length(path)
@@ -67,7 +65,9 @@ function cv_iht(
         train_idx = .!test_idx
 
         # validate trained models on test data by computing deviance residuals
-        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y, J, path, fold, est_r, group=group, weight=weight, destin=destin, init=init, use_maf=use_maf, debias=debias, verbose=false, parallel=parallel)
+        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y,
+            path, est_r, group=group, weight=weight, destin=destin, init=init,
+            use_maf=use_maf, debias=debias, verbose=false, parallel=parallel)
     end
 
     #weight mses for each fold by their size before averaging
@@ -79,6 +79,8 @@ function cv_iht(
 
     return mse
 end
+
+cv_iht(y::AbstractVector, x::AbstractMatrix) = cv_iht(y, x, ones(size(x, 1)))
 
 """
 Performs q-fold cross validation for Iterative hard thresholding to 
@@ -186,14 +188,16 @@ end
 This function trains a bunch of models, where each model has a different sparsity 
 parameter, k, which is specified in the variable `path`. Then each trained model is used to
 compute the deviance residuals (i.e. mean squared error for normal response) on the test set.
-on the test set. This deviance residuals vector is returned
+This deviance residuals vector is returned
 """
-function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
-                    l::Link, x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, 
-                    path::DenseVector{Int}, fold::Int, est_r::Symbol; group::AbstractVector{Int}=Int[],
-                    weight::AbstractVector{T}=T[], init::Bool=false, destin::String = "./",
-                    use_maf::Bool=false, debias::Bool=false, verbose::Bool=true, 
-                    parallel::Bool=false) where {T <: Float}
+function train_and_validate(train_idx::BitArray, test_idx::BitArray,
+    d::UnivariateDistribution, l::Link, x::SnpArray, z::AbstractVecOrMat,
+    y::AbstractVector, path::DenseVector{Int}, est_r::Symbol;
+    group::AbstractVector=Int[], weight::AbstractVector=Float64[],
+    init::Bool=false, destin::String = "./", use_maf::Bool=false,
+    debias::Bool=false, verbose::Bool=true, parallel::Bool=false
+    )
+    T = Float64
 
     # create directory for memory mapping
     train_file = destin * randstring(100) * ".bed"
@@ -210,14 +214,14 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     # allocate train model
     x_train = SnpArray(train_file, sum(train_idx), p)
     copyto!(x_train, @view(x[train_idx, :]))
-    x_trainbm = SnpBitMatrix{T}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
+    x_trainla = SnpLinAlg{T}(x_train, model=ADDITIVE_MODEL, center=true, scale=true)
     z_train = z[train_idx, :]
     y_train = y[train_idx]
 
     # allocate test model
     x_test = SnpArray(test_file, test_size, p)
     copyto!(x_test, @view(x[test_idx, :]))
-    x_testbm = SnpBitMatrix{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
+    x_testla = SnpLinAlg{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true)
     z_test = z[test_idx, :]
     y_test = y[test_idx]
 
@@ -231,13 +235,17 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
 
             #run IHT on training model with given k
             if est_r == :None
-                result = fit(x_train, x_trainbm, z_train, y_train, 1, k, d, l, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, verbose=verbose)
+                result = fit(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l, 
+                    group=group_train, weight=weight_train, init=init, 
+                    use_maf=use_maf, debias=debias, verbose=verbose)
             else
-                result = fit(x_train, x_trainbm, z_train, y_train, 1, k, d, l, est_r, group=group_train, weight=weight_train, init=init, use_maf=use_maf, debias=debias, verbose=verbose)
+                result = fit(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l,
+                    est_r, group=group_train, weight=weight_train, init=init,
+                    use_maf=use_maf, debias=debias, verbose=verbose)
             end
 
             # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-            A_mul_B!(xb, zc, x_testbm, z_test, result.beta, result.c) 
+            A_mul_B!(xb, zc, x_testla, z_test, result.beta, result.c) 
             update_μ!(μ, xb .+ zc, l)
 
             # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
@@ -258,12 +266,13 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     return mses
 end
 
+# for general matrix x 
 function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
-                    l::Link, x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, 
-                    J::Int64, path::DenseVector{Int}, fold::Int, est_r::Symbol; group::AbstractVector{Int}=Int[],
-                    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
-                    use_maf::Bool=false, debias::Bool=false, verbose::Bool=true, 
-                    parallel::Bool=false) where {T <: Float}
+    l::Link, x::AbstractMatrix{T}, z::AbstractVecOrMat{T}, y::AbstractVector{T}, 
+    J::Int64, path::DenseVector{Int}, fold::Int, est_r::Symbol; group::AbstractVector{Int}=Int[],
+    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
+    use_maf::Bool=false, debias::Bool=false, verbose::Bool=true, 
+    parallel::Bool=false) where {T <: Float}
 
     # first allocate arrays needed for computing deviance residuals
     p, q = size(x, 2), size(z, 2)
@@ -358,7 +367,7 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractMatrix{T},
     return betas, cs
 end
 
-function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractMatrix{T},
+function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, l::Link, 
     path::DenseVector{Int}, fold::Int64, est_r::Symbol; group::AbstractVector{Int}=Int[], 
     weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, 
@@ -397,7 +406,7 @@ on the test set. A vector of mse is returned, where each entry corresponds to th
 set on each fold with different sparsity parameter. 
 """
 function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::AbstractMatrix{T},
-    x::SnpArray, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, 
+    x::SnpArray, z::AbstractVecOrMat{T}, y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, 
     l::Link, path::DenseVector{Int}, fold::Int64, est_r::Symbol; group::AbstractVector{Int}=Int[], 
     weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, use_maf::Bool = false, 
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false, verbose::Bool = false
@@ -443,7 +452,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::Abstra
 end
 
 function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, cs::AbstractMatrix{T},
-    x::AbstractMatrix{T}, z::AbstractMatrix{T}, y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, 
+    x::AbstractMatrix{T}, z::AbstractVecOrMat{T}, y::AbstractVector{T}, J::Int64, d::UnivariateDistribution, 
     l::Link, path::DenseVector{Int}, fold::Int64, est_r::Symbol; group::AbstractVector{Int}=Int[], 
     weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false, use_maf::Bool = false, 
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false, verbose::Bool = false
