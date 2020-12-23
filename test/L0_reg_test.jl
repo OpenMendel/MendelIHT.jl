@@ -49,14 +49,14 @@ end
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 	x = simulate_random_snparray(undef, n, p)
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	z = ones(n, 1)
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+	z = ones(n)
 
 	# simulate response, true model b, and the correct non-0 positions of b
-	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run result
-	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
 
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [1733;1816;2384;5413;7067;8753;8908;9089;9132;9765]
@@ -84,14 +84,14 @@ end
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 	x = simulate_random_snparray(undef, n, p)
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	z = ones(n, 1)
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+	z = ones(n)
 
 	# simulate response, true model b, and the correct non-0 positions of b
-	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run result
-	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [298; 606; 2384; 5891; 7067; 8753; 8755; 8931; 9089; 9132]
 	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.10999211487301704;
@@ -119,14 +119,14 @@ end
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 	x = simulate_random_snparray(undef, n, p)
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	z = ones(n, 1)
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+	z = ones(n)
 
 	# simulate response, true model b, and the correct non-0 positions of b
-	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l)
+	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run result
-	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
 
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [1245; 1774; 1982; 2384; 5413; 5440; 5614; 7166; 9089; 9132;]
@@ -155,8 +155,8 @@ end
 
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 	x = simulate_random_snparray(undef, n, p)
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-	z = ones(n, 2) # the intercept
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+	z = ones(n, 2) # 1st column intercept
 	z[:, 2] .= randn(n)
 
 	#define true_b and true_c
@@ -167,11 +167,11 @@ end
 	true_c = [3.0; 3.5]
 
 	#simulate phenotype
-	prob = GLM.linkinv.(l, xbm * true_b .+ z * true_c)
+	prob = GLM.linkinv.(l, xla * true_b .+ z * true_c)
 	y = [rand(d(i)) for i in prob]
 
 	#run result
-	result = fit(x, xbm, z, y, 1, k, d(), l, debias=false, init=false, use_maf=false)
+	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
 
 	@test length(result.beta) == 10000
 	@test length(result.c) == 2
@@ -180,7 +180,7 @@ end
 	@test result.k == 10
 end
 
-@testset "fit correlated predictors and double sparsity" begin
+@testset "Float matrices, correlated predictors, and double sparsity" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
 	#simulat data with k true predictors, from distribution d and with link l.
@@ -207,7 +207,7 @@ end
     
     #simulate correlated snparray
     x = simulate_correlated_snparray(undef, n, p)
-    z = ones(n, 1) # the intercept
+    z = ones(n) # the intercept
     x_float = convert(Matrix{Float64}, x, model=ADDITIVE_MODEL, center=true, scale=true)
     
     #simulate true model, where 5 groups each with 3 snps contribute
@@ -241,12 +241,12 @@ end
     
     #run IHT without groups
     k = 15
-    ungrouped = fit(x_float, z, y, 1, k, d(), l, debias=false)
+    ungrouped = fit(y, x_float, z, J=1, k=k, d=d(), l=l)
 
     #run IHT with groups
     J = 5
     k = 3
-    grouped = fit(x_float, z, y, J, k, d(), l, debias=false, group=g)
+    grouped = fit(y, x_float, z, J=J, k=k, d=d(), l=l, group=g)
 
     @test length(findall(!iszero, ungrouped.beta)) == 15
     @test length(findall(!iszero, grouped.beta)) == 15
@@ -264,16 +264,16 @@ end
 
 	# simulate SnpArrays data
 	x = simulate_correlated_snparray(undef, n, p)
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
 	z = ones(n, 1) 
-	y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l, r=10);
+	y, true_b, correct_position = simulate_random_response(xla, k, d, l, r=10);
 
-	@time newton = fit(x, xbm, z, y, 1, k, d(), l, :Newton)
+	@time newton = fit(x, xla, z, y, 1, k, d(), l, :Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 # p parameter not used 
 	@test newton.d.r ≥ 0
 
-	@time mm = fit(x, xbm, z, y, 1, k, d(), l, :MM)
+	@time mm = fit(x, xla, z, y, 1, k, d(), l, :MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0
