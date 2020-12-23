@@ -31,7 +31,6 @@ __precompile__()
     include("simulate_utilities.jl")
     include("fit.jl")
     include("cross_validation.jl")
-    include("negbinfit_nuisance.jl")
     include("wrapper.jl")
 
 end # end module

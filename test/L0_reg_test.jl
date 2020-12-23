@@ -180,7 +180,7 @@ end
 	@test result.k == 10
 end
 
-@testset "Float matrices, correlated predictors, and double sparsity" begin
+@testset "Correlated predictors and double sparsity" begin
 	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
 
 	#simulat data with k true predictors, from distribution d and with link l.
@@ -268,12 +268,12 @@ end
 	z = ones(n, 1) 
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l, r=10);
 
-	@time newton = fit(x, xla, z, y, 1, k, d(), l, :Newton)
+	@time newton = fit(y, xla, z, J=1, k=k, d=d(), l=l, est_r=:Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 # p parameter not used 
 	@test newton.d.r ≥ 0
 
-	@time mm = fit(x, xla, z, y, 1, k, d(), l, :MM)
+	@time mm = fit(y, xla, z, J=1, k=k, d=d(), l=l, est_r=:MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0
@@ -282,7 +282,7 @@ end
 	Random.seed!(1111) 
 	T = Float32
 	x = randn(T, n, p)
-	z = ones(T, n, 1) 
+	z = ones(T, n) 
 
 	# simulate true model b, and the correct non-0 positions of b
 	true_b = zeros(T, p)
@@ -298,12 +298,12 @@ end
     y = [rand(d(r, Float64(i))) for i in prob] 
     y = T.(y)
 
-	@time newton = fit(x, z, y, 1, k, d(), l, :Newton)
+	@time newton = fit(y, x, z, J=1, k=k, d=d(), l=l, est_r=:Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 
 	@test newton.d.r ≥ 0
 
-	@time mm = fit(x, z, y, 1, k, d(), l, :MM)
+	@time mm = fit(y, x, z, J=1, k=k, d=d(), l=l, est_r=:MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0

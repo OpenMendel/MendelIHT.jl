@@ -17,15 +17,16 @@ of predictors for group `i`.
 + `J`: The number of maximum groups (set as 1 if no group infomation available)
 + `d`: Distribution of your phenotype (e.g. Normal, Bernoulli)
 + `l`: A link function (e.g. IdentityLink, LogitLink, ProbitLink)
-+ `group` vector storing group membership
-+ `weight` vector storing vector of weights containing prior knowledge on each SNP
-+ `use_maf` indicates whether we want to scale the projection with minor allele frequencies (see paper)
-+ `debias` is boolean indicating whether we debias at each iteration (see paper)
-+ `verbose` boolean indicating whether we want to print results if model does not converge. Should set to false for multithread/multicore computing
-+ `init` boolean indicating whether we want to initialize β to sensible values through fitting. This is not efficient yet. 
-+ `tol` is used to track convergence
-+ `max_iter` is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
-+ `max_step` is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
++ `group`: vector storing group membership
++ `weight`: vector storing vector of weights containing prior knowledge on each SNP
++ `est_r`: Symbol (`:MM` or `:Newton`) to estimate nuisance parameters for negative binomial regression
++ `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)
++ `debias`: boolean indicating whether we debias at each iteration (see paper)
++ `verbose`: boolean indicating whether we want to print results if model does not converge.
++ `init`: boolean indicating whether we want to initialize `β` to sensible values through fitting. This is not efficient yet. 
++ `tol`: used to track convergence
++ `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
++ `max_step`: is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 """
 function fit(
     y         :: AbstractVector{T},
@@ -37,6 +38,7 @@ function fit(
     l         :: Link = IdentityLink,
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
+    est_r     :: Union{Symbol, Nothing} = nothing,
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
     verbose   :: Bool = true,          # print things when model didn't converge
@@ -56,6 +58,8 @@ function fit(
     @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
     checky(y, d) # make sure response data y is in the form compatible with specified GLM
     check_group(k, group) # make sure sparsity parameter `k` is reasonable. 
+    isnothing(est_r) || typeof(d) <: NegativeBinomial || 
+        "Only negative binomial regression currently supports nuisance parameter estimation"
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
@@ -98,7 +102,7 @@ function fit(
 
         # take one IHT step in positive score direction
         (η, η_step, next_logl) = iht_one_step!(v, x, z, y, J, k, d, l, 
-            logl, full_grad, max_step)
+            logl, full_grad, max_step, est_r)
 
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
@@ -131,7 +135,7 @@ We allow loglikelihood to potentially decrease to avoid bad boundary cases.
 function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix,
     z::AbstractVecOrMat{T}, y::AbstractVector{T}, J::Int, k::Union{Int, 
     Vector{Int}}, d::UnivariateDistribution, l::Link, old_logl::T, 
-    full_grad::AbstractVector{T}, nstep::Int, 
+    full_grad::AbstractVector{T}, nstep::Int, est_r::Union{Symbol, Nothing},
     ) where {T <: Float}
 
     # first calculate step size 
@@ -143,6 +147,12 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix,
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v, x, z)
     update_μ!(v.μ, v.xb + v.zc, l)
+
+    # update r
+    if !isnothing(est_r)
+        old_r = d.r
+        d = mle_for_r(y, v.μ, d.r, est_r)
+    end
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(d, y, v.μ)
@@ -161,6 +171,7 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix,
         # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
         update_xb!(v, x, z)
         update_μ!(v.μ, v.xb + v.zc, l)
+        isnothing(est_r) || (d = mle_for_r(y, v.μ, d.r, est_r))
         new_logl = loglikelihood(d, y, v.μ)
 
         # increment the counter
