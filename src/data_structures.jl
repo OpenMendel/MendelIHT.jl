@@ -119,8 +119,8 @@ end
 """
 verbose printing of cv results
 """
-function print_cv_results(io::IO, errors::Vector{T}, path::DenseVector{Int}, 
-                          k::Int) where {T <: Float}
+function print_cv_results(io::IO, errors::Vector{T}, 
+    path::AbstractVector{<:Integer}, k::Int) where {T <: Float}
     println(io, "\n\nCrossvalidation Results:")
     println(io, "\tk\tMSE")
     for i = 1:length(errors)
@@ -128,12 +128,14 @@ function print_cv_results(io::IO, errors::Vector{T}, path::DenseVector{Int},
     end
 end
 # default IO for print_cv_results is STDOUT
-print_cv_results(errors::Vector{T}, path::DenseVector{Int}, k::Int) where {T <: Float} = print_cv_results(stdout, errors, path, k)
+print_cv_results(errors::Vector{T}, path::AbstractVector{<:Integer}, k::Int
+    ) where {T <: Float} = print_cv_results(stdout, errors, path, k)
 
 """
 verbose printing of running `iht_run_many_models` with a bunch of models
 """
-function print_a_bunch_of_path_results(io::IO, loglikelihoods::AbstractVector{T}, path::AbstractVector{Int}) where {T <: Float}
+function print_a_bunch_of_path_results(io::IO, loglikelihoods::AbstractVector{T},
+    path::AbstractVector{<:Integer}) where {T <: Float}
     println(io, "\n\nResults of running all the model sizes specified in `path`:")
     println(io, "\tk\tloglikelihoods")
     for i = 1:length(loglikelihoods)
@@ -143,4 +145,6 @@ function print_a_bunch_of_path_results(io::IO, loglikelihoods::AbstractVector{T}
     "appropriate model sizes. Roughly speaking, this is when error stopped decreasing significantly.")
 end
 # default IO for print_a_bunch_of_path_results is STDOUT
-print_a_bunch_of_path_results(loglikelihoods::AbstractVector{T}, path::AbstractVector{Int}) where {T <: Float} = print_a_bunch_of_path_results(stdout, loglikelihoods, path)
+print_a_bunch_of_path_results(loglikelihoods::AbstractVector{T}, 
+    path::AbstractVector{<:Integer}) where {T <: Float} =
+    print_a_bunch_of_path_results(stdout, loglikelihoods, path)

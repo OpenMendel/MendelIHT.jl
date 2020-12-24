@@ -1,6 +1,6 @@
 __precompile__()
 
-    module MendelIHT
+module MendelIHT
 
     import Distances: euclidean, chebyshev, sqeuclidean
     import Base.show
