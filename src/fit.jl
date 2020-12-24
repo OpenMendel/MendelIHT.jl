@@ -9,7 +9,7 @@ of predictors for group `i`.
 
 # Arguments:
 + `y`: Response vector (phenotypes)
-+ `x`: Genotype matrix (type `SnpBitMatrix` or `SnpLinAlg` recommended)
++ `x`: Genotype matrix (an `Array{T, 2}`, `SnpBitMatrix`, or `SnpLinAlg` (recommended))
 + `z`: Matrix of non-genetic covariates. The first column should be the intercept (i.e. column of 1). 
 
 # Optional Arguments:
