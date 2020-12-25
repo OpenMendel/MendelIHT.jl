@@ -6,6 +6,7 @@ module MendelIHT
     import Base.show
     import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
     import SpecialFunctions: digamma, trigamma
+    import Pkg
 
     using GLM
     using SnpArrays

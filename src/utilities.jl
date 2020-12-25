@@ -730,3 +730,31 @@ function check_group(k, group)
         @assert k >= 0 "Value of k (max predictors per group) must be nonnegative!\n"
     end
 end
+
+# helper function from https://discourse.julialang.org/t/how-to-find-out-the-version-of-a-package-from-its-module/37755
+pkgversion(m::Module) = Pkg.TOML.parsefile(joinpath(dirname(string(first(methods(m.eval)).file)), "..", "Project.toml"))["version"]
+
+function print_iht_signature()
+    v = pkgversion(MendelIHT)
+    println("****                   MendelIHT Version $v                  ****")
+    println("****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****")
+    println("****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****")
+    println("****                                                            ****")
+    println("****                 Please cite our paper!                     ****")
+    println("****         https://doi.org/10.1093/gigascience/giaa044        ****")
+    println("")
+end
+
+function print_parameters(k, d, l, use_maf, group, debias, tol)
+    regression = typeof(d) <: Normal ? "linear" : typeof(d) <: Bernoulli ? 
+        "logistic" : typeof(d) <: Poisson ? "Poisson" : 
+        typeof(d) <: NegativeBinomial ? "NegativeBinomial" : "unknown"
+    println("Running sparse $regression regression")
+    println("Link functin = $l")
+    println("Sparsity parameter (k) = $k")
+    println("Prior weight scaling = ", use_maf ? "on" : "off")
+    println("Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
+    println("Debias = ", debias ? "on" : "off")
+    println("Converging when tol < $tol")
+    println("")
+end

@@ -41,7 +41,7 @@ function fit(
     est_r     :: Union{Symbol, Nothing} = nothing,
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
-    verbose   :: Bool = true,          # print things when model didn't converge
+    verbose   :: Bool = true,          # print informative things
     init      :: Bool = false,         # not efficient. whether to initialize β to sensible values
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
@@ -69,6 +69,12 @@ function fit(
     scaled_norm = 0.0               # the_norm / (norm(b0) + 1)
     η_step      = 0                 # counts number of backtracking steps for η
     converged   = false             # scaled_norm < tol?
+
+    # print information 
+    if verbose
+        print_iht_signature()
+        print_parameters(k, d, l, use_maf, group, debias, tol)
+    end
 
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k, group, weight)             # Placeholder variable for cleaner code
@@ -114,6 +120,7 @@ function fit(
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
+        verbose && println("Iteration $iter: tol = $scaled_norm")
         if converged
         # if iter > 1 && abs(next_logl - logl) < tol * (abs(logl) + 1.0)
             tot_time = time() - start_time
