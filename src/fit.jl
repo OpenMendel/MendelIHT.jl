@@ -35,7 +35,7 @@ function fit(
     k         :: Union{Int, Vector{Int}} = 10,
     J         :: Int = 1,
     d         :: UnivariateDistribution = Normal(),
-    l         :: Link = IdentityLink,
+    l         :: Link = IdentityLink(),
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
     est_r     :: Union{Symbol, Nothing} = nothing,
@@ -133,7 +133,7 @@ function fit(
 end
 
 fit(y::AbstractVector{T}, x::AbstractMatrix{T}; kwargs...) where T = 
-    fit(y, x, ones(length(y)); kwargs...)
+    fit(y, x, ones(T, length(y)); kwargs...)
 
 """
 Performs 1 iteration of the IHT algorithm, backtracking a maximum of 5 times.

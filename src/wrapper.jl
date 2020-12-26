@@ -1,40 +1,49 @@
 """
-    iht(plinkfile, k; kwargs...)
+    iht(plinkfile::AbstractString, k::Int, kwargs...)
 
-Wrapper function for running IHT of sparsity `k`. 
+Wrapper function for running IHT of sparsity `k`. Will use 6th column of `.fam`
+file for phenotype values and will automatically include an intercept. 
 
 # Arguments
 - `plinkfile`: Input PLINK files (without `.bim/.bed/.fam` suffixes)
-- `k`: Number of non-zero `βⱼ`s (counting intercept and non-genetic covariates)
+- `k`: Sparsity parameter = number of none-zero coefficients
 
 # TODO
-- handle cross validation
 - non-genetic covariates
-- group and weight inputs
 """
 function iht(
-    plinkfile :: AbstractString,
-    k         :: Int;
-    J         :: Int = 1,
-    d         :: UnivariateDistribution = Normal(),
-    l         :: Link = IdentityLink(),
-    use_maf   :: Bool = false, 
-    debias    :: Bool = false,
-    verbose   :: Bool = true,
-    tol       :: Float64 = 0.0001,
-    max_iter  :: Int = 100,            # maximum IHT iterations
-    max_step  :: Int = 5,              # maximum backtracking for each iteration
+    plinkfile::AbstractString,
+    k::Int;
+    kwargs...
     )
-    # import genotype and phenotype data
+    snpdata = SnpArrays.SnpData(plinkfile)
+    y = parse.(Float64, snpdata.person_info.phenotype)
+    xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
+        center=true, scale=true)
+    return fit(y, xla, k=k, kwargs...)
+end
+
+"""
+    cv_iht(plinkfile::AbstractString, path::AbstractVector{<:Integer}, kwargs...)
+
+Wrapper function for cross-validating sparsity `k`. Sparsity levels should be 
+specified in `path. Will use 6th column of `.fam` file for phenotype values and
+will automatically include an intercept. 
+
+# Arguments
+- `plinkfile`: Input PLINK files (without `.bim/.bed/.fam` suffixes)
+- `path`: Different sparsity levels. Can be a range (default 1:20) or vector of integers. 
+
+# TODO
+- non-genetic covariates
+"""
+function cv_iht(
+    plinkfile::AbstractString,
+    path::AbstractVector{<:Integer};
+    kwargs...
+    )
     snpdata = SnpArrays.SnpData(plinkfile)
     x = snpdata.snparray
     y = parse.(Float64, snpdata.person_info.phenotype)
-
-    # non-genetic covariates
-    z = ones(size(x, 1))
-
-    # run IHT
-    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
-    return fit(x, xla, z, y, J, k, d, l, use_maf=use_maf, debias=debias, 
-        verbose=verbose, tol=tol, max_iter=max_iter, max_step=max_step)
+    return cv_iht(y, x, path=path, kwargs...)
 end

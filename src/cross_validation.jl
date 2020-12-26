@@ -40,9 +40,9 @@ function cv_iht(
     x        :: AbstractMatrix,
     z        :: AbstractVecOrMat{T};
     d        :: UnivariateDistribution = Normal(),
-    l        :: Link = IdentityLink,
+    l        :: Link = IdentityLink(),
     path     :: AbstractVector{<:Integer} = 1:20,
-    q        :: Int64,
+    q        :: Int64 = 5,
     est_r    :: Union{Symbol, Nothing} = nothing,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
@@ -80,7 +80,8 @@ function cv_iht(
     return mse
 end
 
-cv_iht(y::AbstractVector, x::AbstractMatrix) = cv_iht(y, x, ones(size(x, 1)))
+cv_iht(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T = 
+    cv_iht(y, x, ones(T, size(x, 1)); kwargs...)
 
 """
 Performs q-fold cross validation for Iterative hard thresholding to 
@@ -99,7 +100,7 @@ function cv_iht_distribute_fold(
     d        :: UnivariateDistribution = Normal(),
     l        :: Link = IdentityLink,
     path     :: AbstractVector{<:Integer} = 1:20,
-    q        :: Int64,
+    q        :: Int64 = 5,
     est_r    :: Union{Symbol, Nothing} = nothing,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
@@ -134,8 +135,8 @@ function cv_iht_distribute_fold(
     return mse
 end
 
-cv_iht_distribute_fold(y::AbstractVector, x::AbstractMatrix) =
-    cv_iht_distribute_fold(y, x, ones(size(x, 1)))
+cv_iht_distribute_fold(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T =
+    cv_iht_distribute_fold(y, x, ones(T, size(x, 1)); kwargs...)
 
 """
 Runs IHT across many different model sizes specifed in `path` using the full
@@ -185,8 +186,8 @@ function iht_run_many_models(
     return loglikelihoods
 end
 
-iht_run_many_models(y::AbstractVector, x::AbstractMatrix) =
-    iht_run_many_models(y, x, ones(size(x, 1)))
+iht_run_many_models(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T =
+    iht_run_many_models(y, x, ones(T, size(x, 1)); kwargs...)
 
 """
 This function trains a bunch of models, where each model has a different sparsity 

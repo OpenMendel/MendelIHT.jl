@@ -904,3 +904,23 @@ copyto!(EURtest, EURsla)
 tmp = zeros(10, 10)
 # copyto!(tmp, @view(EURsla[1:10, 1:10]))
 copyto!(tmp, @view(EURbm[1:10, 1:10]))
+
+
+
+
+# test wrapper function
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using StatsBase
+using LinearAlgebra
+using GLM
+using Test
+using Random
+
+cd("/Users/biona001/.julia/dev/MendelIHT/data")
+plinkfile = "normal"
+iht(plinkfile, 10)
+cv_iht(plinkfile, 1:20)
