@@ -586,17 +586,18 @@ function iht_stepsize(v::IHTVariable{T}, z::AbstractVecOrMat{T},
 end
 
 """
-This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
-where A1 is a snpmatrix and A2 is a dense Matrix{Float}. Used for cleaner code. 
+    A_mul_B!(C1, C2, A1, A2, B1, B2)
 
-Here we are separating the computation because A1 is stored in compressed form while A2 is 
-uncompressed (float64) matrix. This means that they cannot be stored in the same data 
-structure. 
+Linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
+where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Matrix{Float}`. 
+
+For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
+A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
 function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
     A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
     B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
-    SnpArrays.mul!(C1, A1, B1)
+    mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
 end
 
@@ -605,6 +606,29 @@ function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
     B2::AbstractVector{T}) where {T <: Float}
     LinearAlgebra.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
+end
+
+"""
+    At_mul_B!(C1, C2, A1, A2, B1, B2)
+
+Linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
+where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Matrix{Float}`. 
+
+For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
+A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
+"""
+function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, 
+    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
+    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+    mul!(C1, Transpose(A1), B1) # custom matrix-vector multiplication
+    LinearAlgebra.mul!(C2, Transpose(A2), B2)
+end
+
+function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
+    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T}, B1::AbstractVector{T},
+    B2::AbstractVector{T}) where {T <: Float}
+    LinearAlgebra.mul!(C1, Transpose(A1), B1)
+    LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
 """
@@ -637,28 +661,6 @@ function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::Union{SnpA
             v.b[i] = temp_glm.pp.beta0[2]
         end
     end
-end
-
-"""
-This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
-where A1 is a snpmatrix and A2 is a dense Matrix{Float}. Used for cleaner code. 
-
-Here we are separating the computation because A1 is stored in compressed form while A2 is 
-uncompressed (float64) matrix. This means that they cannot be stored in the same data 
-structure. 
-"""
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, 
-    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
-    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
-    SnpArrays.mul!(C1, Transpose(A1), B1)
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
-end
-
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T}, B1::AbstractVector{T},
-    B2::AbstractVector{T}) where {T <: Float}
-    LinearAlgebra.mul!(C1, Transpose(A1), B1)
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
 """
