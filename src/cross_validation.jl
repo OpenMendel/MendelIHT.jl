@@ -11,7 +11,7 @@ in parallel on different CPUs. Currently there are no routines to cross validate
 different group sizes. 
 
 # Warning
-Do not remove files with random file names when you run this function. There are 
+Do not remove files with random file names when you run this function. These are 
 memory mapped files that will be deleted automatically once they are no longer needed.
 
 # Arguments
@@ -165,7 +165,8 @@ function iht_run_many_models(
     # for each k, fit model and store the loglikelihoods
     results = (parallel ? pmap : map)(path) do k
         if typeof(x) == SnpArray 
-            xla = SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true)
+            xla = SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, 
+                impute=true)
             return fit(y, xla, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
                 weight=weight, init=init, use_maf=use_maf, debias=debias,
                 verbose=false)
@@ -218,14 +219,16 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
     # allocate train model
     x_train = SnpArray(train_file, sum(train_idx), p)
     copyto!(x_train, @view(x[train_idx, :]))
-    x_trainla = SnpLinAlg{T}(x_train, model=ADDITIVE_MODEL, center=true, scale=true)
+    x_trainla = SnpLinAlg{T}(x_train, model=ADDITIVE_MODEL, center=true,
+        scale=true, impute=true)
     z_train = z[train_idx, :]
     y_train = y[train_idx]
 
     # allocate test model
     x_test = SnpArray(test_file, test_size, p)
     copyto!(x_test, @view(x[test_idx, :]))
-    x_testla = SnpLinAlg{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true)
+    x_testla = SnpLinAlg{T}(x_test, model=ADDITIVE_MODEL, center=true,
+        scale=true, impute=true)
     z_test = z[test_idx, :]
     y_test = y[test_idx]
 
@@ -340,7 +343,8 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
     # allocate training data
     x_train = SnpArray(train_file, sum(train_idx), p)
     copyto!(x_train, view(x, train_idx, :))
-    x_trainla = SnpLinAlg{T}(x_train, model=ADDITIVE_MODEL, center=true, scale=true); 
+    x_trainla = SnpLinAlg{T}(x_train, model=ADDITIVE_MODEL, center=true,
+        scale=true, impute=true)
     y_train = y[train_idx]
     z_train = z[train_idx, :]
 
