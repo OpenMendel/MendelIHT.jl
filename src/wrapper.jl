@@ -121,7 +121,7 @@ function iht(
         center=true, scale=true, impute=true)
 
     # read phenotypes
-    y = readdlm(phenotypes, ',', Float64)
+    y = vec(readdlm(phenotypes, ',', Float64)) 
 
     # read and standardize covariates 
     z = readdlm(covariates, ',', Float64)
@@ -259,7 +259,7 @@ function cross_validate(
     x = snpdata.snparray
 
     # read phenotypes
-    y = readdlm(phenotypes, ',', Float64)
+    y = vec(readdlm(phenotypes, ',', Float64)) 
 
     # read and standardize covariates 
     z = readdlm(covariates, ',', Float64)
