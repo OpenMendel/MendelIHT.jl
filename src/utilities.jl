@@ -64,7 +64,7 @@ value of each entry to (-20, 20) because certain distributions (e.g. Poisson) ha
 link functions, which causes overflow.
 """
 function update_xb!(v::IHTVariable{T}, x::Union{SnpArray, AbstractMatrix}, 
-                    z::AbstractMatrix{T}) where {T <: Float}
+                    z::AbstractVecOrMat{T}) where {T <: Float}
     typeof(x) == SnpArray ? copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) : copyto!(v.xk, @view(x[:, v.idx]))
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
     clamp!(v.xb, -20, 20)
@@ -185,7 +185,7 @@ Calculates the score (gradient) for different glm models.
 W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ). 
 """
 function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
-                x::Union{SnpBitMatrix, AbstractMatrix}, z::AbstractMatrix{T}, 
+                x::AbstractMatrix, z::AbstractVecOrMat{T}, 
                 y::AbstractVector{T}) where {T <: Float}
     @inbounds for i in eachindex(y)
         # η = clamp(v.xb[i] + v.zc[i], -20, 20)
@@ -243,16 +243,17 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Union{Int, Vector{In
 end
 
 """
-When initializing the IHT algorithm, take largest elements in magnitude of each group of 
-the score as nonzero components of b. This function set v.idx = 1 for those indices. 
+When initializing the IHT algorithm, take largest elements in magnitude of each
+group of the score as nonzero components of b. This function set v.idx = 1 for
+those indices. 
 
-`J` is the maximum number of active groups, and `k` is the maximum number of predictors per
-group. 
+`J` is the maximum number of active groups, and `k` is the maximum number of
+predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable{T}, x::Union{SnpBitMatrix, AbstractMatrix}, 
-                           z::AbstractMatrix{T}, y::Vector{T}, d::UnivariateDistribution, 
-                           l::Link, J::Int, k::Union{Int, Vector{Int}}, group::Vector
-                           ) where {T <: Float}
+function init_iht_indices!(v::IHTVariable{T}, x::AbstractMatrix, 
+    z::AbstractVecOrMat{T}, y::Vector{T}, d::UnivariateDistribution, l::Link,
+    J::Int, k::Union{Int, Vector{Int}}, group::Vector
+    ) where {T <: Float}
     # find the intercept by Newton's method
     ybar = mean(y)
     for iteration = 1:20 
@@ -261,7 +262,7 @@ function init_iht_indices!(v::IHTVariable{T}, x::Union{SnpBitMatrix, AbstractMat
         v.c[1] = v.c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
         abs(g1 - ybar) < 1e-10 && break
     end
-    v.zc .= z * v.c
+    mul!(v.zc, z, v.c)
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v.μ, v.xb + v.zc, l)
@@ -354,12 +355,12 @@ function std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T}) where {T <: Float}
 end
 
 """
-    standardize!(z::Matrix)
+    standardize!(z::AbstractVecOrMat)
 
 Standardizes each column of `z` to mean 0 and variance 1. Make sure you 
 do not standardize the intercept. 
 """
-@inline function standardize!(z::AbstractMatrix)
+@inline function standardize!(z::AbstractVecOrMat)
     n, q = size(z)
     μ = _mean(z)
     σ = _std(z, μ)
@@ -371,7 +372,7 @@ do not standardize the intercept.
     end
 end
 
-@inline function _mean(z::AbstractMatrix)
+@inline function _mean(z)
     n, q = size(z)
     μ = zeros(q)
     @inbounds for j in 1:q
@@ -384,7 +385,7 @@ end
     return μ
 end
 
-function _std(z::AbstractMatrix, μ::Vector)
+function _std(z, μ)
     n, q = size(z)
     σ = zeros(q)
 
@@ -567,7 +568,7 @@ Computes the best step size η = v'v / v'Jv
 Here v is the score and J is the expected information matrix, which is 
 computed by J = g'(xb) / var(μ), assuming dispersion is 1
 """
-function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T}, 
+function iht_stepsize(v::IHTVariable{T}, z::AbstractVecOrMat{T}, 
                       d::UnivariateDistribution, l::Link) where {T <: Float}
     
     # first store relevant components of gradient
@@ -585,23 +586,49 @@ function iht_stepsize(v::IHTVariable{T}, z::AbstractMatrix{T},
 end
 
 """
-This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
-where A1 is a snpmatrix and A2 is a dense Matrix{Float}. Used for cleaner code. 
+    A_mul_B!(C1, C2, A1, A2, B1, B2)
 
-Here we are separating the computation because A1 is stored in compressed form while A2 is 
-uncompressed (float64) matrix. This means that they cannot be stored in the same data 
-structure. 
+Linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
+where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Matrix{Float}`. 
+
+For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
+A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::SnpBitMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
-    SnpArrays.mul!(C1, A1, B1)
+function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
+    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
+    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+    mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
 end
 
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
+    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T}, B1::AbstractVector{T},
+    B2::AbstractVector{T}) where {T <: Float}
     LinearAlgebra.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
+end
+
+"""
+    At_mul_B!(C1, C2, A1, A2, B1, B2)
+
+Linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
+where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Matrix{Float}`. 
+
+For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
+A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
+"""
+function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, 
+    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
+    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+    mul!(C1, Transpose(A1), B1) # custom matrix-vector multiplication
+    LinearAlgebra.mul!(C2, Transpose(A2), B2)
+end
+
+function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
+    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T}, B1::AbstractVector{T},
+    B2::AbstractVector{T}) where {T <: Float}
+    LinearAlgebra.mul!(C1, Transpose(A1), B1)
+    LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
 """
@@ -634,26 +661,6 @@ function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::Union{SnpA
             v.b[i] = temp_glm.pp.beta0[2]
         end
     end
-end
-
-"""
-This is a wrapper linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
-where A1 is a snpmatrix and A2 is a dense Matrix{Float}. Used for cleaner code. 
-
-Here we are separating the computation because A1 is stored in compressed form while A2 is 
-uncompressed (float64) matrix. This means that they cannot be stored in the same data 
-structure. 
-"""
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::SnpBitMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
-    SnpArrays.mul!(C1, Transpose(A1), B1)
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
-end
-
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, A1::AbstractMatrix{T},
-        A2::AbstractMatrix{T}, B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
-    LinearAlgebra.mul!(C1, Transpose(A1), B1)
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
 """
@@ -724,4 +731,32 @@ function check_group(k, group)
     else
         @assert k >= 0 "Value of k (max predictors per group) must be nonnegative!\n"
     end
+end
+
+# helper function from https://discourse.julialang.org/t/how-to-find-out-the-version-of-a-package-from-its-module/37755
+pkgversion(m::Module) = Pkg.TOML.parsefile(joinpath(dirname(string(first(methods(m.eval)).file)), "..", "Project.toml"))["version"]
+
+function print_iht_signature()
+    v = pkgversion(MendelIHT)
+    println("****                   MendelIHT Version $v                  ****")
+    println("****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****")
+    println("****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****")
+    println("****                                                            ****")
+    println("****                 Please cite our paper!                     ****")
+    println("****         https://doi.org/10.1093/gigascience/giaa044        ****")
+    println("")
+end
+
+function print_parameters(k, d, l, use_maf, group, debias, tol)
+    regression = typeof(d) <: Normal ? "linear" : typeof(d) <: Bernoulli ? 
+        "logistic" : typeof(d) <: Poisson ? "Poisson" : 
+        typeof(d) <: NegativeBinomial ? "NegativeBinomial" : "unknown"
+    println("Running sparse $regression regression")
+    println("Link functin = $l")
+    println("Sparsity parameter (k) = $k")
+    println("Prior weight scaling = ", use_maf ? "on" : "off")
+    println("Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
+    println("Debias = ", debias ? "on" : "off")
+    println("Converging when tol < $tol")
+    println("")
 end

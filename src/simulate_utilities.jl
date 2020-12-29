@@ -1,28 +1,32 @@
 """
-    simulate_random_snparray(n::Integer, p::Integer, s::String; mafs::Vector{Float64}, min_ma::Integer)
+    simulate_random_snparray(s::String, n::Integer, p::Integer; 
+        [mafs::Vector{Float64}], [min_ma::Integer])
 
 Creates a random SnpArray in the current directory without missing value, 
 where each SNP has ⫺5 (default) minor alleles. 
 
-Note: if supplied minor allele frequency is extremely small, it could take a long time for 
-the simulation to generate samples where at least `min_ma` (defaults to 5) are present. 
+Note: if supplied minor allele frequency is extremely small, it could take a
+long time for the simulation to generate samples where at least `min_ma`
+(defaults to 5) are present. 
 
 # Arguments:
+- `s`: name of SnpArray that will be created in the current directory. To not
+    create file, use `undef`.
 - `n`: number of samples
 - `p`: number of SNPs
-- `s`: name of SnpArray that will be created (memory mapped) in the current directory. To not memory map, use `undef`.
 
 # Optional Arguments:
-- `mafs`: vector of desired minor allele freuqencies (uniform(0, 0.5) by default)
-- `min_ma`: the minimum number of minor alleles that must be present for each SNP (defaults to 5)
+- `mafs`: vector of desired minor allele freuqencies (uniform(0,0.5) by default)
+- `min_ma`: the minimum number of minor alleles that must be present for each
+    SNP (defaults to 5)
 """
-function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}; 
-                                  mafs::Vector{Float64}=zeros(Float64, p), min_ma::Int = 5)
+function simulate_random_snparray(s::Union{String, UndefInitializer}, n::Int64,
+    p::Int64; mafs::Vector{Float64}=zeros(Float64, p), min_ma::Int = 5)
     
-    @assert all(0.0 .<= mafs .<= 0.5) "Minor allele frequencies must be all in the range (0, 0.5)"
+    @assert all(0.0 .<= mafs .<= 0.5) "Minor allele frequencies not in (0, 0.5)"
 
     if mafs != zeros(Float64, p)
-        return _random_snparray(n, p, s, mafs, min_ma=min_ma)
+        return _random_snparray(s, n, p, mafs, min_ma=min_ma)
     end
 
     #first simulate a random {0, 1, 2} matrix with each SNP drawn from Binomial(2, r[i])
@@ -43,7 +47,7 @@ function simulate_random_snparray(n::Int64, p::Int64, s::Union{String, UndefInit
     end
 
     #fill the SnpArray with the corresponding x_tmp entry
-    return _make_snparray(A1, A2, s)
+    return _make_snparray(s, A1, A2)
 end
 
 """
@@ -51,8 +55,8 @@ This function requires a vector of minor alleles frequencies to perform simulati
 It will create a random SnpArray in the current directory without missing value, 
 where each SNP has at least 5 minor alleles. 
 """
-function _random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}, 
-                          mafs::Vector{Float64}; min_ma::Int = 5)
+function _random_snparray(s::Union{String, UndefInitializer}, n::Int64,
+        p::Int64, mafs::Vector{Float64}; min_ma::Int = 5)
     all(0.0 .<= mafs .<= 0.5) || throw(ArgumentError("vector of minor allele frequencies must be in (0, 0.5)"))
     any(mafs .<= 0.0005) && @warn("Provided minor allele frequencies contain entries smaller than 0.0005, simulation may take long if sample size is small and min_ma = $min_ma is large")
 
@@ -72,13 +76,13 @@ function _random_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}
     end
 
     #fill the SnpArray with the corresponding x_tmp entry
-    return _make_snparray(A1, A2, s)
+    return _make_snparray(s, A1, A2)
 end
 
 """
 Make a SnpArray from 2 BitArrays.
 """
-function _make_snparray(A1::BitArray, A2::BitArray, s::Union{String, UndefInitializer})
+function _make_snparray(s::Union{String, UndefInitializer}, A1::BitArray, A2::BitArray)
     n, p = size(A1)
     x = SnpArray(s, n, p)
     for i in 1:(n*p)
@@ -97,7 +101,7 @@ function _make_snparray(A1::BitArray, A2::BitArray, s::Union{String, UndefInitia
 end
 
 """
-    simulate_correlated_snparray(n, p, s; block_length, hap, prob)
+    simulate_correlated_snparray(s, n, p; block_length, hap, prob)
 
 Simulates a SnpArray with correlation. SNPs are divided into blocks where each
 adjacent SNP is the same with probability prob. There are no correlation between blocks.
@@ -112,8 +116,8 @@ adjacent SNP is the same with probability prob. There are no correlation between
 - `hap`: number of haplotypes to simulate for each block
 - `prob`: with probability `prob` an adjacent SNP would be the same. 
 """
-function simulate_correlated_snparray(n::Int64, p::Int64, s::Union{String, UndefInitializer}; 
-            block_length::Int64=20, hap::Int=20, prob::Float64=0.75)
+function simulate_correlated_snparray( s::Union{String, UndefInitializer}, 
+    n::Int64, p::Int64; block_length::Int64=20, hap::Int=20, prob::Float64=0.75)
     
     @assert mod(p, block_length) == 0 "block_length ($block_length) is not divible by p ($p)"
     @assert 0 < prob < 1 "transition probably should be between 0 and 1, got $prob"
@@ -182,16 +186,15 @@ function _copy_blocks!(x::SnpArray, row, snps, cur_block, block_length)
 end
 
 """
-    simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, d::UnionAll, l::Link)
+    simulate_random_response(x, k, d, l; kwargs...)
 
-This function simulates a random response (trait) vector `y` based on provided x, β, distirbution,
-and link function. When the distribution is from Poisson, Gamma, or Negative Binomial, we simulate `β ∼ N(0, 0.3)` 
-to roughly ensure the mean of response `y` doesn't become too large. For other distributions,
-we choose `β ∼ N(0, 1)`. 
+This function simulates a random response (trait) vector `y`. When the 
+distribution `d` is from Poisson, Gamma, or Negative Binomial, we simulate 
+`β ∼ N(0, 0.3)` to roughly ensure the mean of response `y` doesn't become too
+large. For other distributions, we choose `β ∼ N(0, 1)`. 
 
 # Arguments
-- `x`: The SnpArray
-- `xbm`: SnpBitMatrix type of your SnpArray
+- `x`: Design matrix
 - `k`: the true number of predictors. 
 - `d`: The distribution of the simulated trait (note `typeof(d) = UnionAll` but `typeof(d())` is an actual distribution: e.g. Normal)
 - `l`: The link function. Input `canonicallink(d())` if you want to use the canonical link of `d`.
@@ -200,9 +203,8 @@ we choose `β ∼ N(0, 1)`.
 - `r`: The number of success until stopping in negative binomial regression, defaults to 10
 - `α`: Shape parameter of the gamma distribution, defaults to 1
 """
-function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int, 
-                                  d::UnionAll, l::Link; r = 10,
-                                  α = 1) where {T <: Float}
+function simulate_random_response(x::AbstractMatrix, k::Int, 
+    d::UnionAll, l::Link; r = 10, α = 1)
     n, p = size(x)
     if (typeof(d) <: NegativeBinomial) || (typeof(d) <: Gamma)
         l == LogLink() || throw(ArgumentError("Distribution $d must use LogLink!"))
@@ -220,16 +222,16 @@ function simulate_random_response(x::SnpArray, xbm::SnpBitMatrix, k::Int,
 
     #simulate phenotypes (e.g. vector y)
     if d == Normal || d == Poisson || d == Bernoulli
-        prob = linkinv.(l, xbm * true_b)
+        prob = linkinv.(l, x * true_b)
         clamp!(prob, -20, 20)
         y = [rand(d(i)) for i in prob]
     elseif d == NegativeBinomial
-        μ = linkinv.(l, xbm * true_b)
+        μ = linkinv.(l, x * true_b)
         clamp!(μ, -20, 20)
         prob = 1 ./ (1 .+ μ ./ r)
         y = [rand(d(r, i)) for i in prob] #number of failtures before r success occurs
     elseif d == Gamma
-        μ = linkinv.(l, xbm * true_b)
+        μ = linkinv.(l, x * true_b)
         β = 1 ./ μ # here β is the rate parameter for gamma distribution
         y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
     end
@@ -278,7 +280,7 @@ function make_bim_fam_files(x::SnpArray, y, name::String)
     #create .bim file structure: https://www.cog-genomics.org/plink2/formats#bim
     open(name * ".bim", "w") do f
         for i in 1:p
-            write(f, "1\trs$i\t0\t1\t1\t2\n")
+            write(f, "1\tsnp$i\t0\t1\t1\t2\n")
         end
     end
 
