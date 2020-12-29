@@ -36,4 +36,7 @@ module MendelIHT
     include("cross_validation.jl")
     include("wrapper.jl")
 
+    # test data directory
+    datadir(parts...) = joinpath(@__DIR__, "..", "data", parts...)    
+
 end # end module
