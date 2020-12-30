@@ -1,11 +1,10 @@
 """
     loglikelihood(d::UnivariateDistribution, y::AbstractVector, μ::AbstractVector)
 
-Calculates the loglikelihood of observing `y` given mean `μ` and some distribution 
-`d`. 
+Calculates the loglikelihood of observing `y` given mean `μ = E(y) = g^{-1}(xβ)`
+and some distribution `d`. 
 
 Note that loglikelihood is the sum of the logpdfs for each observation. 
-For each logpdf from Normal, Gamma, and InverseGaussian, we scale by dispersion. 
 """
 function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
                        μ::AbstractVector{T}) where {T <: Float}
@@ -41,8 +40,12 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
-The deviance of a GLM can be evaluated as the sum of the squared deviance residuals. Calculation
-of sqared deviance residuals is accomplished by `devresid` which is implemented in GLM.jl
+    deviance(d, y, μ)
+
+Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian case) 
+
+Each individual sqared deviance residual is evaluated using `devresid`
+which is implemented in GLM.jl
 """
 function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
     dev = 0.0
@@ -52,6 +55,11 @@ function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractV
     return dev
 end
 
+"""
+    update_μ!(μ, xb, l)
+
+Update the mean (μ) using the linear predictor `xb` with link `l`.
+"""
 function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
     @inbounds for i in eachindex(μ)
         μ[i] = linkinv(l, xb[i])
@@ -180,7 +188,7 @@ end
 """
     score = X^T * W * (y - g(x^T b))
 
-Calculates the score (gradient) for different glm models. 
+Calculates the score (gradient) for different GLMs. 
 
 W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ). 
 """
