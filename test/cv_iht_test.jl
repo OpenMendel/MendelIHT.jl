@@ -305,26 +305,27 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine that distributes `path` (with debias) 
-    @time distribute_path_debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
+    # cross validation routine that distributes `path` (with debias)
+	d = d(1, T(0.5)) # need Float32 for eltype of d
+    @time distribute_path_debias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
         folds=folds, verbose=false, debias=true, parallel=true)
     @test length(distribute_path_debias) == 20
     @test all(distribute_path_debias .> 0)
 
     # cross validation routine that distributes `path` (no debias) 
-    @time distribute_path_nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
+    @time distribute_path_nodebias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
         folds=folds, verbose=false, debias=false, parallel=true);
     @test length(distribute_path_nodebias) == 20
     @test all(distribute_path_nodebias .> 0)
 
     # cross validation routine that distributes `fold` (with debias) 
-    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d(), l=l,
+    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d, l=l,
         path=path, q=q, folds=folds, verbose=false, debias=true, parallel=true);
     @test length(distribute_fold_debias) == 20
     @test isapprox(distribute_fold_debias, distribute_path_debias, atol=1e-4)
 
     # cross validation routine that distributes `fold` (no debias) 
-    @time distribute_fold_nodebias = cv_iht_distribute_fold(y, x, z, d=d(), l=l,
+    @time distribute_fold_nodebias = cv_iht_distribute_fold(y, x, z, d=d, l=l,
         path=path, q=q, folds=folds, verbose=false, debias=false, parallel=true);
     @test length(distribute_fold_nodebias) == 20
     @test isapprox(distribute_fold_nodebias, distribute_path_nodebias, atol=1e-4)
