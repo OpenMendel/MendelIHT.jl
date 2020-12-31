@@ -8,30 +8,35 @@
 
 ## Installation
 
-Start Julia, press `]` to enter package manager mode, and type the following (after `pkg>`):
+Download and install [Julia](https://julialang.org/downloads/). Within Julia, copy and paste the following:
 ```
-(v1.0) pkg> add https://github.com/OpenMendel/SnpArrays.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelSearch.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelBase.jl
-(v1.0) pkg> add https://github.com/OpenMendel/MendelIHT.jl
+using Pkg
+Pkg.add(PackageSpec(url="https://github.com/OpenMendel/SnpArrays.jl.git"))
+Pkg.add(PackageSpec(url="https://github.com/OpenMendel/VCFTools.jl.git"))
+Pkg.add(PackageSpec(url="https://github.com/OpenMendel/MendelIHT.jl.git"))
 ```
-The order of installation is important!
+This package supports Julia `v1.5`+.
 
 ## Documentation
 
 + [**Latest**](https://OpenMendel.github.io/MendelIHT.jl/latest/)
 + [**Stable**](https://OpenMendel.github.io/MendelIHT.jl/stable/)
 
-## Video Introduction
-
-[![Video Introduction to MendelIHT.jl](https://github.com/OpenMendel/MendelIHT.jl/blob/master/figures/video_intro.png)](https://www.youtube.com/watch?v=UPIKafShwFw)
-
 ## Citation and Reproducibility:
 
 See our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823?searchresult=1) for algorithmic details. If you use `MendelIHT.jl`, please cite:
 
 ```
-Benjamin B Chu, Kevin L Keys, Christopher A German, Hua Zhou, Jin J Zhou, Eric M Sobel, Janet S Sinsheimer, Kenneth Lange, Iterative hard thresholding in genome-wide association studies: Generalized linear models, prior weights, and double sparsity, GigaScience, Volume 9, Issue 6, June 2020, giaa044, https://doi.org/10.1093/gigascience/giaa044
+@article{mendeliht,
+  title={{Iterative hard thresholding in genome-wide association studies: Generalized linear models, prior weights, and double sparsity}},
+  author={Chu, Benjamin B and Keys, Kevin L and German, Christopher A and Zhou, Hua and Zhou, Jin J and Sobel, Eric M and Sinsheimer, Janet S and Lange, Kenneth},
+  journal={GigaScience},
+  volume={9},
+  number={6},
+  pages={giaa044},
+  year={2020},
+  publisher={Oxford University Press}
+}
 ```
 
 In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our preprint. 
