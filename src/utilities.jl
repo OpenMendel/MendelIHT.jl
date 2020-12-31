@@ -9,7 +9,7 @@ Note that loglikelihood is the sum of the logpdfs for each observation.
 function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
                        μ::AbstractVector{T}) where {T <: Float}
     logl = zero(T)
-    ϕ = MendelIHT.deviance(d, y, μ) / length(y)
+    ϕ = MendelIHT.deviance(d, y, μ) / length(y) # variance in the case of normal
     @inbounds for i in eachindex(y)
         logl += loglik_obs(d, y[i], μ[i], 1, ϕ)
     end

@@ -24,6 +24,33 @@
 
 Read [our paper](https://www.biorxiv.org/content/10.1101/697755v2) for more detail.
 
+## Supported GLM models and Link functions
+
+MendelIHT borrows distribution and link functions implementationed in [GLM.jl](http://juliastats.github.io/GLM.jl/stable/) and [Distributions.jl](https://juliastats.github.io/Distributions.jl/stable/).
+
+| Distribution | Canonical Link | Status |
+|:---:|:---:|:---:|
+| Normal | IdentityLink | $\checkmark$ |
+| Bernoulli | LogitLink |$\checkmark$ |
+| Poisson | LogLink |  $\checkmark$ |
+| NegativeBinomial | LogLink |  $\checkmark$ |
+| Gamma | InverseLink | experimental |
+| InverseGaussian | InverseSquareLink | experimental |
+
+Examples of these distributions in their default value is visualized in [this post](https://github.com/JuliaStats/GLM.jl/issues/289).
+
+### Available link functions
+
+    CauchitLink
+    CloglogLink
+    IdentityLink
+    InverseLink
+    InverseSquareLink
+    LogitLink
+    LogLink
+    ProbitLink
+    SqrtLink
+
 ## Manual Outline
 
 ```@contents
