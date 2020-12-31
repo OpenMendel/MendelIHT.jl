@@ -8,21 +8,19 @@ Note that loglikelihood is the sum of the logpdfs for each observation.
 """
 function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
                        μ::AbstractVector{T}) where {T <: Float}
-    logl = 0.0
+    logl = zero(T)
     ϕ = MendelIHT.deviance(d, y, μ) / length(y)
     @inbounds for i in eachindex(y)
-        logl += loglik_obs(d, y[i], μ[i], 1, ϕ) #wt = 1 because only have 1 sample to estimate a given mean 
+        logl += loglik_obs(d, y[i], μ[i], 1, ϕ)
     end
-    return T(logl)
+    return logl
 end
 
 """
 This function is taken from GLM.jl from: 
-https://urldefense.proofpoint.com/v2/url?u=https-3A__github.com_JuliaStats_GLM.jl_blob_956a64e7df79e80405867238781f24567bd40c78_src_glmtools.jl-23L445&d=DwIGaQ&c=sJ6xIWYx-zLMB3EPkvcnVg&r=7sbWVWEGF5cmtB61wl7FFg&m=t0UYMxl1l6T9gQwevDjzKZl1EUq7cxc1N1Q251BQAUU&s=T5Tp_cvAeqiX2CbgYRm0yhX-Uzmeg5rRbOXvyDiwq_M&e= 
+https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
 
-Putting it here because it was not exported. 
-
-`wt`: the number of observations (y) used to estimate μ
+`wt`: in GLM.jl, this is working case weights for the Iteratively Reweighted Least Squares (IRLS) algorithm, which is not used by us. Thus all wt = 1.
 """
 function loglik_obs end
 
@@ -48,7 +46,7 @@ Each individual sqared deviance residual is evaluated using `devresid`
 which is implemented in GLM.jl
 """
 function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
-    dev = 0.0
+    dev = zero(T)
     @inbounds for i in eachindex(y)
         dev += devresid(d, y[i], μ[i])
     end
@@ -73,7 +71,7 @@ link functions, which causes overflow.
 """
 function update_xb!(v::IHTVariable{T}, x::Union{SnpArray, AbstractMatrix}, 
                     z::AbstractVecOrMat{T}) where {T <: Float}
-    typeof(x) == SnpArray ? copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) : copyto!(v.xk, @view(x[:, v.idx]))
+    copyto!(v.xk, @view(x[:, v.idx]))
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
     clamp!(v.xb, -20, 20)
     clamp!(v.zc, -20, 20)
@@ -190,7 +188,7 @@ end
 
 Calculates the score (gradient) for different GLMs. 
 
-W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ). 
+W is a diagonal matrix where w[i, i] = dμ/dη / var(μ). 
 """
 function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
                 x::AbstractMatrix, z::AbstractVecOrMat{T}, 
@@ -656,18 +654,10 @@ function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::Union{SnpA
     temp_glm = initialize_glm_object() # preallocating in a dumb ways
 
     intercept = 0.0
-    if typeof(x) == SnpArray
-        for i in 1:p
-            copyto!(@view(temp_matrix[:, 2]), @view(x[:, i]), center=true, scale=true)
-            temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-            v.b[i] = temp_glm.pp.beta0[2]
-        end
-    else 
-        for i in 1:p
-            temp_matrix[:, 2] .= x[:, i]
-            temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-            v.b[i] = temp_glm.pp.beta0[2]
-        end
+    for i in 1:p
+        temp_matrix[:, 2] .= x[:, i]
+        temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
+        v.b[i] = temp_glm.pp.beta0[2]
     end
 end
 
