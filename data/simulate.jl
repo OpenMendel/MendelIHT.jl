@@ -25,7 +25,7 @@ Random.seed!(1111)
 
 # simulate `.bed` file with no missing data
 x = simulate_random_snparray("normal.bed", n, p)
-xla = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
 
 # nongenetic covariate: first column is the intercept, second column is sex: 0 = male 1 = female
 z = ones(n, 2) 
@@ -69,15 +69,15 @@ writedlm("phenotypes.txt", y)
 
 # without sex as covariate (but intercept automatically included)
 result = iht("normal", 9) 
-[findall(!iszero, result.beta) correct_position] # compare IHT's result with answer
+[true_b[correct_position] result.beta[correct_position]] # compare IHT's result with answer
 
 # include sex as covariate
 result = iht("normal", "covariates.txt", 10)
-[findall(!iszero, result.beta) correct_position] # compare IHT's result with answer
+[true_b[correct_position] result.beta[correct_position]] # compare IHT's result with answer
 
 # phenotypes inputted as separate file
 result = iht("phenotypes.txt", "normal", "covariates.txt", 10)
-[findall(!iszero, result.beta) correct_position] # compare IHT's result with answer
+[true_b[correct_position] result.beta[correct_position]] # compare IHT's result with answer
 
 
 
