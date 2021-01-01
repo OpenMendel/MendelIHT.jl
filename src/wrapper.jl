@@ -27,7 +27,7 @@ function iht(
     y = parse.(Float64, snpdata.person_info.phenotype)
     xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
         center=true, scale=true, impute=true)
-    return fit(y, xla, k=k, kwargs...)
+    return fit(y, xla, k=k; kwargs...)
 end
 
 """
@@ -75,7 +75,7 @@ function iht(
     @assert size(z, 1) == size(xla, 1) "$(size(z, 1)) samples detected in " * 
         "covariate file but $(size(xla, 1)) samples detected in PLINK file."
 
-    return fit(y, xla, z, k=k, kwargs...)
+    return fit(y, xla, z, k=k; kwargs...)
 end
 
 """
@@ -131,7 +131,7 @@ function iht(
         "detected $(size(y, 1)) phenotypes, $(size(z, 1)) sample covariates, " * 
         "and $(size(xla, 1)) sample genotypes."
 
-    return fit(y, xla, z, k=k, kwargs...)
+    return fit(y, xla, z, k=k; kwargs...)
 end
 
 """
@@ -164,7 +164,7 @@ function cross_validate(
     snpdata = SnpArrays.SnpData(plinkfile)
     x = snpdata.snparray
     y = parse.(Float64, snpdata.person_info.phenotype)
-    return cv_iht(y, x, path=path, kwargs...)
+    return cv_iht(y, x, path=path; kwargs...)
 end
 
 """
@@ -213,7 +213,7 @@ function cross_validate(
     @assert size(z, 1) == size(x, 1) "$(size(z, 1)) samples detected in " * 
         "covariate file but $(size(x, 1)) samples detected in PLINK file."
 
-    return cv_iht(y, x, z, path=path, kwargs...)
+    return cv_iht(y, x, z, path=path; kwargs...)
 end
 
 """
@@ -269,5 +269,5 @@ function cross_validate(
         "detected $(size(y, 1)) phenotypes, $(size(z, 1)) sample covariates, " * 
         "and $(size(x, 1)) sample genotypes."
 
-    return cv_iht(y, x, z, path=path, kwargs...)
+    return cv_iht(y, x, z, path=path; kwargs...)
 end

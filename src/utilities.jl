@@ -1,29 +1,26 @@
 """
     loglikelihood(d::UnivariateDistribution, y::AbstractVector, μ::AbstractVector)
 
-Calculates the loglikelihood of observing `y` given mean `μ` and some distribution 
-`d`. 
+Calculates the loglikelihood of observing `y` given mean `μ = E(y) = g^{-1}(xβ)`
+and some distribution `d`. 
 
 Note that loglikelihood is the sum of the logpdfs for each observation. 
-For each logpdf from Normal, Gamma, and InverseGaussian, we scale by dispersion. 
 """
 function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
                        μ::AbstractVector{T}) where {T <: Float}
-    logl = 0.0
-    ϕ = MendelIHT.deviance(d, y, μ) / length(y)
+    logl = zero(T)
+    ϕ = MendelIHT.deviance(d, y, μ) / length(y) # variance in the case of normal
     @inbounds for i in eachindex(y)
-        logl += loglik_obs(d, y[i], μ[i], 1, ϕ) #wt = 1 because only have 1 sample to estimate a given mean 
+        logl += loglik_obs(d, y[i], μ[i], 1, ϕ)
     end
-    return T(logl)
+    return logl
 end
 
 """
 This function is taken from GLM.jl from: 
-https://urldefense.proofpoint.com/v2/url?u=https-3A__github.com_JuliaStats_GLM.jl_blob_956a64e7df79e80405867238781f24567bd40c78_src_glmtools.jl-23L445&d=DwIGaQ&c=sJ6xIWYx-zLMB3EPkvcnVg&r=7sbWVWEGF5cmtB61wl7FFg&m=t0UYMxl1l6T9gQwevDjzKZl1EUq7cxc1N1Q251BQAUU&s=T5Tp_cvAeqiX2CbgYRm0yhX-Uzmeg5rRbOXvyDiwq_M&e= 
+https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
 
-Putting it here because it was not exported. 
-
-`wt`: the number of observations (y) used to estimate μ
+`wt`: in GLM.jl, this is prior frequency (a.k.a. case) weights for observations, which is not used by us. Thus all wt = 1.
 """
 function loglik_obs end
 
@@ -41,17 +38,26 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
-The deviance of a GLM can be evaluated as the sum of the squared deviance residuals. Calculation
-of sqared deviance residuals is accomplished by `devresid` which is implemented in GLM.jl
+    deviance(d, y, μ)
+
+Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian case) 
+
+Each individual sqared deviance residual is evaluated using `devresid`
+which is implemented in GLM.jl
 """
 function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
-    dev = 0.0
+    dev = zero(T)
     @inbounds for i in eachindex(y)
         dev += devresid(d, y[i], μ[i])
     end
     return dev
 end
 
+"""
+    update_μ!(μ, xb, l)
+
+Update the mean (μ) using the linear predictor `xb` with link `l`.
+"""
 function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
     @inbounds for i in eachindex(μ)
         μ[i] = linkinv(l, xb[i])
@@ -63,9 +69,9 @@ This function update the linear predictors `xb` with the new proposed b. We clam
 value of each entry to (-20, 20) because certain distributions (e.g. Poisson) have exponential
 link functions, which causes overflow.
 """
-function update_xb!(v::IHTVariable{T}, x::Union{SnpArray, AbstractMatrix}, 
+function update_xb!(v::IHTVariable{T}, x::AbstractMatrix, 
                     z::AbstractVecOrMat{T}) where {T <: Float}
-    typeof(x) == SnpArray ? copyto!(v.xk, @view(x[:, v.idx]), center=true, scale=true) : copyto!(v.xk, @view(x[:, v.idx]))
+    copyto!(v.xk, @view(x[:, v.idx]))
     A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
     clamp!(v.xb, -20, 20)
     clamp!(v.zc, -20, 20)
@@ -103,7 +109,7 @@ function update_r_MM(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFlo
         den = den + log(p)  # denominator for r
     end
 
-    return NegativeBinomial(-num / den, 0.5)
+    return NegativeBinomial(-num / den, T(0.5))
 end
 
 """
@@ -111,22 +117,21 @@ Performs maximum loglikelihood estimation of the nuisance paramter for negative
 binomial model using Newton's algorithm. Will run a maximum of `maxIter` and
 convergence is defaulted to `convTol`.
 """
-function update_r_newton(y::AbstractVector, μ::AbstractVector, r::AbstractFloat;
-                   maxIter=100, convTol=1.e-6)
+function update_r_newton(y::AbstractVector{T}, μ::AbstractVector{T}, r::T;
+                   maxIter=100, convTol=T(1.e-6)) where {T <: Float}
 
-    function first_derivative(r::Real)
+    function first_derivative(r::T)
         tmp(yi, μi) = -(yi+r)/(μi+r) - log(μi+r) + 1 + log(r) + digamma(r+yi) - digamma(r)
         return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
     end
 
-    function second_derivative(r::Real)
+    function second_derivative(r::T)
         tmp(yi, μi) = (yi+r)/(μi+r)^2 - 2/(μi+r) + 1/r + trigamma(r+yi) - trigamma(r)
         return sum(tmp(yi, μi) for (yi, μi) in zip(y, μ))
     end
 
-    function negbin_loglikelihood(r::Real)
-        d_newton = NegativeBinomial(r, 0.5)
-        return MendelIHT.loglikelihood(d_newton, y, μ)
+    function negbin_loglikelihood(r::T)
+        return MendelIHT.loglikelihood(NegativeBinomial(r, T(0.5)), y, μ)
     end
 
     function newton_increment(r::Real)
@@ -141,8 +146,8 @@ function update_r_newton(y::AbstractVector, μ::AbstractVector, r::AbstractFloat
         return increment
     end
 
-    new_r    = 1.0
-    stepsize = 1.0
+    new_r    = one(T)
+    stepsize = one(T)
     for i in 1:maxIter
 
         # run 1 iteration of Newton's algorithm
@@ -168,21 +173,21 @@ function update_r_newton(y::AbstractVector, μ::AbstractVector, r::AbstractFloat
 
         #check convergence
         if abs(r - new_r) <= convTol
-            return NegativeBinomial(new_r, 0.5)
+            return NegativeBinomial(new_r, T(0.5))
         else
             r = new_r
         end
     end
 
-    return NegativeBinomial(r, 0.5)
+    return NegativeBinomial(r, T(0.5))
 end
 
 """
     score = X^T * W * (y - g(x^T b))
 
-Calculates the score (gradient) for different glm models. 
+Calculates the score (gradient) for different GLMs. 
 
-W is a diagonal matrix where w[i, i] = g'(x^T b) / var(μ). 
+W is a diagonal matrix where w[i, i] = dμ/dη / var(μ). 
 """
 function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
                 x::AbstractMatrix, z::AbstractVecOrMat{T}, 
@@ -317,14 +322,15 @@ function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
 end
 
 """
-This function returns true if backtracking condition is met. Currently, backtracking condition
-includes either one of the following:
-    1. New loglikelihood is smaller than the old one
-    2. Current backtrack (`η_step`) exceeds maximum allowed backtracking (`nstep`, default = 3)
+    _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64)
+
+Returns true if one of the following conditions is met:
+1. New loglikelihood is smaller than the old one
+2. Current backtrack (`η_step`) exceeds maximum allowed backtracking (`nstep`, default = 3)
 
 Note for Posison, NegativeBinomial, and Gamma, we require model coefficients to be 
 "small" to prevent loglikelihood blowing up in first few iteration. This is accomplished 
-by clamping η = xb values to be in (-20, 20)
+by clamping `η = xb` values to be in (-20, 20)
 """
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
     (prev_logl > logl) && (η_step < nstep)
@@ -632,7 +638,7 @@ function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
 end
 
 """
-    initialize_beta!(v::IHTVariable, y::AbstractVector, x::SnpArray, d::UnivariateDistribution, l::Link)
+    initialize_beta!(v::IHTVariable, y::AbstractVector, x::AbstractMatrix{T}, d::UnivariateDistribution, l::Link)
 
 Fits a univariate regression (+ intercept) with each β_i corresponding to `x`'s predictor.
 
@@ -641,25 +647,17 @@ implemented in `GLM.jl`. The intial intercept is separately fitted using in init
 
 Note: this function is quite slow and not memory efficient. 
 """
-function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::Union{SnpArray, AbstractMatrix},
+function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::AbstractMatrix{T},
                           d::UnivariateDistribution, l::Link) where {T <: Float}
     n, p = size(x)
     temp_matrix = ones(n, 2)           # n by 2 matrix of the intercept and 1 single covariate
     temp_glm = initialize_glm_object() # preallocating in a dumb ways
 
     intercept = 0.0
-    if typeof(x) == SnpArray
-        for i in 1:p
-            copyto!(@view(temp_matrix[:, 2]), @view(x[:, i]), center=true, scale=true)
-            temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-            v.b[i] = temp_glm.pp.beta0[2]
-        end
-    else 
-        for i in 1:p
-            temp_matrix[:, 2] .= x[:, i]
-            temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-            v.b[i] = temp_glm.pp.beta0[2]
-        end
+    for i in 1:p
+        temp_matrix[:, 2] .= x[:, i]
+        temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
+        v.b[i] = temp_glm.pp.beta0[2]
     end
 end
 

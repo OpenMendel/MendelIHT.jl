@@ -292,19 +292,20 @@ end
 
 	# simulate response
 	r = 20
-    μ = GLM.linkinv.(l, x * true_b)
+    μ = GLM.linkinv.(l, xla * true_b)
     clamp!(μ, -20, 20)
     prob = 1 ./ (1 .+ μ ./ r)
     y = [rand(d(r, Float64(i))) for i in prob] 
     y = T.(y)
 
-	@time newton = fit(y, x, z, J=1, k=k, d=d(), l=l, est_r=:Newton)
-	@test typeof(newton.d) == NegativeBinomial{Float64}
+	d = d(r, Float32(0.5)) # need Float32 for eltype of d
+	@time newton = fit(y, x, z, J=1, k=k, d=d, l=l, est_r=:Newton)
+	@test typeof(newton.d) == NegativeBinomial{Float32}
 	@test newton.d.p == 0.5 
 	@test newton.d.r ≥ 0
 
-	@time mm = fit(y, x, z, J=1, k=k, d=d(), l=l, est_r=:MM)
-	@test typeof(mm.d) == NegativeBinomial{Float64}
+	@time mm = fit(y, x, z, J=1, k=k, d=d, l=l, est_r=:MM)
+	@test typeof(mm.d) == NegativeBinomial{Float32}
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0
 end

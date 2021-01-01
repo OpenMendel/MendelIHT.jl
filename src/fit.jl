@@ -8,12 +8,12 @@ sparse IHT, construct `k` to be a vector where `k[i]` indicates the max number
 of predictors for group `i`. 
 
 # Arguments:
-+ `y`: Response vector (phenotypes)
++ `y`: Response vector (phenotypes), should be an `Array{T, 1}`.
 + `x`: Genotype matrix (an `Array{T, 2}`, `SnpBitMatrix`, or `SnpLinAlg` (recommended))
-+ `z`: Matrix of non-genetic covariates. The first column should be the intercept (i.e. column of 1). 
++ `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`. The first column should be the intercept (i.e. column of 1). 
 
 # Optional Arguments:
-+ `k`: Number of non-zero predictors in each group. Can be a constant or a vector. 
++ `k`: Number of non-zero predictors. Can be a constant or a vector (for group IHT). 
 + `J`: The number of maximum groups (set as 1 if no group infomation available)
 + `d`: Distribution of your phenotype (e.g. Normal, Bernoulli)
 + `l`: A link function (e.g. IdentityLink, LogitLink, ProbitLink)
@@ -155,7 +155,7 @@ function iht_one_step!(v::IHTVariable{T}, x::AbstractMatrix,
     update_xb!(v, x, z)
     update_μ!(v.μ, v.xb + v.zc, l)
 
-    # update r
+    # update r (nuisance parameter for negative binomial)
     if !isnothing(est_r)
         old_r = d.r
         d = mle_for_r(y, v.μ, d.r, est_r)

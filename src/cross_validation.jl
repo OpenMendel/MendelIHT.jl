@@ -15,9 +15,9 @@ Do not remove files with random file names when you run this function. These are
 memory mapped files that will be deleted automatically once they are no longer needed.
 
 # Arguments
-- `y`: Response vector (phenotypes)
+- `y`: Response vector (phenotypes), should be an `Array{T, 1}`.
 - `x`: A design matrix (genotypes). Should be a `SnpArray` or an `Array{T, 2}`. 
-- `z`: Matrix of non-genetic covariates. The first column usually denotes the intercept. 
+- `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`. The first column should be the intercept (i.e. column of 1). 
 
 # Optional Arguments: 
 - `path`: Different model sizes to be tested in cross validation (default 1:20)
@@ -142,7 +142,7 @@ cv_iht_distribute_fold(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where
 Runs IHT across many different model sizes specifed in `path` using the full
 design matrix. Same as `cv_iht` but **DOES NOT** validate in a holdout set, meaning
 that this will definitely induce overfitting as we increase model size.
-Use this to perform a quick estimate a range of feasible model sizes before 
+Use this if you want to quickly estimate a range of feasible model sizes before 
 engaging in full cross validation. 
 """
 function iht_run_many_models(

@@ -97,7 +97,8 @@ end
 
     @test size(v.xk, 2) == 10 
 
-    MendelIHT.update_xb!(v, x, z)
+    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true, impute=true)
+    MendelIHT.update_xb!(v, xla, z)
 
     @test all(v.xb .≈ tmp_x * v.b[1:10])
     @test all(v.zc .== 0.0)
