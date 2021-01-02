@@ -51,8 +51,8 @@ Examples of these distributions in their default value is visualized in [this po
 ```@contents
 Pages = [
     "man/getting_started.md",
-    "man/math.md",
     "man/examples.md",
+    "man/math.md",
     "man/contributing.md",
 ]
 Depth = 2

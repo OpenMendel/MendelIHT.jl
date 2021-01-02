@@ -8,9 +8,9 @@ makedocs(
     clean = true,
     pages = [
         "Home"            => "index.md",
-        "What is IHT?"    => "man/Introduction.md",
         "Getting Started" => "man/getting_started.md",
         "Examples"        => "man/examples.md",
+        "Mathematical Details" => "man/math.md",
         "Contributing"    => "man/contributing.md",
     ]
 )
