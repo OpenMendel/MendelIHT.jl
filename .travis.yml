@@ -2,6 +2,7 @@
 language: julia
 
 os:
+  - osx
   - linux
   - windows
 
@@ -24,6 +25,7 @@ after_script: # test package, use wait time 20 min
 
 jobs:
   allow_failures:
+    - os: osx
     - julia: nightly
   include:
     - stage: "Documentation"
