@@ -9,14 +9,14 @@ Here we give numerous example analysis of GWAS data with MendelIHT.
 versioninfo()
 ```
 
-    Julia Version 1.0.3
-    Commit 099e826241 (2018-12-18 01:34 UTC)
+    Julia Version 1.5.0
+    Commit 96786e22cc (2020-08-01 23:44 UTC)
     Platform Info:
-      OS: macOS (x86_64-apple-darwin14.5.0)
+      OS: macOS (x86_64-apple-darwin18.7.0)
       CPU: Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz
       WORD_SIZE: 64
       LIBM: libopenlibm
-      LLVM: libLLVM-6.0.0 (ORCJIT, skylake)
+      LLVM: libLLVM-9.0.1 (ORCJIT, skylake)
 
 
 
@@ -26,6 +26,7 @@ using Distributed
 addprocs(4)
 
 #load necessary packages for running all examples below
+using Revise
 using MendelIHT
 using SnpArrays
 using DataFrames
@@ -36,344 +37,216 @@ using GLM
 using DelimitedFiles
 using Statistics
 using BenchmarkTools
+using Plots
 ```
 
-## Example 1: How to Import Data
+    ┌ Info: Precompiling MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
+    └ @ Base loading.jl:1278
 
-We use [SnpArrays.jl](https://openmendel.github.io/SnpArrays.jl/latest/) as backend to process genotype files. Internally, the genotype file is a memory mapped [SnpArray](https://openmendel.github.io/SnpArrays.jl/stable/#SnpArray-1), which will not be loaded into RAM. If you wish to run `L0_reg`, you need to convert a SnpArray into a [SnpBitMatrix](https://openmendel.github.io/SnpArrays.jl/stable/#SnpBitMatrix-1), which consumes $n \times p \times 2$ bits of RAM. Non-genetic predictors should be read into Julia in the standard way, and should be stored as an `Array{Float64, 2}`. One should include the intercept (typically in the first column), but an intercept is not required to run IHT. 
 
-### Simulate example data (to be imported later)
+## Example 1: GWAS with PLINK files
 
-First we simulate an example PLINK trio (`.bim`, `.bed`, `.fam`) and non-genetic covariates, then we illustrate how to import them. For genotype matrix simulation, we simulate under the model:
+For PLINK files, users are exposed to a few simple wrapper functions. For demonstration, we use simulated data under the `data` directory, as shown below. This data simulates quantitative (Gaussian) traits using $n=1000$ samples and $p=10,000$ SNPs. There are $8$ causal variants and 2 causal non-genetic covariates (intercept and sex). 
 
-$$x_{ij} \sim \rm Binomial(2, \rho_j)$$
-$$\rho_j \sim \rm Uniform(0, 0.5)$$
+Start Julia and execute the following:
 
 
 ```julia
-# rows and columns
-n = 1000
-p = 10000
+# change directory to where example data is located
+cd(normpath(MendelIHT.datadir()))
 
-#random seed
-Random.seed!(1111)
+# show working directory
+@show pwd() 
 
-# simulate random `.bed` file
-x = simulate_random_snparray(n, p, "example.bed")
-
-# create accompanying `.bim`, `.fam` files (randomly generated)
-make_bim_fam_files(x, ones(n), "example")
-
-# simulate non-genetic covariates (in this case, we include intercept and sex)
-z = [ones(n, 1) rand(0:1, n)]
-writedlm("example_nongenetic_covariates.txt", z)
+# show files in current directory
+readdir()
 ```
 
-### Reading Genotype data and Non-Genetic Covariates from disk
+    pwd() = "/Users/biona001/.julia/dev/MendelIHT/data"
+
+
+
+
+
+    7-element Array{String,1}:
+     "covariates.txt"
+     "normal.bed"
+     "normal.bim"
+     "normal.fam"
+     "normal_true_beta.txt"
+     "phenotypes.txt"
+     "simulate.jl"
+
+
+
+Here `covariates.txt` contains non-genetic covariates, `normal.bed/bim/fam` are the PLINK files storing genetic covariates, `phenotypes.txt` are phenotypes for each sample, `normal_true_beta.txt` is the true statistical model used to generate the phenotypes, and `simulate.jl` is the script used to generate all the files. 
+
+### Step 1: Run cross validation to determine best model size
+
+If phenotypes are stored in the `.fam` file and there are no other covariates (except for the intercept which is automatically included), one can run cross validation as:
 
 
 ```julia
-x = SnpArray("example.bed")
-z = readdlm("example_nongenetic_covariates.txt")
-```
+# test k = 1, 2, ..., 20
+mses = cross_validate("normal", 1:20)
+argmin(mses)
 
-
-
-
-    1000×2 Array{Float64,2}:
-     1.0  1.0
-     1.0  0.0
-     1.0  0.0
-     1.0  1.0
-     1.0  0.0
-     1.0  0.0
-     1.0  1.0
-     1.0  0.0
-     1.0  1.0
-     1.0  1.0
-     1.0  0.0
-     1.0  0.0
-     1.0  1.0
-     ⋮       
-     1.0  0.0
-     1.0  1.0
-     1.0  0.0
-     1.0  0.0
-     1.0  0.0
-     1.0  0.0
-     1.0  0.0
-     1.0  0.0
-     1.0  0.0
-     1.0  0.0
-     1.0  1.0
-     1.0  0.0
-
-
-
-!!! note
-
-    (1) MendelIHT.jl assumes there are **NO missing genotypes**, (2) 1 always encode the minor allele, and (3) the trios (`.bim`, `.bed`, `.fam`) are all be present in the same directory. 
-    
-### Standardizing Non-Genetic Covariates.
-
-We recommend standardizing all genetic and non-genetic covarariates (including binary and categorical), except for the intercept. This ensures equal penalization for all predictors. For genotype matrix, `SnpBitMatrix` efficiently achieves this standardization. For non-genetic covariates, we use the built-in function `standardize!`. 
-
-
-```julia
-# SnpBitMatrix can automatically standardizes .bed file (without extra memory) and behaves like a matrix
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-
-# using view is important for correctness
-standardize!(@view(z[:, 2:end])) 
-z
-```
-
-
-
-
-    1000×2 Array{Float64,2}:
-     1.0   1.0015  
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0   1.0015  
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0   1.0015  
-     1.0  -0.997503
-     1.0   1.0015  
-     1.0   1.0015  
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0   1.0015  
-     ⋮             
-     1.0  -0.997503
-     1.0   1.0015  
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0  -0.997503
-     1.0   1.0015  
-     1.0  -0.997503
-
-
-
-
-```julia
-# remove simulated data once they are no longer needed
-rm("example.bed", force=true)
-rm("example.bim", force=true)
-rm("example.fam", force=true)
-rm("example_nongenetic_covariates.txt", force=true)
-```
-
-## Example 2: Running IHT on Quantitative Traits
-
-Quantitative traits are continuous phenotypes whose distribution can be modeled by the normal distribution. Then using the genotype matrix $\mathbf{X}$ and phenotype vector $\mathbf{y}$, we want to recover $\beta$ such that $\mathbf{y} \approx \mathbf{X}\beta$. In this example, we assume we know the true sparsity level `k`. 
-
-### Step 1: Import data
-
-In Example 1 we illustrated how to import data into Julia. So here we use simulated data ([code](https://github.com/biona001/MendelIHT.jl/blob/master/src/simulate_utilities.jl#L107)) because, only then, can we compare IHT's result to the true solution. Below we simulate a GWAS data with $n=1000$ patients and $p=10000$ SNPs. Here the quantitative trait vector are affected by $k = 10$ causal SNPs, with no non-genetic confounders. 
-
-In this example, our model is simulated as:
-
-$$y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i$$
-$$x_{ij} \sim \rm Binomial(2, \rho_j)$$
-$$\rho_j \sim \rm Uniform(0, 0.5)$$
-$$\epsilon_i \sim \rm N(0, 1)$$
-$$\beta_i \sim \rm N(0, 1)$$
-
-
-```julia
-# Define model dimensions, true model size, distribution, and link functions
-n = 1000
-p = 10000
-k = 10
-d = Normal
-l = canonicallink(d())
-
-# set random seed for reproducibility
-Random.seed!(2019) 
-
-# simulate SNP matrix, store the result in a file called tmp.bed
-x = simulate_random_snparray(n, p, "tmp.bed")
-
-#construct the SnpBitMatrix type (needed for L0_reg() and simulate_random_response() below)
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-
-# intercept is the only nongenetic covariate
-z = ones(n, 1) 
-
-# simulate response y, true model b, and the correct non-0 positions of b
-y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l);
-```
-
-### Step 2: Run cross validation to determine best model size
-
-To run `cv_iht`, you must specify `path` and `num_fold`, defined below:
-
-+ `path` are all the model sizes you wish to test, stored in a vector of integers.
-+ `num_fold` indicates how many disjoint partitions of the samples is requested. 
-
-By default, we partition the training/testing data randomly, but you can change this by inputing the `fold` vector as optional argument. In this example we tested $k = 1, 2, ..., 20$ across 3 fold cross validation. This is equivalent to running IHT across 60 different models, and hence, is ideal for parallel computing (which you specify by `parallel=true`). 
-
-
-```julia
-path = collect(1:20)
-num_folds = 3
-mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is for number of groups
+# Alternative syntax
+# mses = cross_validate("normal", [1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
+# mses = cross_validate("normal", "covariates.txt", 1:20) # include additional covariates in separate file
+# mses = cross_validate("phenotypes.txt", "normal", "covariates.txt", 1:20) # when phenotypes are stored separately
 ```
 
     
     
     Crossvalidation Results:
     	k	MSE
-    	1	1927.0765190526674
-    	2	1443.8788742220863
-    	3	1080.041135323195
-    	4	862.2385953735204
-    	5	705.1014346627649
-    	6	507.3949359364219
-    	7	391.96868764622843
-    	8	368.45440222003174
-    	9	350.642794092518
-    	10	345.8380848576577
-    	11	350.5188147284578
-    	12	359.42391568519577
-    	13	363.70956969599075
-    	14	377.30732985896975
-    	15	381.0310879522694
-    	16	392.56439238382615
-    	17	396.81166049333797
-    	18	397.3010019298764
-    	19	406.47023764639624
-    	20	410.4672260807978
+    	1	1424.4209463397158
+    	2	877.4127442461745
+    	3	698.4610947750848
+    	4	573.1504682310128
+    	5	476.31578846449054
+    	6	409.82530303194505
+    	7	359.5017949797407
+    	8	325.0831239222133
+    	9	331.76688175689503
+    	10	335.24897480823256
+    	11	342.2539099548487
+    	12	349.5580549505318
+    	13	352.87834253489024
+    	14	351.1138715603811
+    	15	351.0544198232595
+    	16	350.27000489574243
+    	17	352.9226806566691
+    	18	357.8264018809541
+    	19	365.6812419015122
+    	20	372.10901493254187
 
 
-!!! note 
 
-    **DO NOT remove** intermediate files with random filenames as generated by `cv_iht()`. These are necessary auxiliary files that will be automatically removed when cross validation completes. 
 
-!!! tip
 
-    Because Julia employs a JIT compiler, the first round of any function call run will always take longer and consume extra memory. Therefore it is advised to always run a small "test example" (such as this one!) before running cross validation on a large dataset. 
+    8
 
-### Step 3: Run full model on the best estimated model size 
 
-`cv_iht` finished in less than a minute. 
 
-According to our cross validation result, the best model size that minimizes deviance residuals (i.e. MSE on the q-th subset of samples) is attained at $k = 10$. That is, cross validation detected that we need 10 SNPs to achieve the best model size. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
+### Step 2: Run IHT on best k
+
+According to cross validation, `k = 8` achieves the minimum MSE. Thus we run IHT on the full dataset.
 
 
 ```julia
-k_est = argmin(mses)
-result = L0_reg(x, xbm, z, y, 1, k_est, d(), l) 
+result = iht("normal", 8)
 ```
 
+    ****                   MendelIHT Version 1.2.0                  ****
+    ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+    ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+    ****                                                            ****
+    ****                 Please cite our paper!                     ****
+    ****         https://doi.org/10.1093/gigascience/giaa044        ****
+    
+    Running sparse linear regression
+    Link functin = IdentityLink()
+    Sparsity parameter (k) = 8
+    Prior weight scaling = off
+    Doubly sparse projection = off
+    Debias = off
+    Converging when tol < 0.0001
+    
+    Iteration 1: tol = 0.7845860052299409
+    Iteration 2: tol = 0.02358096868235321
+    Iteration 3: tol = 0.001550076526387469
+    Iteration 4: tol = 0.00010521336604120053
+    Iteration 5: tol = 8.430366413828275e-6
+
+
 
 
 
     
-    IHT estimated 10 nonzero SNP predictors and 0 non-genetic predictors.
+    IHT estimated 7 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.4135408401489258
-    Final loglikelihood:    -1406.8807653835697
-    Iterations:             6
+    Compute time (sec):     0.0751640796661377
+    Final loglikelihood:    -1627.2792448761559
+    Iterations:             5
     
     Selected genetic predictors:
-    10×2 DataFrame
-    │ Row │ Position │ Estimated_β │
-    │     │ [90mInt64[39m    │ [90mFloat64[39m     │
-    ├─────┼──────────┼─────────────┤
-    │ 1   │ 853      │ -1.24117    │
-    │ 2   │ 877      │ -0.234676   │
-    │ 3   │ 924      │ 0.82014     │
-    │ 4   │ 2703     │ 0.583403    │
-    │ 5   │ 4241     │ 0.298304    │
-    │ 6   │ 4783     │ -1.14459    │
-    │ 7   │ 5094     │ 0.673012    │
-    │ 8   │ 5284     │ -0.709736   │
-    │ 9   │ 7760     │ 0.16866     │
-    │ 10  │ 8255     │ 1.08117     │
+    [1m7×2 DataFrame[0m
+    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
+    ─────┼───────────────────────
+       1 │     3137     0.411838
+       2 │     4246     0.572452
+       3 │     4717     0.909215
+       4 │     6290    -0.693302
+       5 │     7755    -0.54482
+       6 │     8375    -0.788884
+       7 │     9415    -2.15858
     
     Selected nongenetic predictors:
-    0×2 DataFrame
+    [1m1×2 DataFrame[0m
+    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
+    ─────┼───────────────────────
+       1 │        1      1.65223
 
 
 
+### Step 3: Examine results
 
-### Step 4 (only for simulated data): Check final model against simulation
-
-Since all our data and model was simulated, we can see how well `cv_iht` combined with `L0_reg` estimated the true model. For this example, we find that IHT found every simulated predictor, with 0 false positives. 
+Here IHT picked 7 SNPs and the intercept as the 8 most significant predictor. The SNP position is the order in which the SNP appeared in the PLINK file. To extract more information (for instance to extract `rs` IDs), we can do
 
 
 ```julia
-compare_model = DataFrame(
-    true_β      = true_b[correct_position], 
-    estimated_β = result.beta[correct_position])
-@show compare_model
-
-#clean up. Windows user must do this step manually (outside notebook/REPL)
-rm("tmp.bed", force=true)
+snpdata = SnpData("normal")                   # import PLINK information
+selected_snps = findall(!iszero, result.beta) # indices of SNPs selected by IHT
+snpdata.snp_info[selected_snps, :]            # see which SNPs are selected
 ```
 
-    compare_model = 10×2 DataFrame
-    │ Row │ true_β   │ estimated_β │
-    │     │ Float64  │ Float64     │
-    ├─────┼──────────┼─────────────┤
-    │ 1   │ -1.29964 │ -1.24117    │
-    │ 2   │ -0.2177  │ -0.234676   │
-    │ 3   │ 0.786217 │ 0.82014     │
-    │ 4   │ 0.599233 │ 0.583403    │
-    │ 5   │ 0.283711 │ 0.298304    │
-    │ 6   │ -1.12537 │ -1.14459    │
-    │ 7   │ 0.693374 │ 0.673012    │
-    │ 8   │ -0.67709 │ -0.709736   │
-    │ 9   │ 0.14727  │ 0.16866     │
-    │ 10  │ 1.03477  │ 1.08117     │
 
 
-## Example 3: Logistic Regression Controlling for Sex
 
-We show how to use IHT to handle case-control studies, while handling non-genetic covariates. In this example, we fit a logistic regression model with IHT using simulated case-control data, while controling for sex as a nongenetic covariate. 
+<table class="data-frame"><thead><tr><th></th><th>chromosome</th><th>snpid</th><th>genetic_distance</th><th>position</th><th>allele1</th><th>allele2</th></tr><tr><th></th><th>String</th><th>String</th><th>Float64</th><th>Int64</th><th>String</th><th>String</th></tr></thead><tbody><p>7 rows × 6 columns</p><tr><th>1</th><td>1</td><td>snp3137</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>2</th><td>1</td><td>snp4246</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>3</th><td>1</td><td>snp4717</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>4</th><td>1</td><td>snp6290</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>5</th><td>1</td><td>snp7755</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>6</th><td>1</td><td>snp8375</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>7</th><td>1</td><td>snp9415</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr></tbody></table>
 
-### Step 1: Import Data
 
-Again we use a simulated model:
 
-$$y_i \sim \rm Bernoulli(\mathbf{x}_i^T\mathbf{\beta})$$
+The table above displays the SNP information for the selected SNPs. Since data is simulated, the fields `genetic_distance`, `position`, `allele1`, `allele2` are arbitrary and `snpid` are fake. 
+
+## Example 2: How to simulate data
+
+Here we demonstrate how to use `MendelIHT.jl` and [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) to simulate data, allowing you to design your own genetic studies. Note all linear algebra routines involving PLINK files are handled by `SnpArrays.jl`. 
+
+First we simulate an example PLINK trio (`.bim`, `.bed`, `.fam`) and non-genetic covariates, then we illustrate how to import them. For simplicity, let us simulated indepent SNPs with binary phenotypes. Explicitly, our model is:
+
+$$y_i \sim \rm Bernoulli(\mathbf{x}_i^T\boldsymbol\beta)$$
 $$x_{ij} \sim \rm Binomial(2, \rho_j)$$
 $$\rho_j \sim \rm Uniform(0, 0.5)$$
 $$\beta_i \sim \rm N(0, 1)$$
 $$\beta_{\rm intercept} = 1$$
 $$\beta_{\rm sex} = 1.5$$
 
-We assumed there are $k=8$ genetic predictors and 2 non-genetic predictors (intercept and sex) that affects the trait. The simulation code in our package does not yet handle simulations with non-genetic predictors, so we must simulate these phenotypes manually. 
-
 
 ```julia
-# Define model dimensions, true model size, distribution, and link functions
-n = 1000
-p = 10000
-k = 10
-d = Bernoulli
-l = canonicallink(d())
+n = 1000            # number of samples
+p = 10000           # number of SNPs
+k = 10              # 8 causal SNPs and 2 causal covariates (intercept + sex)
+d = Bernoulli       # Binary (continuous) phenotypes
+l = LogitLink()     # canonical link function
 
-# set random seed for reproducibility
-Random.seed!(2019)
+# set random seed
+Random.seed!(1111)
 
-# construct SnpArray and SnpBitMatrix
-x = simulate_random_snparray(n, p, "tmp.bed")
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
+# simulate `sim.bed` file with no missing data
+x = simulate_random_snparray("sim.bed", n, p)
+xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true, impute=true) 
 
 # nongenetic covariate: first column is the intercept, second column is sex: 0 = male 1 = female
 z = ones(n, 2) 
 z[:, 2] .= rand(0:1, n)
+standardize!(@view(z[:, 2:end])) 
 
-# randomly set genetic predictors
+# randomly set genetic predictors where causal βᵢ ~ N(0, 1)
 true_b = zeros(p) 
 true_b[1:k-2] = randn(k-2)
 shuffle!(true_b)
@@ -385,263 +258,336 @@ correct_position = findall(!iszero, true_b)
 true_c = [1.0; 1.5] 
 
 # simulate phenotype using genetic and nongenetic predictors
-prob = GLM.linkinv.(l, xbm * true_b .+ z * true_c)
+prob = GLM.linkinv.(l, xla * true_b .+ z * true_c) # note genotype-vector multiplication is done with `xla`
 y = [rand(d(i)) for i in prob]
-y = Float64.(y); # y must be floating point numbers
+y = Float64.(y); # turn y into floating point numbers
+
+# create `sim.bim` and `sim.bam` files using phenotype
+make_bim_fam_files(x, y, "sim")
+
+#save covariates and phenotypes (without header)
+writedlm("sim.covariates.txt", z, ',')
+writedlm("sim.phenotypes.txt", y)
 ```
 
-### Step 2: Run cross validation to determine best model size
+!!! note
 
-To run `cv_iht`, you must specify `path` and `num_fold`, defined below:
+    Please **standardize** your non-genetic covariates. If you use our `iht()` or `cross_validation()` functions, standardization is automatic. For genotype matrix, `SnpLinAlg` efficiently achieves this standardization. For non-genetic covariates, please use the built-in function `standardize!`. 
 
-+ `path` are all the model sizes you wish to test, stored in a vector of integers.
-+ `num_fold` indicates how many disjoint partitions of the samples is requested. 
+## Example 3: Logistic/Poisson/Negative-binomial GWAS
 
-By default, we partition the training/testing data randomly, but you can change this by inputing the `fold` vector as optional argument. In this example we tested $k = 1, 2, ..., 20$ across 3 fold cross validation. This is equivalent to running IHT across 60 different models, and hence, is ideal for parallel computing (which you specify by `parallel=true`). 
+In Example 2, we simulated binary phenotypes, genotypes, non-genetic covariates, and we know true $k = 10$. Let's try running a logistic regression on this data. This is specified using keyword arguments. 
 
 
 ```julia
-path = collect(1:20)
-num_folds = 3
-mses = cv_iht(d(), l, x, z, y, 1, path, num_folds, parallel=true); #here 1 is for number of groups
+result = iht("sim", "sim.covariates.txt", 10, d=Bernoulli(), l=LogitLink())
+
+# other responses
+# result = iht("sim", 10, d=Bernoulli(), l=ProbitLink())     # Logistic regression using ProbitLink
+# result = iht("sim", 10, d=Poisson(), l=LogLink())          # Poisson regression using canonical link
+# result = iht("sim", 10, d=NegativeBinomial(), l=LogLink()) # Negative Binomial regression using canonical link
+```
+
+    ****                   MendelIHT Version 1.2.0                  ****
+    ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+    ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+    ****                                                            ****
+    ****                 Please cite our paper!                     ****
+    ****         https://doi.org/10.1093/gigascience/giaa044        ****
+    
+    Running sparse logistic regression
+    Link functin = LogitLink()
+    Sparsity parameter (k) = 10
+    Prior weight scaling = off
+    Doubly sparse projection = off
+    Debias = off
+    Converging when tol < 0.0001
+    
+    Iteration 1: tol = 0.5882274462947447
+    Iteration 2: tol = 0.2825138668458021
+    Iteration 3: tol = 0.19289827584644756
+    Iteration 4: tol = 0.14269962283934917
+    Iteration 5: tol = 0.022831477149267632
+    Iteration 6: tol = 0.019792429262653115
+    Iteration 7: tol = 0.019845664939460095
+    Iteration 8: tol = 0.00765066824120313
+    Iteration 9: tol = 0.006913691748350025
+    Iteration 10: tol = 0.006159757548662376
+    Iteration 11: tol = 0.0054730856932040705
+    Iteration 12: tol = 0.004854846133978282
+    Iteration 13: tol = 0.004300010671833966
+    Iteration 14: tol = 0.0038033387186573
+    Iteration 15: tol = 0.003359795402130408
+    Iteration 16: tol = 0.0029645876127234955
+    Iteration 17: tol = 0.0026131815201996976
+    Iteration 18: tol = 0.002301318021364227
+    Iteration 19: tol = 0.002025024729429744
+    Iteration 20: tol = 0.001780622915677454
+    Iteration 21: tol = 0.0015647287330161268
+    Iteration 22: tol = 0.0013742489121423226
+    Iteration 23: tol = 0.0012063716814260336
+    Iteration 24: tol = 0.0010585539268262742
+    Iteration 25: tol = 0.0009285056582307361
+    Iteration 26: tol = 0.0008141727680124563
+    Iteration 27: tol = 0.0007137189219975595
+    Iteration 28: tol = 0.0006255072563945025
+    Iteration 29: tol = 0.0005480823925167159
+    Iteration 30: tol = 0.00048015313770763916
+    Iteration 31: tol = 0.0004205761209236388
+    Iteration 32: tol = 0.00036834051544793833
+    Iteration 33: tol = 0.00032255392716466075
+    Iteration 34: tol = 0.00028242947163362354
+    Iteration 35: tol = 0.0002472740235281775
+    Iteration 36: tol = 0.00021647759466681234
+    Iteration 37: tol = 0.00018950377910949886
+    Iteration 38: tol = 0.00016588119325870545
+    Iteration 39: tol = 0.00014519583372057257
+    Iteration 40: tol = 0.0001270842743388486
+    Iteration 41: tol = 0.00011122762514495094
+    Iteration 42: tol = 9.734617909701182e-5
+
+
+
+
+
+    
+    IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
+    
+    Compute time (sec):     0.22192096710205078
+    Final loglikelihood:    -331.6518739156732
+    Iterations:             42
+    
+    Selected genetic predictors:
+    [1m8×2 DataFrame[0m
+    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
+    ─────┼───────────────────────
+       1 │     3137     0.503252
+       2 │     4246     0.590809
+       3 │     4248    -0.37987
+       4 │     4717     1.04006
+       5 │     6290    -0.741734
+       6 │     7755    -0.437585
+       7 │     8375    -0.942293
+       8 │     9415    -2.11206
+    
+    Selected nongenetic predictors:
+    [1m2×2 DataFrame[0m
+    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
+    ─────┼───────────────────────
+       1 │        1      1.03892
+       2 │        2      1.5844
+
+
+
+Since data is simulated, we can compare IHT's estimated effect size with the truth. 
+
+
+```julia
+[true_b[correct_position] result.beta[correct_position]]
+```
+
+
+
+
+    8×2 Array{Float64,2}:
+      0.469278    0.406926
+      0.554408    0.493509
+      0.923213    0.76469
+      0.0369732   0.0
+     -0.625634   -0.550352
+     -0.526553   -0.311351
+     -0.815561   -0.677824
+     -2.18271    -1.56627
+
+
+
+IHT found 7/8 genetic predictors, and estimates are reasonably close to truth. IHT missed one SNP with very small effect size ($\beta = 0.0369$). The estimated non-genetic effect size is also very close to the truth (1.0 and 1.5). 
+
+
+```julia
+# remove simulated data once they are no longer needed
+rm("sim.bed", force=true)
+rm("sim.bim", force=true)
+rm("sim.fam", force=true)
+rm("sim.covariates.txt", force=true)
+rm("sim.phenotypes.txt", force=true)
+```
+
+## Example 4: Running IHT on general matrices
+
+To run IHT on genotypes in VCF files, or other general data, one must call `fit` and `cv_iht` directly. These functions are designed to work on `AbstractArray{T, 2}` type where `T` is a `Float64` or `Float32`. Thus, one must first import the data, and then call `fit` and `cv_iht` on it. Note the vector of 1s (intercept) shouldn't be included in the design matrix itself, as it will be automatically included.
+
+!!! tip
+
+    Check out [VCFTools.jl](https://github.com/OpenMendel/VCFTools.jl) to learn how to import VCF data.
+
+First we simulate some count response using the model:
+
+$$y_i \sim \rm Poisson(\mathbf{x}_i^T \boldsymbol\beta)$$
+$$x_{ij} \sim \rm Normal(0, 1)$$
+$$\beta_i \sim \rm N(0, 0.3)$$
+
+
+```julia
+n = 1000             # number of samples
+p = 10000            # number of SNPs
+k = 10               # 9 causal predictors + intercept
+d = Poisson          # Response follows Poisson distribution (count data)
+l = LogLink()        # canonical link
+
+# set random seed for reproducibility
+Random.seed!(2020)
+
+# simulate design matrix
+x = randn(n, p)
+
+# simulate response, true model b, and the correct non-0 positions of b
+true_b = zeros(p)
+true_b[1:k] .= rand(Normal(0, 0.5), k)
+shuffle!(true_b)
+intercept = 1.0
+correct_position = findall(!iszero, true_b)
+prob = GLM.linkinv.(l, intercept .+ x * true_b)
+clamp!(prob, -20, 20) # prevents overflow
+y = [rand(d(i)) for i in prob]
+y = Float64.(y); # convert phenotypes to double precision
+```
+
+Now we have the response $y$, design matrix $x$. Let's run IHT and compare with truth.
+
+
+```julia
+# first run cross validation 
+mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());
 ```
 
     
     
     Crossvalidation Results:
     	k	MSE
-    	1	391.44426892225727
-    	2	365.7520496496987
-    	3	332.3801926093215
-    	4	273.2081512206048
-    	5	253.31631985207758
-    	6	234.93701288953315
-    	7	221.997334181244
-    	8	199.01688783420346
-    	9	208.31087723164197
-    	10	216.00575628120708
-    	11	227.91834469184545
-    	12	242.42456871743065
-    	13	261.46346209331466
-    	14	263.5229307137862
-    	15	283.30379378951073
-    	16	328.2771991160804
-    	17	290.4512419547228
-    	18	350.3516280657363
-    	19	361.61016297810295
-    	20	418.2370935226805
+    	1	1486.5413848514968
+    	2	705.22250019531
+    	3	541.7969789881145
+    	4	465.1963943709811
+    	5	442.6796495698108
+    	6	458.13373854130487
+    	7	460.9838544350322
+    	8	484.25939604486814
+    	9	474.21817442883844
+    	10	505.0327194683676
+    	11	499.2379415031341
+    	12	504.0934101269238
+    	13	487.9485902855123
+    	14	548.1525696940757
+    	15	507.86874709147395
+    	16	530.6537481762397
+    	17	511.2047414611475
+    	18	583.6122865525828
+    	19	548.3901670703196
+    	20	569.6848731697289
 
-
-!!! tip
-
-    In our experience, using the `ProbitLink` for logistic regressions deliver better results than `LogitLink` (which is the canonical link). But of course, one should choose the link that gives the higher loglikelihood. 
-
-### Step 3: Run full model on the best estimated model size 
-
-`cv_iht` finished in about a minute. 
-
-Cross validation have declared that $k_{best} = 8$. Using this information, one can re-run the IHT algorithm on the *full* dataset to obtain the best estimated model.
 
 
 ```julia
-k_est = argmin(mses)
-result = L0_reg(x, xbm, z, y, 1, k_est, d(), l)
+# run IHT on best k (achieved at k = 5)
+result = fit(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
 ```
 
+    ****                   MendelIHT Version 1.2.0                  ****
+    ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+    ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+    ****                                                            ****
+    ****                 Please cite our paper!                     ****
+    ****         https://doi.org/10.1093/gigascience/giaa044        ****
+    
+    Running sparse Poisson regression
+    Link functin = LogLink()
+    Sparsity parameter (k) = 5
+    Prior weight scaling = off
+    Doubly sparse projection = off
+    Debias = off
+    Converging when tol < 0.0001
+    
+    Iteration 1: tol = 0.2928574304111577
+    Iteration 2: tol = 0.05230999409875649
+    Iteration 3: tol = 0.07104164424891493
+    Iteration 4: tol = 0.026208176849564724
+    Iteration 5: tol = 0.02023001613423483
+    Iteration 6: tol = 0.011080308351803689
+    Iteration 7: tol = 0.00930914236578197
+    Iteration 8: tol = 0.00556416943618412
+    Iteration 9: tol = 0.004609772037770406
+    Iteration 10: tol = 0.002861799512474864
+    Iteration 11: tol = 0.002340881298705853
+    Iteration 12: tol = 0.001479832987797599
+    Iteration 13: tol = 0.0012011066579049358
+    Iteration 14: tol = 0.0007661746047595665
+    Iteration 15: tol = 0.0006191995770663082
+    Iteration 16: tol = 0.00039678836835178535
+    Iteration 17: tol = 0.00031993814923964465
+    Iteration 18: tol = 0.00020549845888243352
+    Iteration 19: tol = 0.00016549800033345948
+    Iteration 20: tol = 0.00010642830220001078
+    Iteration 21: tol = 8.565816720868677e-5
+
+
 
 
 
     
-    IHT estimated 6 nonzero SNP predictors and 2 non-genetic predictors.
+    IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     1.6644580364227295
-    Final loglikelihood:    -290.4509381564733
-    Iterations:             37
+    Compute time (sec):     0.08859395980834961
+    Final loglikelihood:    -2335.176167840737
+    Iterations:             21
     
     Selected genetic predictors:
-    6×2 DataFrame
-    │ Row │ Position │ Estimated_β │
-    │     │ [90mInt64[39m    │ [90mFloat64[39m     │
-    ├─────┼──────────┼─────────────┤
-    │ 1   │ 1152     │ 0.966731    │
-    │ 2   │ 1576     │ 1.56183     │
-    │ 3   │ 3411     │ 0.87674     │
-    │ 4   │ 5765     │ -1.75611    │
-    │ 5   │ 5992     │ -2.04506    │
-    │ 6   │ 8781     │ 0.760213    │
+    [1m4×2 DataFrame[0m
+    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
+    ─────┼───────────────────────
+       1 │       83    -0.809284
+       2 │      989     0.378376
+       3 │     4294    -0.274544
+       4 │     4459     0.169417
     
     Selected nongenetic predictors:
-    2×2 DataFrame
-    │ Row │ Position │ Estimated_β │
-    │     │ [90mInt64[39m    │ [90mFloat64[39m     │
-    ├─────┼──────────┼─────────────┤
-    │ 1   │ 1        │ 0.709909    │
-    │ 2   │ 2        │ 1.65049     │
-
-
-
-### Step 4 (only for simulated data): Check final model against simulation
-
-Since all our data and model was simulated, we can see how well `cv_iht` combined with `L0_reg` estimated the true model. For this example, we find that IHT found both nongenetic predictor, but missed 2 genetic predictors. The 2 genetic predictors that we missed had much smaller effect size, so given that we only had 1000 samples, this is hardly surprising. 
-
-
-```julia
-compare_model_genetics = DataFrame(
-    true_β      = true_b[correct_position], 
-    estimated_β = result.beta[correct_position])
-
-compare_model_nongenetics = DataFrame(
-    true_c      = true_c[1:2], 
-    estimated_c = result.c[1:2])
-
-@show compare_model_genetics
-@show compare_model_nongenetics
-
-#clean up. Windows user must do this step manually (outside notebook/REPL)
-rm("tmp.bed", force=true)
-```
-
-    compare_model_genetics = 8×2 DataFrame
-    │ Row │ true_β   │ estimated_β │
-    │     │ Float64  │ Float64     │
-    ├─────┼──────────┼─────────────┤
-    │ 1   │ 0.961937 │ 0.966731    │
-    │ 2   │ 0.189267 │ 0.0         │
-    │ 3   │ 1.74008  │ 1.56183     │
-    │ 4   │ 0.879004 │ 0.87674     │
-    │ 5   │ 0.213066 │ 0.0         │
-    │ 6   │ -1.74663 │ -1.75611    │
-    │ 7   │ -1.93402 │ -2.04506    │
-    │ 8   │ 0.632786 │ 0.760213    │
-    compare_model_nongenetics = 2×2 DataFrame
-    │ Row │ true_c  │ estimated_c │
-    │     │ Float64 │ Float64     │
-    ├─────┼─────────┼─────────────┤
-    │ 1   │ 1.0     │ 0.709909    │
-    │ 2   │ 1.5     │ 1.65049     │
-
-
-## Example 4: Poisson Regression with Acceleration (i.e. debias)
-
-In this example, we show how debiasing can potentially achieve dramatic speedup. Our model is:
-
-$$y_i \sim \rm Poisson(\mathbf{x}_i^T \mathbf{\beta})$$
-$$x_{ij} \sim \rm Binomial(2, \rho_j)$$
-$$\rho_j \sim \rm Uniform(0, 0.5)$$
-$$\beta_i \sim \rm N(0, 0.3)$$
-
-
-```julia
-# Define model dimensions, true model size, distribution, and link functions
-n = 1000
-p = 10000
-k = 10
-d = Poisson
-l = canonicallink(d())
-
-# set random seed for reproducibility
-Random.seed!(2019)
-
-# construct SnpArray, SnpBitMatrix, and intercept
-x = simulate_random_snparray(n, p, "tmp.bed")
-xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true);
-z = ones(n, 1) 
-
-# simulate response, true model b, and the correct non-0 positions of b
-y, true_b, correct_position = simulate_random_response(x, xbm, k, d, l);
-```
-
-### First Compare Reconstruction Result
-
-First we show that, with or without debiasing, we obtain comparable results with `L0_reg`.
-
-
-```julia
-no_debias  = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false)
-yes_debias = L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true);
-```
-
-
-```julia
-compare_model = DataFrame(
-    position    = correct_position,
-    true_β      = true_b[correct_position], 
-    no_debias_β = no_debias.beta[correct_position],
-    yes_debias_β = yes_debias.beta[correct_position])
-@show compare_model;
-```
-
-    compare_model = 10×4 DataFrame
-    │ Row │ position │ true_β     │ no_debias_β │ yes_debias_β │
-    │     │ Int64    │ Float64    │ Float64     │ Float64      │
-    ├─────┼──────────┼────────────┼─────────────┼──────────────┤
-    │ 1   │ 853      │ -0.389892  │ -0.384161   │ -0.38744     │
-    │ 2   │ 877      │ -0.0653099 │ 0.0         │ 0.0          │
-    │ 3   │ 924      │ 0.235865   │ 0.246213    │ 0.240514     │
-    │ 4   │ 2703     │ 0.17977    │ 0.237651    │ 0.225127     │
-    │ 5   │ 4241     │ 0.0851134  │ 0.0         │ 0.0894244    │
-    │ 6   │ 4783     │ -0.33761   │ -0.300663   │ -0.307515    │
-    │ 7   │ 5094     │ 0.208012   │ 0.223384    │ 0.215149     │
-    │ 8   │ 5284     │ -0.203127  │ -0.225593   │ -0.209308    │
-    │ 9   │ 7760     │ 0.0441809  │ 0.0         │ 0.0          │
-    │ 10  │ 8255     │ 0.310431   │ 0.287363    │ 0.301717     │
-
-
-### Compare Speed and Memory Usage
-
-Now we illustrate that debiasing may dramatically reduce computational time (in this case ~50%), at a cost of increasing the memory usage. In practice, this extra memory usage hardly matters because the matrix size will dominate for larger problems. See [our paper for complete benchmark figure.](https://www.biorxiv.org/content/10.1101/697755v2)
-
-
-```julia
-@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=false) seconds=15
-```
-
-
-
-
-    BenchmarkTools.Trial: 
-      memory estimate:  2.16 MiB
-      allocs estimate:  738
-      --------------
-      minimum time:     673.188 ms (0.00% GC)
-      median time:      706.368 ms (0.00% GC)
-      mean time:        708.080 ms (0.04% GC)
-      maximum time:     741.125 ms (0.00% GC)
-      --------------
-      samples:          22
-      evals/sample:     1
+    [1m1×2 DataFrame[0m
+    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
+    ─────┼───────────────────────
+       1 │        1      1.26918
 
 
 
 
 ```julia
-@benchmark L0_reg(x, xbm, z, y, 1, k, d(), l, debias=true) seconds=15
+# compare IHT result with truth
+[true_b[correct_position] result.beta[correct_position]]
 ```
 
 
 
 
-    BenchmarkTools.Trial: 
-      memory estimate:  2.62 MiB
-      allocs estimate:  1135
-      --------------
-      minimum time:     337.368 ms (0.00% GC)
-      median time:      350.194 ms (0.00% GC)
-      mean time:        349.958 ms (0.10% GC)
-      maximum time:     358.095 ms (0.00% GC)
-      --------------
-      samples:          43
-      evals/sample:     1
+    10×2 Array{Float64,2}:
+     -1.303      -0.809284
+      0.585809    0.378376
+     -0.0700563   0.0
+     -0.0901341   0.0
+     -0.0620201   0.0
+     -0.441452   -0.274544
+      0.271429    0.169417
+     -0.164888    0.0
+     -0.0790484   0.0
+      0.0829054   0.0
 
 
 
+In this example, we ran IHT on count response with a general `Array{T, 2}` design matrix. Since many of the true $\beta$ are small, we were only able to find 5 true signals (4 predictors + intercept). 
 
-```julia
-#clean up. Windows user must do this step manually (outside notebook/REPL)
-rm("tmp.bed", force=true)
-```
-
-## Example 5: Negative Binomial regression with group information 
+## Example 5: Group IHT 
 
 In this example, we show how to include group information to perform doubly sparse projections. Here the final model would contain at most $J = 5$ groups where each group contains limited number of (prespecified) SNPs. For simplicity, we assume the sparsity parameter $k$ is known. 
 
