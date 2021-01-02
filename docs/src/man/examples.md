@@ -23,23 +23,24 @@ versioninfo()
 
 
 ```julia
-#first add workers needed for parallel computing. Add only as many CPU cores available
+# add workers needed for parallel computing. Add only as many CPU cores available
 using Distributed
 addprocs(4)
 
 #load necessary packages for running all examples below
-using Revise
-using MendelIHT
-using SnpArrays
-using DataFrames
-using Distributions
-using Random
-using LinearAlgebra
-using GLM
-using DelimitedFiles
-using Statistics
-using BenchmarkTools
-using Plots
+@everywhere begin
+    using Revise
+    using MendelIHT
+    using SnpArrays
+    using DataFrames
+    using Distributions
+    using Random
+    using LinearAlgebra
+    using GLM
+    using DelimitedFiles
+    using Statistics
+    using BenchmarkTools
+end
 ```
 
 ## Example 1: GWAS with PLINK files
@@ -66,13 +67,9 @@ readdir()
 
 
 
-    12-element Array{String,1}:
+    8-element Array{String,1}:
      ".DS_Store"
      "covariates.txt"
-     "example.bed"
-     "example.bim"
-     "example.fam"
-     "example_nongenetic_covariates.txt"
      "normal.bed"
      "normal.bim"
      "normal.fam"
@@ -92,7 +89,7 @@ If phenotypes are stored in the `.fam` file and there are no other covariates (e
 ```julia
 # test k = 1, 2, ..., 20
 mses = cross_validate("normal", 1:20)
-argmin(mses)
+@show argmin(mses);
 
 # Alternative syntax
 # mses = cross_validate("normal", [1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
@@ -104,33 +101,27 @@ argmin(mses)
     
     Crossvalidation Results:
     	k	MSE
-    	1	1408.4161771885078
-    	2	862.714049343596
-    	3	683.5762115676305
-    	4	562.9030642400235
-    	5	461.9271182844219
-    	6	399.71508133538737
-    	7	350.34847865063654
-    	8	318.80715476554786
-    	9	323.0559476609656
-    	10	331.3640273301743
-    	11	336.9865576111173
-    	12	341.64939333865465
-    	13	347.33123481686835
-    	14	353.21600225128464
-    	15	361.0692297288225
-    	16	352.3514796059428
-    	17	357.98125908673916
-    	18	360.62269127273447
-    	19	366.53839237209183
-    	20	376.0279478485556
-
-
-
-
-
-    8
-
+    	1	1404.4417384206977
+    	2	872.9331592454502
+    	3	698.5274776175538
+    	4	569.9944549338388
+    	5	477.08400058967334
+    	6	432.4191305742031
+    	7	366.38930926920193
+    	8	334.4676050445665
+    	9	340.4382111722383
+    	10	344.72434953866906
+    	11	349.676045611259
+    	12	353.4843907907301
+    	13	358.8086990554361
+    	14	366.1270891338698
+    	15	365.3432769681646
+    	16	370.71742242027653
+    	17	370.90059148757933
+    	18	382.151936768469
+    	19	383.4631541346132
+    	20	387.6476102628774
+    argmin(mses) = 8
 
 
 ### Step 2: Run IHT on best k
@@ -170,7 +161,7 @@ result = iht("normal", 8)
     
     IHT estimated 7 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.031874895095825195
+    Compute time (sec):     0.0843820571899414
     Final loglikelihood:    -1627.2792448761559
     Iterations:             5
     
@@ -196,9 +187,15 @@ result = iht("normal", 8)
 
 
 
+**Note**: we explicitly ran `cross_validate` and `iht` only with genetic data. The known non-genetic covariate `sex` is explicitly not included. They can be included using the alternative syntax (see Example 3)
+```julia
+mses = cross_validate("normal", "covariates.txt", 1:20)
+result = iht("normal", "covariates.txt", argmin(mses))
+```
+
 ### Step 3: Examine results
 
-Here IHT picked 7 SNPs and the intercept as the 8 most significant predictor. The SNP position is the order in which the SNP appeared in the PLINK file. To extract more information (for instance to extract `rs` IDs), we can do
+IHT picked 7 SNPs and the intercept as the 8 most significant predictor. The SNP position is the order in which the SNP appeared in the PLINK file. To extract more information (for instance to extract `rs` IDs), we can do
 
 
 ```julia
@@ -227,7 +224,9 @@ Since data is simulated, the fields `chromosome`, `snpid`, `genetic_distance`, `
 
 ## Example 2: How to simulate data
 
-Here we demonstrate how to use `MendelIHT.jl` and [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) to simulate data, allowing you to design your own genetic studies. Note all linear algebra routines involving PLINK files are handled by `SnpArrays.jl`. 
+Here we demonstrate how to use `MendelIHT.jl` and [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) to simulate data, allowing you to design your own genetic studies. Note:
++ For more complex simulation, please use the module [TraitSimulations.jl](https://github.com/OpenMendel/TraitSimulation.jl).  
++ All linear algebra routines involving PLINK files are handled by [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl). 
 
 First we simulate an example PLINK trio (`.bim`, `.bed`, `.fam`) and non-genetic covariates, then we illustrate how to import them. For simplicity, let us simulated indepent SNPs with binary phenotypes. Explicitly, our model is:
 
@@ -365,7 +364,7 @@ result = iht("sim", "sim.covariates.txt", 10, d=Bernoulli(), l=LogitLink())
     
     IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     0.3146958351135254
+    Compute time (sec):     0.26169586181640625
     Final loglikelihood:    -331.6518739156732
     Iterations:             42
     
@@ -551,7 +550,7 @@ result = fit(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
     
     IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.092864990234375
+    Compute time (sec):     0.0818638801574707
     Final loglikelihood:    -2335.176167840737
     Iterations:             21
     
@@ -676,7 +675,7 @@ max_group_snps[true_groups] .= collect(1:5)
 variable_group = fit(y, x_float, d=NegativeBinomial(), l=LogLink(), k=max_group_snps, J=5, group=g, verbose=false);
 ```
 
-In this example, ungroup IHT found 1 more SNPs than grouped IHT. 
+**Conclusion:** As seen below, ungroup IHT actually found 1 more SNPs than grouped IHT. 
 
 
 ```julia
@@ -802,7 +801,7 @@ rm("tmp.bed", force=true)
     
 
 
-Weighted IHT found 2 extra predictor than non-weighted IHT.
+**Conclusion**: weighted IHT found 2 extra predictor than non-weighted IHT.
 
 ## Other examples and functionalities
 

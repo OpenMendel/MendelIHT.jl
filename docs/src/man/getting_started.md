@@ -20,3 +20,13 @@ Pkg.add(PackageSpec(url="https://github.com/OpenMendel/MendelIHT.jl.git"))
 2. Run `iht` on optimal `k`.
 
 We believe the best way to learn is through examples. Head over to the example section on the left to see these steps in action. 
+
+## Parallel computing
+
+For large datasets, one can run cross validation in parallel. Assuming you have $N$ cores, one can load $N$ processors by
+```julia
+using Distributed
+addprocs(4) # 4 processors
+@everywhere using MendelIHT
+```
+This should make cross validation almost $N$ times faster. 
