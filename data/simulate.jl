@@ -30,6 +30,8 @@ xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
 # nongenetic covariate: first column is the intercept, second column is sex: 0 = male 1 = female
 z = ones(n, 2) 
 z[:, 2] .= rand(0:1, n)
+writedlm("covariates.txt", z, ',') # save covariates
+standardize!(@view(z[:, 2:end])) # standardize covariates
 
 # randomly set genetic predictors where causal βᵢ ~ N(0, 1)
 true_b = zeros(p) 
@@ -39,18 +41,6 @@ shuffle!(true_b)
 # find correct position of genetic predictors
 correct_position = findall(!iszero, true_b)
 
-# define effect size of non-genetic predictors: intercept & sex
-true_c = [1.0; 1.5] 
-
-# simulate phenotype using genetic and nongenetic predictors
-# note for d = Normal, l = IdentityLink(), `prob = xla * true_b .+ z * true_c`
-prob = GLM.linkinv.(l, xla * true_b .+ z * true_c)
-y = [rand(d(i)) for i in prob]
-y = Float64.(y); # turn y into floating point numbers
-
-# create `.bim` and `.bam` files using phenotype
-make_bim_fam_files(x, y, "normal")
-
 # save true SNP's position and effect size
 open("normal_true_beta.txt", "w") do io
     println(io, "snpID,effectsize")
@@ -59,9 +49,21 @@ open("normal_true_beta.txt", "w") do io
     end
 end
 
-#save covariates and phenotypes (without header)
-writedlm("covariates.txt", z, ',')
-writedlm("phenotypes.txt", y)
+# define effect size of non-genetic predictors: intercept & sex
+true_c = [1.0; 1.5] 
+
+# simulate phenotype using genetic and nongenetic predictors
+# note for d = Normal, l = IdentityLink(), `prob = xla * true_b .+ z * true_c`
+prob = GLM.linkinv.(l, xla * true_b .+ z * true_c)
+y = [rand(d(i)) for i in prob]
+y = Float64.(y); # turn y into floating point numbers
+writedlm("phenotypes.txt", y) # save phenotypes
+
+# create `.bim` and `.bam` files using phenotype
+make_bim_fam_files(x, y, "normal")
+
+
+
 
 
 
