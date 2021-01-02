@@ -212,9 +212,9 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
     p, q = size(x, 2), size(z, 2)
     nmodels = length(path)
     test_size = sum(test_idx)
-    xb = zeros(T, test_size)
-    zc = zeros(T, test_size)
-    μ  = zeros(T, test_size)
+    xb = zeros(T, test_size, nprocs())
+    zc = zeros(T, test_size, nprocs())
+    μ  = zeros(T, test_size, nprocs())
 
     # allocate train model
     x_train = SnpArray(train_file, sum(train_idx), p)
@@ -246,11 +246,13 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
                 use_maf=use_maf, debias=debias, verbose=verbose)
 
             # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-            A_mul_B!(xb, zc, x_testla, z_test, result.beta, result.c) 
-            update_μ!(μ, xb .+ zc, l)
+            id = myid()
+            A_mul_B!(@view(xb[:, id]), @view(zc[:, id]), x_testla, z_test,
+                result.beta, result.c) 
+            update_μ!(@view(μ[:, id]), @view(xb[:, id]) .+ @view(zc[:, id]), l)
 
             # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-            return deviance(d, y_test, μ)
+            return deviance(d, y_test, @view(μ[:, id]))
         end
 
         return mses
