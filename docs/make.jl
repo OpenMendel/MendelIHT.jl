@@ -12,6 +12,7 @@ makedocs(
         "Examples"        => "man/examples.md",
         "Mathematical Details" => "man/math.md",
         "Contributing"    => "man/contributing.md",
+        "API"             => "man/api.md",
     ]
 )
 

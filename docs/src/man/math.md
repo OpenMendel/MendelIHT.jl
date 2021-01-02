@@ -27,7 +27,7 @@ In GLM, the distribution of $\bf y$ is from the exponential family with density
     f(y \mid \theta, \phi) = \exp \left[ \frac{y \theta - b(\theta)}{a(\phi)} + c(y, \phi) \right].
 \end{aligned}
 ```
-$\theta$ is called the **canonical (location) parameter** and under the canonical link, $\theta = g(\bf x^t \bf \beta)$. $\phi$ is the **dispersion (scale) parameter**. The functions $a, b, c$ are known functions that vary depending on the distribution of $y$. 
+Here $\theta$ is called the **canonical (location) parameter** and under the canonical link, $\theta = g(\bf x^t \bf \beta)$. $\phi$ is the **dispersion (scale) parameter**. The functions $a, b, c$ are known functions that vary depending on the distribution of $y$. 
 
 Given $n$ independent observations, the loglikelihood is:
 ```math
@@ -46,13 +46,13 @@ The perform maximum likelihood estimation, we compute partial derivatives for $\
 Thus the full **gradient** is
 ```math
 \begin{aligned}
-    \nabla L&= {\bf X}^t{\bf W}({\bf y} - \boldsymbol\mu), \quad {\bf W}_{ii} = \frac{1}{var(y_i)}\left(\frac{\partial \mu_i}{\partial \eta_i}\right),
+    \nabla L&= {\bf X}^t{\bf W}({\bf y} - \boldsymbol\mu), \quad W_{ii} = \frac{1}{var(y_i)}\left(\frac{\partial \mu_i}{\partial \eta_i}\right),
 \end{aligned}
 ```
 and similarly, the **expected information** is (eq 4.23 in Dobson):
 ```math
 \begin{aligned}
-    J = {\bf X^t\tilde{W}X}, \quad {\bf \tilde{W}}_{ii} = \frac{1}{var(y_i)}\left(\frac{\partial \mu_i}{\partial \eta_i}\right)^2
+    J = {\bf X^t\tilde{W}X}, \quad \tilde{W}_{ii} = \frac{1}{var(y_i)}\left(\frac{\partial \mu_i}{\partial \eta_i}\right)^2
 \end{aligned}
 ```
 To evaluate $\nabla L$ and $J$, note ${\bf y}$ and ${\bf X}$ are known, so we just need to calculate $\boldsymbol\mu, \frac{\partial\mu_i}{\partial\eta_i},$ and $var(y_i)$. The first simply uses the inverse link: $\mu_i = g({\bf x}_i^t {\boldsymbol \beta})$. For the second, note $\frac{\partial \mu_i}{\partial\eta_i} = \frac{\partial g({\bf x}_i^t {\boldsymbol \beta})}{\partial{\bf x}_i^t {\boldsymbol \beta}}$ is just the derivative of the link function evaluated at the linear predictor $\eta_i = {\bf x}_i^t {\boldsymbol \beta}$. This is already implemented for various link functions as [mueta](https://github.com/JuliaStats/GLM.jl/blob/master/src/glmtools.jl#L149) in [GLM.jl](https://github.com/JuliaStats/GLM.jl), which we call internally. To compute $var(y_i)$, we note that the exponential family distributions have variance
@@ -61,17 +61,17 @@ To evaluate $\nabla L$ and $J$, note ${\bf y}$ and ${\bf X}$ are known, so we ju
     var(y) &= a(\phi)b''(\theta) = a(\phi)\frac{\partial^2b(\theta)}{\partial\theta} = a(\phi) var(\mu).
 \end{aligned}
 ```
-That is, $var(y_i)$ is a product of 2 terms where the first depends solely on $\phi$, and the second solely on $\mu = g({\bf x}_i^t {\boldsymbol \beta})$. In our code, we use [glmvar](https://github.com/JuliaStats/GLM.jl/blob/master/src/glmtools.jl#L315) implemented in [GLM.jl](https://github.com/JuliaStats/GLM.jl) to calculate $var(\mu)$. Because $\phi$ is unknown, we assume $a(\phi) = 1$ for all models except the negative binomial model. For negative binomial model, we discuss how to estimate $\phi$ and $\boldsymbol\beta$ using alternate block descent below.  
+That is, $var(y_i)$ is a product of 2 terms where the first depends solely on $\phi$, and the second solely on $\mu_i = g({\bf x}_i^t {\boldsymbol \beta})$. In our code, we use [glmvar](https://github.com/JuliaStats/GLM.jl/blob/master/src/glmtools.jl#L315) implemented in [GLM.jl](https://github.com/JuliaStats/GLM.jl) to calculate $var(\mu)$. Because $\phi$ is unknown, we assume $a(\phi) = 1$ for all models in computing $W_{ii}$ and $\tilde{W}_{ii}$, except for the negative binomial model. For negative binomial model, we discuss how to estimate $\phi$ and $\boldsymbol\beta$ using alternate block descent below.  
 
 ## Iterative hard thresholding
 
-In `MendelIHT.jl`, the loglikelihood is maximized using iterative hard thresholding. This is achieved by
+In `MendelIHT.jl`, the loglikelihood is maximized using iterative hard thresholding. This is achieved by repeating the following iteration:a
 ```math
 \begin{aligned}
     \boldsymbol\beta_{n+1} = \overbrace{P_{S_k}}^{(3)}\big(\boldsymbol\beta_n - \underbrace{s_n}_{(2)} \overbrace{\nabla f(\boldsymbol\beta_n)}^{(1)}\big)
 \end{aligned}
 ```
-where $f$ is the function to minimize (i.e. negative loglikelihood), $s_k$ is the step size, and $P_{S_k}$ is a projection operator that sets all but $k$ largest entries in magnitude to $0$. I already discussed above how to compute the gradient of a GLM loglikelihood. To perform $P_{S_k}$, we first partially sort the *dense* vector $\beta_n - s_n \nabla f(\beta_n)$, and set the smallest $k+1 ... n$ entries in magnitude to $0$. Finally, the step size $s_n$ is derived in our paper to be
+where $f$ is the function to minimize (i.e. negative loglikelihood). Step (1) computes the gradient as previously discussed. Step (2) computes the step size $s_k$. Step (3) evaluates the projection operator $P_{S_k}$, which sets all but $k$ largest entries in magnitude to $0$. To perform $P_{S_k}$, we first partially sort the *dense* vector $\beta_n - s_n \nabla f(\beta_n)$, and set the smallest $k+1 ... n$ entries in magnitude to $0$. Note the step size $s_n$ is derived in our paper to be
 ```math
 \begin{aligned}
     s_n = \frac{||\nabla f(\boldsymbol\beta_n)||_2^2}{\nabla f(\boldsymbol\beta_n)^t J(\boldsymbol\beta_n) \nabla f(\boldsymbol\beta_n)}
@@ -148,8 +148,7 @@ The last inequality can be seen by applying Jensen's inequality:
 to the function $f(u) = - \ln(u).$ Maximizing $L$ over $r$ (i.e. differentiating with respect to $r$ and setting equal to zero, then solving for $r$), we have
 ```math
 \begin{aligned}
-	\frac{d}{dr} L(p_1,...,p_m,r) 
-	&= \sum_{i=1}^{m} \left[ \sum_{j=0}^{y_i-1} \frac{r_n}{r_n + j} \frac{1}{r} + \ln(p_i) \right] \\
+	\sum_{i=1}^{m} \left[ \sum_{j=0}^{y_i-1} \frac{r_n}{r_n + j} \frac{1}{r} + \ln(p_i) \right] \\
 	&= \sum_{i=1}^{m}\sum_{j=0}^{y_i-1} \frac{r_n}{r_n + j} \frac{1}{r} + \sum_{i=1}^{m}\ln(p_i)\\ 
 	&\equiv 0\\
 	\iff r_{n+1} &= \frac{-\sum_{i=1}^{m}\sum_{j=0}^{y_i-1} \frac{r_n}{r_n + j}}{\sum_{i=1}^{m}\ln(p_i) } 
@@ -168,7 +167,7 @@ Since we are dealing with 1 parameter optimization, Newton's method is likely a 
 	=& \sum_{i=1}^m\left[\ln\left((y_i+r-1)!\right)-\ln(y_i!) - \ln\left((r-1)\right) + r\ln(r) - (r+y_i)\ln(\mu_i + r) + y_i\ln(\mu_i)\right]
 \end{aligned}
 ```
-Recalling the definition of [digamma and trigamma functions](https://en.wikipedia.org/wiki/Digamma_function), the first and second derivative of $L$ with respect to $r$ is:
+Recalling the definition of [digamma and trigamma functions](https://en.wikipedia.org/wiki/Digamma_function), the first and second derivative of our last expression with respect to $r$ is:
 ```math
 \begin{aligned}
 	\frac{d}{dr} L(p_1, ..., p_m, r) = & \sum_{i=1}^m \left[ \operatorname{digamma}(y_i+r) - \operatorname{digamma}(r) + 1 + \ln(r) - \frac{r+y_i}{\mu_i+r} - \ln(\mu_i + r) \right]\\
@@ -181,4 +180,3 @@ So the iteration to use is:
 	r_{n+1} = r_n - \frac{\frac{d}{dr}L(p_1,...,p_m,r)}{\frac{d^2}{dr^2}L(p_1,...,p_m,r)}.
 \end{aligned}
 ```
-You can verify that this is the same as [the first and second derivative formula in GLM.jl](https://github.com/JuliaStats/GLM.jl/blob/master/src/negbinfit.jl#L3) (they used $\theta$ in place of $r$). The sign difference is because in GLM.jl, they are minimizing the negative loglikelihood instead of maximizing the loglikelihood. They are equivalent, but in mathematical optimization the standard form is to minimize an objective function. 

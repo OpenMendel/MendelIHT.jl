@@ -25,7 +25,7 @@ after_script: # test package, use wait time 20 min
 
 jobs:
   allow_failures:
-    - os: osx
+    - os: osx # tests can take >50 min on osx which causes travis to time out
     - julia: nightly
   include:
     - stage: "Documentation"

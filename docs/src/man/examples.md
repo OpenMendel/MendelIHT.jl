@@ -1,7 +1,9 @@
 
 # Examples
 
-Here we give numerous example analysis of GWAS data with MendelIHT. 
+Here we give numerous example analysis of GWAS data with `MendelIHT.jl`. 
+
+Users are highly encouraged to read the source code of our main [fit](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31) and [cv_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/cross_validation.jl#L38) functions, which contain more options than what is described here.
 
 
 ```julia
@@ -40,10 +42,6 @@ using BenchmarkTools
 using Plots
 ```
 
-    ┌ Info: Precompiling MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
-    └ @ Base loading.jl:1278
-
-
 ## Example 1: GWAS with PLINK files
 
 For PLINK files, users are exposed to a few simple wrapper functions. For demonstration, we use simulated data under the `data` directory, as shown below. This data simulates quantitative (Gaussian) traits using $n=1000$ samples and $p=10,000$ SNPs. There are $8$ causal variants and 2 causal non-genetic covariates (intercept and sex). 
@@ -68,8 +66,13 @@ readdir()
 
 
 
-    7-element Array{String,1}:
+    12-element Array{String,1}:
+     ".DS_Store"
      "covariates.txt"
+     "example.bed"
+     "example.bim"
+     "example.fam"
+     "example_nongenetic_covariates.txt"
      "normal.bed"
      "normal.bim"
      "normal.fam"
@@ -101,26 +104,26 @@ argmin(mses)
     
     Crossvalidation Results:
     	k	MSE
-    	1	1424.4209463397158
-    	2	877.4127442461745
-    	3	698.4610947750848
-    	4	573.1504682310128
-    	5	476.31578846449054
-    	6	409.82530303194505
-    	7	359.5017949797407
-    	8	325.0831239222133
-    	9	331.76688175689503
-    	10	335.24897480823256
-    	11	342.2539099548487
-    	12	349.5580549505318
-    	13	352.87834253489024
-    	14	351.1138715603811
-    	15	351.0544198232595
-    	16	350.27000489574243
-    	17	352.9226806566691
-    	18	357.8264018809541
-    	19	365.6812419015122
-    	20	372.10901493254187
+    	1	1408.4161771885078
+    	2	862.714049343596
+    	3	683.5762115676305
+    	4	562.9030642400235
+    	5	461.9271182844219
+    	6	399.71508133538737
+    	7	350.34847865063654
+    	8	318.80715476554786
+    	9	323.0559476609656
+    	10	331.3640273301743
+    	11	336.9865576111173
+    	12	341.64939333865465
+    	13	347.33123481686835
+    	14	353.21600225128464
+    	15	361.0692297288225
+    	16	352.3514796059428
+    	17	357.98125908673916
+    	18	360.62269127273447
+    	19	366.53839237209183
+    	20	376.0279478485556
 
 
 
@@ -167,7 +170,7 @@ result = iht("normal", 8)
     
     IHT estimated 7 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.0751640796661377
+    Compute time (sec):     0.031874895095825195
     Final loglikelihood:    -1627.2792448761559
     Iterations:             5
     
@@ -200,18 +203,27 @@ Here IHT picked 7 SNPs and the intercept as the 8 most significant predictor. Th
 
 ```julia
 snpdata = SnpData("normal")                   # import PLINK information
-selected_snps = findall(!iszero, result.beta) # indices of SNPs selected by IHT
-snpdata.snp_info[selected_snps, :]            # see which SNPs are selected
+snps_idx = findall(!iszero, result.beta)      # indices of SNPs selected by IHT
+selected_snps = snpdata.snp_info[snps_idx, :] # see which SNPs are selected
+@show selected_snps;
 ```
 
+    selected_snps = 7×6 DataFrame
+     Row │ chromosome  snpid    genetic_distance  position  allele1  allele2
+         │ String      String   Float64           Int64     String   String
+    ─────┼───────────────────────────────────────────────────────────────────
+       1 │ 1           snp3137               0.0         1  1        2
+       2 │ 1           snp4246               0.0         1  1        2
+       3 │ 1           snp4717               0.0         1  1        2
+       4 │ 1           snp6290               0.0         1  1        2
+       5 │ 1           snp7755               0.0         1  1        2
+       6 │ 1           snp8375               0.0         1  1        2
+       7 │ 1           snp9415               0.0         1  1        2
 
 
+The table above displays the SNP information for the selected SNPs. 
 
-<table class="data-frame"><thead><tr><th></th><th>chromosome</th><th>snpid</th><th>genetic_distance</th><th>position</th><th>allele1</th><th>allele2</th></tr><tr><th></th><th>String</th><th>String</th><th>Float64</th><th>Int64</th><th>String</th><th>String</th></tr></thead><tbody><p>7 rows × 6 columns</p><tr><th>1</th><td>1</td><td>snp3137</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>2</th><td>1</td><td>snp4246</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>3</th><td>1</td><td>snp4717</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>4</th><td>1</td><td>snp6290</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>5</th><td>1</td><td>snp7755</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>6</th><td>1</td><td>snp8375</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr><tr><th>7</th><td>1</td><td>snp9415</td><td>0.0</td><td>1</td><td>1</td><td>2</td></tr></tbody></table>
-
-
-
-The table above displays the SNP information for the selected SNPs. Since data is simulated, the fields `genetic_distance`, `position`, `allele1`, `allele2` are arbitrary and `snpid` are fake. 
+Since data is simulated, the fields `chromosome`, `snpid`, `genetic_distance`, `position`, `allele1`, and `allele2` are fake. 
 
 ## Example 2: How to simulate data
 
@@ -353,7 +365,7 @@ result = iht("sim", "sim.covariates.txt", 10, d=Bernoulli(), l=LogitLink())
     
     IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     0.22192096710205078
+    Compute time (sec):     0.3146958351135254
     Final loglikelihood:    -331.6518739156732
     Iterations:             42
     
@@ -392,14 +404,14 @@ Since data is simulated, we can compare IHT's estimated effect size with the tru
 
 
     8×2 Array{Float64,2}:
-      0.469278    0.406926
-      0.554408    0.493509
-      0.923213    0.76469
+      0.469278    0.503252
+      0.554408    0.590809
+      0.923213    1.04006
       0.0369732   0.0
-     -0.625634   -0.550352
-     -0.526553   -0.311351
-     -0.815561   -0.677824
-     -2.18271    -1.56627
+     -0.625634   -0.741734
+     -0.526553   -0.437585
+     -0.815561   -0.942293
+     -2.18271    -2.11206
 
 
 
@@ -467,26 +479,26 @@ mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());
     
     Crossvalidation Results:
     	k	MSE
-    	1	1486.5413848514968
-    	2	705.22250019531
-    	3	541.7969789881145
-    	4	465.1963943709811
-    	5	442.6796495698108
-    	6	458.13373854130487
-    	7	460.9838544350322
-    	8	484.25939604486814
-    	9	474.21817442883844
-    	10	505.0327194683676
-    	11	499.2379415031341
-    	12	504.0934101269238
-    	13	487.9485902855123
-    	14	548.1525696940757
-    	15	507.86874709147395
-    	16	530.6537481762397
-    	17	511.2047414611475
-    	18	583.6122865525828
-    	19	548.3901670703196
-    	20	569.6848731697289
+    	1	1489.8188363695676
+    	2	707.617523735003
+    	3	546.8867981545658
+    	4	467.2192708681082
+    	5	440.0376189387275
+    	6	459.9446241516855
+    	7	482.3184687223138
+    	8	504.0229684333778
+    	9	495.1263330806669
+    	10	525.4353275609004
+    	11	534.0267905856207
+    	12	524.7616148197881
+    	13	558.2726852255064
+    	14	561.6025100531801
+    	15	561.3898895087017
+    	16	555.5897051455377
+    	17	618.3872529214123
+    	18	655.3952109246139
+    	19	652.4915677346953
+    	20	561.4237250226573
 
 
 
@@ -539,7 +551,7 @@ result = fit(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
     
     IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.08859395980834961
+    Compute time (sec):     0.092864990234375
     Final loglikelihood:    -2335.176167840737
     Iterations:             21
     
@@ -585,7 +597,9 @@ result = fit(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
 
 
 
-In this example, we ran IHT on count response with a general `Array{T, 2}` design matrix. Since many of the true $\beta$ are small, we were only able to find 5 true signals (4 predictors + intercept). 
+Since many of the true $\beta$ are small, we were only able to find 5 true signals (4 predictors + intercept). 
+
+**Conclusion:** In this example, we ran IHT on count response with a general `Array{T, 2}` design matrix. 
 
 ## Example 5: Group IHT 
 
@@ -619,8 +633,8 @@ end
 g[end] = membership[end]
 
 #simulate correlated snparray
-x = simulate_correlated_snparray(n, p, "tmp.bed")
-z = ones(n, 1) # the intercept
+x = simulate_correlated_snparray("tmp.bed", n, p)
+intercept = 0.5
 x_float = convert(Matrix{Float64}, x, model=ADDITIVE_MODEL, center=true, scale=true)
 
 #simulate true model, where 5 groups each with 1~5 snps contribute
@@ -644,7 +658,7 @@ sort!(correct_position)
 
 # simulate phenotype
 r = 10 #nuisance parameter
-μ = GLM.linkinv.(l, x_float * true_b)
+μ = GLM.linkinv.(l, intercept .+ x_float * true_b)
 clamp!(μ, -20, 20)
 prob = 1 ./ (1 .+ μ ./ r)
 y = [rand(d(r, i)) for i in prob] #number of failures before r success occurs
@@ -654,94 +668,15 @@ y = Float64.(y);
 
 ```julia
 #run IHT without groups
-k = 15
-ungrouped = L0_reg(x_float, z, y, 1, k, d(), l, verbose=false)
-```
+ungrouped = fit(y, x_float, k=15, d=NegativeBinomial(), l=LogLink(), verbose=false)
 
-
-
-
-    
-    IHT estimated 15 nonzero SNP predictors and 0 non-genetic predictors.
-    
-    Compute time (sec):     0.11840415000915527
-    Final loglikelihood:    -1441.522293255591
-    Iterations:             27
-    
-    Selected genetic predictors:
-    15×2 DataFrame
-    │ Row │ Position │ Estimated_β │
-    │     │ [90mInt64[39m    │ [90mFloat64[39m     │
-    ├─────┼──────────┼─────────────┤
-    │ 1   │ 3464     │ -0.234958   │
-    │ 2   │ 4383     │ -0.135693   │
-    │ 3   │ 4927     │ 0.158171    │
-    │ 4   │ 4938     │ -0.222613   │
-    │ 5   │ 5001     │ -0.193739   │
-    │ 6   │ 5011     │ -0.162718   │
-    │ 7   │ 5018     │ -0.190532   │
-    │ 8   │ 5090     │ 0.226509    │
-    │ 9   │ 5092     │ -0.17756    │
-    │ 10  │ 5100     │ -0.140337   │
-    │ 11  │ 7004     │ 0.151748    │
-    │ 12  │ 7011     │ 0.206449    │
-    │ 13  │ 7015     │ -0.284706   │
-    │ 14  │ 7016     │ 0.218126    │
-    │ 15  │ 9902     │ 0.119059    │
-    
-    Selected nongenetic predictors:
-    0×2 DataFrame
-
-
-
-
-
-```julia
 #run doubly sparse (group) IHT by specifying maximum number of SNPs for each group (in order)
-J = 5
 max_group_snps = ones(Int, num_blocks)
 max_group_snps[true_groups] .= collect(1:5)
-variable_group = L0_reg(x_float, z, y, J, max_group_snps, d(), l, verbose=false, group=g)
+variable_group = fit(y, x_float, d=NegativeBinomial(), l=LogLink(), k=max_group_snps, J=5, group=g, verbose=false);
 ```
 
-
-
-
-    
-    IHT estimated 15 nonzero SNP predictors and 0 non-genetic predictors.
-    
-    Compute time (sec):     0.30719614028930664
-    Final loglikelihood:    -1446.3808810786898
-    Iterations:             16
-    
-    Selected genetic predictors:
-    15×2 DataFrame
-    │ Row │ Position │ Estimated_β │
-    │     │ [90mInt64[39m    │ [90mFloat64[39m     │
-    ├─────┼──────────┼─────────────┤
-    │ 1   │ 3464     │ -0.245853   │
-    │ 2   │ 4927     │ 0.160904    │
-    │ 3   │ 4938     │ -0.213439   │
-    │ 4   │ 5001     │ -0.19624    │
-    │ 5   │ 5011     │ -0.149913   │
-    │ 6   │ 5018     │ -0.181966   │
-    │ 7   │ 5086     │ -0.0560478  │
-    │ 8   │ 5090     │ 0.21164     │
-    │ 9   │ 5092     │ -0.141968   │
-    │ 10  │ 5100     │ -0.157655   │
-    │ 11  │ 7004     │ 0.190224    │
-    │ 12  │ 7011     │ 0.21294     │
-    │ 13  │ 7015     │ -0.256058   │
-    │ 14  │ 7016     │ 0.19746     │
-    │ 15  │ 7020     │ 0.111755    │
-    
-    Selected nongenetic predictors:
-    0×2 DataFrame
-
-
-
-
-### Group IHT found 1 more SNPs than ungrouped IHT
+In this example, ungroup IHT found 1 more SNPs than grouped IHT. 
 
 
 ```julia
@@ -760,24 +695,24 @@ rm("tmp.bed", force=true)
 ```
 
     compare_model = 15×4 DataFrame
-    │ Row │ position │ correct_β │ ungrouped_IHT_β │ grouped_IHT_β │
-    │     │ Int64    │ Float64   │ Float64         │ Float64       │
-    ├─────┼──────────┼───────────┼─────────────────┼───────────────┤
-    │ 1   │ 3464     │ -0.2      │ -0.234958       │ -0.245853     │
-    │ 2   │ 4927     │ 0.2       │ 0.158171        │ 0.160904      │
-    │ 3   │ 4938     │ -0.2      │ -0.222613       │ -0.213439     │
-    │ 4   │ 5001     │ -0.2      │ -0.193739       │ -0.19624      │
-    │ 5   │ 5011     │ -0.2      │ -0.162718       │ -0.149913     │
-    │ 6   │ 5018     │ -0.2      │ -0.190532       │ -0.181966     │
-    │ 7   │ 5084     │ -0.2      │ 0.0             │ 0.0           │
-    │ 8   │ 5090     │ 0.2       │ 0.226509        │ 0.21164       │
-    │ 9   │ 5098     │ -0.2      │ 0.0             │ 0.0           │
-    │ 10  │ 5100     │ -0.2      │ -0.140337       │ -0.157655     │
-    │ 11  │ 7004     │ 0.2       │ 0.151748        │ 0.190224      │
-    │ 12  │ 7011     │ 0.2       │ 0.206449        │ 0.21294       │
-    │ 13  │ 7015     │ -0.2      │ -0.284706       │ -0.256058     │
-    │ 14  │ 7016     │ 0.2       │ 0.218126        │ 0.19746       │
-    │ 15  │ 7020     │ 0.2       │ 0.0             │ 0.111755      │
+     Row │ position  correct_β  ungrouped_IHT_β  grouped_IHT_β
+         │ Int64     Float64    Float64          Float64
+    ─────┼─────────────────────────────────────────────────────
+       1 │      235       -0.2        -0.218172       0.0
+       2 │     2673       -0.2        -0.171002      -0.178483
+       3 │     2679       -0.2        -0.236793      -0.213098
+       4 │     6383       -0.2        -0.228555      -0.224309
+       5 │     6389       -0.2        -0.190352      -0.192022
+       6 │     6394        0.2         0.215984       0.198447
+       7 │     7862        0.2         0.229254       0.224207
+       8 │     7864       -0.2        -0.184551      -0.19331
+       9 │     7868       -0.2        -0.174773      -0.177359
+      10 │     7870       -0.2        -0.192932      -0.208592
+      11 │     9481       -0.2         0.0            0.0
+      12 │     9491        0.2         0.0            0.0
+      13 │     9493        0.2         0.183659       0.175211
+      14 │     9494        0.2         0.117548       0.112946
+      15 │     9499       -0.2         0.0            0.0
     
     
 
@@ -792,39 +727,36 @@ $$y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i$$
 $$x_{ij} \sim \rm Binomial(2, \rho_j)$$
 $$\rho_j \sim \rm Uniform(0, 0.5)$$
 $$\epsilon_i \sim \rm N(0, 1)$$
-$$\beta_i \sim \rm N(0, 1)$$
+$$\beta_i \sim \rm N(0, 0.25)$$
 
 
 ```julia
-#random seed
-Random.seed!(4)
-
 d = Normal
-l = canonicallink(d())
+l = IdentityLink()
 n = 1000
 p = 10000
 k = 10
 
+#random seed
+Random.seed!(4)
+
 # construct snpmatrix, covariate files, and true model b
-x = simulate_random_snparray(n, p, "tmp.bed")
+x = simulate_random_snparray("tmp.bed", n, p)
 X = convert(Matrix{Float64}, x, center=true, scale=true)
-z = ones(n, 1) # the intercept
+intercept = 1.0
     
 #define true_b 
 true_b = zeros(p)
-true_b[1:10] .= collect(0.1:0.1:1.0)
+true_b[1:10] .= rand(Normal(0, 0.25), k)
 shuffle!(true_b)
 correct_position = findall(!iszero, true_b)
 
 #simulate phenotypes (e.g. vector y)
-prob = GLM.linkinv.(l, X * true_b)
+prob = GLM.linkinv.(l, intercept .+ X * true_b)
 clamp!(prob, -20, 20)
 y = [rand(d(i)) for i in prob]
 y = Float64.(y);
-```
 
-
-```julia
 # construct weight vector
 w = ones(p + 1)
 w[correct_position] .= 2.0
@@ -835,9 +767,9 @@ w[idx] .= 2.0; #randomly set ~1/10 of all predictors to 2
 
 
 ```julia
-#run IHT
-unweighted = L0_reg(X, z, y, 1, k, d(), l, verbose=false)
-weighted   = L0_reg(X, z, y, 1, k, d(), l, verbose=false, weight=w)
+#run weighted and unweighted IHT
+unweighted = fit(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false)
+weighted   = fit(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false, weight=w)
 
 #check result
 compare_model = DataFrame(
@@ -853,25 +785,27 @@ rm("tmp.bed", force=true)
 ```
 
     compare_model = 10×4 DataFrame
-    │ Row │ position │ correct │ unweighted │ weighted │
-    │     │ Int64    │ Float64 │ Float64    │ Float64  │
-    ├─────┼──────────┼─────────┼────────────┼──────────┤
-    │ 1   │ 1254     │ 0.4     │ 0.452245   │ 0.450405 │
-    │ 2   │ 1495     │ 0.3     │ 0.306081   │ 0.305738 │
-    │ 3   │ 4856     │ 0.8     │ 0.853536   │ 0.862223 │
-    │ 4   │ 5767     │ 0.1     │ 0.0        │ 0.117286 │
-    │ 5   │ 5822     │ 0.7     │ 0.656213   │ 0.651908 │
-    │ 6   │ 5945     │ 0.9     │ 0.891915   │ 0.894997 │
-    │ 7   │ 6367     │ 0.5     │ 0.469718   │ 0.472524 │
-    │ 8   │ 6996     │ 1.0     │ 0.963236   │ 0.973512 │
-    │ 9   │ 7052     │ 0.6     │ 0.602162   │ 0.600055 │
-    │ 10  │ 7980     │ 0.2     │ 0.231389   │ 0.234094 │
+     Row │ position  correct     unweighted  weighted
+         │ Int64     Float64     Float64     Float64
+    ─────┼─────────────────────────────────────────────
+       1 │     1264   0.252886     0.270233   0.264713
+       2 │     1506  -0.0939841    0.0       -0.125803
+       3 │     4866  -0.227394    -0.233703  -0.237007
+       4 │     5778  -0.510488    -0.507114  -0.494199
+       5 │     5833  -0.311969    -0.324309  -0.322663
+       6 │     5956  -0.0548168    0.0        0.0
+       7 │     6378  -0.0155173    0.0        0.0
+       8 │     7007  -0.123301     0.0        0.0
+       9 │     7063   0.0183886    0.0        0.0
+      10 │     7995  -0.102122     0.0       -0.142201
     
     
 
 
-In this case, weighted IHT found an extra predictor than non-weighted IHT.
+Weighted IHT found 2 extra predictor than non-weighted IHT.
 
 ## Other examples and functionalities
 
-We explored a few more examples in our manuscript, with [reproducible code](https://github.com/biona001/MendelIHT.jl/tree/master/figures). We invite users to experiment with them as well. 
+Other examples explored in our manuscript has [reproducible code](https://github.com/biona001/MendelIHT.jl/tree/master/figures). 
+
+Additional features are available as optional parameters in the [fit](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31) function, but they should be treated as **experimental** features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.

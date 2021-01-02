@@ -54,6 +54,7 @@ Pages = [
     "man/examples.md",
     "man/math.md",
     "man/contributing.md",
+    "man/api.md",
 ]
 Depth = 2
 ```
