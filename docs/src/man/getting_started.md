@@ -28,5 +28,7 @@ For large datasets, one can run cross validation in parallel. Assuming you have 
 using Distributed
 addprocs(4) # 4 processors
 @everywhere using MendelIHT
+@everywhere using LinearAlgebra
+@everywhere BLAS.set_num_threads(1)
 ```
-This should make cross validation almost $N$ times faster. 
+Note by default, BLAS runs with multiple threads, so the command `BLAS.set_num_threads(1)` sets the number of BLAS threads to 1, avoiding [oversubscription](https://ieeexplore.ieee.org/document/5470434)
