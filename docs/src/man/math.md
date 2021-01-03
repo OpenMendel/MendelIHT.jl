@@ -20,9 +20,9 @@ In `MendelIHT.jl`, phenotypes $(\bf y)$ are modeled as a [generalized linear mod
 ```
 where $\bf x$ is sample $i$'s $p$-dimensional vector of *covariates* (genotypes + other fixed effects), $\boldsymbol \beta$ is a $p$-dimensional regression coefficients, $g$ is a non-linear *inverse-link* function, $y_i$ is sample $i$'s phenotype value, and $\mu_i$ is the *average predicted value* of $y_i$ given $\bf x$. 
 
-The full design matrix ${\bf X}_{n \times p}$ and phenotypes ${\bf y}_{n \times 1}$ are observed. The regression coefficients $\boldsymbol \beta$ are not observed and are estimated by *maximum likelihood* methods, traditionally via iteratively reweighted least squares (IRLS). For high dimensional problems where $n < p$, we substitute iterative hard thresholding in place of IRLS. 
+The full design matrix ${\bf X}_{n \times p}$ and phenotypes ${\bf y}_{n \times 1}$ are observed. The distribution of $\bf y$ and the inverse link $g$ are chosen before fitting. The regression coefficients $\boldsymbol \beta$ are not observed and are estimated by *maximum likelihood* methods, traditionally via iteratively reweighted least squares (IRLS). For high dimensional problems where $n < p$, we substitute iterative hard thresholding in place of IRLS. 
 
-GLMs offer a natural way to model common non-continuous phenotypes. For instance, logistic regression for binary phenotypes and Poisson regression for integer valued phenotypes are special cases under the GLM framework. Of course, when $g(\alpha) = \alpha,$ we get standard linear regression used for Gaussian phenotypes. 
+GLMs offer a natural way to model common non-continuous phenotypes. For instance, logistic regression for binary phenotypes and Poisson regression for integer valued phenotypes are special cases under the GLM framework. When $g(\alpha) = \alpha,$ we get standard linear regression used for Gaussian phenotypes. 
 
 ## Loglikelihood, gradient, and expected information
 
@@ -40,7 +40,7 @@ Given $n$ independent observations, the loglikelihood is:
     L({\bf \theta}, \phi; {\bf y}) &= \sum_{i=1}^n \frac{y_i\theta_i - b(\theta_i)}{a_i(\phi)} + c(y_i, \phi).
 \end{aligned}
 ```
-To evaluate the loglikelihood, we use the [logpdf](https://juliastats.org/Distributions.jl/latest/univariate/#Distributions.logpdf-Tuple{Distribution{Univariate,S}%20where%20S%3C:ValueSupport,Real}) function in [Distributions.jl](https://github.com/JuliaStats/Distributions.jl).
+To evaluate the loglikelihood, we evaluate sample $i$'s logpdf using the [logpdf](https://juliastats.org/Distributions.jl/latest/univariate/#Distributions.logpdf-Tuple{Distribution{Univariate,S}%20where%20S%3C:ValueSupport,Real}) function in [Distributions.jl](https://github.com/JuliaStats/Distributions.jl).
 
 The perform maximum likelihood estimation, we compute partial derivatives for $\beta$s. The $j$th score component is (eq 4.18 in Dobson):
 ```math

@@ -14,19 +14,15 @@ If you encounter a bug or you need some user support, please [open a new issue h
 If you use `MendelIHT.jl` in an academic manuscript, please cite:
 
 ```
-Benjamin B. Chu, Kevin L. Keys, Christopher A. German, Hua Zhou, Jin J. Zhou, Janet S. Sinsheimer, Kenneth Lange. Iterative Hard Thresholding in GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity. bioRxiv doi:10.1101/697755
-```
-
-Bibtex:
-
-```
-@article{zhou2019openmendel,
-  title={{Iterative Hard Thresholding in GWAS: Generalized Linear Models, Prior Weights, and Double Sparsity}},
-  author={Chu, Benjamin B and Keys, Kevin L and German, Christopher A and Zhou, Hua and Zhou, Jin J and Sinsheimer, Janet S and Lange, Kenneth},
-  journal={BioRxiv},
-  pages={697755v2},
-  year={2019},
-  publisher={Cold Spring Harbor Laboratory}
+@article{mendeliht,
+  title={{Iterative hard thresholding in genome-wide association studies: Generalized linear models, prior weights, and double sparsity}},
+  author={Chu, Benjamin B and Keys, Kevin L and German, Christopher A and Zhou, Hua and Zhou, Jin J and Sobel, Eric M and Sinsheimer, Janet S and Lange, Kenneth},
+  journal={GigaScience},
+  volume={9},
+  number={6},
+  pages={giaa044},
+  year={2020},
+  publisher={Oxford University Press}
 }
 ```
 

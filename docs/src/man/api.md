@@ -26,7 +26,7 @@ For advanced users, one can also run IHT regression or cross-validation directly
 ```
 
 ```@docs
-  fit
+  MendelIHT.fit
 ```
 
 !!! note 
@@ -35,13 +35,13 @@ For advanced users, one can also run IHT regression or cross-validation directly
 
 ## Specifying Groups and Weights
 
-When you have group and weight information, you input them as optional arguments in `L0_reg` and `cv_iht`. The weight vector is a vector of Float64, while the group vector is a vector of integers. For instance,
+When you have group and weight information, you input them as optional arguments in `fit` and `cv_iht`. The weight vector is a vector of `Float64`, while the group vector is a vector of `Int`. For instance,
 
 ```Julia
     g = #import group vector
     w = #import weight vector
-    J = length(unique(g)) # specify number of non-zero groups
-    result = L0_reg(x, xbm, z, y, J, k, d(), l, group=g, weight=w)
+    ng = length(unique(g)) # specify number of non-zero groups
+    result = fit(y, x, z; J=ng, k=10, d=Normal(), l=IdentityLink(), group=g, weight=w)
 ```
 
 ## Simulation Utilities

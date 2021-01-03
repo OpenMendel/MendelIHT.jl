@@ -32,7 +32,7 @@ using MendelIHT
 cd(normpath(MendelIHT.datadir()))
 
 # if sparsity parameter k is known
-result = iht("normal", 9) # run IHT with k = 9
+result = iht("normal", 9) # run IHT with k = 9, default d=Normal(), l = IdentityLink()
 result = iht("normal", "covariates.txt", 10) # separately include covariates, k = 10
 result = iht("phenotypes.txt", "normal", "covariates.txt", 10) # if phenotypes are in separate file
 
@@ -67,7 +67,7 @@ See our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823
 }
 ```
 
-In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our preprint. 
+In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
 ## Bug fixes and user support
 
