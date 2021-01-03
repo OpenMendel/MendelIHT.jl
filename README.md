@@ -22,6 +22,34 @@ This package supports Julia `v1.5`+.
 + [**Latest**](https://OpenMendel.github.io/MendelIHT.jl/latest/)
 + [**Stable**](https://OpenMendel.github.io/MendelIHT.jl/stable/)
 
+## Quick Start
+
+The following uses data under the `data` directory. PLINK files are stored in `normal.bed`, `normal.bim`, `normal.fam`. 
+
+```julia
+# load package & cd to data directory
+using MendelIHT
+cd(normpath(MendelIHT.datadir()))
+
+# if sparsity parameter k is known
+result = iht("normal", 9) # run IHT with k = 9
+result = iht("normal", "covariates.txt", 10) # separately include covariates, k = 10
+result = iht("phenotypes.txt", "normal", "covariates.txt", 10) # if phenotypes are in separate file
+
+# run cross validation to determine best k
+mses = cross_validate("normal", 1:20) # test k = 1, 2, ..., 20
+mses = cross_validate("normal", [1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
+mses = cross_validate("normal", "covariates.txt", 1:20) # separately include covariates
+mses = cross_validate("phenotypes.txt", "normal", "covariates.txt", 1:20) # if phenotypes are in separate file
+
+# other distributions
+result = iht("plinkfile", 10, d=Bernoulli(), l = LogitLink()) # logistic regression with k = 10
+result = iht("plinkfile", 10, d=Poisson(), l = LogLink()) # Poisson regression with k = 10
+result = iht("plinkfile", 10, d=NegativeBinomial(), l = LogLink(), est_r=true) # Negative Binomial regression with k = 10
+```
+
+Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/latest/) for more detail. 
+
 ## Citation and Reproducibility:
 
 See our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823?searchresult=1) for algorithmic details. If you use `MendelIHT.jl`, please cite:
