@@ -18,15 +18,15 @@ Most users will use the following wrapper functions, which automatically handles
 For advanced users, one can also run IHT regression or cross-validation directly. For cross validation, we generally recommend using `cv_iht`. This function cycles through the testing sets sequentially and fits different sparsity models in parallel. For larger problems (e.g. UK Biobank sized), one can instead choose to run `cv_iht_distribute_fold`. This function fits different sparsity models sequentially but initializes all training/testing model in parallel, which consumes more memory (see below). The later strategy allows one to distribute different sparsity parameters to different computers, achieving greater parallel power. 
 
 ```@docs
+  fit(AbstractVector, AbstractMatrix, AbstractVecOrMat)
+```
+
+```@docs
   cv_iht
 ```
 
 ```@docs
   cv_iht_distribute_fold
-```
-
-```@docs
-  MendelIHT.fit
 ```
 
 !!! note 
