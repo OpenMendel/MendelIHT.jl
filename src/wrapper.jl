@@ -16,7 +16,7 @@ include an intercept as the only non-genetic covariate.
 - `k`: An `Int` for sparsity parameter = number of none-zero coefficients
 
 # Optional Arguments
-All arguments available in [`fit`](@ref)
+All arguments available in [`fit_iht`](@ref)
 """
 function iht(
     plinkfile::AbstractString,
@@ -27,7 +27,7 @@ function iht(
     y = parse.(Float64, snpdata.person_info.phenotype)
     xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
         center=true, scale=true, impute=true)
-    return fit(y, xla, k=k; kwargs...)
+    return fit_iht(y, xla, k=k; kwargs...)
 end
 
 """
@@ -43,7 +43,7 @@ result = iht("plinkfile", "covariates.txt", 10)
 Will use 6th column of `.fam` file for phenotype values. 
 
 # Other covariates
-Covariates are read using [`readdlm`](@ref) function in Julia base. We require the
+Covariates are read using `readdlm` function in Julia base. We require the
 covariate file to be comma separated, and not include a header line. Each row
 should be listed in the same order as in the PLINK. The first column should be
 all 1s to indicate an intercept. All other columns will be standardized to mean
@@ -55,7 +55,7 @@ all 1s to indicate an intercept. All other columns will be standardized to mean
 - `k`: An `Int` for sparsity parameter = number of none-zero coefficients
 
 # Optional Arguments
-All arguments available in [`fit`](@ref)
+All arguments available in [`fit_iht`](@ref)
 """
 function iht(
     plinkfile::AbstractString,
@@ -75,7 +75,7 @@ function iht(
     @assert size(z, 1) == size(xla, 1) "$(size(z, 1)) samples detected in " * 
         "covariate file but $(size(xla, 1)) samples detected in PLINK file."
 
-    return fit(y, xla, z, k=k; kwargs...)
+    return fit_iht(y, xla, z, k=k; kwargs...)
 end
 
 """
@@ -89,12 +89,12 @@ result = iht("phenotypes.txt", "plinkfile", "covariates.txt", 10)
 ```
 
 # Phenotypes
-Phenotypes are read using [`readdlm`](@ref) function in Julia base. We require each 
+Phenotypes are read using `readdlm` function in Julia base. We require each 
 subject's phenotype to occupy a different row. The file should not include a header
 line. Each row should be listed in the same order as in the PLINK. 
 
 # Other covariates
-Covariates are read using [`readdlm`](@ref) function in Julia base. We require the
+Covariates are read using `readdlm` function in Julia base. We require the
 covariate file to be comma separated, and not include a header line. Each row
 should be listed in the same order as in the PLINK. The first column should be
 all 1s to indicate an intercept. All other columns will be standardized to mean
@@ -107,7 +107,7 @@ all 1s to indicate an intercept. All other columns will be standardized to mean
 - `k`: An `Int` for sparsity parameter = number of none-zero coefficients
 
 # Optional Arguments
-All arguments available in [`fit`](@ref)
+All arguments available in [`fit_iht`](@ref)
 """
 function iht(
     phenotypes::AbstractString,
@@ -131,7 +131,7 @@ function iht(
         "detected $(size(y, 1)) phenotypes, $(size(z, 1)) sample covariates, " * 
         "and $(size(xla, 1)) sample genotypes."
 
-    return fit(y, xla, z, k=k; kwargs...)
+    return fit_iht(y, xla, z, k=k; kwargs...)
 end
 
 """
@@ -182,7 +182,7 @@ mses = cross_validate("plinkfile", "covariates.txt", [1, 10, 20]) # alternative 
 Will use 6th column of `.fam` file for phenotype values. 
 
 # Other covariates
-Covariates are read using [`readdlm`](@ref) function in Julia base. We require the
+Covariates are read using `readdlm`@ref function in Julia base. We require the
 covariate file to be comma separated, and not include a header line. Each row
 should be listed in the same order as in the PLINK. The first column should be
 all 1s to indicate an intercept. All other columns will be standardized to mean
@@ -228,12 +228,12 @@ mses = cross_validate("phenotypes.txt", "plinkfile", "covariates.txt", [1, 10, 2
 ```
 
 # Phenotypes
-Phenotypes are read using [`readdlm`](@ref) function in Julia base. We require each 
+Phenotypes are read using `readdlm` function in Julia base. We require each 
 subject's phenotype to occupy a different row. The file should not include a header
 line. Each row should be listed in the same order as in the PLINK. 
 
 # Other covariates
-Covariates are read using [`readdlm`](@ref) function in Julia base. We require the
+Covariates are read using `readdlm` function in Julia base. We require the
 covariate file to be comma separated, and not include a header line. Each row
 should be listed in the same order as in the PLINK. The first column should be
 all 1s to indicate an intercept. All other columns will be standardized to mean

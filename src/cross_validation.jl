@@ -167,11 +167,11 @@ function iht_run_many_models(
         if typeof(x) == SnpArray 
             xla = SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, 
                 impute=true)
-            return fit(y, xla, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
+            return fit_iht(y, xla, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
                 weight=weight, init=init, use_maf=use_maf, debias=debias,
                 verbose=false)
         else 
-            return fit(y, x, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
+            return fit_iht(y, x, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
                 weight=weight, init=init, use_maf=use_maf, debias=debias,
                 verbose=false)
         end
@@ -241,7 +241,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
         mses = (parallel ? pmap : map)(path) do k
 
             #run IHT on training model with given k
-            result = fit(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l,
+            result = fit_iht(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l,
                 est_r=est_r, group=group_train, weight=weight_train, init=init,
                 use_maf=use_maf, debias=debias, verbose=verbose)
 
@@ -302,7 +302,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
     mses = (parallel ? pmap : map)(path) do k
 
         #run IHT on training model with given k
-        result = fit(y_train, x_train, z_train, J=1, k=k, d=d, l=l, est_r=est_r,
+        result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, est_r=est_r,
             group=group_train, weight=weight_train, init=init, use_maf=use_maf,
             debias=debias, verbose=verbose)
 
@@ -353,7 +353,7 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
     try 
         for i in 1:length(path)
             k = path[i]
-            result = fit(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l, 
+            result = fit_iht(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l, 
                 est_r=est_r, group=group, weight=weight, init=init,
                 use_maf=use_maf, debias=debias, verbose=false)
             betas[:, i] .= result.beta
@@ -393,7 +393,7 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractVecOr
     # fit training model on various sparsity levels
     for i in 1:length(path)
         k = path[i]
-        result = fit(y_train, x_train, z_train, J=1, k=k, d=d, l=l, group=group,
+        result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, group=group,
             weight=weight, init=init, use_maf=use_maf, debias=debias,
             est_r=est_r, verbose=false) 
         betas[:, i] .= result.beta

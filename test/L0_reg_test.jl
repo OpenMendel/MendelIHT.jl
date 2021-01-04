@@ -20,7 +20,7 @@
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run result
-	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
+	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 	show(result)
 
 	@test length(result.beta) == 10000
@@ -56,7 +56,7 @@ end
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run result
-	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
+	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [1733;1816;2384;5413;7067;8753;8908;9089;9132;9765]
@@ -91,7 +91,7 @@ end
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run result
-	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
+	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [298; 606; 2384; 5891; 7067; 8753; 8755; 8931; 9089; 9132]
 	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.10999211487301704;
@@ -126,7 +126,7 @@ end
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run result
-	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
+	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 
 	@test length(result.beta) == 10000
 	@test findall(!iszero, result.beta) == [1245; 1774; 1982; 2384; 5413; 5440; 5614; 7166; 9089; 9132;]
@@ -171,7 +171,7 @@ end
 	y = [rand(d(i)) for i in prob]
 
 	#run result
-	result = fit(y, xla, z, J=1, k=k, d=d(), l=l)
+	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 
 	@test length(result.beta) == 10000
 	@test length(result.c) == 2
@@ -241,12 +241,12 @@ end
     
     #run IHT without groups
     k = 15
-    ungrouped = fit(y, x_float, z, J=1, k=k, d=d(), l=l)
+    ungrouped = fit_iht(y, x_float, z, J=1, k=k, d=d(), l=l)
 
     #run IHT with groups
     J = 5
     k = 3
-    grouped = fit(y, x_float, z, J=J, k=k, d=d(), l=l, group=g)
+    grouped = fit_iht(y, x_float, z, J=J, k=k, d=d(), l=l, group=g)
 
     @test length(findall(!iszero, ungrouped.beta)) == 15
     @test length(findall(!iszero, grouped.beta)) == 15
@@ -268,12 +268,12 @@ end
 	z = ones(n, 1) 
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l, r=10);
 
-	@time newton = fit(y, xla, z, J=1, k=k, d=d(), l=l, est_r=:Newton)
+	@time newton = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, est_r=:Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 # p parameter not used 
 	@test newton.d.r ≥ 0
 
-	@time mm = fit(y, xla, z, J=1, k=k, d=d(), l=l, est_r=:MM)
+	@time mm = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, est_r=:MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0
@@ -299,12 +299,12 @@ end
     y = T.(y)
 
 	d = d(r, Float32(0.5)) # need Float32 for eltype of d
-	@time newton = fit(y, x, z, J=1, k=k, d=d, l=l, est_r=:Newton)
+	@time newton = fit_iht(y, x, z, J=1, k=k, d=d, l=l, est_r=:Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float32}
 	@test newton.d.p == 0.5 
 	@test newton.d.r ≥ 0
 
-	@time mm = fit(y, x, z, J=1, k=k, d=d, l=l, est_r=:MM)
+	@time mm = fit_iht(y, x, z, J=1, k=k, d=d, l=l, est_r=:MM)
 	@test typeof(mm.d) == NegativeBinomial{Float32}
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0
