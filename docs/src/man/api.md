@@ -7,9 +7,6 @@ Most users will use the following wrapper functions, which automatically handles
 
 ```@docs
   iht
-```
-
-```@docs
   cross_validate
 ```
 
@@ -18,14 +15,8 @@ Most users will use the following wrapper functions, which automatically handles
 For advanced users, one can also run IHT regression or cross-validation directly. For cross validation, we generally recommend using `cv_iht`. This function cycles through the testing sets sequentially and fits different sparsity models in parallel. For larger problems (e.g. UK Biobank sized), one can instead choose to run `cv_iht_distribute_fold`. This function fits different sparsity models sequentially but initializes all training/testing model in parallel, which consumes more memory (see below). The later strategy allows one to distribute different sparsity parameters to different computers, achieving greater parallel power. 
 
 ```@docs
-  fit(AbstractVector, AbstractMatrix, AbstractVecOrMat)
-```
-
-```@docs
+  fit_iht
   cv_iht
-```
-
-```@docs
   cv_iht_distribute_fold
 ```
 
@@ -35,13 +26,13 @@ For advanced users, one can also run IHT regression or cross-validation directly
 
 ## Specifying Groups and Weights
 
-When you have group and weight information, you input them as optional arguments in `fit` and `cv_iht`. The weight vector is a vector of `Float64`, while the group vector is a vector of `Int`. For instance,
+When you have group and weight information, you input them as optional arguments in `fit_iht` and `cv_iht`. The weight vector is a vector of `Float64`, while the group vector is a vector of `Int`. For instance,
 
 ```Julia
     g = #import group vector
     w = #import weight vector
     ng = length(unique(g)) # specify number of non-zero groups
-    result = fit(y, x, z; J=ng, k=10, d=Normal(), l=IdentityLink(), group=g, weight=w)
+    result = fit_iht(y, x, z; J=ng, k=10, d=Normal(), l=IdentityLink(), group=g, weight=w)
 ```
 
 ## Simulation Utilities
@@ -50,9 +41,6 @@ MendelIHT provides some simulation utilities that help users explore the functio
 
 ```@docs
   simulate_random_snparray
-```
-
-```@docs
   simulate_correlated_snparray
 ```
 

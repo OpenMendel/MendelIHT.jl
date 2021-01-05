@@ -18,7 +18,7 @@ module MendelIHT
     using DelimitedFiles
 
     export iht, cross_validate
-    export fit, cv_iht, cv_iht_distribute_fold, iht_run_many_models
+    export fit_iht, cv_iht, cv_iht_distribute_fold, iht_run_many_models
     export loglikelihood, deviance, score!, mle_for_r
     export project_k!, project_group_sparse!
     export IHTVariables, make_snparray, standardize!, maf_weights

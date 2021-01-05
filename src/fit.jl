@@ -1,5 +1,5 @@
 """
-    fit(y, x, z; kwargs...)
+    fit_iht(y, x, z; kwargs...)
 
 Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
 and non-genetic covariates `z` on a specific sparsity parameter `k`. If `k` is 
@@ -28,7 +28,7 @@ of predictors for group `i`.
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
 + `max_step`: is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 """
-function fit(
+function fit_iht(
     y         :: AbstractVector{T},
     x         :: AbstractMatrix{T},
     z         :: AbstractVecOrMat{T};
@@ -132,8 +132,8 @@ function fit(
     return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group, d)
 end
 
-fit(y::AbstractVector{T}, x::AbstractMatrix{T}; kwargs...) where T = 
-    fit(y, x, ones(T, length(y)); kwargs...)
+fit_iht(y::AbstractVector{T}, x::AbstractMatrix{T}; kwargs...) where T = 
+    fit_iht(y, x, ones(T, length(y)); kwargs...)
 
 """
 Performs 1 iteration of the IHT algorithm, backtracking a maximum of 5 times.
