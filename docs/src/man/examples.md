@@ -3,7 +3,7 @@
 
 Here we give numerous example analysis of GWAS data with `MendelIHT.jl`. 
 
-Users are highly encouraged to read the source code of our main [fit](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31) and [cv_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/cross_validation.jl#L38) functions, which contain more options than what is described here.
+Users are highly encouraged to read the source code of our main [fit_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31) and [cv_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/cross_validation.jl#L38) functions, which contain more options than what is described here.
 
 
 ```julia
@@ -67,8 +67,9 @@ readdir()
 
 
 
-    8-element Array{String,1}:
+    9-element Array{String,1}:
      ".DS_Store"
+     "README.md"
      "covariates.txt"
      "normal.bed"
      "normal.bim"
@@ -101,26 +102,26 @@ mses = cross_validate("normal", 1:20)
     
     Crossvalidation Results:
     	k	MSE
-    	1	1404.4417384206977
-    	2	872.9331592454502
-    	3	698.5274776175538
-    	4	569.9944549338388
-    	5	477.08400058967334
-    	6	432.4191305742031
-    	7	366.38930926920193
-    	8	334.4676050445665
-    	9	340.4382111722383
-    	10	344.72434953866906
-    	11	349.676045611259
-    	12	353.4843907907301
-    	13	358.8086990554361
-    	14	366.1270891338698
-    	15	365.3432769681646
-    	16	370.71742242027653
-    	17	370.90059148757933
-    	18	382.151936768469
-    	19	383.4631541346132
-    	20	387.6476102628774
+    	1	1408.9557521114687
+    	2	862.7203844607984
+    	3	680.8301874600056
+    	4	557.4855837639612
+    	5	464.8829558089964
+    	6	406.2939256668324
+    	7	353.51301550648583
+    	8	319.7246407718893
+    	9	330.61634612617485
+    	10	333.0672716462795
+    	11	342.3256426055285
+    	12	350.3298734086273
+    	13	348.1704138912411
+    	14	346.69570733633515
+    	15	354.3537342994825
+    	16	357.8427219980141
+    	17	365.61096068785577
+    	18	361.3342044625832
+    	19	367.01356167023937
+    	20	371.3741015581086
     argmin(mses) = 8
 
 
@@ -133,7 +134,7 @@ According to cross validation, `k = 8` achieves the minimum MSE. Thus we run IHT
 result = iht("normal", 8)
 ```
 
-    ****                   MendelIHT Version 1.2.0                  ****
+    ****                   MendelIHT Version 1.3.2                  ****
     ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
     ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
     ****                                                            ****
@@ -161,7 +162,7 @@ result = iht("normal", 8)
     
     IHT estimated 7 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.0843820571899414
+    Compute time (sec):     0.0783851146697998
     Final loglikelihood:    -1627.2792448761559
     Iterations:             5
     
@@ -299,7 +300,7 @@ result = iht("sim", "sim.covariates.txt", 10, d=Bernoulli(), l=LogitLink())
 # result = iht("sim", 10, d=NegativeBinomial(), l=LogLink()) # Negative Binomial regression using canonical link
 ```
 
-    ****                   MendelIHT Version 1.2.0                  ****
+    ****                   MendelIHT Version 1.3.2                  ****
     ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
     ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
     ****                                                            ****
@@ -364,7 +365,7 @@ result = iht("sim", "sim.covariates.txt", 10, d=Bernoulli(), l=LogitLink())
     
     IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     0.26169586181640625
+    Compute time (sec):     0.2472858428955078
     Final loglikelihood:    -331.6518739156732
     Iterations:             42
     
@@ -428,7 +429,7 @@ rm("sim.phenotypes.txt", force=true)
 
 ## Example 4: Running IHT on general matrices
 
-To run IHT on genotypes in VCF files, or other general data, one must call `fit` and `cv_iht` directly. These functions are designed to work on `AbstractArray{T, 2}` type where `T` is a `Float64` or `Float32`. Thus, one must first import the data, and then call `fit` and `cv_iht` on it. Note the vector of 1s (intercept) shouldn't be included in the design matrix itself, as it will be automatically included.
+To run IHT on genotypes in VCF files, or other general data, one must call `fit_iht` and `cv_iht` directly. These functions are designed to work on `AbstractArray{T, 2}` type where `T` is a `Float64` or `Float32`. Thus, one must first import the data, and then call `fit_iht` and `cv_iht` on it. Note the vector of 1s (intercept) shouldn't be included in the design matrix itself, as it will be automatically included.
 
 !!! tip
 
@@ -503,10 +504,10 @@ mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());
 
 ```julia
 # run IHT on best k (achieved at k = 5)
-result = fit(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
+result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
 ```
 
-    ****                   MendelIHT Version 1.2.0                  ****
+    ****                   MendelIHT Version 1.3.2                  ****
     ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
     ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
     ****                                                            ****
@@ -550,7 +551,7 @@ result = fit(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
     
     IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.0818638801574707
+    Compute time (sec):     0.08089709281921387
     Final loglikelihood:    -2335.176167840737
     Iterations:             21
     
@@ -667,15 +668,13 @@ y = Float64.(y);
 
 ```julia
 #run IHT without groups
-ungrouped = fit(y, x_float, k=15, d=NegativeBinomial(), l=LogLink(), verbose=false)
+ungrouped = fit_iht(y, x_float, k=15, d=NegativeBinomial(), l=LogLink(), verbose=false)
 
 #run doubly sparse (group) IHT by specifying maximum number of SNPs for each group (in order)
 max_group_snps = ones(Int, num_blocks)
 max_group_snps[true_groups] .= collect(1:5)
-variable_group = fit(y, x_float, d=NegativeBinomial(), l=LogLink(), k=max_group_snps, J=5, group=g, verbose=false);
+variable_group = fit_iht(y, x_float, d=NegativeBinomial(), l=LogLink(), k=max_group_snps, J=5, group=g, verbose=false);
 ```
-
-**Conclusion:** As seen below, ungroup IHT actually found 1 more SNPs than grouped IHT. 
 
 
 ```julia
@@ -715,6 +714,8 @@ rm("tmp.bed", force=true)
     
     
 
+
+**Conclusion:** Ungroup IHT actually found 1 more SNPs than grouped IHT. 
 
 ## Example 6: Linear Regression with prior weights
 
@@ -767,8 +768,8 @@ w[idx] .= 2.0; #randomly set ~1/10 of all predictors to 2
 
 ```julia
 #run weighted and unweighted IHT
-unweighted = fit(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false)
-weighted   = fit(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false, weight=w)
+unweighted = fit_iht(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false)
+weighted   = fit_iht(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false, weight=w)
 
 #check result
 compare_model = DataFrame(
@@ -807,4 +808,4 @@ rm("tmp.bed", force=true)
 
 Other examples explored in our manuscript has [reproducible code](https://github.com/biona001/MendelIHT.jl/tree/master/figures). 
 
-Additional features are available as optional parameters in the [fit](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31) function, but they should be treated as **experimental** features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.
+Additional features are available as optional parameters in the [fit_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31) function, but they should be treated as **experimental** features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.

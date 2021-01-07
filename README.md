@@ -15,7 +15,7 @@ Pkg.add(PackageSpec(url="https://github.com/OpenMendel/SnpArrays.jl.git"))
 Pkg.add(PackageSpec(url="https://github.com/OpenMendel/VCFTools.jl.git"))
 Pkg.add(PackageSpec(url="https://github.com/OpenMendel/MendelIHT.jl.git"))
 ```
-This package supports Julia `v1.5`+.
+This package supports Julia `v1.5`+ for Mac, Linux, and window machines. 
 
 ## Documentation
 

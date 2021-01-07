@@ -1,7 +1,7 @@
 
 # Contributing
 
-I am one developer. We are a community. 
+Please star our [github page](https://github.com/OpenMendel/MendelIHT.jl), that would be very helpful.
 
 If you would like to contribute to this project, we compiled a list of [desired features for this project](https://github.com/OpenMendel/MendelIHT.jl/issues/6). Developers of any level is welcomed. Do not be shy because it can't hurt to ask. 
 
@@ -25,5 +25,3 @@ If you use `MendelIHT.jl` in an academic manuscript, please cite:
   publisher={Oxford University Press}
 }
 ```
-
-If you could also press star on the upper right hand corner on our [github page](https://github.com/OpenMendel/MendelIHT.jl), that would be very helpful. 
