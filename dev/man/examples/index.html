@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · MendelIHT</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">MendelIHT</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../getting_started/">Getting Started</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Example-1:-GWAS-with-PLINK-files"><span>Example 1: GWAS with PLINK files</span></a></li><li><a class="tocitem" href="#Example-2:-How-to-simulate-data"><span>Example 2: How to simulate data</span></a></li><li><a class="tocitem" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS"><span>Example 3: Logistic/Poisson/Negative-binomial GWAS</span></a></li><li><a class="tocitem" href="#Example-4:-Running-IHT-on-general-matrices"><span>Example 4: Running IHT on general matrices</span></a></li><li><a class="tocitem" href="#Example-5:-Group-IHT"><span>Example 5: Group IHT</span></a></li><li><a class="tocitem" href="#Example-6:-Linear-Regression-with-prior-weights"><span>Example 6: Linear Regression with prior weights</span></a></li><li><a class="tocitem" href="#Other-examples-and-functionalities"><span>Other examples and functionalities</span></a></li></ul></li><li><a class="tocitem" href="../math/">Mathematical Details</a></li><li><a class="tocitem" href="../contributing/">Contributing</a></li><li><a class="tocitem" href="../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/docs/src/man/examples.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><p>Here we give numerous example analysis of GWAS data with <code>MendelIHT.jl</code>. </p><p>Users are highly encouraged to read the source code of our main <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31">fit</a> and <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/cross_validation.jl#L38">cv_iht</a> functions, which contain more options than what is described here.</p><pre><code class="language-julia"># machine information for reproducibility
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · MendelIHT</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">MendelIHT</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../getting_started/">Getting Started</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Example-1:-GWAS-with-PLINK-files"><span>Example 1: GWAS with PLINK files</span></a></li><li><a class="tocitem" href="#Example-2:-How-to-simulate-data"><span>Example 2: How to simulate data</span></a></li><li><a class="tocitem" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS"><span>Example 3: Logistic/Poisson/Negative-binomial GWAS</span></a></li><li><a class="tocitem" href="#Example-4:-Running-IHT-on-general-matrices"><span>Example 4: Running IHT on general matrices</span></a></li><li><a class="tocitem" href="#Example-5:-Group-IHT"><span>Example 5: Group IHT</span></a></li><li><a class="tocitem" href="#Example-6:-Linear-Regression-with-prior-weights"><span>Example 6: Linear Regression with prior weights</span></a></li><li><a class="tocitem" href="#Other-examples-and-functionalities"><span>Other examples and functionalities</span></a></li></ul></li><li><a class="tocitem" href="../math/">Mathematical Details</a></li><li><a class="tocitem" href="../contributing/">Contributing</a></li><li><a class="tocitem" href="../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/docs/src/man/examples.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><p>Here we give numerous example analysis of GWAS data with <code>MendelIHT.jl</code>. </p><p>Users are highly encouraged to read the source code of our main <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31">fit_iht</a> and <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/cross_validation.jl#L38">cv_iht</a> functions, which contain more options than what is described here.</p><pre><code class="language-julia"># machine information for reproducibility
 versioninfo()</code></pre><pre><code class="language-none">Julia Version 1.5.0
 Commit 96786e22cc (2020-08-01 23:44 UTC)
 Platform Info:
@@ -37,8 +37,9 @@ readdir()</code></pre><pre><code class="language-none">pwd() = &quot;/Users/bion
 
 
 
-8-element Array{String,1}:
+9-element Array{String,1}:
  &quot;.DS_Store&quot;
+ &quot;README.md&quot;
  &quot;covariates.txt&quot;
  &quot;normal.bed&quot;
  &quot;normal.bim&quot;
@@ -54,27 +55,27 @@ mses = cross_validate(&quot;normal&quot;, 1:20)
 # mses = cross_validate(&quot;normal&quot;, &quot;covariates.txt&quot;, 1:20) # include additional covariates in separate file
 # mses = cross_validate(&quot;phenotypes.txt&quot;, &quot;normal&quot;, &quot;covariates.txt&quot;, 1:20) # when phenotypes are stored separately</code></pre><pre><code class="language-none">Crossvalidation Results:
 	k	MSE
-	1	1404.4417384206977
-	2	872.9331592454502
-	3	698.5274776175538
-	4	569.9944549338388
-	5	477.08400058967334
-	6	432.4191305742031
-	7	366.38930926920193
-	8	334.4676050445665
-	9	340.4382111722383
-	10	344.72434953866906
-	11	349.676045611259
-	12	353.4843907907301
-	13	358.8086990554361
-	14	366.1270891338698
-	15	365.3432769681646
-	16	370.71742242027653
-	17	370.90059148757933
-	18	382.151936768469
-	19	383.4631541346132
-	20	387.6476102628774
-argmin(mses) = 8</code></pre><h3 id="Step-2:-Run-IHT-on-best-k"><a class="docs-heading-anchor" href="#Step-2:-Run-IHT-on-best-k">Step 2: Run IHT on best k</a><a id="Step-2:-Run-IHT-on-best-k-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Run-IHT-on-best-k" title="Permalink"></a></h3><p>According to cross validation, <code>k = 8</code> achieves the minimum MSE. Thus we run IHT on the full dataset.</p><pre><code class="language-julia">result = iht(&quot;normal&quot;, 8)</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.2.0                  ****
+	1	1408.9557521114687
+	2	862.7203844607984
+	3	680.8301874600056
+	4	557.4855837639612
+	5	464.8829558089964
+	6	406.2939256668324
+	7	353.51301550648583
+	8	319.7246407718893
+	9	330.61634612617485
+	10	333.0672716462795
+	11	342.3256426055285
+	12	350.3298734086273
+	13	348.1704138912411
+	14	346.69570733633515
+	15	354.3537342994825
+	16	357.8427219980141
+	17	365.61096068785577
+	18	361.3342044625832
+	19	367.01356167023937
+	20	371.3741015581086
+argmin(mses) = 8</code></pre><h3 id="Step-2:-Run-IHT-on-best-k"><a class="docs-heading-anchor" href="#Step-2:-Run-IHT-on-best-k">Step 2: Run IHT on best k</a><a id="Step-2:-Run-IHT-on-best-k-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Run-IHT-on-best-k" title="Permalink"></a></h3><p>According to cross validation, <code>k = 8</code> achieves the minimum MSE. Thus we run IHT on the full dataset.</p><pre><code class="language-julia">result = iht(&quot;normal&quot;, 8)</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.3.2                  ****
 ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
 ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
 ****                                                            ****
@@ -102,7 +103,7 @@ Iteration 5: tol = 8.430366413828275e-6
 
 IHT estimated 7 nonzero SNP predictors and 1 non-genetic predictors.
 
-Compute time (sec):     0.0843820571899414
+Compute time (sec):     0.0783851146697998
 Final loglikelihood:    -1627.2792448761559
 Iterations:             5
 
@@ -182,7 +183,7 @@ writedlm(&quot;sim.phenotypes.txt&quot;, y)</code></pre><div class="admonition i
 # other responses
 # result = iht(&quot;sim&quot;, 10, d=Bernoulli(), l=ProbitLink())     # Logistic regression using ProbitLink
 # result = iht(&quot;sim&quot;, 10, d=Poisson(), l=LogLink())          # Poisson regression using canonical link
-# result = iht(&quot;sim&quot;, 10, d=NegativeBinomial(), l=LogLink()) # Negative Binomial regression using canonical link</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.2.0                  ****
+# result = iht(&quot;sim&quot;, 10, d=NegativeBinomial(), l=LogLink()) # Negative Binomial regression using canonical link</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.3.2                  ****
 ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
 ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
 ****                                                            ****
@@ -247,7 +248,7 @@ Iteration 42: tol = 9.734617909701182e-5
 
 IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
 
-Compute time (sec):     0.26169586181640625
+Compute time (sec):     0.2472858428955078
 Final loglikelihood:    -331.6518739156732
 Iterations:             42
 
@@ -284,7 +285,7 @@ rm(&quot;sim.bed&quot;, force=true)
 rm(&quot;sim.bim&quot;, force=true)
 rm(&quot;sim.fam&quot;, force=true)
 rm(&quot;sim.covariates.txt&quot;, force=true)
-rm(&quot;sim.phenotypes.txt&quot;, force=true)</code></pre><h2 id="Example-4:-Running-IHT-on-general-matrices"><a class="docs-heading-anchor" href="#Example-4:-Running-IHT-on-general-matrices">Example 4: Running IHT on general matrices</a><a id="Example-4:-Running-IHT-on-general-matrices-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4:-Running-IHT-on-general-matrices" title="Permalink"></a></h2><p>To run IHT on genotypes in VCF files, or other general data, one must call <code>fit</code> and <code>cv_iht</code> directly. These functions are designed to work on <code>AbstractArray{T, 2}</code> type where <code>T</code> is a <code>Float64</code> or <code>Float32</code>. Thus, one must first import the data, and then call <code>fit</code> and <code>cv_iht</code> on it. Note the vector of 1s (intercept) shouldn&#39;t be included in the design matrix itself, as it will be automatically included.</p><div class="admonition is-success"><header class="admonition-header">Tip</header><div class="admonition-body"><p>Check out <a href="https://github.com/OpenMendel/VCFTools.jl">VCFTools.jl</a> to learn how to import VCF data.</p></div></div><p>First we simulate some count response using the model:</p><p class="math-container">\[y_i \sim \rm Poisson(\mathbf{x}_i^T \boldsymbol\beta)\]</p><p class="math-container">\[x_{ij} \sim \rm Normal(0, 1)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 0.3)\]</p><pre><code class="language-julia">n = 1000             # number of samples
+rm(&quot;sim.phenotypes.txt&quot;, force=true)</code></pre><h2 id="Example-4:-Running-IHT-on-general-matrices"><a class="docs-heading-anchor" href="#Example-4:-Running-IHT-on-general-matrices">Example 4: Running IHT on general matrices</a><a id="Example-4:-Running-IHT-on-general-matrices-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4:-Running-IHT-on-general-matrices" title="Permalink"></a></h2><p>To run IHT on genotypes in VCF files, or other general data, one must call <code>fit_iht</code> and <code>cv_iht</code> directly. These functions are designed to work on <code>AbstractArray{T, 2}</code> type where <code>T</code> is a <code>Float64</code> or <code>Float32</code>. Thus, one must first import the data, and then call <code>fit_iht</code> and <code>cv_iht</code> on it. Note the vector of 1s (intercept) shouldn&#39;t be included in the design matrix itself, as it will be automatically included.</p><div class="admonition is-success"><header class="admonition-header">Tip</header><div class="admonition-body"><p>Check out <a href="https://github.com/OpenMendel/VCFTools.jl">VCFTools.jl</a> to learn how to import VCF data.</p></div></div><p>First we simulate some count response using the model:</p><p class="math-container">\[y_i \sim \rm Poisson(\mathbf{x}_i^T \boldsymbol\beta)\]</p><p class="math-container">\[x_{ij} \sim \rm Normal(0, 1)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 0.3)\]</p><pre><code class="language-julia">n = 1000             # number of samples
 p = 10000            # number of SNPs
 k = 10               # 9 causal predictors + intercept
 d = Poisson          # Response follows Poisson distribution (count data)
@@ -328,7 +329,7 @@ mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());</code></pre><pre><code
 	18	655.3952109246139
 	19	652.4915677346953
 	20	561.4237250226573</code></pre><pre><code class="language-julia"># run IHT on best k (achieved at k = 5)
-result = fit(y, x, k=argmin(mses), d=Poisson(), l=LogLink())</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.2.0                  ****
+result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.3.2                  ****
 ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
 ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
 ****                                                            ****
@@ -372,7 +373,7 @@ Iteration 21: tol = 8.565816720868677e-5
 
 IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
 
-Compute time (sec):     0.0818638801574707
+Compute time (sec):     0.08089709281921387
 Final loglikelihood:    -2335.176167840737
 Iterations:             21
 
@@ -455,12 +456,12 @@ clamp!(μ, -20, 20)
 prob = 1 ./ (1 .+ μ ./ r)
 y = [rand(d(r, i)) for i in prob] #number of failures before r success occurs
 y = Float64.(y);</code></pre><pre><code class="language-julia">#run IHT without groups
-ungrouped = fit(y, x_float, k=15, d=NegativeBinomial(), l=LogLink(), verbose=false)
+ungrouped = fit_iht(y, x_float, k=15, d=NegativeBinomial(), l=LogLink(), verbose=false)
 
 #run doubly sparse (group) IHT by specifying maximum number of SNPs for each group (in order)
 max_group_snps = ones(Int, num_blocks)
 max_group_snps[true_groups] .= collect(1:5)
-variable_group = fit(y, x_float, d=NegativeBinomial(), l=LogLink(), k=max_group_snps, J=5, group=g, verbose=false);</code></pre><p><strong>Conclusion:</strong> As seen below, ungroup IHT actually found 1 more SNPs than grouped IHT. </p><pre><code class="language-julia">#check result
+variable_group = fit_iht(y, x_float, d=NegativeBinomial(), l=LogLink(), k=max_group_snps, J=5, group=g, verbose=false);</code></pre><pre><code class="language-julia">#check result
 correct_position = findall(!iszero, true_b)
 compare_model = DataFrame(
     position = correct_position,
@@ -489,7 +490,7 @@ rm(&quot;tmp.bed&quot;, force=true)</code></pre><pre><code class="language-none"
   12 │     9491        0.2         0.0            0.0
   13 │     9493        0.2         0.183659       0.175211
   14 │     9494        0.2         0.117548       0.112946
-  15 │     9499       -0.2         0.0            0.0</code></pre><h2 id="Example-6:-Linear-Regression-with-prior-weights"><a class="docs-heading-anchor" href="#Example-6:-Linear-Regression-with-prior-weights">Example 6: Linear Regression with prior weights</a><a id="Example-6:-Linear-Regression-with-prior-weights-1"></a><a class="docs-heading-anchor-permalink" href="#Example-6:-Linear-Regression-with-prior-weights" title="Permalink"></a></h2><p>In this example, we show how to include (predetermined) prior weights for each SNP. You can check out <a href="https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf">our paper</a> for references of why/how to choose these weights. In this case, we mimic our paper and randomly set <span>$10\%$</span> of all SNPs to have a weight of <span>$2.0$</span>. Other predictors have weight of <span>$1.0$</span>. All causal SNPs have weights of <span>$2.0$</span>. Under this scenario, SNPs with weight <span>$2.0$</span> is twice as likely to enter the model identified by IHT. </p><p>Our model is simulated as:</p><p class="math-container">\[y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i\]</p><p class="math-container">\[x_{ij} \sim \rm Binomial(2, \rho_j)\]</p><p class="math-container">\[\rho_j \sim \rm Uniform(0, 0.5)\]</p><p class="math-container">\[\epsilon_i \sim \rm N(0, 1)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 0.25)\]</p><pre><code class="language-julia">d = Normal
+  15 │     9499       -0.2         0.0            0.0</code></pre><p><strong>Conclusion:</strong> Ungroup IHT actually found 1 more SNPs than grouped IHT. </p><h2 id="Example-6:-Linear-Regression-with-prior-weights"><a class="docs-heading-anchor" href="#Example-6:-Linear-Regression-with-prior-weights">Example 6: Linear Regression with prior weights</a><a id="Example-6:-Linear-Regression-with-prior-weights-1"></a><a class="docs-heading-anchor-permalink" href="#Example-6:-Linear-Regression-with-prior-weights" title="Permalink"></a></h2><p>In this example, we show how to include (predetermined) prior weights for each SNP. You can check out <a href="https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf">our paper</a> for references of why/how to choose these weights. In this case, we mimic our paper and randomly set <span>$10\%$</span> of all SNPs to have a weight of <span>$2.0$</span>. Other predictors have weight of <span>$1.0$</span>. All causal SNPs have weights of <span>$2.0$</span>. Under this scenario, SNPs with weight <span>$2.0$</span> is twice as likely to enter the model identified by IHT. </p><p>Our model is simulated as:</p><p class="math-container">\[y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i\]</p><p class="math-container">\[x_{ij} \sim \rm Binomial(2, \rho_j)\]</p><p class="math-container">\[\rho_j \sim \rm Uniform(0, 0.5)\]</p><p class="math-container">\[\epsilon_i \sim \rm N(0, 1)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 0.25)\]</p><pre><code class="language-julia">d = Normal
 l = IdentityLink()
 n = 1000
 p = 10000
@@ -521,8 +522,8 @@ w[correct_position] .= 2.0
 one_tenth = round(Int, p/10)
 idx = rand(1:p, one_tenth)
 w[idx] .= 2.0; #randomly set ~1/10 of all predictors to 2</code></pre><pre><code class="language-julia">#run weighted and unweighted IHT
-unweighted = fit(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false)
-weighted   = fit(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false, weight=w)
+unweighted = fit_iht(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false)
+weighted   = fit_iht(y, X, k=10, d=Normal(), l=IdentityLink(), verbose=false, weight=w)
 
 #check result
 compare_model = DataFrame(
@@ -547,4 +548,4 @@ rm(&quot;tmp.bed&quot;, force=true)</code></pre><pre><code class="language-none"
    7 │     6378  -0.0155173    0.0        0.0
    8 │     7007  -0.123301     0.0        0.0
    9 │     7063   0.0183886    0.0        0.0
-  10 │     7995  -0.102122     0.0       -0.142201</code></pre><p><strong>Conclusion</strong>: weighted IHT found 2 extra predictor than non-weighted IHT.</p><h2 id="Other-examples-and-functionalities"><a class="docs-heading-anchor" href="#Other-examples-and-functionalities">Other examples and functionalities</a><a id="Other-examples-and-functionalities-1"></a><a class="docs-heading-anchor-permalink" href="#Other-examples-and-functionalities" title="Permalink"></a></h2><p>Other examples explored in our manuscript has <a href="https://github.com/biona001/MendelIHT.jl/tree/master/figures">reproducible code</a>. </p><p>Additional features are available as optional parameters in the <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31">fit</a> function, but they should be treated as <strong>experimental</strong> features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting_started/">« Getting Started</a><a class="docs-footer-nextpage" href="../math/">Mathematical Details »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 3 January 2021 22:45">Sunday 3 January 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  10 │     7995  -0.102122     0.0       -0.142201</code></pre><p><strong>Conclusion</strong>: weighted IHT found 2 extra predictor than non-weighted IHT.</p><h2 id="Other-examples-and-functionalities"><a class="docs-heading-anchor" href="#Other-examples-and-functionalities">Other examples and functionalities</a><a id="Other-examples-and-functionalities-1"></a><a class="docs-heading-anchor-permalink" href="#Other-examples-and-functionalities" title="Permalink"></a></h2><p>Other examples explored in our manuscript has <a href="https://github.com/biona001/MendelIHT.jl/tree/master/figures">reproducible code</a>. </p><p>Additional features are available as optional parameters in the <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31">fit_iht</a> function, but they should be treated as <strong>experimental</strong> features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting_started/">« Getting Started</a><a class="docs-footer-nextpage" href="../math/">Mathematical Details »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 7 January 2021 08:50">Thursday 7 January 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
