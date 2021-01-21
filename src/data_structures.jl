@@ -1,5 +1,5 @@
 """
-Object to contain intermediate variables and temporary arrays. Used for cleaner code in L0_reg
+Object to contain intermediate variables and temporary arrays for single trait IHT
 """
 mutable struct IHTVariable{T <: Float}
     b      :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
@@ -26,7 +26,7 @@ mutable struct IHTVariable{T <: Float}
     μ      :: Vector{T}     # mean of the current model: μ = g^{-1}(xb)
 end
 
-function IHTVariables(x::Union{SnpArray, AbstractMatrix}, z::AbstractVecOrMat{T},
+function IHTVariables(x::AbstractMatrix, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}},
     group::AbstractVector{Int}, weight::AbstractVector{T}
     ) where T <: Float

@@ -58,7 +58,7 @@ end
 
 Update the mean (μ) using the linear predictor `xb` with link `l`.
 """
-function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
+function update_μ!(μ::AbstractVecOrMat{T}, xb::AbstractVecOrMat{T}, l::Link) where {T <: Float}
     @inbounds for i in eachindex(μ)
         μ[i] = linkinv(l, xb[i])
     end
@@ -595,13 +595,13 @@ end
     A_mul_B!(C1, C2, A1, A2, B1, B2)
 
 Linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
-where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Matrix{Float}`. 
+where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Array{T, 2}`. 
 
 For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
 A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
 function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
+    A1::AbstracMatrix{T}, A2::AbstractVecOrMat{T},
     B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
     mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
@@ -618,13 +618,13 @@ end
     At_mul_B!(C1, C2, A1, A2, B1, B2)
 
 Linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
-where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Matrix{Float}`. 
+where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Array{T, 2}`. 
 
 For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
 A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
 function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, 
-    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
+    A1::AbstracMatrix{T}, A2::AbstractVecOrMat{T},
     B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
     mul!(C1, Transpose(A1), B1) # custom matrix-vector multiplication
     LinearAlgebra.mul!(C2, Transpose(A2), B2)
