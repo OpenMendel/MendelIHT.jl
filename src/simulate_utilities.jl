@@ -239,6 +239,62 @@ function simulate_random_response(x::AbstractMatrix, k::Int,
 
     return y, true_b, correct_position
 end
+"""
+    simulate_random_response(x, k, traits)
+
+Simulates a multivariate Gaussian random response vector `y` with `trait` traits
+assuming `k` non-zero `β` for each column of `x`. The covariance matrix `Σ` is
+positive definite and symmetric.
+
+# Arguments
+- `x`: Design matrix
+- `k`: the true number of predictors (for each column of `x`)
+- `traits`: Number of traits
+
+# Outputs
+- `Y`: Response matrix where each row is sampled from a multivariate normal with mean `μ[i] = X[i, :] * true_b` and variance `Σ`
+- `Σ`: the symmetric, positive definite covariance matrix used
+- `true_b`: A sparse matrix containing true beta values. Each column has `k` non-zero position.
+- `correct_position`: Non-zero indices of `true_b`
+"""
+function simulate_random_response(x::AbstractMatrix, k::Int, traits::Int)
+    n, p = size(x)
+    d = MvNormal
+
+    #simulate a random model β
+    true_b = zeros(p, traits)
+    for i in 1:traits
+        true_b[1:k, i] = randn(k)
+        shuffle!(@view(true_b[:, i]))
+    end
+    correct_position = findall(x -> x != 0, true_b)
+
+    # simulate random covariance matrix
+    Σ = random_covariance_matrix(traits)
+
+    # simulate multivariate normal phenotype for each sample
+    μ = x * true_b
+
+    # simulate response
+    Y = zeros(n, traits)
+    for i in 1:n
+        μi = @view(μ[i, :])
+        Y[i, :] = rand(d(μi, Σ))
+    end
+
+    return Y, Σ, true_b, correct_position
+end
+
+"""
+    random_covariance_matrix(n::Int)
+
+Generates a positive definite, symmetric matrix. 
+"""
+function random_covariance_matrix(n::Int)
+    x = rand(n, n)
+    xsym = 0.5(x + x') # make x symmetric
+    return xsym + n*I # diagonally dominant matrices are positive definite
+end
 
 """
     adhoc_add_correlation!(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})

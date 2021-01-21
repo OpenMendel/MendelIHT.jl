@@ -25,6 +25,7 @@ module MendelIHT
     export std_reciprocal, save_prev!, naive_impute
     export simulate_random_snparray, simulate_correlated_snparray
     export make_bim_fam_files, simulate_random_response, adhoc_add_correlation
+    export random_covariance_matrix
 
     # IHT will only work on single/double precision floats!
     const Float = Union{Float64,Float32}

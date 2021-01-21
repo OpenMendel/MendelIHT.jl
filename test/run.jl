@@ -924,3 +924,48 @@ cd("/Users/biona001/.julia/dev/MendelIHT/data")
 plinkfile = "normal"
 iht(plinkfile, 10)
 cv_iht(plinkfile, 1:20)
+
+
+
+# simulate multivariate normal
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using StatsBase
+using LinearAlgebra
+using GLM
+using Test
+using Random
+
+d = MvNormal
+n = 100
+p = 1000
+k = 3
+traits = 2
+
+# random design matrix
+x = rand(0:2, n, p)
+
+#simulate a random model β
+true_b = zeros(p, traits)
+for i in 1:traits
+    true_b[1:k, i] = randn(k)
+    shuffle!(@view(true_b[:, i]))
+end
+correct_position = findall(x -> x != 0, true_b)
+
+# simulate random covariance matrix
+Σ = random_covariance_matrix(traits)
+
+# simulate multivariate normal phenotype for each sample
+μ = x * true_b
+
+# simulate response
+Y = zeros(n, traits)
+for i in 1:n
+    μi = @view(μ[i, :])
+    Y[i, :] = rand(d(μi, Σ))
+end
