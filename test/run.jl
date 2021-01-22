@@ -1052,7 +1052,8 @@ prob = GLM.linkinv.(l, xla * true_b .+ z * true_c)
 y = [rand(d(i)) for i in prob]
 y = Float64.(y); # turn y into floating point numbers
 
-fit_iht(y, xla, z)
+result = fit_iht(y, xla, z)
+[true_b[correct_position] result.beta[correct_position]] # compare IHT's result with answer
 
 
 

@@ -40,29 +40,32 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
-    deviance(v::IHTVariable{T, M})
-
+    deviance(d, y, μ)
 Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian case) 
-
 Each individual sqared deviance residual is evaluated using `devresid`
 which is implemented in GLM.jl
 """
-function deviance(v::IHTVariable{T, M}) where {T <: Float, M}
-    d = v.d
-    y = v.y
-    μ = v.μ
+function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
     dev = zero(T)
     @inbounds for i in eachindex(y)
         dev += devresid(d, y[i], μ[i])
     end
     return dev
 end
+deviance(v::IHTVariable{T, M}) where {T <: Float, M} = 
+    MendelIHT.deviance(v.d, v.y, v.μ)
 
 """
-    update_μ!(v::IHTVariable{T, M})
+    update_μ!(μ, xb, l)
 
 Update the mean (μ) using the linear predictor `xb` with link `l`.
 """
+function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
+    @inbounds for i in eachindex(μ)
+        μ[i] = linkinv(l, xb[i])
+    end
+end
+
 function update_μ!(v::IHTVariable{T, M}) where {T <: Float, M}
     μ = v.μ
     xb = v.xb
