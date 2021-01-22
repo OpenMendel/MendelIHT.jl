@@ -1,15 +1,17 @@
 """
-    loglikelihood(d::UnivariateDistribution, y::AbstractVector, μ::AbstractVector)
+    loglikelihood(v::IHTVariable{T, M})
 
 Calculates the loglikelihood of observing `y` given mean `μ = E(y) = g^{-1}(xβ)`
-and some distribution `d`. 
+and some univariate distribution `d`. 
 
 Note that loglikelihood is the sum of the logpdfs for each observation. 
 """
-function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
-                       μ::AbstractVector{T}) where {T <: Float}
+function loglikelihood(v::IHTVariable{T, M}) where {T <: Float, M}
+    d = v.d 
+    y = v.y
+    μ = v.μ
     logl = zero(T)
-    ϕ = MendelIHT.deviance(d, y, μ) / length(y) # variance in the case of normal
+    ϕ = MendelIHT.deviance(v) / length(y) # variance in the case of normal
     @inbounds for i in eachindex(y)
         logl += loglik_obs(d, y[i], μ[i], 1, ϕ)
     end
@@ -38,14 +40,17 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
-    deviance(d, y, μ)
+    deviance(v::IHTVariable{T, M})
 
 Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian case) 
 
 Each individual sqared deviance residual is evaluated using `devresid`
 which is implemented in GLM.jl
 """
-function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
+function deviance(v::IHTVariable{T, M}) where {T <: Float, M}
+    d = v.d
+    y = v.y
+    μ = v.μ
     dev = zero(T)
     @inbounds for i in eachindex(y)
         dev += devresid(d, y[i], μ[i])
@@ -54,25 +59,30 @@ function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractV
 end
 
 """
-    update_μ!(μ, xb, l)
+    update_μ!(v::IHTVariable{T, M})
 
 Update the mean (μ) using the linear predictor `xb` with link `l`.
 """
-function update_μ!(μ::AbstractVecOrMat{T}, xb::AbstractVecOrMat{T}, l::Link) where {T <: Float}
+function update_μ!(v::IHTVariable{T, M}) where {T <: Float, M}
+    μ = v.μ
+    xb = v.xb
+    zc = v.zc
+    l = v.l
     @inbounds for i in eachindex(μ)
-        μ[i] = linkinv(l, xb[i])
+        μ[i] = linkinv(l, xb[i] + zc[i]) #genetic + nongenetic contributions
     end
 end
 
 """
-This function update the linear predictors `xb` with the new proposed b. We clamp the max
-value of each entry to (-20, 20) because certain distributions (e.g. Poisson) have exponential
-link functions, which causes overflow.
+    update_xb!(v::IHTVariable{T, M})
+
+Updates the linear predictors `xb` and `zc` with the new proposed `b` and `c`.
+We clamp the max value of each entry to (-20, 20) because certain distributions
+(e.g. Poisson) have exponential link functions, which causes overflow.
 """
-function update_xb!(v::IHTVariable{T}, x::AbstractMatrix, 
-                    z::AbstractVecOrMat{T}) where {T <: Float}
-    copyto!(v.xk, @view(x[:, v.idx]))
-    A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
+function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
+    copyto!(v.xk, @view(v.x[:, v.idx]))
+    A_mul_B!(v.xb, v.zc, v.xk, v.z, view(v.b, v.idx), v.c)
     clamp!(v.xb, -20, 20)
     clamp!(v.zc, -20, 20)
 end
@@ -81,14 +91,14 @@ end
 Wrapper function to decide whether to use Newton or MM algorithm for estimating 
 the nuisance paramter of negative binomial regression. 
 """
-function mle_for_r(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFloat,
-                   est_r::Symbol) where {T <: Float} 
-    if est_r == :MM
-        return update_r_MM(y, μ, r)
-    elseif est_r == :Newton
-        return update_r_newton(y, μ, r)
+function mle_for_r(v::IHTVariable{T, M}) where {T <: Float, M}
+    method = v.est_r
+    if method == :MM
+        return update_r_MM(v)
+    elseif method == :Newton
+        return update_r_newton(v)
     else
-        error("Only support method is Newton or MM, but got $est_r")
+        error("Only support method is Newton or MM, but got $method")
     end
 
     return nothing
@@ -98,7 +108,10 @@ end
 Performs maximum loglikelihood estimation of the nuisance paramter for negative 
 binomial model using MM's algorithm. 
 """
-function update_r_MM(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFloat) where {T <: Float}
+function update_r_MM(v::IHTVariable{T, M}) where {T <: Float, M}
+    y = v.y
+    μ = v.μ
+    r = v.d.r # estimated r in previous iteration
     num = zero(T)
     den = zero(T)
     for i in eachindex(y)
@@ -117,8 +130,11 @@ Performs maximum loglikelihood estimation of the nuisance paramter for negative
 binomial model using Newton's algorithm. Will run a maximum of `maxIter` and
 convergence is defaulted to `convTol`.
 """
-function update_r_newton(y::AbstractVector{T}, μ::AbstractVector{T}, r::T;
-                   maxIter=100, convTol=T(1.e-6)) where {T <: Float}
+function update_r_newton(v::IHTVariable{T, M};
+    maxIter=100, convTol=T(1.e-6)) where {T <: Float, M}
+    y = v.y
+    μ = v.μ
+    r = v.d.r # estimated r in previous iteration
 
     function first_derivative(r::T)
         tmp(yi, μi) = -(yi+r)/(μi+r) - log(μi+r) + 1 + log(r) + digamma(r+yi) - digamma(r)
@@ -134,7 +150,7 @@ function update_r_newton(y::AbstractVector{T}, μ::AbstractVector{T}, r::T;
         return MendelIHT.loglikelihood(NegativeBinomial(r, T(0.5)), y, μ)
     end
 
-    function newton_increment(r::Real)
+    function newton_increment(r::T)
         # use gradient descent if hessian not positive definite
         dx  = first_derivative(r)
         dx2 = second_derivative(r)
@@ -189,11 +205,9 @@ Calculates the score (gradient) for different GLMs.
 
 W is a diagonal matrix where w[i, i] = dμ/dη / var(μ). 
 """
-function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
-                x::AbstractMatrix, z::AbstractVecOrMat{T}, 
-                y::AbstractVector{T}) where {T <: Float}
+function score!(v::IHTVariable{T}) where {T <: Float, M}
+    d, l, x, z, y = v.d, v.l, v.x, v.z, v.y
     @inbounds for i in eachindex(y)
-        # η = clamp(v.xb[i] + v.zc[i], -20, 20)
         η = v.xb[i] + v.zc[i]
         w = mueta(l, η) / glmvar(d, v.μ[i])
         v.r[i] = w * (y[i] - v.μ[i])
@@ -204,8 +218,10 @@ end
 """
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Union{Int, Vector{Int}}, 
-                       full_grad::Vector{T}) where {T <: Float}
+function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
+    J = v.J
+    k = v.k == 0 ? v.ks : v.k
+    full_grad = v.grad
     lb = length(v.b)
     lw = length(v.weight)
     lg = length(v.group)
@@ -270,8 +286,8 @@ function init_iht_indices!(v::IHTVariable{T}, x::AbstractMatrix,
     mul!(v.zc, z, v.c)
 
     # update mean vector and use them to compute score (gradient)
-    update_μ!(v.μ, v.xb + v.zc, l)
-    score!(d, l, v, x, z, y)
+    update_μ!(v)
+    score!(v)
 
     # choose top entries based on largest gradient
     if typeof(k) == Int 
@@ -574,9 +590,11 @@ Computes the best step size η = v'v / v'Jv
 Here v is the score and J is the expected information matrix, which is 
 computed by J = g'(xb) / var(μ), assuming dispersion is 1
 """
-function iht_stepsize(v::IHTVariable{T}, z::AbstractVecOrMat{T}, 
-                      d::UnivariateDistribution, l::Link) where {T <: Float}
-    
+function iht_stepsize(v::IHTVariable{T, M}) where {T <: Float, M}
+    z = v.z # non genetic covariates
+    d = v.d # distribution
+    l = v.l # link function
+
     # first store relevant components of gradient
     copyto!(v.gk, view(v.df, v.idx))
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
@@ -595,22 +613,15 @@ end
     A_mul_B!(C1, C2, A1, A2, B1, B2)
 
 Linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
-where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Array{T, 2}`. 
+where `typeof(A1) <: AbstractMatrix{T}` and A2 is a dense `Array{T, 2}`. 
 
 For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
 A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
 function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::AbstracMatrix{T}, A2::AbstractVecOrMat{T},
+    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T},
     B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
     mul!(C1, A1, B1)
-    LinearAlgebra.mul!(C2, A2, B2)
-end
-
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T}, B1::AbstractVector{T},
-    B2::AbstractVector{T}) where {T <: Float}
-    LinearAlgebra.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
 end
 
@@ -618,22 +629,15 @@ end
     At_mul_B!(C1, C2, A1, A2, B1, B2)
 
 Linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
-where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Array{T, 2}`. 
+where `typeof(A1) <: AbstractMatrix{T}` and A2 is a dense `Array{T, 2}`. 
 
 For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
 A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
 function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, 
-    A1::AbstracMatrix{T}, A2::AbstractVecOrMat{T},
+    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T},
     B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
     mul!(C1, Transpose(A1), B1) # custom matrix-vector multiplication
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
-end
-
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T}, B1::AbstractVector{T},
-    B2::AbstractVector{T}) where {T <: Float}
-    LinearAlgebra.mul!(C1, Transpose(A1), B1)
     LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 

@@ -1,7 +1,18 @@
 """
 Object to contain intermediate variables and temporary arrays for single trait IHT
 """
-mutable struct IHTVariable{T <: Float}
+mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
+    # data and pre-specified parameters for fitting
+    x      :: M                      # design matrix (genotypes) of subtype AbstractMatrix{T}
+    y      :: Vector{T}              # response vector (phenotypes)
+    z      :: Matrix{T}              # other non-genetic covariates 
+    k      :: Int                    # sparsity parameter (this is set to 0 if doubly sparse group IHT requires different k for each group)
+    J      :: Int                    # Number of non-zero groups
+    ks     :: Vector{Int}            # Sparsity level for each group. This is a empty vector if each group has same sparsity.
+    d      :: UnivariateDistribution # Distribution for phenotypes
+    l      :: Link                   # link function linking the mean μ with linear predictors xb via l(μ) = xb
+    est_r  :: Symbol                 # Can be `:MM`, `:Newton`, or `:None`, specifying method used to estimate nuisance parameter in neg bin regression
+    # internal IHT variables
     b      :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
     b0     :: Vector{T}     # estimated model for genotype matrix in the previous iteration
     xb     :: Vector{T}     # vector that holds x*b
@@ -23,13 +34,14 @@ mutable struct IHTVariable{T <: Float}
     zdf2   :: Vector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
     group  :: Vector{Int}   # vector denoting group membership
     weight :: Vector{T}     # weights (typically minor allele freq) that will scale b prior to projection
-    μ      :: Vector{T}     # mean of the current model: μ = g^{-1}(xb)
+    μ      :: Vector{T}     # mean of the current model: μ = l^{-1}(xb)
+    grad   :: Vector{T}     # storage for full gradient
 end
 
-function IHTVariables(x::AbstractMatrix, z::AbstractVecOrMat{T},
-    y::AbstractVector{T}, J::Int, k::Union{Int, Vector{Int}},
-    group::AbstractVector{Int}, weight::AbstractVector{T}
-    ) where T <: Float
+function IHTVariables(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
+    J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
+    group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol
+    ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
     p = size(x, 2)
@@ -53,8 +65,10 @@ function IHTVariables(x::AbstractMatrix, z::AbstractVecOrMat{T},
 
     if typeof(k) == Int64
         columns = k
+        ks = Int[]
     else
         columns = sum(k)
+        ks, k = k, 0
     end
 
     b      = zeros(T, p)
@@ -77,8 +91,11 @@ function IHTVariables(x::AbstractMatrix, z::AbstractVecOrMat{T},
     zc0    = zeros(T, n)
     zdf2   = zeros(T, n)
     μ      = zeros(T, n)
+    storage = zeros(T, p + q)
 
-    return IHTVariable{T}(b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, weight, μ)
+    return IHTVariable{T, M}(
+        x, y, z, k, J, ks, d, l, est_r, 
+        b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, weight, μ, storage)
 end
 
 """
