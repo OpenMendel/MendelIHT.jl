@@ -23,7 +23,6 @@ of predictors for group `i`.
 + `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)
 + `debias`: boolean indicating whether we debias at each iteration (see paper)
 + `verbose`: boolean indicating whether we want to print results if model does not converge.
-+ `init`: boolean indicating whether we want to initialize `β` to sensible values through fitting. This is not efficient yet. 
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
 + `max_step`: is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
@@ -42,7 +41,6 @@ function fit_iht(
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
     verbose   :: Bool = true,          # print informative things
-    init      :: Bool = false,         # not efficient. whether to initialize β to sensible values
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
@@ -78,15 +76,9 @@ function fit_iht(
 
     # Initialize variables. 
     v = IHTVariables(x, z, y, J, k, d, l, group, weight, est_r)# Placeholder variable for cleaner code
-    init_iht_indices!(v, x, z, y, d, l, J, k, group)           # initialize non-zero indices
+    init_iht_indices!(v)                                       # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]))                          # store relevant components of x for first iteration
     debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
-
-    # If requested, compute initial guess for model b
-    if init
-        initialize_beta!(v, y, x, d, l)
-        A_mul_B!(v.xb, v.zc, x, z, v.b, v.c)
-    end
 
     # Begin 'iterative' hard thresholding algorithm
     for iter in 1:max_iter
@@ -127,7 +119,7 @@ function fit_iht(
         end
     end
 
-    return ggIHTResults(tot_time, next_logl, mm_iter, v.b, v.c, J, k, v.group, d)
+    return IHTResult(tot_time, next_logl, mm_iter, v)
 end
 
 fit_iht(y::AbstractVector{T}, x::AbstractMatrix{T}; kwargs...) where T = 

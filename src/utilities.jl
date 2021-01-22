@@ -41,6 +41,7 @@ loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r,
 
 """
     deviance(d, y, μ)
+
 Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian case) 
 Each individual sqared deviance residual is evaluated using `devresid`
 which is implemented in GLM.jl
@@ -150,7 +151,8 @@ function update_r_newton(v::IHTVariable{T, M};
     end
 
     function negbin_loglikelihood(r::T)
-        return MendelIHT.loglikelihood(NegativeBinomial(r, T(0.5)), y, μ)
+        v.d = NegativeBinomial(r, T(0.5))
+        return MendelIHT.loglikelihood(v)
     end
 
     function newton_increment(r::T)
@@ -260,7 +262,7 @@ function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     v.idc .= v.c .!= 0
     
     # if more than J*k entries are selected, randomly choose J*k of them
-    typeof(k) == Int && _choose!(v, J, k) 
+    typeof(k) == Int && _choose!(v) 
 
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
@@ -274,10 +276,14 @@ those indices.
 `J` is the maximum number of active groups, and `k` is the maximum number of
 predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable{T}, x::AbstractMatrix, 
-    z::AbstractVecOrMat{T}, y::Vector{T}, d::UnivariateDistribution, l::Link,
-    J::Int, k::Union{Int, Vector{Int}}, group::Vector
-    ) where {T <: Float}
+function init_iht_indices!(v::IHTVariable{T}) where {T <: Float}
+    z = v.z
+    y = v.y
+    l = v.l
+    J = v.J
+    k = v.k
+    group = v.group
+
     # find the intercept by Newton's method
     ybar = mean(y)
     for iteration = 1:20 
@@ -299,7 +305,7 @@ function init_iht_indices!(v::IHTVariable{T}, x::AbstractMatrix,
         v.idc .= abs.(v.df2) .>= abs(a)
 
         # Choose randomly if more are selected
-        _choose!(v, J, k) 
+        _choose!(v) 
     else
         ldf = length(v.df)
         tmp = [v.df; v.df2]
@@ -316,7 +322,10 @@ end
 if more than J*k entries are selected after projection, randomly select top J*k entries.
 This can happen if entries of b are equal to each other.
 """
-function _choose!(v::IHTVariable{T}, J::Int, sparsity::Int) where {T <: Float}
+function _choose!(v::IHTVariable{T}) where {T <: Float}
+    sparsity = v.k
+    J = v.J
+
     nonzero = sum(v.idx) + sum(v.idc)
     if nonzero > J * sparsity
         z = zero(eltype(v.b))
@@ -644,29 +653,29 @@ function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
     LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
-"""
-    initialize_beta!(v::IHTVariable, y::AbstractVector, x::AbstractMatrix{T}, d::UnivariateDistribution, l::Link)
+# """
+#     initialize_beta!(v::IHTVariable, y::AbstractVector, x::AbstractMatrix{T}, d::UnivariateDistribution, l::Link)
 
-Fits a univariate regression (+ intercept) with each β_i corresponding to `x`'s predictor.
+# Fits a univariate regression (+ intercept) with each β_i corresponding to `x`'s predictor.
 
-Used to find a good starting β. Fitting is done using scoring (newton) algorithm 
-implemented in `GLM.jl`. The intial intercept is separately fitted using in init_iht_indices(). 
+# Used to find a good starting β. Fitting is done using scoring (newton) algorithm 
+# implemented in `GLM.jl`. The intial intercept is separately fitted using in init_iht_indices(). 
 
-Note: this function is quite slow and not memory efficient. 
-"""
-function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::AbstractMatrix{T},
-                          d::UnivariateDistribution, l::Link) where {T <: Float}
-    n, p = size(x)
-    temp_matrix = ones(n, 2)           # n by 2 matrix of the intercept and 1 single covariate
-    temp_glm = initialize_glm_object() # preallocating in a dumb ways
+# Note: this function is quite slow and not memory efficient. 
+# """
+# function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::AbstractMatrix{T},
+#                           d::UnivariateDistribution, l::Link) where {T <: Float}
+#     n, p = size(x)
+#     temp_matrix = ones(n, 2)           # n by 2 matrix of the intercept and 1 single covariate
+#     temp_glm = initialize_glm_object() # preallocating in a dumb ways
 
-    intercept = 0.0
-    for i in 1:p
-        temp_matrix[:, 2] .= x[:, i]
-        temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-        v.b[i] = temp_glm.pp.beta0[2]
-    end
-end
+#     intercept = 0.0
+#     for i in 1:p
+#         temp_matrix[:, 2] .= x[:, i]
+#         temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
+#         v.b[i] = temp_glm.pp.beta0[2]
+#     end
+# end
 
 """
 This function initializes 1 instance of a GeneralizedLinearModel(G<:GlmResp, L<:LinPred, Bool). 

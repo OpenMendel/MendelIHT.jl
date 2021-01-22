@@ -29,7 +29,6 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
 - `folds`: Vector that separates the sample into q disjoint subsets
 - `destin`: Directory where intermediate files will be generated. Directory name must end with `/`.
-- `init`: Boolean indicating whether we should initialize IHT algorithm at a good starting guess
 - `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
 - `debias`: Boolean indicating whether we should debias at each IHT step
 - `verbose`: Whether we want IHT to print meaningful intermediate steps
@@ -43,12 +42,11 @@ function cv_iht(
     l        :: Link = IdentityLink(),
     path     :: AbstractVector{<:Integer} = 1:20,
     q        :: Int64 = 5,
-    est_r    :: Union{Symbol, Nothing} = nothing,
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: AbstractVector{Int} = rand(1:q, size(x, 1)),
     destin   :: String = "./",
-    init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
@@ -66,7 +64,7 @@ function cv_iht(
 
         # validate trained models on test data by computing deviance residuals
         mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y,
-            path, est_r, group=group, weight=weight, destin=destin, init=init,
+            path, est_r, group=group, weight=weight, destin=destin, 
             use_maf=use_maf, debias=debias, verbose=false, parallel=parallel)
     end
 
@@ -101,12 +99,11 @@ function cv_iht_distribute_fold(
     l        :: Link = IdentityLink,
     path     :: AbstractVector{<:Integer} = 1:20,
     q        :: Int64 = 5,
-    est_r    :: Union{Symbol, Nothing} = nothing,
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: AbstractVector{Int} = rand(1:q, size(x, 1)),
     destin   :: String = "./", 
-    init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
@@ -118,10 +115,10 @@ function cv_iht_distribute_fold(
         test_idx  = folds .== fold
         train_idx = .!test_idx
         betas, cs = pfold_train(train_idx, x, z, y, d, l, path, est_r, 
-            group=group, weight=weight, destin=destin, init=init, 
+            group=group, weight=weight, destin=destin, 
             use_maf=use_maf, debias=debias, verbose=false)
         return pfold_validate(test_idx, betas, cs, x, z, y, d, l, path,
-            group=group, weight=weight, destin=destin, init=init,
+            group=group, weight=weight, destin=destin, 
             use_maf=use_maf, debias=debias, verbose=false)
     end
 
@@ -152,10 +149,9 @@ function iht_run_many_models(
     d        :: UnivariateDistribution,
     l        :: Link,
     path     :: AbstractVector{Int},
-    est_r    :: Union{Symbol, Nothing},
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = Float64[],
-    init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
@@ -168,12 +164,10 @@ function iht_run_many_models(
             xla = SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, 
                 impute=true)
             return fit_iht(y, xla, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
-                weight=weight, init=init, use_maf=use_maf, debias=debias,
-                verbose=false)
+                weight=weight, use_maf=use_maf, debias=debias, verbose=false)
         else 
             return fit_iht(y, x, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
-                weight=weight, init=init, use_maf=use_maf, debias=debias,
-                verbose=false)
+                weight=weight, use_maf=use_maf, debias=debias, verbose=false)
         end
     end
 
@@ -198,9 +192,9 @@ This deviance residuals vector is returned
 """
 function train_and_validate(train_idx::BitArray, test_idx::BitArray,
     d::UnivariateDistribution, l::Link, x::SnpArray, z::AbstractVecOrMat{T},
-    y::AbstractVector{T}, path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
+    y::AbstractVector{T}, path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector=Int[], weight::AbstractVector{T}=T[],
-    init::Bool=false, destin::String = "./", use_maf::Bool=false,
+    destin::String = "./", use_maf::Bool=false,
     debias::Bool=false, verbose::Bool=true, parallel::Bool=false
     ) where {T <: Float}
 
@@ -242,7 +236,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
 
             #run IHT on training model with given k
             result = fit_iht(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l,
-                est_r=est_r, group=group_train, weight=weight_train, init=init,
+                est_r=est_r, group=group_train, weight=weight_train, 
                 use_maf=use_maf, debias=debias, verbose=verbose)
 
             # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
@@ -272,9 +266,9 @@ end
 # for general matrix x 
 function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
     l::Link, x::AbstractMatrix{T}, z::AbstractVecOrMat{T}, y::AbstractVector{T}, 
-    path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
+    path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", init::Bool=false, use_maf::Bool=false,
+    destin::String = "./", use_maf::Bool=false,
     debias::Bool=false, verbose::Bool=true, parallel::Bool=false
     ) where {T <: Float}
 
@@ -303,7 +297,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::Univaria
 
         #run IHT on training model with given k
         result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, est_r=est_r,
-            group=group_train, weight=weight_train, init=init, use_maf=use_maf,
+            group=group_train, weight=weight_train, use_maf=use_maf,
             debias=debias, verbose=verbose)
 
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
@@ -326,9 +320,9 @@ be removed upon completion.
 """
 function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, d::UnivariateDistribution, l::Link, 
-    path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
+    path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", init::Bool=false, use_maf::Bool =false,
+    destin::String = "./", use_maf::Bool =false,
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
     verbose::Bool = false
     ) where {T <: Float}
@@ -354,7 +348,7 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
         for i in 1:length(path)
             k = path[i]
             result = fit_iht(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l, 
-                est_r=est_r, group=group, weight=weight, init=init,
+                est_r=est_r, group=group, weight=weight, 
                 use_maf=use_maf, debias=debias, verbose=false)
             betas[:, i] .= result.beta
             cs[:, i] .= result.c
@@ -374,7 +368,7 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractVecOr
     y::AbstractVector{T}, d::UnivariateDistribution, l::Link, 
     path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", init::Bool=false, use_maf::Bool =false,
+    destin::String = "./", use_maf::Bool =false,
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
     verbose::Bool = false
     ) where {T <: Float}
@@ -394,7 +388,7 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractVecOr
     for i in 1:length(path)
         k = path[i]
         result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, group=group,
-            weight=weight, init=init, use_maf=use_maf, debias=debias,
+            weight=weight, use_maf=use_maf, debias=debias,
             est_r=est_r, verbose=false) 
         betas[:, i] .= result.beta
         cs[:, i] .= result.c
@@ -412,7 +406,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
     cs::AbstractMatrix{T}, x::SnpArray, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     d::UnivariateDistribution, l::Link, path::AbstractVector{Int};
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", init::Bool=false, use_maf::Bool = false, 
+    destin::String = "./", use_maf::Bool = false, 
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
     verbose::Bool = false) where {T <: Float}
     
@@ -459,7 +453,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
     cs::AbstractMatrix{T}, x::AbstractMatrix{T}, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, d::UnivariateDistribution, l::Link,
     path::AbstractVector{Int}; group::AbstractVector{Int}=Int[], 
-    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false,
+    weight::AbstractVector{T}=T[], destin::String = "./", 
     use_maf::Bool = false, max_iter::Int = 100, max_step::Int = 3,
     debias::Bool = false, verbose::Bool = false
     ) where {T <: Float}

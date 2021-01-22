@@ -1,19 +1,19 @@
-function test_data()
+function test_data(d, l)
     x = simulate_random_snparray(undef, 1000, 1000)
+    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
     z = ones(1000, 1)
     y = rand(1000)
-    v = IHTVariables(x, z, y, 1, 10, Int[], Float64[]) #J = 1, k = 10
+    v = IHTVariables(xla, z, y, 1, 10, d, l, Int[], Float64[], :none)
 
     return x, z, y, v
 end
 
-function test_correlated_data()
-    x = simulate_correlated_snparray(undef, 1000, 1000)
-    z = ones(1000, 1)
-    y = rand(1000)
-    v = IHTVariables(x, z, y, 1, 10, Int[], Float64[]) #J = 1, k = 10
-
-    return x, z, y, v
+function make_IHTvar(d, μ, y)
+    n = length(μ)
+    v = IHTVariables(rand(n, 1), rand(n, 1), y, 1, 10, d, IdentityLink(),
+        Int[], Float64[], :none) 
+    v.μ = μ
+    return v
 end
 
 @testset "loglikelihood" begin
@@ -21,36 +21,41 @@ end
     d = Normal()
     μ = rand(1000000)
     y = [rand(Normal(μi, 1)) for μi in μ]
+    v = make_IHTvar(d, μ, y) # create IHTVariable for testing
 
-    @test isapprox(MendelIHT.loglikelihood(d, y, μ), sum(logpdf.(Normal.(μ, 1.0), y)), atol=1e-4)
+    @test isapprox(MendelIHT.loglikelihood(v), sum(logpdf.(Normal.(μ, 1.0), y)), atol=1e-4)
 
     d = Bernoulli()
     p = rand(10000)
     y = rand(0.0:1.0, 10000)
+    v = make_IHTvar(d, p, y) # create IHTVariable for testing
 
-    @test isapprox(MendelIHT.loglikelihood(d, y, p), sum(logpdf.(Bernoulli.(p), y)), atol=1e-8)
+    @test isapprox(MendelIHT.loglikelihood(v), sum(logpdf.(Bernoulli.(p), y)), atol=1e-8)
 
     d = Poisson()
     λ = rand(10000)
     y = Float64.(rand(1:100, 10000))
+    v = make_IHTvar(d, λ, y) # create IHTVariable for testing
 
-    @test isapprox(MendelIHT.loglikelihood(d, y, λ), sum(logpdf.(Poisson.(λ), y)), atol=1e-8)
+    @test isapprox(MendelIHT.loglikelihood(v), sum(logpdf.(Poisson.(λ), y)), atol=1e-8)
 
     d = NegativeBinomial()
     p = rand(1000000)
     r = ones(1000000)
     y = Float64.([rand(NegativeBinomial(1.0, p_i)) for p_i in p])
+    v = make_IHTvar(d, p, y) # create IHTVariable for testing
 
-    @test isapprox(MendelIHT.loglikelihood(d, y, p), sum(logpdf.(NegativeBinomial.(r, r ./ (p .+ r)), y)), atol=1e-5)
+    @test isapprox(MendelIHT.loglikelihood(v), sum(logpdf.(NegativeBinomial.(r, r ./ (p .+ r)), y)), atol=1e-5)
 end
 
 @testset "deviance" begin
     Random.seed!(2019)
     # Need more test other than normal distribution!!
-    d = Normal
+    d = Normal()
     y = randn(1000)
     μ = randn(1000)
-    @test sum(abs2, y .- μ) ≈ MendelIHT.deviance(d(), y, μ)
+    v = make_IHTvar(d, μ, y) # create IHTVariable for testing
+    @test sum(abs2, y .- μ) ≈ MendelIHT.deviance(v)
 end
 
 @testset "update_μ!" begin
@@ -86,7 +91,7 @@ end
 
 @testset "update_xb! and check_covariate_supp!" begin
    	Random.seed!(1111)
-    x, z, y, v = test_data()
+    x, z, y, v = test_data(Normal(), IdentityLink())
     v.idx[1:10] .= trues(10)
     v.b .= rand(1000)
     tmp_x = convert(Matrix{Float64}, @view(x[:, v.idx]), center=true, scale=true)
@@ -97,8 +102,7 @@ end
 
     @test size(v.xk, 2) == 10 
 
-    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true, impute=true)
-    MendelIHT.update_xb!(v, xla, z)
+    MendelIHT.update_xb!(v)
 
     @test all(v.xb .≈ tmp_x * v.b[1:10])
     @test all(v.zc .== 0.0)
@@ -112,23 +116,20 @@ end
     Random.seed!(1993)
     d = Normal()
     l = IdentityLink()
-    (x, z, y, v) = test_data()
-    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-    score!(d, l, v, xbm, z, y)
+    (x, z, y, v) = test_data(d, l)
+    score!(v)
 
     @test all(v.df[1:3] .≈ [8.057330896198419; -2.229495636684423; 9.948528223937274])
     @test v.df2[1] ≈ 500.8665816573597
 
-    (x, z, y, v) = test_data()
-    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-    score!(d, l, v, xbm, z, y)
+    (x, z, y, v) = test_data(d, l)
+    score!(v)
 
     @test all(v.df[1:3] .≈ [-12.569757729532215; 8.237144382138629; 9.625154193038197])
     @test v.df2[1] ≈ 503.8433996263735
 
-    (x, z, y, v) = test_data()
-    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-    score!(d, l, v, xbm, z, y)
+    (x, z, y, v) = test_data(d, l)
+    score!(v)
 
     @test all(v.df[1:3] .≈ [-2.2634046444623226; -5.266454260596382; -1.5449038662162529])
     @test v.df2[1] ≈ 507.55935638764254
@@ -137,9 +138,7 @@ end
 @testset "_iht_gradstep" begin
     Random.seed!(1111)
 
-    x, z, y, v = test_data()
-    xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-
+    x, z, y, v = test_data(Normal(), IdentityLink())
     v.b[1:3] .= [1; 2; 3]
     v.df[1:3] .= [1; 2; 3]
     b = copy(v.b)
@@ -147,8 +146,9 @@ end
     J = 1
     k = 2
     η = 0.9
+    v.k = k
 
-    MendelIHT._iht_gradstep(v, η, J, k, [v.df; v.df2]) # this should keep 1 * 2 = 2 elements
+    MendelIHT._iht_gradstep(v, η) # this should keep 1 * 2 = 2 elements
 
     @test v.b[1] ≈ 0.0 # because first entry is smallest, it should be set to 0
     @test v.b[2] ≈ (b + η*df)[2]
@@ -163,30 +163,32 @@ end
     k = 10
 
     Random.seed!(1111)
-    x, z, y, v = test_data()
+    x, z, y, v = test_data(Normal(), IdentityLink())
     v.idx[1:10] .= trues(10)
-    MendelIHT._choose!(v, J, k)
+    MendelIHT._choose!(v)
 
     @test all(v.idx[1:10] .== trues(10))
     @test v.idc[1] == false
 
     v.idx[1:11] .= trues(11)
-    MendelIHT._choose!(v, J, k)
+    MendelIHT._choose!(v)
 
     @test sum(v.idx[1:11]) == 10
 
-    x, z, y, v = test_data()
+    # set k = 1
+    x, z, y, v = test_data(Normal(), IdentityLink())
     v.idc .= true
-    MendelIHT._choose!(v, J, 1)
+    v.k = 1
+    MendelIHT._choose!(v)
 
     @test v.idc[1] == true
     @test sum(v.idc) == 1
     @test sum(v.idx) == 0
 
-    x, z, y, v = test_data()
+    x, z, y, v = test_data(Normal(), IdentityLink())
     v.idc .= true
     v.idx[1:10] .= trues(10)
-    MendelIHT._choose!(v, J, k)
+    MendelIHT._choose!(v)
 
     @test sum(v.idx) + sum(v.idc) == 10
 end
@@ -314,7 +316,7 @@ end
 
 @testset "save_prev!" begin
     Random.seed!(1111)
-    x, z, y, v = test_data()
+    x, z, y, v = test_data(Normal(), IdentityLink())
 
     v.b .= rand(1000)
     v.xb .= rand(1000)
@@ -337,41 +339,41 @@ end
     Random.seed!(1234)
     d = Normal()
     l = canonicallink(d)
-    x, z, y, v = test_data()
+    x, z, y, v = test_data(d, l)
     v.df .= rand(1000)
     v.xk .= rand(1000, 9)
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d, l) ≥ 0
+    @test MendelIHT.iht_stepsize(v) ≥ 0
 
     d = Poisson()
     l = canonicallink(d)
-    x, z, y, v = test_data()
+    x, z, y, v = test_data(d, l)
     v.df .= rand(1000)
     v.xk .= rand(1000, 9)
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d, l) ≥ 0
+    @test MendelIHT.iht_stepsize(v) ≥ 0
 
     d = NegativeBinomial()
     l = LogLink()
-    x, z, y, v = test_data()
+    x, z, y, v = test_data(d, l)
     v.df .= rand(1000)
     v.xk .= rand(1000, 9)
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d, l) ≥ 0
+    @test MendelIHT.iht_stepsize(v) ≥ 0
 
     d = Bernoulli()
     l = canonicallink(d)
-    x, z, y, v = test_data()
+    x, z, y, v = test_data(d, l)
     v.df .= rand(1000)
     v.xk .= rand(1000, 9)
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v, z, d, l) ≥ 0
+    @test MendelIHT.iht_stepsize(v) ≥ 0
 end

@@ -1057,3 +1057,12 @@ result = fit_iht(y, xla, z)
 
 
 
+
+using Revise
+using MendelIHT
+using SnpArrays
+using Random
+using GLM
+using DelimitedFiles
+using Test
+using Distributions

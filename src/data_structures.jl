@@ -5,7 +5,7 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     # data and pre-specified parameters for fitting
     x      :: M                      # design matrix (genotypes) of subtype AbstractMatrix{T}
     y      :: Vector{T}              # response vector (phenotypes)
-    z      :: Matrix{T}              # other non-genetic covariates 
+    z      :: VecOrMat{T}            # other non-genetic covariates 
     k      :: Int                    # sparsity parameter (this is set to 0 if doubly sparse group IHT requires different k for each group)
     J      :: Int                    # Number of non-zero groups
     ks     :: Vector{Int}            # Sparsity level for each group. This is a empty vector if each group has same sparsity.
@@ -100,9 +100,8 @@ end
 
 """
 immutable objects that house results returned from IHT run. 
-The first `g` stands for generalized as in GLM, the second `g` stands for group.
 """
-struct ggIHTResults{T <: Float}
+struct IHTResult{T <: Float}
     time  :: Union{Float64, Float32}
     logl  :: T
     iter  :: Int64
@@ -112,14 +111,14 @@ struct ggIHTResults{T <: Float}
     k     :: Union{Int64, Vector{Int}}
     group :: Vector{Int64}
     d     :: UnivariateDistribution
-    # ggIHTResults{T,V}(time, logl, iter, beta, c, J, k, group) where {T <: Float, V <: DenseVector{T}} = new{T,V}(time, logl, iter, beta, c, J, k, group)
 end
-# ggIHTResults(time::T, logl::T, iter::Int, beta::V, c::V, J::Int, k::Int, group::Vector{Int}) where {T <: Float, V <: DenseVector{T}} = ggIHTResults{T, V}(time, logl, iter, beta, c, J, k, group)
+IHTResult(time, logl, iter, v::IHTVariable) = IHTResult(time, logl, iter,
+    v.b, v.c, v.J, v.k, v.group, v.d)
 
 """
-functions to display ggIHTResults object
+functions to display IHTResults object
 """
-function Base.show(io::IO, x::ggIHTResults)
+function Base.show(io::IO, x::IHTResult)
     snp_position = findall(x -> x != 0, x.beta)
     nongenetic_position = findall(x -> x != 0, x.c)
 
