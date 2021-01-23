@@ -126,7 +126,7 @@ fit_iht(y::AbstractVector{T}, x::AbstractMatrix{T}; kwargs...) where T =
     fit_iht(y, x, ones(T, length(y)); kwargs...)
 
 """
-Performs 1 iteration of the IHT algorithm, backtracking a maximum of 5 times.
+Performs 1 iteration of the IHT algorithm, backtracking a maximum of `nstep` times.
 We allow loglikelihood to potentially decrease to avoid bad boundary cases.
 """
 function iht_one_step!(v::IHTVariable{T, M}, old_logl::T, nstep::Int

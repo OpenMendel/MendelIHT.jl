@@ -289,11 +289,12 @@ end
     random_covariance_matrix(n::Int)
 
 Generates a positive definite, symmetric matrix. 
+
+TODO: Try picking random orthogonal transformation, and pick eigenvalues randomly
 """
 function random_covariance_matrix(n::Int)
     x = rand(n, n)
-    xsym = 0.5(x + x') # make x symmetric
-    return xsym + n*I # diagonally dominant matrices are positive definite
+    return x' * x
 end
 
 """
