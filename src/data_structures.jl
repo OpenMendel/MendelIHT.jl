@@ -1,5 +1,5 @@
 """
-Object to contain intermediate variables and temporary arrays for single trait IHT
+Single (GLM) trait IHT object, containing intermediate variables and temporary arrays
 """
 mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     # data and pre-specified parameters for fitting
@@ -99,21 +99,106 @@ function IHTVariables(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
 end
 
 """
+Multivaraite Gaussian IHT object, containing intermediate variables and temporary arrays
+"""
+mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
+    # data and pre-specified parameters for fitting
+    x      :: M                      # design matrix (genotypes) of subtype AbstractMatrix{T}
+    y      :: Matrix{T}              # response vector (phenotypes)
+    z      :: VecOrMat{T}            # other non-genetic covariates 
+    k      :: Int                    # sparsity parameter
+    # internal IHT variables
+    b      :: Matrix{T}     # the statistical model for the genotype matrix, most will be 0
+    b0     :: Matrix{T}     # estimated model for genotype matrix in the previous iteration
+    xb     :: Matrix{T}     # Matrix that holds x*b
+    xb0    :: Matrix{T}     # xb in the previous iteration
+    xk     :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
+    gk     :: Matrix{T}     # numerator of step size. gk = df[idx]. 
+    xgk    :: Matrix{T}     # xk * gk, denominator of step size
+    idx    :: BitMatrix     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
+    idx0   :: BitMatrix     # previous iterate of idx
+    idc    :: BitMatrix     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
+    idc0   :: BitMatrix     # previous iterate of idc
+    resid  :: Matrix{T}     # The difference between the observed and predicted response
+    df     :: Matrix{T}     # genotype portion of the score
+    df2    :: Matrix{T}     # non-genetic covariates portion of the score
+    c      :: Matrix{T}     # estimated model for non-genetic variates (first entry = intercept)
+    c0     :: Matrix{T}     # estimated model for non-genetic variates in the previous iteration
+    zc     :: Matrix{T}     # z * c (covariate matrix times c)
+    zc0    :: Matrix{T}     # z * c (covariate matrix times c) in the previous iterate
+    zdf2   :: Matrix{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
+    μ      :: Matrix{T}     # mean of the current model: μ = l^{-1}(xb)
+    Σ      :: Matrix{T}     # estimated covariance matrix (TODO: try StaticArrays here)
+    Σ0     :: Matrix{T}     # estimated covariance matrix in previous iterate (TODO: try StaticArrays here)
+end
+
+# X  = n × p
+# Z  = n × q
+# Y  = n × r
+# B  = p × r
+# Γ  = r × r
+# XB = n × r
+# df = p × r (gradient)
+function mIHTVariables(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
+    k::Int) where {T <: Float, M <: AbstractMatrix}
+
+    n = size(x, 1) # number of samples 
+    p = size(x, 2) # number of SNPs
+    q = size(z, 2) # number of non-genetic covariates
+    r = size(y, 2) # number of traits
+
+    if !(n == size(y, 1) == size(z, 1))
+        throw(DimensionMismatch("number of samples in y, x, and z = $(size(y, 1)), $n, $(size(z, 1)) are not equal"))
+    end
+
+    b      = zeros(T, p, r)
+    b0     = zeros(T, p, r)
+    xb     = zeros(T, n, r)
+    xb0    = zeros(T, n, r)
+    xk     = zeros(T, n, k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    gk     = zeros(T, k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
+    xgk    = zeros(T, n, k - 1)
+    idx    = falses(p, r)
+    idx0   = falses(p, r)
+    idc    = falses(q, r)
+    idc0   = falses(q, r)
+    resid  = zeros(T, n, r)
+    df     = zeros(T, p, r)
+    df2    = zeros(T, q, r)
+    c      = zeros(T, q, r)
+    c0     = zeros(T, q, r)
+    zc     = zeros(T, n, r)
+    zc0    = zeros(T, n, r)
+    zdf2   = zeros(T, n, r)
+    μ      = zeros(T, n, r)
+    Σ      = zeros(T, r, r)
+    Σ0     = zeros(T, r, r)
+
+    return mIHTVariable{T, M}(
+        x, y, z, k, 
+        b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0,
+        zc, zc0, zdf2, μ, Σ, Σ0)
+end
+
+"""
 immutable objects that house results returned from IHT run. 
 """
 struct IHTResult{T <: Float}
-    time  :: Union{Float64, Float32}
-    logl  :: T
-    iter  :: Int64
-    beta  :: Vector{T}
-    c     :: Vector{T}
-    J     :: Int64
-    k     :: Union{Int64, Vector{Int}}
-    group :: Vector{Int64}
-    d     :: UnivariateDistribution
+    time  :: Union{Float64, Float32}    # total compute time
+    logl  :: T                          # final loglikelihood
+    iter  :: Int64                      # number of iterations until convergence
+    beta  :: VecOrMat{T}                # estimated beta for genetic predictors
+    c     :: VecOrMat{T}                # estimated beta for nongenetic predictors
+    J     :: Int64                      # maximum number of groups (1 for multivariate analysis)
+    k     :: Union{Int64, Vector{Int}}  # maximum number of predictors (vector if group IHT have differently sized groups)
+    group :: Vector{Int64}              # group membership
+    d     :: Distribution               # distribution of phenotype
+    Σ     :: Union{Nothing, Matrix{T}}  # estimated covariance matrix for multivariate analysis
 end
 IHTResult(time, logl, iter, v::IHTVariable) = IHTResult(time, logl, iter,
-    v.b, v.c, v.J, v.k, v.group, v.d)
+    v.b, v.c, v.J, v.k, v.group, v.d, nothing)
+IHTResult(time, logl, iter, v::mIHTVariable) = IHTResult(time, logl, iter,
+    v.b, v.c, 1, v.k, Int[], MvNormal, v.Σ)
 
 """
 functions to display IHTResults object
