@@ -81,6 +81,8 @@ end
     update_xb!(v::IHTVariable{T, M})
 
 Updates the linear predictors `xb` and `zc` with the new proposed `b` and `c`.
+`b` is sparse but `c` (beta for non-genetic covariates) is dense.
+
 We clamp the max value of each entry to (-20, 20) because certain distributions
 (e.g. Poisson) have exponential link functions, which causes overflow.
 """
@@ -204,11 +206,10 @@ function update_r_newton(v::IHTVariable{T, M};
 end
 
 """
-    score = X^T * W * (y - g(x^T b))
+    score!(v::IHTVariable{T})
 
-Calculates the score (gradient) for different GLMs. 
-
-W is a diagonal matrix where w[i, i] = dμ/dη / var(μ). 
+Calculates the score (gradient) `X^T * W * (y - g(x^T b))` for different GLMs. 
+W is a diagonal matrix where `w[i, i] = dμ/dη / var(μ)` (see documentation)
 """
 function score!(v::IHTVariable{T}) where {T <: Float, M}
     d, l, x, z, y = v.d, v.l, v.x, v.z, v.y
