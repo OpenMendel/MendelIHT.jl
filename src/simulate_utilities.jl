@@ -289,13 +289,14 @@ end
     random_covariance_matrix(n::Int)
 
 Generates a positive definite, symmetric matrix. 
-
-TODO: Try picking random orthogonal transformation, and pick eigenvalues randomly
 """
-function random_covariance_matrix(n::Int)
-    x = rand(n, n)
+function random_covariance_matrix(rng::AbstractRNG, T::Type, n::Int)
+    x = randn(rng, T, n, n)
     return x' * x
 end
+random_covariance_matrix(rng::AbstractRNG, n::Int) = random_covariance_matrix(rng, Float64, n)
+random_covariance_matrix(T::Type, n::Int) = random_covariance_matrix(Random.GLOBAL_RNG, T, n)
+random_covariance_matrix(n::Int) = random_covariance_matrix(Random.GLOBAL_RNG, n)
 
 """
     adhoc_add_correlation!(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
