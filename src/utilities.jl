@@ -94,6 +94,22 @@ function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
 end
 
 """
+    score!(v::IHTVariable{T})
+
+Calculates the score (gradient) `X^T * W * (y - g(x^T b))` for different GLMs. 
+W is a diagonal matrix where `w[i, i] = dμ/dη / var(μ)` (see documentation)
+"""
+function score!(v::IHTVariable{T}) where {T <: Float, M}
+    d, l, x, z, y = v.d, v.l, v.x, v.z, v.y
+    @inbounds for i in eachindex(y)
+        η = v.xb[i] + v.zc[i]
+        w = mueta(l, η) / glmvar(d, v.μ[i])
+        v.r[i] = w * (y[i] - v.μ[i])
+    end
+    At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+end
+
+"""
 Wrapper function to decide whether to use Newton or MM algorithm for estimating 
 the nuisance paramter of negative binomial regression. 
 """
@@ -206,22 +222,6 @@ function update_r_newton(v::IHTVariable{T, M};
 end
 
 """
-    score!(v::IHTVariable{T})
-
-Calculates the score (gradient) `X^T * W * (y - g(x^T b))` for different GLMs. 
-W is a diagonal matrix where `w[i, i] = dμ/dη / var(μ)` (see documentation)
-"""
-function score!(v::IHTVariable{T}) where {T <: Float, M}
-    d, l, x, z, y = v.d, v.l, v.x, v.z, v.y
-    @inbounds for i in eachindex(y)
-        η = v.xb[i] + v.zc[i]
-        w = mueta(l, η) / glmvar(d, v.μ[i])
-        v.r[i] = w * (y[i] - v.μ[i])
-    end
-    At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-end
-
-"""
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
@@ -248,7 +248,7 @@ function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
 
     # project to sparsity
     lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
-    
+
     # unweight the model after projection
     if lw == 0
         copyto!(v.b, @view(full_grad[1:lb]))
@@ -261,7 +261,7 @@ function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     #recombute support
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
-    
+
     # if more than J*k entries are selected, randomly choose J*k of them
     typeof(k) == Int && _choose!(v) 
 
@@ -325,7 +325,7 @@ This can happen if entries of b are equal to each other.
 """
 function _choose!(v::IHTVariable{T}) where {T <: Float}
     sparsity = v.k
-    J = v.J
+    J = (v.J == 0 ? 1 : v.J)
 
     nonzero = sum(v.idx) + sum(v.idc)
     if nonzero > J * sparsity
@@ -339,14 +339,45 @@ function _choose!(v::IHTVariable{T}) where {T <: Float}
     end
 end
 
+function _choose!(v::mIHTVariable)
+    sparsity = v.k
+    # loop through columns of beta
+    for col in 1:size(v.b, 2)
+        nonzero = sum(@view(v.idx[:, col])) + @view(sum(v.idc[:, col]))
+        if nonzero > sparsity
+            z = zero(eltype(v.b))
+            non_zero_idx = findall(!iszero, @view(v.idx[:, col]))
+            excess = nonzero - sparsity
+            for pos in sample(non_zero_idx, excess, replace=false)
+                v.b[pos, col] = z
+                v.idx[pos, col] = false
+            end
+        end
+    end
+end
+
 """
 In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
 included/excluded, we must resize xk and gk
+
+TODO: Use ElasticArrays.jl
 """
 function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
     if sum(v.idx) != size(v.xk, 2)
         v.xk = zeros(T, size(v.xk, 1), sum(v.idx))
         v.gk = zeros(T, sum(v.idx))
+    end
+end
+
+# TODO: How would this function work for non-shared predictors?
+function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
+    n, p = size(v.b)
+    for col in 1:p
+        nz = sum(@view(v.idx[:, col]))
+        if nz != size(v.xk, 2)
+            v.xk = zeros(T, n, nz)
+            v.gk = zeros(T, nz)
+        end
     end
 end
 
@@ -356,10 +387,6 @@ end
 Returns true if one of the following conditions is met:
 1. New loglikelihood is smaller than the old one
 2. Current backtrack (`η_step`) exceeds maximum allowed backtracking (`nstep`, default = 3)
-
-Note for Posison, NegativeBinomial, and Gamma, we require model coefficients to be 
-"small" to prevent loglikelihood blowing up in first few iteration. This is accomplished 
-by clamping `η = xb` values to be in (-20, 20)
 """
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
     (prev_logl > logl) && (η_step < nstep)
@@ -458,6 +485,12 @@ function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
     a = abs(partialsort(x, k, by=abs, rev=true))
     @inbounds for i in eachindex(x)
         abs(x[i]) < a && (x[i] = zero(T))
+    end
+end
+
+function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
+    for xi in eachcol(x)
+        project_k!(xi, k)
     end
 end
 

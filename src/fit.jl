@@ -75,7 +75,7 @@ function fit_iht(
     end
 
     # Initialize variables. 
-    v = IHTVariables(x, z, y, J, k, d, l, group, weight, est_r)# Placeholder variable for cleaner code
+    v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r) # Placeholder variable for cleaner code
     init_iht_indices!(v)                                       # initialize non-zero indices
     copyto!(v.xk, @view(x[:, v.idx]))                          # store relevant components of x for first iteration
     debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing

@@ -38,7 +38,7 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     grad   :: Vector{T}     # storage for full gradient
 end
 
-function IHTVariables(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
+function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol
     ) where {T <: Float, M <: AbstractMatrix}
@@ -139,7 +139,7 @@ end
 # Γ  = r × r
 # XB = n × r
 # df = p × r (gradient)
-function mIHTVariables(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
+function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     k::Int) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1) # number of samples 
