@@ -128,8 +128,9 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     zc0    :: Matrix{T}     # z * c (covariate matrix times c) in the previous iterate
     zdf2   :: Matrix{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
     μ      :: Matrix{T}     # mean of the current model: μ = l^{-1}(xb)
-    Σ      :: Matrix{T}     # estimated covariance matrix (TODO: try StaticArrays here)
+    Σ      :: Matrix{T}     # estimated covariance matrix (TODO: try StaticArrays.jl here)
     Σ0     :: Matrix{T}     # estimated covariance matrix in previous iterate (TODO: try StaticArrays here)
+    dΣ     :: Matrix{T}     # gradient of covariance matrix
 end
 
 # X  = n × p
@@ -156,8 +157,8 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     xb     = zeros(T, n, r)
     xb0    = zeros(T, n, r)
     xk     = zeros(T, n, k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    gk     = zeros(T, k - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
-    xgk    = zeros(T, n, k - 1)
+    gk     = zeros(T, k - 1, r) # subtracting 1 because the intercept will likely be selected in the first iter
+    xgk    = zeros(T, n, r)
     idx    = falses(p, r)
     idx0   = falses(p, r)
     idc    = falses(q, r)

@@ -339,23 +339,6 @@ function _choose!(v::IHTVariable{T}) where {T <: Float}
     end
 end
 
-function _choose!(v::mIHTVariable)
-    sparsity = v.k
-    # loop through columns of beta
-    for col in 1:size(v.b, 2)
-        nonzero = sum(@view(v.idx[:, col])) + @view(sum(v.idc[:, col]))
-        if nonzero > sparsity
-            z = zero(eltype(v.b))
-            non_zero_idx = findall(!iszero, @view(v.idx[:, col]))
-            excess = nonzero - sparsity
-            for pos in sample(non_zero_idx, excess, replace=false)
-                v.b[pos, col] = z
-                v.idx[pos, col] = false
-            end
-        end
-    end
-end
-
 """
 In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
 included/excluded, we must resize xk and gk
@@ -366,18 +349,6 @@ function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
     if sum(v.idx) != size(v.xk, 2)
         v.xk = zeros(T, size(v.xk, 1), sum(v.idx))
         v.gk = zeros(T, sum(v.idx))
-    end
-end
-
-# TODO: How would this function work for non-shared predictors?
-function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
-    n, p = size(v.b)
-    for col in 1:p
-        nz = sum(@view(v.idx[:, col]))
-        if nz != size(v.xk, 2)
-            v.xk = zeros(T, n, nz)
-            v.gk = zeros(T, nz)
-        end
     end
 end
 
@@ -485,12 +456,6 @@ function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
     a = abs(partialsort(x, k, by=abs, rev=true))
     @inbounds for i in eachindex(x)
         abs(x[i]) < a && (x[i] = zero(T))
-    end
-end
-
-function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
-    for xi in eachcol(x)
-        project_k!(xi, k)
     end
 end
 
