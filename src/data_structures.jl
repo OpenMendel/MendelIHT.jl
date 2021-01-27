@@ -98,6 +98,31 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
         b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, weight, μ, storage)
 end
 
+function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
+    J::Int, k::Union{Int, Vector{Int}}, d::Distribution, l::Link,
+    group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol
+    ) where {T <: Float, M <: AbstractMatrix}
+
+    if size(y, 2) > 1
+        v = mIHTVariable(x, z, y, k)
+    else
+        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
+    end
+
+    # initialize non-zero indices
+    MendelIHT.init_iht_indices!(v)
+
+    # store relevant components of x for first iteration
+    println(size(v.xk))
+    println(size(x))
+    println(size(v.idx))
+    # println(size(x[:, v.idx]))
+    fdsa
+    copyto!(v.xk, @view(x[:, v.idx])) 
+
+    return v
+end
+
 """
 Multivaraite Gaussian IHT object, containing intermediate variables and temporary arrays
 """
@@ -128,6 +153,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     zc0    :: Matrix{T}     # z * c (covariate matrix times c) in the previous iterate
     zdf2   :: Matrix{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
     μ      :: Matrix{T}     # mean of the current model: μ = l^{-1}(xb)
+    grad   :: Matrix{T}     # storage for full gradient
     Σ      :: Matrix{T}     # estimated covariance matrix (TODO: try StaticArrays.jl here)
     Σ0     :: Matrix{T}     # estimated covariance matrix in previous iterate (TODO: try StaticArrays here)
     dΣ     :: Matrix{T}     # gradient of covariance matrix
@@ -159,10 +185,10 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     xk     = zeros(T, n, k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
     gk     = zeros(T, k - 1, r) # subtracting 1 because the intercept will likely be selected in the first iter
     xgk    = zeros(T, n, r)
-    idx    = falses(p, r)
-    idx0   = falses(p, r)
-    idc    = falses(q, r)
-    idc0   = falses(q, r)
+    idx    = falses(p)
+    idx0   = falses(p)
+    idc    = falses(q)
+    idc0   = falses(q)
     resid  = zeros(T, n, r)
     df     = zeros(T, p, r)
     df2    = zeros(T, q, r)
@@ -172,13 +198,15 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     zc0    = zeros(T, n, r)
     zdf2   = zeros(T, n, r)
     μ      = zeros(T, n, r)
-    Σ      = zeros(T, r, r)
-    Σ0     = zeros(T, r, r)
+    grad   = zeros(T, p + q, r)
+    Σ      = Matrix{T}(I, r, r)
+    Σ0     = Matrix{T}(I, r, r)
+    dΣ     = zeros(T, r, r)
 
     return mIHTVariable{T, M}(
         x, y, z, k, 
-        b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0,
-        zc, zc0, zdf2, μ, Σ, Σ0)
+        b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, resid, df, df2, c, c0,
+        zc, zc0, zdf2, μ, grad, Σ, Σ0, dΣ)
 end
 
 """

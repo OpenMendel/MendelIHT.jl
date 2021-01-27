@@ -8,7 +8,7 @@ sparse IHT, construct `k` to be a vector where `k[i]` indicates the max number
 of predictors for group `i`. 
 
 # Arguments:
-+ `y`: Response vector (phenotypes), should be an `Array{T, 1}`.
++ `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or `Array{T, 2}` (multivariate Gaussian traits).
 + `x`: Genotype matrix (an `Array{T, 2}`, `SnpBitMatrix`, or `SnpLinAlg` (recommended))
 + `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`. The first column should be the intercept (i.e. column of 1). 
 
@@ -28,12 +28,12 @@ of predictors for group `i`.
 + `max_step`: is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 """
 function fit_iht(
-    y         :: AbstractVector{T},
+    y         :: AbstractVecOrMat{T},
     x         :: AbstractMatrix{T},
     z         :: AbstractVecOrMat{T};
     k         :: Union{Int, Vector{Int}} = 10,
     J         :: Int = 1,
-    d         :: UnivariateDistribution = Normal(),
+    d         :: Distribution = size(y, 2) > 1 ? MvNormal(T[]) : Normal(),
     l         :: Link = IdentityLink(),
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
@@ -68,17 +68,15 @@ function fit_iht(
     η_step      = 0                 # counts number of backtracking steps for η
     converged   = false             # scaled_norm < tol?
 
+    # initialize variables
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r)
+    debias && (temp_glm = initialize_glm_object())
+
     # print information 
     if verbose
         print_iht_signature()
         print_parameters(k, d, l, use_maf, group, debias, tol)
     end
-
-    # Initialize variables. 
-    v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r) # Placeholder variable for cleaner code
-    init_iht_indices!(v)                                       # initialize non-zero indices
-    copyto!(v.xk, @view(x[:, v.idx]))                          # store relevant components of x for first iteration
-    debias && (temp_glm = initialize_glm_object())             # Preallocated GLM variable for debiasing
 
     # Begin 'iterative' hard thresholding algorithm
     for iter in 1:max_iter
@@ -122,7 +120,7 @@ function fit_iht(
     return IHTResult(tot_time, next_logl, mm_iter, v)
 end
 
-fit_iht(y::AbstractVector{T}, x::AbstractMatrix{T}; kwargs...) where T = 
+fit_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix{T}; kwargs...) where T = 
     fit_iht(y, x, ones(T, length(y)); kwargs...)
 
 """

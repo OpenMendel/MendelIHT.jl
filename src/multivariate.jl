@@ -46,20 +46,23 @@ end
 Calculates the score (gradient) `X'(Y - μ)Γ` for multivariate Gaussian model.
 W is a diagonal matrix where w[i, i] = dμ/dη / var(μ). 
 """
-function score!(v::mIHTVariable{T, M}) where {T <: Float, M <: AbstractMatrix}
+function score!(v::mIHTVariable)
+    y = v.y
+    μ = v.μ
+    r = v.resid
     @inbounds for i in eachindex(y)
-        v.resid[i] = w * (y[i] - v.μ[i])
+        r[i] = y[i] - μ[i]
     end
     # TODO fix naive implementation below
     Γ = inv(v.Σ)
-    v.df = Transpose(v.x) * v.resid * Γ
-    v.df2 = Transpose(v.z) * v.resid * Γ
+    v.df = Transpose(v.x) * r * Γ
+    v.df2 = Transpose(v.z) * r * Γ
 end
 
 """
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::mIHTVariable{T, M}, η::T) where {T <: Float}
+function _iht_gradstep(v::mIHTVariable, η::Float)
     lb = size(v.b, 1)
     lf = size(full_grad, 1)
 
@@ -94,7 +97,7 @@ end
 """
 Computes the best step size 
 """
-function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float}
+function iht_stepsize(v::mIHTVariable)
     return one(T) # TODO
 end
 
@@ -117,11 +120,12 @@ end
 # TODO: How would this function work for non-shared predictors?
 function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
     n, p = size(v.b)
+    r = size(v.y, 2)
     for col in 1:p
         nz = sum(@view(v.idx[:, col]))
         if nz != size(v.xk, 2)
             v.xk = zeros(T, n, nz)
-            v.gk = zeros(T, nz)
+            v.gk = zeros(T, nz, r)
         end
     end
 end
@@ -130,7 +134,8 @@ function _choose!(v::mIHTVariable)
     sparsity = v.k
     # loop through columns of beta
     for col in 1:size(v.b, 2)
-        nonzero = sum(@view(v.idx[:, col])) + @view(sum(v.idc[:, col]))
+        bidx = 
+        nonzero = sum(@view(v.idx[:, col])) + sum(@view(v.idc[:, col]))
         if nonzero > sparsity
             z = zero(eltype(v.b))
             non_zero_idx = findall(!iszero, @view(v.idx[:, col]))
@@ -154,4 +159,50 @@ function save_prev!(v::mIHTVariable)
     copyto!(v.c0, v.c)     # c0 = c
     copyto!(v.zc0, v.zc)   # Zc0 = Zc
     copyto!(v.Σ0, v.Σ)   # Zc0 = Zc
+end
+
+function checky(y::AbstractMatrix, d::MvNormal)
+    return nothing
+end
+
+"""
+When initializing the IHT algorithm, take `k` largest elements in magnitude of 
+the score as nonzero components of b. This function set v.idx = 1 for
+those indices. 
+"""
+function init_iht_indices!(v::mIHTVariable)
+    z = v.z
+    y = v.y
+    k = v.k
+    c = v.c
+
+    # TODO: find intercept by Newton's method
+    # ybar = mean(y)
+    # for iteration = 1:20 
+    #     g1 = g2 = c[1]
+    #     c[1] = c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
+    #     abs(g1 - ybar) < 1e-10 && break
+    # end
+    # mul!(v.zc, z, v.c)
+
+    # update mean vector and use them to compute score (gradient)
+    update_μ!(v)
+    score!(v)
+
+    # first `k` non-zero entries are chosen based on largest gradient
+    ldf = size(v.df, 1)
+    v.grad[1:ldf, :] .= v.df
+    v.grad[ldf+1:end, :] .= v.df2
+    for c in 1:size(v.grad, 2)
+        col = @view(v.grad[:, c])
+        a = partialsort(col, k, by=abs, rev=true)
+        v.idx[:, c] .= abs.(@view(v.df[:, c])) .>= abs(a)
+        v.idc[:, c] .= abs.(@view(v.df2[:, c])) .>= abs(a)
+    end
+
+    # Choose randomly if more are selected
+    _choose!(v) 
+
+    # make necessary resizing when necessary
+    check_covariate_supp!(v)
 end

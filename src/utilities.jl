@@ -299,7 +299,7 @@ function init_iht_indices!(v::IHTVariable)
     update_μ!(v)
     score!(v)
 
-    # choose top entries based on largest gradient
+    # first `k` non-zero entries are chosen based on largest gradient
     ldf = length(v.df)
     v.grad[1:ldf] .= v.df
     v.grad[ldf+1:end] .= v.df2
