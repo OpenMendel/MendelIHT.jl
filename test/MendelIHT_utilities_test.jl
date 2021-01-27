@@ -3,14 +3,14 @@ function test_data(d, l)
     xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
     z = ones(1000, 1)
     y = rand(1000)
-    v = IHTVariables(xla, z, y, 1, 10, d, l, Int[], Float64[], :none)
+    v = IHTVariable(xla, z, y, 1, 10, d, l, Int[], Float64[], :none)
 
     return x, z, y, v
 end
 
 function make_IHTvar(d, μ, y)
     n = length(μ)
-    v = IHTVariables(rand(n, 1), rand(n, 1), y, 1, 10, d, IdentityLink(),
+    v = IHTVariable(rand(n, 1), rand(n, 1), y, 1, 10, d, IdentityLink(),
         Int[], Float64[], :none) 
     v.μ = μ
     return v

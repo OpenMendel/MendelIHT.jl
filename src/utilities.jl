@@ -277,7 +277,7 @@ those indices.
 `J` is the maximum number of active groups, and `k` is the maximum number of
 predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable{T}) where {T <: Float}
+function init_iht_indices!(v::IHTVariable)
     z = v.z
     y = v.y
     l = v.l
@@ -300,19 +300,24 @@ function init_iht_indices!(v::IHTVariable{T}) where {T <: Float}
     score!(v)
 
     # choose top entries based on largest gradient
-    if typeof(k) == Int 
-        a = partialsort([v.df; v.df2], k * J, by=abs, rev=true)
+    ldf = length(v.df)
+    v.grad[1:ldf] .= v.df
+    v.grad[ldf+1:end] .= v.df2
+    if typeof(k) == Int
+        a = partialsort(v.grad, k * J, by=abs, rev=true)
         v.idx .= abs.(v.df) .>= abs(a)
         v.idc .= abs.(v.df2) .>= abs(a)
 
         # Choose randomly if more are selected
         _choose!(v) 
     else
-        ldf = length(v.df)
-        tmp = [v.df; v.df2]
-        project_group_sparse!(tmp, group, J, k) # k is a vector
-        v.idx[findall(!iszero, tmp[1:ldf])] .= true
-        v.idc[findall(!iszero, tmp[(ldf + 1):end])] .= true
+        project_group_sparse!(v.grad, group, J, k) # k is a vector
+        @inbounds for i in 1:ldf
+            v.grad[i] != 0 && (v.idx[i] = true)
+        end
+        @inbounds for i in 1:length(v.idc)
+            v.grad[ldf+i] != 0 && (v.idc[i] = true)
+        end
     end
 
     # make necessary resizing when necessary
