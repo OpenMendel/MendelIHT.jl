@@ -6,7 +6,6 @@ under a multivariate Gaussian.
 """
 function loglikelihood(v::mIHTVariable)
     Y = v.y # n × r
-    μ = v.μ # n × r
     Σ = v.Σ # r × r
     # TODO fix naive implementation below
     Γ = inv(Σ)
@@ -22,7 +21,7 @@ Update the linear predictors `xb` with the new proposed `b`. `b` is sparse but
 """
 function update_xb!(v::mIHTVariable)
     copyto!(v.xk, @view(v.x[:, v.idx]))
-    A_mul_B!(v.xb, v.zc, v.xk, v.z, view(v.b, v.idx), v.c)
+    A_mul_B!(v.xb, v.zc, v.xk, v.z, view(v.b, v.idx, :), v.c)
 end
 
 """
@@ -63,6 +62,7 @@ end
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::mIHTVariable, η::Float)
+    full_grad = v.grad
     lb = size(v.b, 1)
     lf = size(full_grad, 1)
 
@@ -76,7 +76,7 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
     full_grad[lb+1:lf, :] .= v.c
 
     # project beta to sparsity and Σ to nearest pd matrix
-    project_k!(full_grad, k)
+    project_k!(full_grad, v.k)
     project_Σ!(v.Σ)
     
     # save model after projection
@@ -84,8 +84,8 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
     copyto!(v.c, @view(full_grad[lb+1:lf]))
 
     #recombute support
-    v.idx .= v.b .!= 0
-    v.idc .= v.c .!= 0
+    update_support!(v.idx, v.b)
+    update_support!(v.idc, v.c)
     
     # if more than k entries are selected per column, randomly choose k of them
     _choose!(v)
@@ -95,9 +95,31 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
 end
 
 """
+    update_support!(idx::BitVector, b::AbstractMatrix)
+
+Updates `idx` so that `idx[i] = true` if `b[i, j] ≠ 0` for some `j`, otherwise
+`idx[i] = false`. 
+"""
+function update_support!(idx::BitVector, b::AbstractMatrix{T}) where T
+    p, r = size(b)
+    fill!(idx, false)
+    @inbounds for j in 1:r
+        nz = 0
+        for i in 1:p
+            if b[i, j] != 0.0
+                idx[i] = true
+                nz += 1
+            end
+        end
+
+    end
+    return nothing
+end
+
+"""
 Computes the best step size 
 """
-function iht_stepsize(v::mIHTVariable)
+function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
     return one(T) # TODO
 end
 
@@ -118,33 +140,38 @@ function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
 end
 
 # TODO: How would this function work for non-shared predictors?
+# TODO: Use ElasticArrays.jl to resize
 function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
-    n, p = size(v.b)
-    r = size(v.y, 2)
-    for col in 1:p
-        nz = sum(@view(v.idx[:, col]))
-        if nz != size(v.xk, 2)
-            v.xk = zeros(T, n, nz)
-            v.gk = zeros(T, nz, r)
-        end
+    n, r = size(v.y)
+    nzidx = sum(v.idx)
+    if nzidx != size(v.xk, 2)
+        v.xk = zeros(T, n, nzidx)
     end
 end
 
 function _choose!(v::mIHTVariable)
+    n, p = size(v.b)
     sparsity = v.k
-    # loop through columns of beta
-    for col in 1:size(v.b, 2)
-        bidx = 
-        nonzero = sum(@view(v.idx[:, col])) + sum(@view(v.idc[:, col]))
-        if nonzero > sparsity
-            z = zero(eltype(v.b))
-            non_zero_idx = findall(!iszero, @view(v.idx[:, col]))
-            excess = nonzero - sparsity
-            for pos in sample(non_zero_idx, excess, replace=false)
-                v.b[pos, col] = z
-                v.idx[pos, col] = false
+    nz_idx = Int[]
+    # loop through columns of full beta
+    for j in 1:p
+        # find position of non-zero beta in column j
+        nz = 0
+        for i in 1:n
+            if v.b[i, j] != 0
+                nz += 1
+                push!(nz_idx, i)
             end
         end
+        excess = nz - sparsity
+        # if more non-zero beta than expected, randomly set a few to zero
+        if excess > 0
+            shuffle!(nz_idx)
+            for i in 1:excess
+                v.b[nz_idx[i], j] = 0
+            end
+        end
+        empty!(nz_idx)
     end
 end
 
@@ -193,11 +220,15 @@ function init_iht_indices!(v::mIHTVariable)
     ldf = size(v.df, 1)
     v.grad[1:ldf, :] .= v.df
     v.grad[ldf+1:end, :] .= v.df2
-    for c in 1:size(v.grad, 2)
+    @inbounds for c in 1:size(v.grad, 2)
         col = @view(v.grad[:, c])
         a = partialsort(col, k, by=abs, rev=true)
-        v.idx[:, c] .= abs.(@view(v.df[:, c])) .>= abs(a)
-        v.idc[:, c] .= abs.(@view(v.df2[:, c])) .>= abs(a)
+        for i in 1:size(v.df, 1)
+            abs(v.df[i, c]) > abs(a) && (v.idx[i] = true)
+        end
+        for i in 1:size(v.df2, 1)
+            abs(v.df2[i, c]) > abs(a) && (v.idc[i] = true)
+        end
     end
 
     # Choose randomly if more are selected

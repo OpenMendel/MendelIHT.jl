@@ -113,11 +113,6 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     MendelIHT.init_iht_indices!(v)
 
     # store relevant components of x for first iteration
-    println(size(v.xk))
-    println(size(x))
-    println(size(v.idx))
-    # println(size(x[:, v.idx]))
-    fdsa
     copyto!(v.xk, @view(x[:, v.idx])) 
 
     return v
@@ -138,21 +133,22 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     xb     :: Matrix{T}     # Matrix that holds x*b
     xb0    :: Matrix{T}     # xb in the previous iteration
     xk     :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    gk     :: Matrix{T}     # numerator of step size. gk = df[idx]. 
-    xgk    :: Matrix{T}     # xk * gk, denominator of step size
-    idx    :: BitMatrix     # idx[i] = 0 if b[i] = 0 and idx[i] = 1 if b[i] is not 0
-    idx0   :: BitMatrix     # previous iterate of idx
-    idc    :: BitMatrix     # idx[i] = 0 if c[i] = 0 and idx[i] = 1 if c[i] is not 0
-    idc0   :: BitMatrix     # previous iterate of idc
+    # gk     :: Matrix{T}     # numerator of step size. gk = df[idx]. 
+    # xgk    :: Matrix{T}     # xk * gk, denominator of step size
+    idx    :: BitVector     # idx[i] = 0 if b[i, j] = 0 for all j and idx[i] = 1 if b[i, j] != 0 for at least one j
+    idx0   :: BitVector     # previous iterate of idx
+    idc    :: BitVector     # idx[i] = 0 if c[i, j] = 0 for all j and idx[i] = 1 if c[i, j] != 0 for at least one j
+    idc0   :: BitVector     # previous iterate of idc
+    nzct   :: Vector{Int}   # Vector tracking number of non-zero beta positions for each column of beta
     resid  :: Matrix{T}     # The difference between the observed and predicted response
-    df     :: Matrix{T}     # genotype portion of the score
+    df     :: Matrix{T}     # genotype portion of the score = X'(Y - XB)Γ
     df2    :: Matrix{T}     # non-genetic covariates portion of the score
     c      :: Matrix{T}     # estimated model for non-genetic variates (first entry = intercept)
     c0     :: Matrix{T}     # estimated model for non-genetic variates in the previous iteration
     zc     :: Matrix{T}     # z * c (covariate matrix times c)
     zc0    :: Matrix{T}     # z * c (covariate matrix times c) in the previous iterate
     zdf2   :: Matrix{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
-    μ      :: Matrix{T}     # mean of the current model: μ = l^{-1}(xb)
+    μ      :: Matrix{T}     # mean of the current model: μ = xb + zc
     grad   :: Matrix{T}     # storage for full gradient
     Σ      :: Matrix{T}     # estimated covariance matrix (TODO: try StaticArrays.jl here)
     Σ0     :: Matrix{T}     # estimated covariance matrix in previous iterate (TODO: try StaticArrays here)
@@ -183,12 +179,13 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     xb     = zeros(T, n, r)
     xb0    = zeros(T, n, r)
     xk     = zeros(T, n, k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    gk     = zeros(T, k - 1, r) # subtracting 1 because the intercept will likely be selected in the first iter
-    xgk    = zeros(T, n, r)
+    # gk     = zeros(T, k - 1, r) # subtracting 1 because the intercept will likely be selected in the first iter
+    # xgk    = zeros(T, n, r)
     idx    = falses(p)
     idx0   = falses(p)
     idc    = falses(q)
     idc0   = falses(q)
+    nzct   = zeros(Int, r)
     resid  = zeros(T, n, r)
     df     = zeros(T, p, r)
     df2    = zeros(T, q, r)
@@ -205,7 +202,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
 
     return mIHTVariable{T, M}(
         x, y, z, k, 
-        b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, resid, df, df2, c, c0,
+        b, b0, xb, xb0, xk, idx, idx0, idc, idc0, nzct, resid, df, df2, c, c0,
         zc, zc0, zdf2, μ, grad, Σ, Σ0, dΣ)
 end
 

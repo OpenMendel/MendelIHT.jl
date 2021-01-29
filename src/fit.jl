@@ -127,7 +127,10 @@ fit_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix{T}; kwargs...) where T =
 Performs 1 iteration of the IHT algorithm, backtracking a maximum of `nstep` times.
 We allow loglikelihood to potentially decrease to avoid bad boundary cases.
 """
-function iht_one_step!(v::IHTVariable{T, M}, old_logl::T, nstep::Int
+function iht_one_step!(
+    v::Union{IHTVariable{T, M}, mIHTVariable{T, M}},
+    old_logl::T,
+    nstep::Int
     ) where {T <: Float, M <: AbstractMatrix}
 
     # first calculate step size 
@@ -141,7 +144,9 @@ function iht_one_step!(v::IHTVariable{T, M}, old_logl::T, nstep::Int
     update_μ!(v)
 
     # update r (nuisance parameter for negative binomial)
-    v.est_r != :None && (v.d = mle_for_r(v))
+    if typeof(v) == IHTVariable && v.est_r != :None
+        v.d = mle_for_r(v)
+    end
 
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(v)

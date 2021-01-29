@@ -99,7 +99,7 @@ end
 Calculates the score (gradient) `X^T * W * (y - g(x^T b))` for different GLMs. 
 W is a diagonal matrix where `w[i, i] = dμ/dη / var(μ)` (see documentation)
 """
-function score!(v::IHTVariable{T}) where {T <: Float, M}
+function score!(v::IHTVariable{T, M}) where {T <: Float, M}
     d, l, x, z, y = v.d, v.l, v.x, v.z, v.y
     @inbounds for i in eachindex(y)
         η = v.xb[i] + v.zc[i]
@@ -330,13 +330,13 @@ This can happen if entries of b are equal to each other.
 """
 function _choose!(v::IHTVariable{T}) where {T <: Float}
     sparsity = v.k
-    J = (v.J == 0 ? 1 : v.J)
+    groups = (v.J == 0 ? 1 : v.J)
 
     nonzero = sum(v.idx) + sum(v.idc)
-    if nonzero > J * sparsity
+    if nonzero > groups * sparsity
         z = zero(eltype(v.b))
         non_zero_idx = findall(!iszero, v.idx)
-        excess = nonzero - J * sparsity
+        excess = nonzero - groups * sparsity
         for pos in sample(non_zero_idx, excess, replace=false)
             v.b[pos]   = z
             v.idx[pos] = false
@@ -346,14 +346,15 @@ end
 
 """
 In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
-included/excluded, we must resize xk and gk
+included/excluded, we must resize `xk` and `gk`.
 
 TODO: Use ElasticArrays.jl
 """
 function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
-    if sum(v.idx) != size(v.xk, 2)
-        v.xk = zeros(T, size(v.xk, 1), sum(v.idx))
-        v.gk = zeros(T, sum(v.idx))
+    nzidx = sum(v.idx)
+    if nzidx != size(v.xk, 2)
+        v.xk = zeros(T, size(v.xk, 1), nzidx)
+        v.gk = zeros(T, nzidx)
     end
 end
 
@@ -634,9 +635,9 @@ where `typeof(A1) <: AbstractMatrix{T}` and A2 is a dense `Array{T, 2}`.
 For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
 A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T},
-    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function A_mul_B!(C1::AbstractVecOrMat{T}, C2::AbstractVecOrMat{T},
+    A1::AbstractVecOrMat{T}, A2::AbstractVecOrMat{T},
+    B1::AbstractVecOrMat{T}, B2::AbstractVecOrMat{T}) where {T <: Float}
     mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
 end
@@ -650,9 +651,9 @@ where `typeof(A1) <: AbstractMatrix{T}` and A2 is a dense `Array{T, 2}`.
 For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
 A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, 
-    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T},
-    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function At_mul_B!(C1::AbstractVecOrMat{T}, C2::AbstractVecOrMat{T}, 
+    A1::AbstractVecOrMat{T}, A2::AbstractVecOrMat{T},
+    B1::AbstractVecOrMat{T}, B2::AbstractVecOrMat{T}) where {T <: Float}
     mul!(C1, Transpose(A1), B1) # custom matrix-vector multiplication
     LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end

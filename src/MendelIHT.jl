@@ -4,11 +4,11 @@ module MendelIHT
 
     import Distances: euclidean, chebyshev, sqeuclidean
     import Base.show
-    import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, canonicallink
+    import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
     import SpecialFunctions: digamma, trigamma
     import Pkg
 
-    using GLM: checky
+    using GLM
     using SnpArrays
     using DataFrames
     using LinearAlgebra
