@@ -108,7 +108,7 @@ function fit_iht(
         the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
         scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
         converged   = scaled_norm < tol
-        verbose && println("Iteration $iter: tol = $scaled_norm")
+        verbose && println("Iteration $iter: loglikelihood = $next_logl, tol = $scaled_norm")
         if converged
         # if iter > 1 && abs(next_logl - logl) < tol * (abs(logl) + 1.0)
             tot_time = time() - start_time
@@ -144,7 +144,7 @@ function iht_one_step!(
     update_μ!(v)
 
     # update r (nuisance parameter for negative binomial)
-    if typeof(v) == IHTVariable && v.est_r != :None
+    if typeof(v) <: IHTVariable && v.est_r != :None
         v.d = mle_for_r(v)
     end
 
@@ -165,7 +165,9 @@ function iht_one_step!(
         # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
         update_xb!(v)
         update_μ!(v)
-        v.est_r != :None && (v.d = mle_for_r(v))
+        if typeof(v) <: IHTVariable && v.est_r != :None
+            v.d = mle_for_r(v)
+        end
         new_logl = loglikelihood(v)
 
         # increment the counter

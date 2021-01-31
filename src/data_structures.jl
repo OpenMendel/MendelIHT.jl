@@ -35,7 +35,7 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     group  :: Vector{Int}   # vector denoting group membership
     weight :: Vector{T}     # weights (typically minor allele freq) that will scale b prior to projection
     μ      :: Vector{T}     # mean of the current model: μ = l^{-1}(xb)
-    grad   :: Vector{T}     # storage for full gradient
+    full_b :: Vector{T}     # storage for full beta and full gradient
 end
 
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
@@ -139,7 +139,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     idx0   :: BitVector     # previous iterate of idx
     idc    :: BitVector     # idx[i] = 0 if c[i, j] = 0 for all j and idx[i] = 1 if c[i, j] != 0 for at least one j
     idc0   :: BitVector     # previous iterate of idc
-    nzct   :: Vector{Int}   # Vector tracking number of non-zero beta positions for each column of beta
+    # nzct   :: Vector{Int}   # Vector tracking number of non-zero beta positions for each column of beta
     resid  :: Matrix{T}     # The difference between the observed and predicted response
     df     :: Matrix{T}     # genotype portion of the score = X'(Y - XB)Γ
     df2    :: Matrix{T}     # non-genetic covariates portion of the score
@@ -147,9 +147,9 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     c0     :: Matrix{T}     # estimated model for non-genetic variates in the previous iteration
     zc     :: Matrix{T}     # z * c (covariate matrix times c)
     zc0    :: Matrix{T}     # z * c (covariate matrix times c) in the previous iterate
-    zdf2   :: Matrix{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
+    # zdf2   :: Matrix{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
     μ      :: Matrix{T}     # mean of the current model: μ = xb + zc
-    grad   :: Matrix{T}     # storage for full gradient
+    full_b :: Matrix{T}     # storage for full beta and full gradient
     Σ      :: Matrix{T}     # estimated covariance matrix (TODO: try StaticArrays.jl here)
     Σ0     :: Matrix{T}     # estimated covariance matrix in previous iterate (TODO: try StaticArrays here)
     dΣ     :: Matrix{T}     # gradient of covariance matrix
@@ -185,7 +185,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     idx0   = falses(p)
     idc    = falses(q)
     idc0   = falses(q)
-    nzct   = zeros(Int, r)
+    # nzct   = zeros(Int, r)
     resid  = zeros(T, n, r)
     df     = zeros(T, p, r)
     df2    = zeros(T, q, r)
@@ -193,17 +193,17 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     c0     = zeros(T, q, r)
     zc     = zeros(T, n, r)
     zc0    = zeros(T, n, r)
-    zdf2   = zeros(T, n, r)
+    # zdf2   = zeros(T, n, r)
     μ      = zeros(T, n, r)
-    grad   = zeros(T, p + q, r)
+    full_b = zeros(T, p + q, r)
     Σ      = Matrix{T}(I, r, r)
     Σ0     = Matrix{T}(I, r, r)
     dΣ     = zeros(T, r, r)
 
     return mIHTVariable{T, M}(
         x, y, z, k, 
-        b, b0, xb, xb0, xk, idx, idx0, idc, idc0, nzct, resid, df, df2, c, c0,
-        zc, zc0, zdf2, μ, grad, Σ, Σ0, dΣ)
+        b, b0, xb, xb0, xk, idx, idx0, idc, idc0, resid, df, df2, c, c0,
+        zc, zc0, μ, full_b, Σ, Σ0, dΣ)
 end
 
 """
@@ -224,7 +224,7 @@ end
 IHTResult(time, logl, iter, v::IHTVariable) = IHTResult(time, logl, iter,
     v.b, v.c, v.J, v.k, v.group, v.d, nothing)
 IHTResult(time, logl, iter, v::mIHTVariable) = IHTResult(time, logl, iter,
-    v.b, v.c, 1, v.k, Int[], MvNormal, v.Σ)
+    v.b, v.c, 1, v.k, Int[], MvNormal(Float64[]), v.Σ)
 
 """
 functions to display IHTResults object

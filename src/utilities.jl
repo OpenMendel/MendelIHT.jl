@@ -227,7 +227,7 @@ This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates 
 function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     J = v.J
     k = v.k == 0 ? v.ks : v.k
-    full_grad = v.grad
+    full_grad = v.full_b # use full_b as storage for complete beta = [v.b ; v.c]
     lb = length(v.b)
     lw = length(v.weight)
     lg = length(v.group)
@@ -301,22 +301,22 @@ function init_iht_indices!(v::IHTVariable)
 
     # first `k` non-zero entries are chosen based on largest gradient
     ldf = length(v.df)
-    v.grad[1:ldf] .= v.df
-    v.grad[ldf+1:end] .= v.df2
+    v.full_b[1:ldf] .= v.df
+    v.full_b[ldf+1:end] .= v.df2
     if typeof(k) == Int
-        a = partialsort(v.grad, k * J, by=abs, rev=true)
+        a = partialsort(v.full_b, k * J, by=abs, rev=true)
         v.idx .= abs.(v.df) .>= abs(a)
         v.idc .= abs.(v.df2) .>= abs(a)
 
         # Choose randomly if more are selected
         _choose!(v) 
     else
-        project_group_sparse!(v.grad, group, J, k) # k is a vector
+        project_group_sparse!(v.full_b, group, J, k) # k is a vector
         @inbounds for i in 1:ldf
-            v.grad[i] != 0 && (v.idx[i] = true)
+            v.full_b[i] != 0 && (v.idx[i] = true)
         end
         @inbounds for i in 1:length(v.idc)
-            v.grad[ldf+i] != 0 && (v.idc[i] = true)
+            v.full_b[ldf+i] != 0 && (v.idc[i] = true)
         end
     end
 
@@ -777,6 +777,6 @@ function print_parameters(k, d, l, use_maf, group, debias, tol)
     println("Prior weight scaling = ", use_maf ? "on" : "off")
     println("Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
     println("Debias = ", debias ? "on" : "off")
-    println("Converging when tol < $tol")
     println("")
+    println("Converging when tol < $tol:")
 end

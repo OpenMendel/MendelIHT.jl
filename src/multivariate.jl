@@ -43,7 +43,6 @@ end
     score!(v::mIHTVariable)
 
 Calculates the score (gradient) `X'(Y - μ)Γ` for multivariate Gaussian model.
-W is a diagonal matrix where w[i, i] = dμ/dη / var(μ). 
 """
 function score!(v::mIHTVariable)
     y = v.y
@@ -62,26 +61,26 @@ end
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::mIHTVariable, η::Float)
-    full_grad = v.grad
+    full_b = v.full_b # use full_b as storage for complete beta = [v.b ; v.c]
     lb = size(v.b, 1)
-    lf = size(full_grad, 1)
+    lf = size(full_b, 1)
 
     # take gradient step: b = b + η ∇f
     BLAS.axpy!(η, v.df, v.b)
     BLAS.axpy!(η, v.df2, v.c)
     BLAS.axpy!(η, v.dΣ, v.Σ)
 
-    # store full gradient for beta 
-    full_grad[1:lb, :] .= v.b
-    full_grad[lb+1:lf, :] .= v.c
+    # store complete beta [v.b; v.c] in full_b 
+    full_b[1:lb, :] .= v.b
+    full_b[lb+1:lf, :] .= v.c
 
     # project beta to sparsity and Σ to nearest pd matrix
-    project_k!(full_grad, v.k)
-    project_Σ!(v.Σ)
+    project_k!(full_b, v.k)
+    solve_Σ!(v)
     
     # save model after projection
-    copyto!(v.b, @view(full_grad[1:lb]))
-    copyto!(v.c, @view(full_grad[lb+1:lf]))
+    copyto!(v.b, @view(full_b[1:lb, :]))
+    copyto!(v.c, @view(full_b[lb+1:lf, :]))
 
     #recombute support
     update_support!(v.idx, v.b)
@@ -130,6 +129,16 @@ Projects square matrix `A` to the nearest covariance (symmetric + pos def) matri
 """
 function project_Σ!(A::AbstractMatrix)
     return A # TODO
+end
+
+"""
+    solve_Σ!(Σ)
+
+Solve for `Σ` exactly rather than projecting. 
+"""
+function solve_Σ!(v::mIHTVariable)
+    n = size(v.y, 1)
+    v.Σ = n * v.resid' * v.resid
 end
 
 # TODO: How would this function work for shared predictors?
@@ -218,10 +227,10 @@ function init_iht_indices!(v::mIHTVariable)
 
     # first `k` non-zero entries are chosen based on largest gradient
     ldf = size(v.df, 1)
-    v.grad[1:ldf, :] .= v.df
-    v.grad[ldf+1:end, :] .= v.df2
-    @inbounds for c in 1:size(v.grad, 2)
-        col = @view(v.grad[:, c])
+    v.full_b[1:ldf, :] .= v.df
+    v.full_b[ldf+1:end, :] .= v.df2
+    @inbounds for c in 1:size(v.full_b, 2)
+        col = @view(v.full_b[:, c])
         a = partialsort(col, k, by=abs, rev=true)
         for i in 1:size(v.df, 1)
             abs(v.df[i, c]) > abs(a) && (v.idx[i] = true)
