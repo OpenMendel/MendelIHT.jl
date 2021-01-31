@@ -103,7 +103,7 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol
     ) where {T <: Float, M <: AbstractMatrix}
 
-    if size(y, 2) > 1
+    if size(y, 1) > 1 && size(y, 2) > 1
         v = mIHTVariable(x, z, y, k)
     else
         v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
@@ -123,88 +123,78 @@ Multivaraite Gaussian IHT object, containing intermediate variables and temporar
 """
 mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     # data and pre-specified parameters for fitting
-    x      :: M                      # design matrix (genotypes) of subtype AbstractMatrix{T}
-    y      :: Matrix{T}              # response vector (phenotypes)
-    z      :: VecOrMat{T}            # other non-genetic covariates 
-    k      :: Int                    # sparsity parameter
+    X      :: M             # design matrix (genotypes) of subtype AbstractMatrix{T}
+    Y      :: Matrix{T}     # response matrix (phenotypes)
+    Z      :: VecOrMat{T}   # other non-genetic covariates 
+    k      :: Int           # sparsity parameter
     # internal IHT variables
-    b      :: Matrix{T}     # the statistical model for the genotype matrix, most will be 0
-    b0     :: Matrix{T}     # estimated model for genotype matrix in the previous iteration
-    xb     :: Matrix{T}     # Matrix that holds x*b
-    xb0    :: Matrix{T}     # xb in the previous iteration
-    xk     :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
-    # gk     :: Matrix{T}     # numerator of step size. gk = df[idx]. 
-    # xgk    :: Matrix{T}     # xk * gk, denominator of step size
-    idx    :: BitVector     # idx[i] = 0 if b[i, j] = 0 for all j and idx[i] = 1 if b[i, j] != 0 for at least one j
+    B      :: Matrix{T}     # r × p matrix that holds the statistical model for the genotype matrix, most will be 0
+    B0     :: Matrix{T}     # estimated model for genotype matrix in the previous iteration
+    BX     :: Matrix{T}     # r × n matrix that holds B*X
+    BX0    :: Matrix{T}     # BX in the previous iteration
+    Xk     :: Matrix{T}     # the k × n subset of the design matrix x corresponding to non-0 elements of b
+    idx    :: BitVector     # length p vector where idx[i] = 0 if i-th column of B is all zero, and idx[i] = 1 otherwise
     idx0   :: BitVector     # previous iterate of idx
-    idc    :: BitVector     # idx[i] = 0 if c[i, j] = 0 for all j and idx[i] = 1 if c[i, j] != 0 for at least one j
+    idc    :: BitVector     # length q vector where idc[i] = 0 i-th column of C is all zero, and idc[i] = 1 otherwise
     idc0   :: BitVector     # previous iterate of idc
-    # nzct   :: Vector{Int}   # Vector tracking number of non-zero beta positions for each column of beta
-    resid  :: Matrix{T}     # The difference between the observed and predicted response
-    df     :: Matrix{T}     # genotype portion of the score = X'(Y - XB)Γ
-    df2    :: Matrix{T}     # non-genetic covariates portion of the score
-    c      :: Matrix{T}     # estimated model for non-genetic variates (first entry = intercept)
-    c0     :: Matrix{T}     # estimated model for non-genetic variates in the previous iteration
-    zc     :: Matrix{T}     # z * c (covariate matrix times c)
-    zc0    :: Matrix{T}     # z * c (covariate matrix times c) in the previous iterate
-    # zdf2   :: Matrix{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
-    μ      :: Matrix{T}     # mean of the current model: μ = xb + zc
-    full_b :: Matrix{T}     # storage for full beta and full gradient
-    Σ      :: Matrix{T}     # estimated covariance matrix (TODO: try StaticArrays.jl here)
-    Σ0     :: Matrix{T}     # estimated covariance matrix in previous iterate (TODO: try StaticArrays here)
-    dΣ     :: Matrix{T}     # gradient of covariance matrix
+    resid  :: Matrix{T}     # r × n matrix holding the residuals (Y - BX)
+    df     :: Matrix{T}     # r × p genotype portion of the score = Γ(Y - XB)X'
+    df2    :: Matrix{T}     # r × q non-genetic portion of the score
+    C      :: Matrix{T}     # r × q mtrix that holds the estimated model for non-genetic variates (first entry = intercept)
+    C0     :: Matrix{T}     # estimated model for non-genetic variates in the previous iteration
+    CZ     :: Matrix{T}     # r × n matrix holding C * Z (C times nongenetic covariates)
+    CZ0    :: Matrix{T}     # previous iterate of CZ
+    μ      :: Matrix{T}     # mean of the current model: μ = BX + CZ
+    full_b :: Matrix{T}     # storage for full beta [B Z] and full gradient [df df2]
+    Γ      :: Matrix{T}     # estimated inverse covariance matrix (TODO: try StaticArrays.jl here)
+    Γ0     :: Matrix{T}     # Γ in previous iterate (TODO: try StaticArrays here)
+    dΓ     :: Matrix{T}     # gradient of Γ
 end
 
-# X  = n × p
-# Z  = n × q
-# Y  = n × r
-# B  = p × r
-# Γ  = r × r
-# XB = n × r
-# df = p × r (gradient)
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     k::Int) where {T <: Float, M <: AbstractMatrix}
 
-    n = size(x, 1) # number of samples 
-    p = size(x, 2) # number of SNPs
-    q = size(z, 2) # number of non-genetic covariates
-    r = size(y, 2) # number of traits
+    n = size(x, 2) # number of samples 
+    p = size(x, 1) # number of SNPs
+    q = size(z, 1) # number of non-genetic covariates
+    r = size(y, 1) # number of traits
 
-    if !(n == size(y, 1) == size(z, 1))
-        throw(DimensionMismatch("number of samples in y, x, and z = $(size(y, 1)), $n, $(size(z, 1)) are not equal"))
+    if !(n == size(y, 2) == size(z, 2))
+        throw(DimensionMismatch("number of samples in y, x, and z = $(size(y, 2)), $n, $(size(z, 2)) are not equal"))
     end
 
-    b      = zeros(T, p, r)
-    b0     = zeros(T, p, r)
-    xb     = zeros(T, n, r)
-    xb0    = zeros(T, n, r)
-    xk     = zeros(T, n, k - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    # gk     = zeros(T, k - 1, r) # subtracting 1 because the intercept will likely be selected in the first iter
-    # xgk    = zeros(T, n, r)
+    B      = zeros(T, r, p)
+    B0     = zeros(T, r, p)
+    BX     = zeros(T, r, n)
+    BX0    = zeros(T, r, n)
+    Xk     = zeros(T, k - 1, n) # subtracting 1 because the intercept will likely be selected in the first iter
     idx    = falses(p)
     idx0   = falses(p)
     idc    = falses(q)
     idc0   = falses(q)
-    # nzct   = zeros(Int, r)
-    resid  = zeros(T, n, r)
-    df     = zeros(T, p, r)
-    df2    = zeros(T, q, r)
-    c      = zeros(T, q, r)
-    c0     = zeros(T, q, r)
-    zc     = zeros(T, n, r)
-    zc0    = zeros(T, n, r)
-    # zdf2   = zeros(T, n, r)
-    μ      = zeros(T, n, r)
-    full_b = zeros(T, p + q, r)
-    Σ      = Matrix{T}(I, r, r)
-    Σ0     = Matrix{T}(I, r, r)
-    dΣ     = zeros(T, r, r)
+    resid  = zeros(T, r, n)
+    df     = zeros(T, r, p)
+    df2    = zeros(T, r, q)
+    C      = zeros(T, r, q)
+    C0     = zeros(T, r, q)
+    CZ     = zeros(T, r, n)
+    CZ0    = zeros(T, r, n)
+    μ      = zeros(T, r, n)
+    full_b = zeros(T, r, p + q)
+    Γ      = Matrix{T}(I, r, r)
+    Γ0     = Matrix{T}(I, r, r)
+    dΓ     = zeros(T, r, r)
 
     return mIHTVariable{T, M}(
         x, y, z, k, 
-        b, b0, xb, xb0, xk, idx, idx0, idc, idc0, resid, df, df2, c, c0,
-        zc, zc0, μ, full_b, Σ, Σ0, dΣ)
+        B, B0, BX, BX0, Xk, idx, idx0, idc, idc0, resid, df, df2, C, C0,
+        CZ, CZ0, μ, full_b, Γ, Γ0, dΓ)
 end
+
+nsamples(v::mIHTVariable) = size(v.y, 2)
+nsnps(v::mIHTVariable) = size(v.x, 1)
+ncovariates(v::mIHTVariable) = size(v.z, 1) # number of nongenetic covariates
+ntraits(v::mIHTVariable) = size(v.y, 1)
 
 """
 immutable objects that house results returned from IHT run. 
