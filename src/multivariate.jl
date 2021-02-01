@@ -52,12 +52,14 @@ function score!(v::mIHTVariable)
     @inbounds for i in eachindex(y)
         r[i] = y[i] - μ[i]
     end
-    mul!(v.r_by_n, Γ, r) # r_by_n = Γ(Y - BX)
-    mul!(v.df, v.r_by_n, Transpose(v.X)) # v.df = Γ(Y - BX)X'
-    mul!(v.df2, v.r_by_n, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z'
+    mul!(v.r_by_n1, Γ, r) # r_by_n1 = Γ(Y - BX)
+    mul!(v.df, v.r_by_n1, Transpose(v.X)) # v.df = Γ(Y - BX)X'
+    mul!(v.df2, v.r_by_n1, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z'
 end
 
 """
+    _iht_gradstep(v::mIHTVariable, η::Float)
+
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::mIHTVariable, η::Float)
@@ -73,10 +75,10 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
     full_b[:, 1:p] .= v.B
     full_b[:, p+1:end] .= v.C
 
-    # project beta to sparsity and Σ to nearest pd matrix
+    # project beta to sparsity. Project Γ to nearest pd matrix or solve for Σ exactly
     project_k!(full_b, v.k)
     solve_Σ!(v)
-    
+
     # save model after projection
     copyto!(v.B, @view(full_b[:, 1:p]))
     copyto!(v.C, @view(full_b[:, 1:p+1:end]))
@@ -110,21 +112,37 @@ function update_support!(idx::BitVector, b::AbstractMatrix{T}) where T
 end
 
 """
-Computes the best step size 
+    iht_stepsize(v)
+
+Computes the best step size `η = ||∇f||^2_F / tr(X'∇f'Γ∇fX)` where
+∇f = Γ(Y - BX)(Y - BX)'. Note the denominator can be rewritten as
+||v||^2_F where v = sqrt(Γ)∇fX.
+
+TODO: sqrt(Γ) is allocating
 """
 function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
+    # store part of X corresponding to non-zero component of B
     copyto!(v.dfidx, @view(v.df[:, v.idx]))
+
+    # compute numerator of step size
     numer = zero(T)
-    for i in eachindex(v.dfidx)
-        numer += (v.dfidx[i])^2
+    @inbounds for i in eachindex(v.dfidx)
+        numer += abs2(v.dfidx[i])
     end
-    # TODO fix denom calculation
-    denom = tr(v.Xk' * v.dfidx' * v.Γ * v.dfidx * v.Xk)
+
+    # compute denominator of step size
+    mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
+    mul!(v.r_by_n2, sqrt(v.Γ), v.r_by_n1) # r_by_n2 = sqrt(Γ)*∇f*X
+    denom = zero(T)
+    @inbounds for i in eachindex(v.r_by_n2)
+        denom += abs2(v.r_by_n2[i])
+    end
+
     return numer / denom :: T
 end
 
 """
-    project_Σ!(A)
+    project_Σ!(A::AbstractMatrix)
 
 Projects square matrix `A` to the nearest covariance (symmetric + pos def) matrix.
 """
@@ -133,23 +151,38 @@ function project_Σ!(A::AbstractMatrix)
 end
 
 """
-    solve_Σ!(Σ)
+    solve_Σ!(v::mIHTVariable)
 
 Solve for `Σ` exactly rather than projecting. 
+
+TODO: inv(v.r_by_r1) is allocating
 """
 function solve_Σ!(v::mIHTVariable)
-    Σ = 1/nsamples(v) * (v.resid * Transpose(v.resid))
-    v.Γ = inv(Σ)
+    mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r1 = (Y-BX)(Y-BX)'
+    v.r_by_r1 ./= nsamples(v) 
+    v.Γ = inv(v.r_by_r1)
 end
 
-# TODO: How would this function work for shared predictors?
+"""
+    project_k!(x::AbstractMatrix{T}, k::Int64)
+
+Project `x` so that each row contains `k` or fewer non-zero entries. 
+
+TODO: How would this function work for shared predictors?
+"""
 function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
     for xi in eachrow(x)
         project_k!(xi, k)
     end
 end
 
-function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
+"""
+    check_covariate_supp!(v::mIHTVariable)
+
+Possibly rescales `v.Xk` and `v.dfidx`, which needs to happen when non-genetic
+covariates get included/excluded between different iterations
+"""
+function check_covariate_supp!(v::mIHTVariable)
     n, r = nsamples(v), ntraits(v)
     nzidx = sum(v.idx)
     if nzidx != size(v.Xk, 1)
@@ -158,12 +191,20 @@ function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
     end
 end
 
+"""
+    _choose!(v::mIHTVariable)
+
+Strictly force each row of `B` to have `k` or fewer non-zero entries. When `B`
+has `≥k` non-zero entries in a row, randomly choose `k` among them. Due to
+numerical error, it is possible to have `≥k` non-zero entries per row after
+projection.
+"""
 function _choose!(v::mIHTVariable)
     n, p = nsamples(v), nsnps(v)
     sparsity = v.k
     nz_idx = Int[]
     # loop through rows of full beta
-    for i in 1:ntraits(v)
+    @inbounds for i in 1:ntraits(v)
         # find position of non-zero beta
         nz = 0
         for j in 1:p

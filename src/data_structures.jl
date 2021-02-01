@@ -150,7 +150,8 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     full_b :: Matrix{T}     # storage for full beta [B Z] and full gradient [df df2]
     r_by_r1 :: Matrix{T}    # an r × r storage (needed in loglikelihood)
     r_by_r2 :: Matrix{T}    # another r × r storage (needed in loglikelihood)
-    r_by_n  :: Matrix{T}    # an r × n storage (needed in score! function)
+    r_by_n1 :: Matrix{T}    # an r × n storage (needed in score! function)
+    r_by_n2 :: Matrix{T}    # an r × n storage (needed in stepsize calculation)
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
@@ -189,12 +190,13 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     full_b = zeros(T, r, p + q)
     r_by_r1 = zeros(T, r, r)
     r_by_r2 = zeros(T, r, r)
-    r_by_n  = zeros(T, r, n)
+    r_by_n1 = zeros(T, r, n)
+    r_by_n2 = zeros(T, r, n)
 
     return mIHTVariable{T, M}(
         x, y, z, k, 
         B, B0, BX, BX0, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
-        CZ, CZ0, μ, Γ, Γ0, dΓ, full_b, r_by_r1, r_by_r2, r_by_n)
+        CZ, CZ0, μ, Γ, Γ0, dΓ, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2)
 end
 
 nsamples(v::mIHTVariable) = size(v.Y, 2)
