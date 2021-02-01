@@ -113,13 +113,14 @@ end
 Computes the best step size 
 """
 function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
+    copyto!(v.dfidx, @view(v.df[:, v.idx]))
     numer = zero(T)
-    for i in eachindex(v.df)
-        numer += (v.df[i])^2
+    for i in eachindex(v.dfidx)
+        numer += (v.dfidx[i])^2
     end
     # TODO fix denom calculation
-    denom = tr(v.X' * v.df' * v.Γ * v.df * v.X)
-    return numer / denom
+    denom = tr(v.Xk' * v.dfidx' * v.Γ * v.dfidx * v.Xk)
+    return numer / denom :: T
 end
 
 """
@@ -153,6 +154,7 @@ function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
     nzidx = sum(v.idx)
     if nzidx != size(v.Xk, 1)
         v.Xk = zeros(T, nzidx, n)
+        v.dfidx = zeros(T, r, nzidx)
     end
 end
 

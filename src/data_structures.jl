@@ -137,6 +137,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     resid  :: Matrix{T}     # r × n matrix holding the residuals (Y - BX)
     df     :: Matrix{T}     # r × p genotype portion of the score = Γ(Y - XB)X'
     df2    :: Matrix{T}     # r × q non-genetic portion of the score
+    dfidx  :: Matrix{T}     # r × k matrix storing df[:, idx], needed in stepsize calculation
     C      :: Matrix{T}     # r × q mtrix that holds the estimated model for non-genetic variates (first entry = intercept)
     C0     :: Matrix{T}     # estimated model for non-genetic variates in the previous iteration
     CZ     :: Matrix{T}     # r × n matrix holding C * Z (C times nongenetic covariates)
@@ -172,6 +173,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     resid  = zeros(T, r, n)
     df     = zeros(T, r, p)
     df2    = zeros(T, r, q)
+    dfidx  = zeros(T, r, k - 1)
     C      = zeros(T, r, q)
     C0     = zeros(T, r, q)
     CZ     = zeros(T, r, n)
@@ -184,7 +186,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
 
     return mIHTVariable{T, M}(
         x, y, z, k, 
-        B, B0, BX, BX0, Xk, idx, idx0, idc, idc0, resid, df, df2, C, C0,
+        B, B0, BX, BX0, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
         CZ, CZ0, μ, full_b, Γ, Γ0, dΓ)
 end
 
