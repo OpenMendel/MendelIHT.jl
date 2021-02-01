@@ -143,10 +143,14 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     CZ     :: Matrix{T}     # r × n matrix holding C * Z (C times nongenetic covariates)
     CZ0    :: Matrix{T}     # previous iterate of CZ
     μ      :: Matrix{T}     # mean of the current model: μ = BX + CZ
-    full_b :: Matrix{T}     # storage for full beta [B Z] and full gradient [df df2]
     Γ      :: Matrix{T}     # estimated inverse covariance matrix (TODO: try StaticArrays.jl here)
     Γ0     :: Matrix{T}     # Γ in previous iterate (TODO: try StaticArrays here)
     dΓ     :: Matrix{T}     # gradient of Γ
+    # storage variables
+    full_b :: Matrix{T}     # storage for full beta [B Z] and full gradient [df df2]
+    r_by_r1 :: Matrix{T}    # an r × r storage (needed in loglikelihood)
+    r_by_r2 :: Matrix{T}    # another r × r storage (needed in loglikelihood)
+    r_by_n  :: Matrix{T}    # an r × n storage (needed in score! function)
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
@@ -179,15 +183,18 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     CZ     = zeros(T, r, n)
     CZ0    = zeros(T, r, n)
     μ      = zeros(T, r, n)
-    full_b = zeros(T, r, p + q)
     Γ      = Matrix{T}(I, r, r)
     Γ0     = Matrix{T}(I, r, r)
     dΓ     = zeros(T, r, r)
+    full_b = zeros(T, r, p + q)
+    r_by_r1 = zeros(T, r, r)
+    r_by_r2 = zeros(T, r, r)
+    r_by_n  = zeros(T, r, n)
 
     return mIHTVariable{T, M}(
         x, y, z, k, 
         B, B0, BX, BX0, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
-        CZ, CZ0, μ, full_b, Γ, Γ0, dΓ)
+        CZ, CZ0, μ, Γ, Γ0, dΓ, full_b, r_by_r1, r_by_r2, r_by_n)
 end
 
 nsamples(v::mIHTVariable) = size(v.Y, 2)

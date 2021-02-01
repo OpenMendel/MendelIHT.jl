@@ -1,15 +1,16 @@
 """
     loglikelihood(v::mIHTVariable)
 
-Calculates the loglikelihood of observing `Y` given mean `μ` and covariance `Σ`
-under a multivariate Gaussian.
+Calculates the loglikelihood of observing `Y` given mean `μ` and precision matrix
+`Γ` (inverse covariance matrix) under a multivariate Gaussian.
 """
 function loglikelihood(v::mIHTVariable)
     Y = v.Y
     Γ = v.Γ
-    # TODO fix naive implementation below
     δ = v.resid
-    return nsamples(v) / 2 * logdet(Γ) + tr(Γ * (δ * δ'))
+    mul!(v.r_by_r1, δ, Transpose(δ)) # r_by_r = (Y - BX)(Y - BX)'
+    mul!(v.r_by_r2, Γ, v.r_by_r1) # r_by_r2 = Γ(Y - BX)(Y - BX)'
+    return nsamples(v) / 2 * logdet(Γ) + tr(v.r_by_r2) # logdet allocates! 
 end
 
 """
@@ -41,20 +42,19 @@ end
 """
     score!(v::mIHTVariable)
 
-Calculates the gradient `Γ(Y - XB)X' = [Γ(Y - XB)X' Γ(Y - XB)Z']` for
-multivariate Gaussian model.
+Calculates the gradient `Γ(Y - XB)X'` for multivariate Gaussian model.
 """
 function score!(v::mIHTVariable)
     y = v.Y
     μ = v.μ
-    r = v.resid
-    Γ = v.Γ
+    r = v.resid # r × n
+    Γ = v.Γ # r × r
     @inbounds for i in eachindex(y)
         r[i] = y[i] - μ[i]
     end
-    # TODO fix naive implementation below
-    v.df = Γ * r * Transpose(v.X)
-    v.df2 = Γ * r * Transpose(v.Z)
+    mul!(v.r_by_n, Γ, r) # r_by_n = Γ(Y - BX)
+    mul!(v.df, v.r_by_n, Transpose(v.X)) # v.df = Γ(Y - BX)X'
+    mul!(v.df2, v.r_by_n, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z'
 end
 
 """
@@ -154,7 +154,7 @@ function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
     nzidx = sum(v.idx)
     if nzidx != size(v.Xk, 1)
         v.Xk = zeros(T, nzidx, n)
-        v.dfidx = zeros(T, r, nzidx)
+        v.dfidx = zeros(T, r, nzidx) # TODO ElasticArrays.jl
     end
 end
 
