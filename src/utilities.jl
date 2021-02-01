@@ -322,6 +322,9 @@ function init_iht_indices!(v::IHTVariable)
 
     # make necessary resizing when necessary
     check_covariate_supp!(v)
+
+    # store relevant components of x for first iteration
+    copyto!(v.xk, @view(v.x[:, v.idx])) 
 end
 
 """

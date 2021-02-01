@@ -113,7 +113,13 @@ end
 Computes the best step size 
 """
 function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
-    return one(T) # TODO
+    numer = zero(T)
+    for i in eachindex(v.df)
+        numer += (v.df[i])^2
+    end
+    # TODO fix denom calculation
+    denom = tr(v.X' * v.df' * v.Γ * v.df * v.X)
+    return numer / denom
 end
 
 """
@@ -209,7 +215,8 @@ function init_iht_indices!(v::mIHTVariable)
     #     c[1] = c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
     #     abs(g1 - ybar) < 1e-10 && break
     # end
-    # mul!(v.zc, z, v.c)
+    c[:, 1] .= 1.0
+    mul!(v.CZ, c, v.Z)
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v)
@@ -235,6 +242,9 @@ function init_iht_indices!(v::mIHTVariable)
 
     # make necessary resizing when necessary
     check_covariate_supp!(v)
+
+    # store relevant components of x for first iteration
+    copyto!(v.Xk, @view(v.X[v.idx, :])) 
 end
 
 function check_convergence(v::mIHTVariable)

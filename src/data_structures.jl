@@ -112,9 +112,6 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     # initialize non-zero indices
     MendelIHT.init_iht_indices!(v)
 
-    # store relevant components of x for first iteration
-    copyto!(v.Xk, @view(x[v.idx, :])) 
-
     return v
 end
 
