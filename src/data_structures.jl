@@ -113,7 +113,7 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     MendelIHT.init_iht_indices!(v)
 
     # store relevant components of x for first iteration
-    copyto!(v.xk, @view(x[:, v.idx])) 
+    copyto!(v.Xk, @view(x[v.idx, :])) 
 
     return v
 end
@@ -191,10 +191,10 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
         CZ, CZ0, μ, full_b, Γ, Γ0, dΓ)
 end
 
-nsamples(v::mIHTVariable) = size(v.y, 2)
-nsnps(v::mIHTVariable) = size(v.x, 1)
-ncovariates(v::mIHTVariable) = size(v.z, 1) # number of nongenetic covariates
-ntraits(v::mIHTVariable) = size(v.y, 1)
+nsamples(v::mIHTVariable) = size(v.Y, 2)
+nsnps(v::mIHTVariable) = size(v.X, 1)
+ncovariates(v::mIHTVariable) = size(v.Z, 1) # number of nongenetic covariates
+ntraits(v::mIHTVariable) = size(v.Y, 1)
 
 """
 immutable objects that house results returned from IHT run. 
@@ -214,7 +214,7 @@ end
 IHTResult(time, logl, iter, v::IHTVariable) = IHTResult(time, logl, iter,
     v.b, v.c, v.J, v.k, v.group, v.d, nothing)
 IHTResult(time, logl, iter, v::mIHTVariable) = IHTResult(time, logl, iter,
-    v.b, v.c, 1, v.k, Int[], MvNormal(Float64[]), v.Σ)
+    v.B, v.C, 1, v.k, Int[], MvNormal(Float64[]), inv(v.Γ))
 
 """
 functions to display IHTResults object

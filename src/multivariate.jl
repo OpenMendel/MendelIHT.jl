@@ -5,86 +5,90 @@ Calculates the loglikelihood of observing `Y` given mean `μ` and covariance `Σ
 under a multivariate Gaussian.
 """
 function loglikelihood(v::mIHTVariable)
-    Y = v.y # n × r
-    Σ = v.Σ # r × r
+    Y = v.Y
+    Σ = v.Σ
     # TODO fix naive implementation below
-    Γ = inv(Σ)
     δ = v.resid
-    return size(Y, 1) / 2 * logdet(Γ) + tr(Γ * (δ' * δ))
+    return nsamples(v) / 2 * logdet(Γ) + tr(Γ * (δ * δ'))
 end
 
 """
     update_xb!(v::mIHTVariable)
 
-Update the linear predictors `xb` with the new proposed `b`. `b` is sparse but 
-`c` (beta for non-genetic covariates) is dense.
+Update the linear predictors `BX` with the new proposed `B`. `B` is sparse but 
+`C` (beta for non-genetic covariates) is dense.
 """
 function update_xb!(v::mIHTVariable)
-    copyto!(v.xk, @view(v.x[:, v.idx]))
-    A_mul_B!(v.xb, v.zc, v.xk, v.z, view(v.b, v.idx, :), v.c)
+    copyto!(v.Xk, @view(v.X[v.idx, :]))
+
+    println(size(v.BX))
+    println(size(view(v.B, :, v.idx)))
+    println(size(v.X))
+
+    A_mul_B!(v.BX, v.CZ, view(v.B, :, v.idx), v.C, v.X, v.Z)
 end
 
 """
     update_μ!(v::mIHTVariable)
 
-Update the mean `μ` with the linear predictors `xb` and `zc`. Here `xb` is the 
-genetic contribution and `zc` is the non-genetic contribution of all covariates
+Update the mean `μ` with the linear predictors `BX` and `CZ`. Here `BX` is the 
+genetic contribution and `CZ` is the non-genetic contribution of all covariates
 """
 function update_μ!(v::mIHTVariable)
     μ = v.μ
-    xb = v.xb
-    zc = v.zc
+    BX = v.BX
+    CZ = v.CZ
     @inbounds @simd for i in eachindex(μ)
-        μ[i] = xb[i] + zc[i]
+        μ[i] = BX[i] + CZ[i]
     end
 end
 
 """
     score!(v::mIHTVariable)
 
-Calculates the score (gradient) `X'(Y - μ)Γ` for multivariate Gaussian model.
+Calculates the gradient `Γ(Y - XB)X' = [Γ(Y - XB)X' Γ(Y - XB)Z']` for
+multivariate Gaussian model.
 """
 function score!(v::mIHTVariable)
-    y = v.y
+    y = v.Y
     μ = v.μ
     r = v.resid
+    Γ = v.Γ
     @inbounds for i in eachindex(y)
         r[i] = y[i] - μ[i]
     end
     # TODO fix naive implementation below
-    Γ = inv(v.Σ)
-    v.df = Transpose(v.x) * r * Γ
-    v.df2 = Transpose(v.z) * r * Γ
+    v.df = Γ * r * Transpose(v.X)
+    v.df2 = Γ * r * Transpose(v.Z)
 end
 
 """
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep(v::mIHTVariable, η::Float)
-    full_b = v.full_b # use full_b as storage for complete beta = [v.b ; v.c]
-    lb = size(v.b, 1)
-    lf = size(full_b, 1)
+    full_b = v.full_b # use full_b as storage for complete beta = [v.b v.c]
+    p = nsnps(v)
 
     # take gradient step: b = b + η ∇f
-    BLAS.axpy!(η, v.df, v.b)
-    BLAS.axpy!(η, v.df2, v.c)
-    BLAS.axpy!(η, v.dΣ, v.Σ)
+    BLAS.axpy!(η, v.df, v.B)
+    BLAS.axpy!(η, v.df2, v.C)
+    BLAS.axpy!(η, v.dΓ, v.Γ)
 
-    # store complete beta [v.b; v.c] in full_b 
-    full_b[1:lb, :] .= v.b
-    full_b[lb+1:lf, :] .= v.c
+    # store complete beta [v.b v.c] in full_b 
+    full_b[:, 1:p] .= v.B
+    full_b[:, p+1:end] .= v.C
 
     # project beta to sparsity and Σ to nearest pd matrix
     project_k!(full_b, v.k)
     solve_Σ!(v)
     
     # save model after projection
-    copyto!(v.b, @view(full_b[1:lb, :]))
-    copyto!(v.c, @view(full_b[lb+1:lf, :]))
+    copyto!(v.B, @view(full_b[:, 1:p]))
+    copyto!(v.C, @view(full_b[:, 1:p+1:end]))
 
     #recombute support
-    update_support!(v.idx, v.b)
-    update_support!(v.idc, v.c)
+    update_support!(v.idx, v.B)
+    update_support!(v.idc, v.C)
     
     # if more than k entries are selected per column, randomly choose k of them
     _choose!(v)
@@ -96,21 +100,16 @@ end
 """
     update_support!(idx::BitVector, b::AbstractMatrix)
 
-Updates `idx` so that `idx[i] = true` if `b[i, j] ≠ 0` for some `j`, otherwise
-`idx[i] = false`. 
+Updates `idx` so that `idx[i] = true` if `i`th column of `v.B` contains non-0
+values. 
 """
 function update_support!(idx::BitVector, b::AbstractMatrix{T}) where T
-    p, r = size(b)
+    r, p = size(b)
     fill!(idx, false)
-    @inbounds for j in 1:r
-        nz = 0
-        for i in 1:p
-            if b[i, j] != 0.0
-                idx[i] = true
-                nz += 1
-            end
+    @inbounds for j in 1:p, i in 1:r
+        if b[i, j] != zero(T)
+            idx[i] = true
         end
-
     end
     return nothing
 end
@@ -137,39 +136,37 @@ end
 Solve for `Σ` exactly rather than projecting. 
 """
 function solve_Σ!(v::mIHTVariable)
-    n = size(v.y, 1)
-    v.Σ = n * v.resid' * v.resid
+    Σ = 1/nsamples(v) * (v.resid * Transpose(v.resid))
+    v.Γ = inv(Σ)
 end
 
 # TODO: How would this function work for shared predictors?
 function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
-    for xi in eachcol(x)
+    for xi in eachrow(x)
         project_k!(xi, k)
     end
 end
 
-# TODO: How would this function work for non-shared predictors?
-# TODO: Use ElasticArrays.jl to resize
 function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
-    n, r = size(v.y)
+    n, r = nsamples(v), ntraits(v)
     nzidx = sum(v.idx)
-    if nzidx != size(v.xk, 2)
-        v.xk = zeros(T, n, nzidx)
+    if nzidx != size(v.Xk, 1)
+        v.Xk = zeros(T, nzidx, n)
     end
 end
 
 function _choose!(v::mIHTVariable)
-    n, p = size(v.b)
+    n, p = nsamples(v), nsnps(v)
     sparsity = v.k
     nz_idx = Int[]
-    # loop through columns of full beta
-    for j in 1:p
-        # find position of non-zero beta in column j
+    # loop through rows of full beta
+    for i in 1:ntraits(v)
+        # find position of non-zero beta
         nz = 0
-        for i in 1:n
-            if v.b[i, j] != 0
+        for j in 1:p
+            if v.B[i, j] != 0
                 nz += 1
-                push!(nz_idx, i)
+                push!(nz_idx, j)
             end
         end
         excess = nz - sparsity
@@ -177,7 +174,7 @@ function _choose!(v::mIHTVariable)
         if excess > 0
             shuffle!(nz_idx)
             for i in 1:excess
-                v.b[nz_idx[i], j] = 0
+                v.B[i, nz_idx[i]] = 0
             end
         end
         empty!(nz_idx)
@@ -188,18 +185,16 @@ end
 Function that saves variables that need to be updated each iteration
 """
 function save_prev!(v::mIHTVariable)
-    copyto!(v.b0, v.b)     # b0 = b
-    copyto!(v.xb0, v.xb)   # Xb0 = Xb
+    copyto!(v.B0, v.B)     # B0 = B
+    copyto!(v.BX0, v.BX)   # BX0 = BX
     copyto!(v.idx0, v.idx) # idx0 = idx
     copyto!(v.idc0, v.idc) # idc0 = idc
-    copyto!(v.c0, v.c)     # c0 = c
-    copyto!(v.zc0, v.zc)   # Zc0 = Zc
-    copyto!(v.Σ0, v.Σ)   # Zc0 = Zc
+    copyto!(v.C0, v.C)     # C0 = C
+    copyto!(v.CZ0, v.CZ)   # CZ0 = CZ
+    copyto!(v.Γ0, v.Γ)     # Γ0 = Γ
 end
 
-function checky(y::AbstractMatrix, d::MvNormal)
-    return nothing
-end
+checky(y::AbstractMatrix, d::MvNormal) = nothing
 
 """
 When initializing the IHT algorithm, take `k` largest elements in magnitude of 
@@ -207,10 +202,10 @@ the score as nonzero components of b. This function set v.idx = 1 for
 those indices. 
 """
 function init_iht_indices!(v::mIHTVariable)
-    z = v.z
-    y = v.y
+    z = v.Z
+    y = v.Y
     k = v.k
-    c = v.c
+    c = v.C
 
     # TODO: find intercept by Newton's method
     # ybar = mean(y)
@@ -226,17 +221,17 @@ function init_iht_indices!(v::mIHTVariable)
     score!(v)
 
     # first `k` non-zero entries are chosen based on largest gradient
-    ldf = size(v.df, 1)
-    v.full_b[1:ldf, :] .= v.df
-    v.full_b[ldf+1:end, :] .= v.df2
-    @inbounds for c in 1:size(v.full_b, 2)
-        col = @view(v.full_b[:, c])
-        a = partialsort(col, k, by=abs, rev=true)
-        for i in 1:size(v.df, 1)
-            abs(v.df[i, c]) > abs(a) && (v.idx[i] = true)
+    p, q = nsnps(v), ncovariates(v)
+    v.full_b[:, 1:p] .= v.df
+    v.full_b[:, p+1:end] .= v.df2
+    @inbounds for r in 1:ntraits(v)
+        row = @view(v.full_b[r, :])
+        a = partialsort(row, k, by=abs, rev=true)
+        for i in 1:p
+            abs(v.df[r, i]) > abs(a) && (v.idx[i] = true)
         end
-        for i in 1:size(v.df2, 1)
-            abs(v.df2[i, c]) > abs(a) && (v.idc[i] = true)
+        for i in 1:q
+            abs(v.df2[r, i]) > abs(a) && (v.idc[i] = true)
         end
     end
 
