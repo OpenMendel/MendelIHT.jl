@@ -780,3 +780,25 @@ function print_parameters(k, d, l, use_maf, group, debias, tol)
     println("")
     println("Converging when tol < $tol:")
 end
+
+function check_convergence(v::IHTVariable)
+    the_norm = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
+    scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
+    return scaled_norm
+end
+
+function backtrack!(v::IHTVariable, η::Float)
+    # recompute gradient step
+    copyto!(v.b, v.b0)
+    copyto!(v.c, v.c0)
+    _iht_gradstep(v, η)
+
+    # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
+    update_xb!(v)
+    update_μ!(v)
+    if v.est_r != :None
+        v.d = mle_for_r(v)
+    end
+    
+    return loglikelihood(v)
+end

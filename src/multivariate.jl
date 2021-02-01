@@ -6,7 +6,7 @@ under a multivariate Gaussian.
 """
 function loglikelihood(v::mIHTVariable)
     Y = v.Y
-    Σ = v.Σ
+    Γ = v.Γ
     # TODO fix naive implementation below
     δ = v.resid
     return nsamples(v) / 2 * logdet(Γ) + tr(Γ * (δ * δ'))
@@ -20,12 +20,7 @@ Update the linear predictors `BX` with the new proposed `B`. `B` is sparse but
 """
 function update_xb!(v::mIHTVariable)
     copyto!(v.Xk, @view(v.X[v.idx, :]))
-
-    println(size(v.BX))
-    println(size(view(v.B, :, v.idx)))
-    println(size(v.X))
-
-    A_mul_B!(v.BX, v.CZ, view(v.B, :, v.idx), v.C, v.X, v.Z)
+    A_mul_B!(v.BX, v.CZ, view(v.B, :, v.idx), v.C, v.Xk, v.Z)
 end
 
 """
@@ -89,7 +84,7 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
     #recombute support
     update_support!(v.idx, v.B)
     update_support!(v.idc, v.C)
-    
+
     # if more than k entries are selected per column, randomly choose k of them
     _choose!(v)
 
@@ -108,7 +103,7 @@ function update_support!(idx::BitVector, b::AbstractMatrix{T}) where T
     fill!(idx, false)
     @inbounds for j in 1:p, i in 1:r
         if b[i, j] != zero(T)
-            idx[i] = true
+            idx[j] = true
         end
     end
     return nothing
@@ -240,4 +235,23 @@ function init_iht_indices!(v::mIHTVariable)
 
     # make necessary resizing when necessary
     check_covariate_supp!(v)
+end
+
+function check_convergence(v::mIHTVariable)
+    the_norm = max(chebyshev(v.B, v.B0), chebyshev(v.C, v.C0)) #max(abs(x - y))
+    scaled_norm = the_norm / (max(norm(v.B0, Inf), norm(v.C0, Inf)) + 1.0)
+    return scaled_norm
+end
+
+function backtrack!(v::mIHTVariable, η::Float)
+    # recompute gradient step
+    copyto!(v.B, v.B0)
+    copyto!(v.C, v.C0)
+    _iht_gradstep(v, η)
+
+    # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
+    update_xb!(v)
+    update_μ!(v)
+    
+    return loglikelihood(v)
 end

@@ -105,11 +105,9 @@ function fit_iht(
         end
 
         # track convergence
-        the_norm    = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
-        scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
-        converged   = scaled_norm < tol
+        scaled_norm = check_convergence(v)
         verbose && println("Iteration $iter: loglikelihood = $next_logl, tol = $scaled_norm")
-        if converged
+        if scaled_norm < tol
         # if iter > 1 && abs(next_logl - logl) < tol * (abs(logl) + 1.0)
             tot_time = time() - start_time
             mm_iter  = iter
@@ -157,18 +155,8 @@ function iht_one_step!(
         # stephalving
         η /= 2
 
-        # recompute gradient step
-        copyto!(v.b, v.b0)
-        copyto!(v.c, v.c0)
-        _iht_gradstep(v, η)
-
-        # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
-        update_xb!(v)
-        update_μ!(v)
-        if typeof(v) <: IHTVariable && v.est_r != :None
-            v.d = mle_for_r(v)
-        end
-        new_logl = loglikelihood(v)
+        # compute new loglikelihood after linesearch
+        new_logl = backtrack!(v, η)
 
         # increment the counter
         η_step += 1
