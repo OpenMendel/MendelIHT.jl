@@ -35,7 +35,7 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `parallel`: Whether we want to run cv_iht using multiple CPUs (highly recommended)
 """
 function cv_iht(
-    y        :: AbstractVector{T},
+    y        :: AbstractVecOrMat{T},
     x        :: AbstractMatrix,
     z        :: AbstractVecOrMat{T};
     d        :: UnivariateDistribution = Normal(),
@@ -143,12 +143,12 @@ Use this if you want to quickly estimate a range of feasible model sizes before
 engaging in full cross validation. 
 """
 function iht_run_many_models(
-    y        :: AbstractVector{T},
+    y        :: AbstractVecOrMat{T},
     x        :: AbstractMatrix,
     z        :: AbstractVecOrMat{T};
-    d        :: UnivariateDistribution,
-    l        :: Link,
-    path     :: AbstractVector{Int},
+    d        :: Distribution = Normal(),
+    l        :: Link = canonicallink(d),
+    path     :: AbstractVector{Int} = 1:20,
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = Float64[],
@@ -185,13 +185,15 @@ iht_run_many_models(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T 
     iht_run_many_models(y, x, ones(T, size(x, 1)); kwargs...)
 
 """
-This function trains a bunch of models, where each model has a different sparsity 
-parameter, k, which is specified in the variable `path`. Then each trained model is used to
-compute the deviance residuals (i.e. mean squared error for normal response) on the test set.
-This deviance residuals vector is returned
+This function trains a bunch of models (univariate or multivariate trait) IHT.
+
+Each model has a different sparsity parameter, k, which is specified in the
+variable `path`. Then each trained model is used to compute the deviance
+residuals (i.e. mean squared error for normal response) on the test set.
+This deviance residuals vector is returned.
 """
 function train_and_validate(train_idx::BitArray, test_idx::BitArray,
-    d::UnivariateDistribution, l::Link, x::SnpArray, z::AbstractVecOrMat{T},
+    d::Distribution, l::Link, x::SnpArray, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector=Int[], weight::AbstractVector{T}=T[],
     destin::String = "./", use_maf::Bool=false,
@@ -256,7 +258,9 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
             rm(train_file, force=true) 
             rm(test_file, force=true)
         catch
-            println("Can't remove intermediate file! Windows users need to delete intermediate files manually.")
+            println("Can't remove intermediate file! Please delete the following files manually:")
+            println(train_file)
+            println(test_file)
         end
     end
 
