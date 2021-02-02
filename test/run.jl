@@ -1066,3 +1066,14 @@ using GLM
 using DelimitedFiles
 using Test
 using Distributions
+using BenchmarkTools
+
+# invert matrix in place
+A = rand(3, 3)
+A = A'A
+B = copy(A)
+
+@time LinearAlgebra.inv!(cholesky!(A))
+A*B # should be identity
+
+@btime LinearAlgebra.inv!(cholesky!($B)) setup=(A = rand(10, 10); B=A'A)

@@ -205,27 +205,40 @@ ncovariates(v::mIHTVariable) = size(v.Z, 1) # number of nongenetic covariates
 ntraits(v::mIHTVariable) = size(v.Y, 1)
 
 """
-immutable objects that house results returned from IHT run. 
+Immutable object that houses results returned from a single-trait IHT run. 
 """
 struct IHTResult{T <: Float}
-    time  :: Union{Float64, Float32}    # total compute time
+    time  :: Float64                    # total compute time
     logl  :: T                          # final loglikelihood
     iter  :: Int64                      # number of iterations until convergence
-    beta  :: VecOrMat{T}                # estimated beta for genetic predictors
-    c     :: VecOrMat{T}                # estimated beta for nongenetic predictors
+    beta  :: Vector{T}                  # estimated beta for genetic predictors
+    c     :: Vector{T}                  # estimated beta for nongenetic predictors
     J     :: Int64                      # maximum number of groups (1 for multivariate analysis)
     k     :: Union{Int64, Vector{Int}}  # maximum number of predictors (vector if group IHT have differently sized groups)
     group :: Vector{Int64}              # group membership
     d     :: Distribution               # distribution of phenotype
-    Σ     :: Union{Nothing, Matrix{T}}  # estimated covariance matrix for multivariate analysis
 end
 IHTResult(time, logl, iter, v::IHTVariable) = IHTResult(time, logl, iter,
     v.b, v.c, v.J, v.k, v.group, v.d, nothing)
-IHTResult(time, logl, iter, v::mIHTVariable) = IHTResult(time, logl, iter,
-    v.B, v.C, 1, v.k, Int[], MvNormal(Float64[]), inv(v.Γ))
 
 """
-functions to display IHTResults object
+Immutable object that houses results returned from a multivariate Gaussian IHT run. 
+"""
+struct mIHTResult{T <: Float}
+    time   :: Float64                    # total compute time
+    logl   :: T                          # final loglikelihood
+    iter   :: Int64                      # number of iterations until convergence
+    beta   :: VecOrMat{T}                # estimated beta for genetic predictors
+    c      :: VecOrMat{T}                # estimated beta for nongenetic predictors
+    k      :: Int64                      # maximum number of predictors
+    traits :: Int64                      # number of traits analyzed jointly
+    Σ      :: Matrix{T}                  # estimated covariance matrix for multivariate analysis
+end
+IHTResult(time, logl, iter, v::mIHTVariable) = mIHTResult(time, logl, iter,
+    v.B, v.C, v.k, ntraits(v), inv(v.Γ))
+
+"""
+Displays IHTResults object
 """
 function Base.show(io::IO, x::IHTResult)
     snp_position = findall(x -> x != 0, x.beta)
@@ -239,6 +252,27 @@ function Base.show(io::IO, x::IHTResult)
     print(io, DataFrame(Position=snp_position, Estimated_β=x.beta[snp_position]))
     println(io, "\n\nSelected nongenetic predictors:")
     print(io, DataFrame(Position=nongenetic_position, Estimated_β=x.c[nongenetic_position]))
+end
+
+"""
+Displays mIHTResult object
+"""
+function Base.show(io::IO, x::mIHTResult)
+    println(io, "\nCompute time (sec):     ", x.time)
+    println(io, "Final loglikelihood:    ", x.logl)
+    println(io, "Iterations:             ", x.iter)
+    for r in 1:x.traits
+        β1 = @view(x.beta[r, :])
+        C1 = @view(x.c[r, :])
+        snp_position = findall(x -> x != 0, β1)
+        nongenetic_position = findall(x -> x != 0, C1)    
+        println(io, "\nTrait $r: IHT estimated ", count(!iszero, β1),
+            " nonzero SNP predictors")
+        println(io, DataFrame(Position=snp_position, Estimated_β=β1[snp_position]))
+        println(io, "\nTrait $r: IHT estimated ", count(!iszero, C1),
+            " non-genetic predictors")
+        println(io, DataFrame(Position=nongenetic_position, Estimated_β=C1[nongenetic_position]))
+    end
 end
 
 """
