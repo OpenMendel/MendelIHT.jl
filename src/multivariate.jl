@@ -153,14 +153,13 @@ end
 """
     solve_Σ!(v::mIHTVariable)
 
-Solve for `Σ` exactly rather than projecting. 
-
-TODO: inv(v.r_by_r1) is allocating
+Solve for `Σ = 1/n(Y-BX)(Y-BX)'` exactly rather than projecting
 """
 function solve_Σ!(v::mIHTVariable)
     mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r1 = (Y-BX)(Y-BX)'
-    v.r_by_r1 ./= nsamples(v) 
-    v.Γ = inv(v.r_by_r1)
+    v.r_by_r1 ./= nsamples(v)
+    LinearAlgebra.inv!(cholesky!(v.r_by_r1)) # r_by_r1 = (1/n(Y-BX)(Y-BX)')^{-1}
+    copyto!(v.Γ, v.r_by_r1)
 end
 
 """
@@ -182,7 +181,7 @@ end
 Possibly rescales `v.Xk` and `v.dfidx`, which needs to happen when non-genetic
 covariates get included/excluded between different iterations
 """
-function check_covariate_supp!(v::mIHTVariable)
+function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
     n, r = nsamples(v), ntraits(v)
     nzidx = sum(v.idx)
     if nzidx != size(v.Xk, 1)
@@ -273,15 +272,15 @@ function init_iht_indices!(v::mIHTVariable)
         row = @view(v.full_b[r, :])
         a = partialsort(row, k, by=abs, rev=true)
         for i in 1:p
-            abs(v.df[r, i]) > abs(a) && (v.idx[i] = true)
+            abs(v.df[r, i]) ≥ abs(a) && (v.idx[i] = true)
         end
         for i in 1:q
-            abs(v.df2[r, i]) > abs(a) && (v.idc[i] = true)
+            abs(v.df2[r, i]) ≥ abs(a) && (v.idc[i] = true)
         end
     end
 
     # Choose randomly if more are selected
-    _choose!(v) 
+    _choose!(v)
 
     # make necessary resizing when necessary
     check_covariate_supp!(v)
