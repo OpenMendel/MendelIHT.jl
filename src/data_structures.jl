@@ -103,7 +103,7 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol
     ) where {T <: Float, M <: AbstractMatrix}
 
-    if size(y, 1) > 1 && size(y, 2) > 1
+    if is_multivariate(y)
         v = mIHTVariable(x, z, y, k)
     else
         v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
@@ -300,8 +300,9 @@ function print_a_bunch_of_path_results(io::IO, loglikelihoods::AbstractVector{T}
     for i = 1:length(loglikelihoods)
         println(io, "\t", path[i], "\t", loglikelihoods[i])
     end
-    println(io, "\nWe recommend running cross validation through `cv_iht_distributed` on " *
-    "appropriate model sizes. Roughly speaking, this is when error stopped decreasing significantly.")
+    println(io, "\nWe recommend running cross validation through `cv_iht` on " *
+    "appropriate model sizes, which is roughly the values of k where the " *
+    "loglikelihood stop increasing significantly.")
 end
 # default IO for print_a_bunch_of_path_results is STDOUT
 print_a_bunch_of_path_results(loglikelihoods::AbstractVector{T}, 

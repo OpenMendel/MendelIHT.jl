@@ -361,15 +361,11 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
                 ηi_genetic = @view(η_genetic[:, :, id])
                 ηi_nongenetic = @view(η_nongenetic[:, :, id])
                 @inbounds @simd for i in eachindex(μi)
-                    # x = μ[i, id]
-                    # if isnan(x) || isinf(x)
-                    #     error("i = $i, x = $x, μi = $(μ[i]), y[i] = $(y[i])")
-                    # end
                     μi[i] = ηi_genetic[i] + ηi_nongenetic[i]
                 end
                 mse = zero(T)
-                @inbounds for i in eachindex(y)
-                    mse += abs2(y[i] - μi[i])
+                @inbounds for i in eachindex(y_test)
+                    mse += abs2(y_test[i] - μi[i])
                 end
                 return mse
             else

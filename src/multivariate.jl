@@ -307,3 +307,13 @@ function backtrack!(v::mIHTVariable, η::Float)
     
     return loglikelihood(v)
 end
+
+"""
+    is_multivariate(y::AbstractVecOrMat)
+
+Returns true if response `y` can be modeled by a multivariate Gaussian
+distributions. Currently simply checks whether there is >1 trait
+"""
+function is_multivariate(y::AbstractVecOrMat)
+    size(y, 1) > 1 && size(y, 2) > 1
+end
