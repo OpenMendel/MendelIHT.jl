@@ -198,7 +198,7 @@ function allocate_train!(
     train_idx::BitVector,
     x::SnpArray, 
     y::VecOrMat{T}, 
-    z::Matrix{T},
+    z::VecOrMat{T},
     destin::String
     ) where T <: Float
     train_file = destin * randstring(100) * ".bed"
@@ -225,7 +225,7 @@ function allocate_train!(
     train_idx::BitVector,
     x::Matrix,
     y::VecOrMat{T},
-    z::Matrix{T},
+    z::VecOrMat{T},
     destin::String
     ) where T <: Float
     if is_multivariate(y) # sample phenotype/genotypes stored in columns
@@ -254,7 +254,7 @@ function allocate_test!(
     test_idx::BitVector,
     x::SnpArray, 
     y::VecOrMat{T}, 
-    z::Matrix{T},
+    z::VecOrMat{T},
     destin::String
     ) where T <: Float
     test_file = destin * randstring(100) * ".bed"
@@ -280,7 +280,7 @@ function allocate_test!(
     test_idx::BitVector,
     x::Matrix,
     y::VecOrMat{T},
-    z::Matrix{T},
+    z::VecOrMat{T},
     destin::String
     ) where T <: Float
     test_size = sum(test_idx)

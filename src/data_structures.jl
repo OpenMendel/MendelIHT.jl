@@ -219,7 +219,7 @@ struct IHTResult{T <: Float}
     d     :: Distribution               # distribution of phenotype
 end
 IHTResult(time, logl, iter, v::IHTVariable) = IHTResult(time, logl, iter,
-    v.b, v.c, v.J, v.k, v.group, v.d, nothing)
+    v.b, v.c, v.J, v.k, v.group, v.d)
 
 """
 Immutable object that houses results returned from a multivariate Gaussian IHT run. 
