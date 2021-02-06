@@ -271,12 +271,12 @@ end
 	@time newton = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, est_r=:Newton)
 	@test typeof(newton.d) == NegativeBinomial{Float64}
 	@test newton.d.p == 0.5 # p parameter not used 
-	@test newton.d.r ≥ 0
+	@test newton.d.r ≥ 7 # r converges to 10 faster
 
 	@time mm = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, est_r=:MM)
 	@test typeof(mm.d) == NegativeBinomial{Float64}
 	@test mm.d.p == 0.5
-	@test mm.d.r ≥ 0
+	@test mm.d.r ≥ 2 # r converges to 10 slower
 
 	# simulate floating point data
 	Random.seed!(1111) 

@@ -1,15 +1,17 @@
 """
-    loglikelihood(d::UnivariateDistribution, y::AbstractVector, μ::AbstractVector)
+    loglikelihood(v::IHTVariable{T, M})
 
 Calculates the loglikelihood of observing `y` given mean `μ = E(y) = g^{-1}(xβ)`
-and some distribution `d`. 
+and some univariate distribution `d`. 
 
 Note that loglikelihood is the sum of the logpdfs for each observation. 
 """
-function loglikelihood(d::UnivariateDistribution, y::AbstractVector{T}, 
-                       μ::AbstractVector{T}) where {T <: Float}
+function loglikelihood(v::IHTVariable{T, M}) where {T <: Float, M}
+    d = v.d 
+    y = v.y
+    μ = v.μ
     logl = zero(T)
-    ϕ = MendelIHT.deviance(d, y, μ) / length(y) # variance in the case of normal
+    ϕ = MendelIHT.deviance(v) / length(y) # variance in the case of normal
     @inbounds for i in eachindex(y)
         logl += loglik_obs(d, y[i], μ[i], 1, ϕ)
     end
@@ -41,7 +43,6 @@ loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r,
     deviance(d, y, μ)
 
 Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian case) 
-
 Each individual sqared deviance residual is evaluated using `devresid`
 which is implemented in GLM.jl
 """
@@ -52,6 +53,8 @@ function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractV
     end
     return dev
 end
+deviance(v::IHTVariable{T, M}) where {T <: Float, M} = 
+    MendelIHT.deviance(v.d, v.y, v.μ)
 
 """
     update_μ!(μ, xb, l)
@@ -64,31 +67,60 @@ function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where
     end
 end
 
+function update_μ!(v::IHTVariable{T, M}) where {T <: Float, M}
+    μ = v.μ
+    xb = v.xb
+    zc = v.zc
+    l = v.l
+    @inbounds for i in eachindex(μ)
+        μ[i] = linkinv(l, xb[i] + zc[i]) #genetic + nongenetic contributions
+    end
+end
+
 """
-This function update the linear predictors `xb` with the new proposed b. We clamp the max
-value of each entry to (-20, 20) because certain distributions (e.g. Poisson) have exponential
-link functions, which causes overflow.
+    update_xb!(v::IHTVariable{T, M})
+
+Updates the linear predictors `xb` and `zc` with the new proposed `b` and `c`.
+`b` is sparse but `c` (beta for non-genetic covariates) is dense.
+
+We clamp the max value of each entry to (-20, 20) because certain distributions
+(e.g. Poisson) have exponential link functions, which causes overflow.
 """
-function update_xb!(v::IHTVariable{T}, x::AbstractMatrix, 
-                    z::AbstractVecOrMat{T}) where {T <: Float}
-    copyto!(v.xk, @view(x[:, v.idx]))
-    A_mul_B!(v.xb, v.zc, v.xk, z, view(v.b, v.idx), v.c)
+function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
+    copyto!(v.xk, @view(v.x[:, v.idx]))
+    A_mul_B!(v.xb, v.zc, v.xk, v.z, view(v.b, v.idx), v.c)
     clamp!(v.xb, -20, 20)
     clamp!(v.zc, -20, 20)
+end
+
+"""
+    score!(v::IHTVariable{T})
+
+Calculates the score (gradient) `X^T * W * (y - g(x^T b))` for different GLMs. 
+W is a diagonal matrix where `w[i, i] = dμ/dη / var(μ)` (see documentation)
+"""
+function score!(v::IHTVariable{T, M}) where {T <: Float, M}
+    d, l, x, z, y = v.d, v.l, v.x, v.z, v.y
+    @inbounds for i in eachindex(y)
+        η = v.xb[i] + v.zc[i]
+        w = mueta(l, η) / glmvar(d, v.μ[i])
+        v.r[i] = w * (y[i] - v.μ[i])
+    end
+    At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
 end
 
 """
 Wrapper function to decide whether to use Newton or MM algorithm for estimating 
 the nuisance paramter of negative binomial regression. 
 """
-function mle_for_r(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFloat,
-                   est_r::Symbol) where {T <: Float} 
-    if est_r == :MM
-        return update_r_MM(y, μ, r)
-    elseif est_r == :Newton
-        return update_r_newton(y, μ, r)
+function mle_for_r(v::IHTVariable{T, M}) where {T <: Float, M}
+    method = v.est_r
+    if method == :MM
+        return update_r_MM(v)
+    elseif method == :Newton
+        return update_r_newton(v)
     else
-        error("Only support method is Newton or MM, but got $est_r")
+        error("Only support method is Newton or MM, but got $method")
     end
 
     return nothing
@@ -98,7 +130,10 @@ end
 Performs maximum loglikelihood estimation of the nuisance paramter for negative 
 binomial model using MM's algorithm. 
 """
-function update_r_MM(y::AbstractVector{T}, μ::AbstractVector{T}, r::AbstractFloat) where {T <: Float}
+function update_r_MM(v::IHTVariable{T, M}) where {T <: Float, M}
+    y = v.y
+    μ = v.μ
+    r = v.d.r # estimated r in previous iteration
     num = zero(T)
     den = zero(T)
     for i in eachindex(y)
@@ -117,8 +152,11 @@ Performs maximum loglikelihood estimation of the nuisance paramter for negative
 binomial model using Newton's algorithm. Will run a maximum of `maxIter` and
 convergence is defaulted to `convTol`.
 """
-function update_r_newton(y::AbstractVector{T}, μ::AbstractVector{T}, r::T;
-                   maxIter=100, convTol=T(1.e-6)) where {T <: Float}
+function update_r_newton(v::IHTVariable{T, M};
+    maxIter=100, convTol=T(1.e-6)) where {T <: Float, M}
+    y = v.y
+    μ = v.μ
+    r = v.d.r # estimated r in previous iteration
 
     function first_derivative(r::T)
         tmp(yi, μi) = -(yi+r)/(μi+r) - log(μi+r) + 1 + log(r) + digamma(r+yi) - digamma(r)
@@ -131,10 +169,11 @@ function update_r_newton(y::AbstractVector{T}, μ::AbstractVector{T}, r::T;
     end
 
     function negbin_loglikelihood(r::T)
-        return MendelIHT.loglikelihood(NegativeBinomial(r, T(0.5)), y, μ)
+        v.d = NegativeBinomial(r, T(0.5))
+        return MendelIHT.loglikelihood(v)
     end
 
-    function newton_increment(r::Real)
+    function newton_increment(r::T)
         # use gradient descent if hessian not positive definite
         dx  = first_derivative(r)
         dx2 = second_derivative(r)
@@ -183,29 +222,12 @@ function update_r_newton(y::AbstractVector{T}, μ::AbstractVector{T}, r::T;
 end
 
 """
-    score = X^T * W * (y - g(x^T b))
-
-Calculates the score (gradient) for different GLMs. 
-
-W is a diagonal matrix where w[i, i] = dμ/dη / var(μ). 
-"""
-function score!(d::UnivariateDistribution, l::Link, v::IHTVariable{T}, 
-                x::AbstractMatrix, z::AbstractVecOrMat{T}, 
-                y::AbstractVector{T}) where {T <: Float}
-    @inbounds for i in eachindex(y)
-        # η = clamp(v.xb[i] + v.zc[i], -20, 20)
-        η = v.xb[i] + v.zc[i]
-        w = mueta(l, η) / glmvar(d, v.μ[i])
-        v.r[i] = w * (y[i] - v.μ[i])
-    end
-    At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
-end
-
-"""
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Union{Int, Vector{Int}}, 
-                       full_grad::Vector{T}) where {T <: Float}
+function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
+    J = v.J
+    k = v.k == 0 ? v.ks : v.k
+    full_grad = v.full_b # use full_b as storage for complete beta = [v.b ; v.c]
     lb = length(v.b)
     lw = length(v.weight)
     lg = length(v.group)
@@ -226,7 +248,7 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Union{Int, Vector{In
 
     # project to sparsity
     lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
-    
+
     # unweight the model after projection
     if lw == 0
         copyto!(v.b, @view(full_grad[1:lb]))
@@ -239,9 +261,9 @@ function _iht_gradstep(v::IHTVariable{T}, η::T, J::Int, k::Union{Int, Vector{In
     #recombute support
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
-    
+
     # if more than J*k entries are selected, randomly choose J*k of them
-    typeof(k) == Int && _choose!(v, J, k) 
+    typeof(k) == Int && _choose!(v) 
 
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
@@ -255,10 +277,14 @@ those indices.
 `J` is the maximum number of active groups, and `k` is the maximum number of
 predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable{T}, x::AbstractMatrix, 
-    z::AbstractVecOrMat{T}, y::Vector{T}, d::UnivariateDistribution, l::Link,
-    J::Int, k::Union{Int, Vector{Int}}, group::Vector
-    ) where {T <: Float}
+function init_iht_indices!(v::IHTVariable)
+    z = v.z
+    y = v.y
+    l = v.l
+    J = v.J
+    k = v.k
+    group = v.group
+
     # find the intercept by Newton's method
     ybar = mean(y)
     for iteration = 1:20 
@@ -270,39 +296,50 @@ function init_iht_indices!(v::IHTVariable{T}, x::AbstractMatrix,
     mul!(v.zc, z, v.c)
 
     # update mean vector and use them to compute score (gradient)
-    update_μ!(v.μ, v.xb + v.zc, l)
-    score!(d, l, v, x, z, y)
+    update_μ!(v)
+    score!(v)
 
-    # choose top entries based on largest gradient
-    if typeof(k) == Int 
-        a = partialsort([v.df; v.df2], k * J, by=abs, rev=true)
+    # first `k` non-zero entries are chosen based on largest gradient
+    ldf = length(v.df)
+    v.full_b[1:ldf] .= v.df
+    v.full_b[ldf+1:end] .= v.df2
+    if typeof(k) == Int
+        a = partialsort(v.full_b, k * J, by=abs, rev=true)
         v.idx .= abs.(v.df) .>= abs(a)
         v.idc .= abs.(v.df2) .>= abs(a)
 
         # Choose randomly if more are selected
-        _choose!(v, J, k) 
+        _choose!(v) 
     else
-        ldf = length(v.df)
-        tmp = [v.df; v.df2]
-        project_group_sparse!(tmp, group, J, k) # k is a vector
-        v.idx[findall(!iszero, tmp[1:ldf])] .= true
-        v.idc[findall(!iszero, tmp[(ldf + 1):end])] .= true
+        project_group_sparse!(v.full_b, group, J, k) # k is a vector
+        @inbounds for i in 1:ldf
+            v.full_b[i] != 0 && (v.idx[i] = true)
+        end
+        @inbounds for i in 1:length(v.idc)
+            v.full_b[ldf+i] != 0 && (v.idc[i] = true)
+        end
     end
 
     # make necessary resizing when necessary
     check_covariate_supp!(v)
+
+    # store relevant components of x for first iteration
+    copyto!(v.xk, @view(v.x[:, v.idx])) 
 end
 
 """
 if more than J*k entries are selected after projection, randomly select top J*k entries.
 This can happen if entries of b are equal to each other.
 """
-function _choose!(v::IHTVariable{T}, J::Int, sparsity::Int) where {T <: Float}
+function _choose!(v::IHTVariable{T}) where {T <: Float}
+    sparsity = v.k
+    groups = (v.J == 0 ? 1 : v.J)
+
     nonzero = sum(v.idx) + sum(v.idc)
-    if nonzero > J * sparsity
+    if nonzero > groups * sparsity
         z = zero(eltype(v.b))
         non_zero_idx = findall(!iszero, v.idx)
-        excess = nonzero - J * sparsity
+        excess = nonzero - groups * sparsity
         for pos in sample(non_zero_idx, excess, replace=false)
             v.b[pos]   = z
             v.idx[pos] = false
@@ -312,12 +349,15 @@ end
 
 """
 In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
-included/excluded, we must resize xk and gk
+included/excluded, we must resize `xk` and `gk`.
+
+TODO: Use ElasticArrays.jl
 """
 function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
-    if sum(v.idx) != size(v.xk, 2)
-        v.xk = zeros(T, size(v.xk, 1), sum(v.idx))
-        v.gk = zeros(T, sum(v.idx))
+    nzidx = sum(v.idx)
+    if nzidx != size(v.xk, 2)
+        v.xk = zeros(T, size(v.xk, 1), nzidx)
+        v.gk = zeros(T, nzidx)
     end
 end
 
@@ -327,10 +367,6 @@ end
 Returns true if one of the following conditions is met:
 1. New loglikelihood is smaller than the old one
 2. Current backtrack (`η_step`) exceeds maximum allowed backtracking (`nstep`, default = 3)
-
-Note for Posison, NegativeBinomial, and Gamma, we require model coefficients to be 
-"small" to prevent loglikelihood blowing up in first few iteration. This is accomplished 
-by clamping `η = xb` values to be in (-20, 20)
 """
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
     (prev_logl > logl) && (η_step < nstep)
@@ -574,9 +610,11 @@ Computes the best step size η = v'v / v'Jv
 Here v is the score and J is the expected information matrix, which is 
 computed by J = g'(xb) / var(μ), assuming dispersion is 1
 """
-function iht_stepsize(v::IHTVariable{T}, z::AbstractVecOrMat{T}, 
-                      d::UnivariateDistribution, l::Link) where {T <: Float}
-    
+function iht_stepsize(v::IHTVariable{T, M}) where {T <: Float, M}
+    z = v.z # non genetic covariates
+    d = v.d # distribution
+    l = v.l # link function
+
     # first store relevant components of gradient
     copyto!(v.gk, view(v.df, v.idx))
     A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
@@ -595,22 +633,15 @@ end
     A_mul_B!(C1, C2, A1, A2, B1, B2)
 
 Linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
-where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Matrix{Float}`. 
+where `typeof(A1) <: AbstractMatrix{T}` and A2 is a dense `Array{T, 2}`. 
 
 For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
 A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
-    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function A_mul_B!(C1::AbstractVecOrMat{T}, C2::AbstractVecOrMat{T},
+    A1::AbstractVecOrMat{T}, A2::AbstractVecOrMat{T},
+    B1::AbstractVecOrMat{T}, B2::AbstractVecOrMat{T}) where {T <: Float}
     mul!(C1, A1, B1)
-    LinearAlgebra.mul!(C2, A2, B2)
-end
-
-function A_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T}, B1::AbstractVector{T},
-    B2::AbstractVector{T}) where {T <: Float}
-    LinearAlgebra.mul!(C1, A1, B1)
     LinearAlgebra.mul!(C2, A2, B2)
 end
 
@@ -618,48 +649,41 @@ end
     At_mul_B!(C1, C2, A1, A2, B1, B2)
 
 Linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
-where `typeof(A1) <: AbstracMatrix{T}` and A2 is a dense `Matrix{Float}`. 
+where `typeof(A1) <: AbstractMatrix{T}` and A2 is a dense `Array{T, 2}`. 
 
 For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
 A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
 """
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T}, 
-    A1::Union{SnpBitMatrix, SnpLinAlg}, A2::AbstractVecOrMat{T},
-    B1::AbstractVector{T}, B2::AbstractVector{T}) where {T <: Float}
+function At_mul_B!(C1::AbstractVecOrMat{T}, C2::AbstractVecOrMat{T}, 
+    A1::AbstractVecOrMat{T}, A2::AbstractVecOrMat{T},
+    B1::AbstractVecOrMat{T}, B2::AbstractVecOrMat{T}) where {T <: Float}
     mul!(C1, Transpose(A1), B1) # custom matrix-vector multiplication
     LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
-function At_mul_B!(C1::AbstractVector{T}, C2::AbstractVector{T},
-    A1::AbstractMatrix{T}, A2::AbstractVecOrMat{T}, B1::AbstractVector{T},
-    B2::AbstractVector{T}) where {T <: Float}
-    LinearAlgebra.mul!(C1, Transpose(A1), B1)
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
-end
+# """
+#     initialize_beta!(v::IHTVariable, y::AbstractVector, x::AbstractMatrix{T}, d::UnivariateDistribution, l::Link)
 
-"""
-    initialize_beta!(v::IHTVariable, y::AbstractVector, x::AbstractMatrix{T}, d::UnivariateDistribution, l::Link)
+# Fits a univariate regression (+ intercept) with each β_i corresponding to `x`'s predictor.
 
-Fits a univariate regression (+ intercept) with each β_i corresponding to `x`'s predictor.
+# Used to find a good starting β. Fitting is done using scoring (newton) algorithm 
+# implemented in `GLM.jl`. The intial intercept is separately fitted using in init_iht_indices(). 
 
-Used to find a good starting β. Fitting is done using scoring (newton) algorithm 
-implemented in `GLM.jl`. The intial intercept is separately fitted using in init_iht_indices(). 
+# Note: this function is quite slow and not memory efficient. 
+# """
+# function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::AbstractMatrix{T},
+#                           d::UnivariateDistribution, l::Link) where {T <: Float}
+#     n, p = size(x)
+#     temp_matrix = ones(n, 2)           # n by 2 matrix of the intercept and 1 single covariate
+#     temp_glm = initialize_glm_object() # preallocating in a dumb ways
 
-Note: this function is quite slow and not memory efficient. 
-"""
-function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::AbstractMatrix{T},
-                          d::UnivariateDistribution, l::Link) where {T <: Float}
-    n, p = size(x)
-    temp_matrix = ones(n, 2)           # n by 2 matrix of the intercept and 1 single covariate
-    temp_glm = initialize_glm_object() # preallocating in a dumb ways
-
-    intercept = 0.0
-    for i in 1:p
-        temp_matrix[:, 2] .= x[:, i]
-        temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-        v.b[i] = temp_glm.pp.beta0[2]
-    end
-end
+#     intercept = 0.0
+#     for i in 1:p
+#         temp_matrix[:, 2] .= x[:, i]
+#         temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
+#         v.b[i] = temp_glm.pp.beta0[2]
+#     end
+# end
 
 """
 This function initializes 1 instance of a GeneralizedLinearModel(G<:GlmResp, L<:LinPred, Bool). 
@@ -756,6 +780,28 @@ function print_parameters(k, d, l, use_maf, group, debias, tol)
     println("Prior weight scaling = ", use_maf ? "on" : "off")
     println("Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
     println("Debias = ", debias ? "on" : "off")
-    println("Converging when tol < $tol")
     println("")
+    println("Converging when tol < $tol:")
+end
+
+function check_convergence(v::IHTVariable)
+    the_norm = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))
+    scaled_norm = the_norm / (max(norm(v.b0, Inf), norm(v.c0, Inf)) + 1.0)
+    return scaled_norm
+end
+
+function backtrack!(v::IHTVariable, η::Float)
+    # recompute gradient step
+    copyto!(v.b, v.b0)
+    copyto!(v.c, v.c0)
+    _iht_gradstep(v, η)
+
+    # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
+    update_xb!(v)
+    update_μ!(v)
+    if v.est_r != :None
+        v.d = mle_for_r(v)
+    end
+    
+    return loglikelihood(v)
 end

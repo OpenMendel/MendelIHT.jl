@@ -14,5 +14,6 @@ addprocs(4)
 # write your own tests here
 include("MendelIHT_utilities_test.jl")
 include("L0_reg_test.jl")
+include("multivariate_test.jl")
 include("cv_iht_test.jl")
 include("wrapper_test.jl")

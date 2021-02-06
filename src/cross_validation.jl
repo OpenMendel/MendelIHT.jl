@@ -29,26 +29,24 @@ memory mapped files that will be deleted automatically once they are no longer n
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
 - `folds`: Vector that separates the sample into q disjoint subsets
 - `destin`: Directory where intermediate files will be generated. Directory name must end with `/`.
-- `init`: Boolean indicating whether we should initialize IHT algorithm at a good starting guess
 - `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
 - `debias`: Boolean indicating whether we should debias at each IHT step
 - `verbose`: Whether we want IHT to print meaningful intermediate steps
 - `parallel`: Whether we want to run cv_iht using multiple CPUs (highly recommended)
 """
 function cv_iht(
-    y        :: AbstractVector{T},
+    y        :: AbstractVecOrMat{T},
     x        :: AbstractMatrix,
     z        :: AbstractVecOrMat{T};
     d        :: UnivariateDistribution = Normal(),
     l        :: Link = IdentityLink(),
     path     :: AbstractVector{<:Integer} = 1:20,
     q        :: Int64 = 5,
-    est_r    :: Union{Symbol, Nothing} = nothing,
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: AbstractVector{Int} = rand(1:q, size(x, 1)),
     destin   :: String = "./",
-    init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
@@ -66,7 +64,7 @@ function cv_iht(
 
         # validate trained models on test data by computing deviance residuals
         mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y,
-            path, est_r, group=group, weight=weight, destin=destin, init=init,
+            path, est_r, group=group, weight=weight, destin=destin, 
             use_maf=use_maf, debias=debias, verbose=false, parallel=parallel)
     end
 
@@ -101,12 +99,11 @@ function cv_iht_distribute_fold(
     l        :: Link = IdentityLink,
     path     :: AbstractVector{<:Integer} = 1:20,
     q        :: Int64 = 5,
-    est_r    :: Union{Symbol, Nothing} = nothing,
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: AbstractVector{Int} = rand(1:q, size(x, 1)),
     destin   :: String = "./", 
-    init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
@@ -118,10 +115,10 @@ function cv_iht_distribute_fold(
         test_idx  = folds .== fold
         train_idx = .!test_idx
         betas, cs = pfold_train(train_idx, x, z, y, d, l, path, est_r, 
-            group=group, weight=weight, destin=destin, init=init, 
+            group=group, weight=weight, destin=destin, 
             use_maf=use_maf, debias=debias, verbose=false)
         return pfold_validate(test_idx, betas, cs, x, z, y, d, l, path,
-            group=group, weight=weight, destin=destin, init=init,
+            group=group, weight=weight, destin=destin, 
             use_maf=use_maf, debias=debias, verbose=false)
     end
 
@@ -146,16 +143,15 @@ Use this if you want to quickly estimate a range of feasible model sizes before
 engaging in full cross validation. 
 """
 function iht_run_many_models(
-    y        :: AbstractVector{T},
+    y        :: AbstractVecOrMat{T},
     x        :: AbstractMatrix,
     z        :: AbstractVecOrMat{T};
-    d        :: UnivariateDistribution,
-    l        :: Link,
-    path     :: AbstractVector{Int},
-    est_r    :: Union{Symbol, Nothing},
+    d        :: Distribution = Normal(),
+    l        :: Link = canonicallink(d),
+    path     :: AbstractVector{Int} = 1:20,
+    est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = Float64[],
-    init     :: Bool = false,
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
@@ -168,12 +164,10 @@ function iht_run_many_models(
             xla = SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, 
                 impute=true)
             return fit_iht(y, xla, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
-                weight=weight, init=init, use_maf=use_maf, debias=debias,
-                verbose=false)
+                weight=weight, use_maf=use_maf, debias=debias, verbose=false)
         else 
             return fit_iht(y, x, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
-                weight=weight, init=init, use_maf=use_maf, debias=debias,
-                verbose=false)
+                weight=weight, use_maf=use_maf, debias=debias, verbose=false)
         end
     end
 
@@ -191,78 +185,211 @@ iht_run_many_models(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T 
     iht_run_many_models(y, x, ones(T, size(x, 1)); kwargs...)
 
 """
-This function trains a bunch of models, where each model has a different sparsity 
-parameter, k, which is specified in the variable `path`. Then each trained model is used to
-compute the deviance residuals (i.e. mean squared error for normal response) on the test set.
-This deviance residuals vector is returned
+    allocate_train!(mmaped_files, train_idx, x, y, z)
+
+Creates `x_train`, `y_train`, and `z_train` based on `train_idx` from the
+full data `x`, `y`, and `z`. Data is copied internally. 
+
+If `typeof(x) <: SnpArray`, then relevant entries of `x` is copied into another
+memory mapped file and whose filename is saved in `mmaped_files`.
+"""
+function allocate_train!(
+    mmaped_files::Vector{String},
+    train_idx::BitVector,
+    x::SnpArray, 
+    y::VecOrMat{T}, 
+    z::VecOrMat{T},
+    destin::String
+    ) where T <: Float
+    train_file = destin * randstring(100) * ".bed"
+    x_train_snparray = SnpArray(train_file, sum(train_idx), size(x, 2))
+    copyto!(x_train_snparray, @view(x[train_idx, :]))
+    push!(mmaped_files, train_file)
+
+    if is_multivariate(y) # sample phenotype/genotypes stored in columns
+        x_train = Transpose(SnpLinAlg{T}(x_train_snparray, model=ADDITIVE_MODEL,
+            center=true, scale=true, impute=true))
+        y_train = y[:, train_idx]
+        z_train = z[:, train_idx]
+    else # sample phenotype/genotypes stored in rows
+        x_train = SnpLinAlg{T}(x_train_snparray, model=ADDITIVE_MODEL,
+            center=true, scale=true, impute=true)
+        y_train = y[train_idx]
+        z_train = z[train_idx, :]
+    end
+
+    return x_train, y_train, z_train
+end
+function allocate_train!(
+    mmaped_files::Vector{String},
+    train_idx::BitVector,
+    x::Matrix,
+    y::VecOrMat{T},
+    z::VecOrMat{T},
+    destin::String
+    ) where T <: Float
+    if is_multivariate(y) # sample phenotype/genotypes stored in columns
+        x_train = x[:, train_idx]
+        y_train = y[:, train_idx]
+        z_train = z[:, train_idx]
+    else # sample phenotype/genotypes stored in rows
+        x_train = x[train_idx, :]
+        y_train = y[train_idx]
+        z_train = z[train_idx, :]
+    end
+    return x_train, y_train, z_train
+end
+
+"""
+    allocate_test!(mmaped_files, train_idx, x, y, z)
+
+Creates `x_test`, `y_test`, and `z_test` based on `test_idx` from the
+full data `x`, `y`, and `z`. Data is copied internally. 
+
+If `typeof(x) <: SnpArray`, then relevant entries of `x` is copied into another
+memory mapped file and whose filename is saved in `mmaped_files`.
+"""
+function allocate_test!(
+    mmaped_files::Vector{String},
+    test_idx::BitVector,
+    x::SnpArray, 
+    y::VecOrMat{T}, 
+    z::VecOrMat{T},
+    destin::String
+    ) where T <: Float
+    test_file = destin * randstring(100) * ".bed"
+    x_test_snparray = SnpArray(test_file, sum(test_idx), size(x, 2))
+    copyto!(x_test_snparray, @view(x[test_idx, :]))
+    push!(mmaped_files, test_file)
+
+    if is_multivariate(y) # sample phenotype/genotypes stored in columns
+        x_test = Transpose(SnpLinAlg{T}(x_test_snparray, model=ADDITIVE_MODEL,
+            center=true, scale=true, impute=true))
+        y_test = y[:, test_idx]
+        z_test = z[:, test_idx]
+    else # sample phenotype/genotypes stored in rows
+        x_test = SnpLinAlg{T}(x_test_snparray, model=ADDITIVE_MODEL,
+            center=true, scale=true, impute=true)
+        y_test = y[test_idx]
+        z_test = z[test_idx, :]
+    end
+    return x_test, y_test, z_test
+end
+function allocate_test!(
+    mmaped_files::Vector{String},
+    test_idx::BitVector,
+    x::Matrix,
+    y::VecOrMat{T},
+    z::VecOrMat{T},
+    destin::String
+    ) where T <: Float
+    test_size = sum(test_idx)
+    if is_multivariate(y)
+        x_test = x[:, test_idx]
+        y_test = y[:, test_idx]
+        z_test = z[:, test_idx]
+    else
+        x_test = x[test_idx, :]
+        y_test = y[test_idx]
+        z_test = z[test_idx, :]
+    end
+    return x_test, y_test, z_test
+end
+
+function allocate_mean(
+    test_idx::BitVector,
+    traits::Int,
+    t::Type{T}
+    ) where T <: Float
+    test_size = sum(test_idx)
+    if traits > 1 #multivariate analysis
+        η_genetic = zeros(t, traits, test_size, nprocs()) # BX holding linear response for genetic predictors
+        η_nongenetic = zeros(t, traits, test_size, nprocs()) # CZ holding linear response for nongenetic predictors
+        μ = zeros(t, traits, test_size, nprocs())
+    else
+        η_genetic = zeros(t, test_size, nprocs()) # xb holding linear response for genetic predictors
+        η_nongenetic = zeros(t, test_size, nprocs()) # zc holding linear response for nongenetic predictors
+        μ = zeros(t, test_size, nprocs())
+    end
+    return η_genetic, η_nongenetic, μ
+end
+
+"""
+This function trains a bunch of models (univariate or multivariate trait) IHT.
+
+Each model has a different sparsity parameter, k, which is specified in the
+variable `path`. Then each trained model is used to compute the deviance
+residuals (i.e. mean squared error for normal response) on the test set.
+This deviance residuals vector is returned.
 """
 function train_and_validate(train_idx::BitArray, test_idx::BitArray,
-    d::UnivariateDistribution, l::Link, x::SnpArray, z::AbstractVecOrMat{T},
-    y::AbstractVector{T}, path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
+    d::Distribution, l::Link, x::SnpArray, z::AbstractVecOrMat{T},
+    y::AbstractVecOrMat{T}, path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector=Int[], weight::AbstractVector{T}=T[],
-    init::Bool=false, destin::String = "./", use_maf::Bool=false,
+    destin::String = "./", use_maf::Bool=false,
     debias::Bool=false, verbose::Bool=true, parallel::Bool=false
     ) where {T <: Float}
 
-    # create directory for memory mapping
-    train_file = destin * randstring(100) * ".bed"
-    test_file  = destin * randstring(100) * ".bed"
+    mmaped_files = String[]
 
-    # first allocate arrays needed for computing deviance residuals
-    p, q = size(x, 2), size(z, 2)
-    nmodels = length(path)
-    test_size = sum(test_idx)
-    xb = zeros(T, test_size, nprocs())
-    zc = zeros(T, test_size, nprocs())
-    μ  = zeros(T, test_size, nprocs())
-
-    # allocate train model
-    x_train = SnpArray(train_file, sum(train_idx), p)
-    copyto!(x_train, @view(x[train_idx, :]))
-    x_trainla = SnpLinAlg{T}(x_train, model=ADDITIVE_MODEL, center=true,
-        scale=true, impute=true)
-    z_train = z[train_idx, :]
-    y_train = y[train_idx]
-
-    # allocate test model
-    x_test = SnpArray(test_file, test_size, p)
-    copyto!(x_test, @view(x[test_idx, :]))
-    x_testla = SnpLinAlg{T}(x_test, model=ADDITIVE_MODEL, center=true,
-        scale=true, impute=true)
-    z_test = z[test_idx, :]
-    y_test = y[test_idx]
+    # allocate train/test/mean arrays
+    traits = is_multivariate(y) ? size(y, 1) : 1
+    x_train, y_train, z_train = allocate_train!(mmaped_files, train_idx, x, y, z, destin)
+    x_test, y_test, z_test = allocate_test!(mmaped_files, test_idx, x, y, z, destin)
+    η_genetic, η_nongenetic, μ = allocate_mean(test_idx, traits, T)
 
     # allocate group and weight vectors if supplied
     group_train = (group == Int[] ? Int[] : group[train_idx])
     weight_train = (weight == T[] ? T[] : weight[train_idx])
-    
-    # for each k in path, fit and compute mse
+
+    # fit and compute mse for each k in path
     mses = try # this try statement enables deletion of intermediate files if `fit` fails
         mses = (parallel ? pmap : map)(path) do k
 
-            #run IHT on training model with given k
-            result = fit_iht(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l,
-                est_r=est_r, group=group_train, weight=weight_train, init=init,
+            # run IHT on training model with given k
+            result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l,
+                est_r=est_r, group=group_train, weight=weight_train, 
                 use_maf=use_maf, debias=debias, verbose=verbose)
 
-            # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
+            # compute estimated linear predictors and means
             id = myid()
-            A_mul_B!(@view(xb[:, id]), @view(zc[:, id]), x_testla, z_test,
-                result.beta, result.c) 
-            update_μ!(@view(μ[:, id]), @view(xb[:, id]) .+ @view(zc[:, id]), l)
-
-            # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-            return deviance(d, y_test, @view(μ[:, id]))
+            if is_multivariate(y)
+                A_mul_B!(@view(η_genetic[:, :, id]),
+                    @view(η_nongenetic[:, :, id]), result.beta, result.c,
+                    x_test, z_test,)
+                μi = @view(μ[:, :, id])
+                ηi_genetic = @view(η_genetic[:, :, id])
+                ηi_nongenetic = @view(η_nongenetic[:, :, id])
+                @inbounds @simd for i in eachindex(μi)
+                    μi[i] = ηi_genetic[i] + ηi_nongenetic[i]
+                end
+                mse = zero(T)
+                @inbounds for i in eachindex(y_test)
+                    mse += abs2(y_test[i] - μi[i])
+                end
+                return mse
+            else
+                A_mul_B!(@view(η_genetic[:, id]), @view(η_nongenetic[:, id]),
+                    x_test, z_test, result.beta, result.c)
+                @inbounds @simd for i in size(μ, 1)
+                    μ[i, id] = linkinv(l, η_genetic[i, id] + η_nongenetic[i, id])
+                end
+                # return sum of squared deviance residuals. For normal, this is equivalent to MSE
+                return deviance(d, y_test, @view(μ[:, id]))
+            end
         end
-
         return mses
-    finally 
-        #clean up 
-        try 
-            rm(train_file, force=true) 
-            rm(test_file, force=true)
+    finally
+        #clean up
+        try
+            for files in mmaped_files
+                rm(files, force=true) 
+            end
         catch
-            println("Can't remove intermediate file! Windows users need to delete intermediate files manually.")
+            println("Can't remove intermediate files! Please delete the following files manually:")
+            for files in mmaped_files
+                println(files) 
+            end
         end
     end
 
@@ -270,52 +397,52 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
 end
 
 # for general matrix x 
-function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
-    l::Link, x::AbstractMatrix{T}, z::AbstractVecOrMat{T}, y::AbstractVector{T}, 
-    path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
-    group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", init::Bool=false, use_maf::Bool=false,
-    debias::Bool=false, verbose::Bool=true, parallel::Bool=false
-    ) where {T <: Float}
+# function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
+#     l::Link, x::AbstractMatrix{T}, z::AbstractVecOrMat{T}, y::AbstractVector{T}, 
+#     path::AbstractVector{Int}, est_r::Symbol;
+#     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
+#     destin::String = "./", use_maf::Bool=false,
+#     debias::Bool=false, verbose::Bool=true, parallel::Bool=false
+#     ) where {T <: Float}
 
-    # first allocate arrays needed for computing deviance residuals
-    p, q = size(x, 2), size(z, 2)
-    nmodels = length(path)
-    test_size = sum(test_idx)
-    xb = zeros(T, test_size)
-    zc = zeros(T, test_size)
-    μ  = zeros(T, test_size)
+#     # first allocate arrays needed for computing deviance residuals
+#     p, q = size(x, 2), size(z, 2)
+#     nmodels = length(path)
+#     test_size = sum(test_idx)
+#     xb = zeros(T, test_size)
+#     zc = zeros(T, test_size)
+#     μ  = zeros(T, test_size)
 
-    # allocate train model and test models
-    x_train = x[train_idx, :]
-    z_train = z[train_idx, :]
-    y_train = y[train_idx]
-    x_test = x[test_idx, :]
-    z_test = z[test_idx, :]
-    y_test = y[test_idx]
+#     # allocate train model and test models
+#     x_train = x[train_idx, :]
+#     z_train = z[train_idx, :]
+#     y_train = y[train_idx]
+#     x_test = x[test_idx, :]
+#     z_test = z[test_idx, :]
+#     y_test = y[test_idx]
 
-    # allocate group and weight vectors if supplied
-    group_train = (group == Int[] ? Int[] : group[train_idx])
-    weight_train = (weight == T[] ? T[] : weight[train_idx])
+#     # allocate group and weight vectors if supplied
+#     group_train = (group == Int[] ? Int[] : group[train_idx])
+#     weight_train = (weight == T[] ? T[] : weight[train_idx])
     
-    # for each k in path, fit and compute mse
-    mses = (parallel ? pmap : map)(path) do k
+#     # for each k in path, fit and compute mse
+#     mses = (parallel ? pmap : map)(path) do k
 
-        #run IHT on training model with given k
-        result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, est_r=est_r,
-            group=group_train, weight=weight_train, init=init, use_maf=use_maf,
-            debias=debias, verbose=verbose)
+#         #run IHT on training model with given k
+#         result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, est_r=est_r,
+#             group=group_train, weight=weight_train, use_maf=use_maf,
+#             debias=debias, verbose=verbose)
 
-        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-        A_mul_B!(xb, zc, x_test, z_test, result.beta, result.c) 
-        update_μ!(μ, xb .+ zc, l)
+#         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
+#         A_mul_B!(xb, zc, x_test, z_test, result.beta, result.c) 
+#         update_μ!(μ, xb .+ zc, l)
 
-        # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-        return deviance(d, y_test, μ)
-    end
+#         # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
+#         return deviance(d, y_test, μ)
+#     end
 
-    return mses
-end
+#     return mses
+# end
 
 """
 Creates training model of `x` based on `train_idx` and returns `betas` and `cs` that stores the 
@@ -326,9 +453,9 @@ be removed upon completion.
 """
 function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, d::UnivariateDistribution, l::Link, 
-    path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
+    path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", init::Bool=false, use_maf::Bool =false,
+    destin::String = "./", use_maf::Bool =false,
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
     verbose::Bool = false
     ) where {T <: Float}
@@ -354,7 +481,7 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
         for i in 1:length(path)
             k = path[i]
             result = fit_iht(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l, 
-                est_r=est_r, group=group, weight=weight, init=init,
+                est_r=est_r, group=group, weight=weight, 
                 use_maf=use_maf, debias=debias, verbose=false)
             betas[:, i] .= result.beta
             cs[:, i] .= result.c
@@ -374,7 +501,7 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractVecOr
     y::AbstractVector{T}, d::UnivariateDistribution, l::Link, 
     path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", init::Bool=false, use_maf::Bool =false,
+    destin::String = "./", use_maf::Bool =false,
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
     verbose::Bool = false
     ) where {T <: Float}
@@ -394,7 +521,7 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractVecOr
     for i in 1:length(path)
         k = path[i]
         result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, group=group,
-            weight=weight, init=init, use_maf=use_maf, debias=debias,
+            weight=weight, use_maf=use_maf, debias=debias,
             est_r=est_r, verbose=false) 
         betas[:, i] .= result.beta
         cs[:, i] .= result.c
@@ -412,7 +539,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
     cs::AbstractMatrix{T}, x::SnpArray, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     d::UnivariateDistribution, l::Link, path::AbstractVector{Int};
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", init::Bool=false, use_maf::Bool = false, 
+    destin::String = "./", use_maf::Bool = false, 
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
     verbose::Bool = false) where {T <: Float}
     
@@ -459,7 +586,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
     cs::AbstractMatrix{T}, x::AbstractMatrix{T}, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, d::UnivariateDistribution, l::Link,
     path::AbstractVector{Int}; group::AbstractVector{Int}=Int[], 
-    weight::AbstractVector{T}=T[], destin::String = "./", init::Bool=false,
+    weight::AbstractVector{T}=T[], destin::String = "./", 
     use_maf::Bool = false, max_iter::Int = 100, max_step::Int = 3,
     debias::Bool = false, verbose::Bool = false
     ) where {T <: Float}

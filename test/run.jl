@@ -924,3 +924,156 @@ cd("/Users/biona001/.julia/dev/MendelIHT/data")
 plinkfile = "normal"
 iht(plinkfile, 10)
 cv_iht(plinkfile, 1:20)
+
+
+
+# simulate multivariate normal
+
+using Revise
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using StatsBase
+using LinearAlgebra
+using GLM
+using Test
+using Random
+
+d = MvNormal
+n = 100
+p = 1000
+k = 3
+traits = 2
+
+# random design matrix
+x = rand(0:2, n, p)
+
+#simulate a random model β
+true_b = zeros(p, traits)
+for i in 1:traits
+    true_b[1:k, i] = randn(k)
+    shuffle!(@view(true_b[:, i]))
+end
+correct_position = findall(x -> x != 0, true_b)
+
+# simulate random covariance matrix
+Σ = random_covariance_matrix(traits)
+
+# simulate multivariate normal phenotype for each sample
+μ = x * true_b
+
+# simulate response
+Y = zeros(n, traits)
+for i in 1:n
+    μi = @view(μ[i, :])
+    Y[i, :] = rand(d(μi, Σ))
+end
+
+
+
+
+
+# test abstractmatrix in struct
+
+function f(a)
+    r = zero(eltype(a.x))
+    for el in a.x
+        r+=el
+    end
+    return r
+end
+
+const Float = Union{Float64,Float32}
+
+# this is good
+mutable struct struct1{T <: Float, M <: AbstractArray}
+    y :: Vector{T}
+    x :: M
+end
+
+# this is bad
+mutable struct struct2{T <: Float}
+    y :: Vector{T}
+    x :: AbstractMatrix{T}
+end
+
+test = struct1(rand(5), rand(5, 5))
+test2 = struct2(rand(5), rand(5, 5))
+
+@code_warntype f(test)
+@code_warntype f(test2)
+
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using Random
+using GLM
+using DelimitedFiles
+
+################################
+######## Gaussian data #########
+################################
+n = 1000            # number of samples
+p = 10000           # number of SNPs
+k = 10              # 8 causal SNPs and 2 causal covariates (intercept + sex)
+d = Normal          # Gaussian (continuous) phenotypes
+l = IdentityLink()  # canonical link function
+
+# set random seed
+Random.seed!(1111)
+
+# simulate `.bed` file with no missing data
+x = simulate_random_snparray(undef, n, p)
+xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+
+# nongenetic covariate: first column is the intercept, second column is sex: 0 = male 1 = female
+z = ones(n, 2) 
+z[:, 2] .= rand(0:1, n)
+standardize!(@view(z[:, 2:end])) # standardize covariates
+
+# randomly set genetic predictors where causal βᵢ ~ N(0, 1)
+true_b = zeros(p) 
+true_b[1:k-2] = randn(k-2)
+shuffle!(true_b)
+
+# find correct position of genetic predictors
+correct_position = findall(!iszero, true_b)
+
+# define effect size of non-genetic predictors: intercept & sex
+true_c = [1.0; 1.5] 
+
+# simulate phenotype using genetic and nongenetic predictors
+prob = GLM.linkinv.(l, xla * true_b .+ z * true_c)
+y = [rand(d(i)) for i in prob]
+y = Float64.(y); # turn y into floating point numbers
+
+result = fit_iht(y, xla, z)
+[true_b[correct_position] result.beta[correct_position]] # compare IHT's result with answer
+
+
+
+
+using Revise
+using MendelIHT
+using SnpArrays
+using Random
+using GLM
+using DelimitedFiles
+using Test
+using Distributions
+using BenchmarkTools
+
+# invert matrix in place
+A = rand(3, 3)
+A = A'A
+B = copy(A)
+
+@time LinearAlgebra.inv!(cholesky!(A))
+A*B # should be identity
+
+@btime LinearAlgebra.inv!(cholesky!($B)) setup=(A = rand(10, 10); B=A'A)
