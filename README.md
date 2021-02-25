@@ -4,16 +4,16 @@
 
 | **Documentation** | **Build Status** | **Code Coverage**  |
 |-------------------|------------------|--------------------|
-| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://OpenMendel.github.io/MendelIHT.jl/latest) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://OpenMendel.github.io/MendelIHT.jl/stable) | [![Build Status](https://travis-ci.org/OpenMendel/MendelIHT.jl.svg?branch=master)](https://travis-ci.org/OpenMendel/MendelIHT.jl) | [![Coverage Status](https://coveralls.io/repos/github/OpenMendel/MendelIHT.jl/badge.svg?branch=master)](https://coveralls.io/github/OpenMendel/MendelIHT.jl?branch=master)  
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://OpenMendel.github.io/MendelIHT.jl/latest) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://OpenMendel.github.io/MendelIHT.jl/stable) | [![build Actions Status](https://github.com/OpenMendel/MendelIHT.jl/workflows/CI/badge.svg)](https://github.com/OpenMendel/MendelIHT.jl/actions) | [![codecov](https://codecov.io/gh/OpenMendel/MendelIHT.jl/branch/master/graph/badge.svg?token=YyPqiFpIM1)](https://codecov.io/gh/OpenMendel/MendelIHT.jl) |
 
 ## Installation
 
 Download and install [Julia](https://julialang.org/downloads/). Within Julia, copy and paste the following:
 ```
 using Pkg
-Pkg.add(PackageSpec(url="https://github.com/OpenMendel/SnpArrays.jl.git"))
-Pkg.add(PackageSpec(url="https://github.com/OpenMendel/VCFTools.jl.git"))
-Pkg.add(PackageSpec(url="https://github.com/OpenMendel/MendelIHT.jl.git"))
+pkg"add https://github.com/OpenMendel/SnpArrays.jl"
+pkg"add https://github.com/OpenMendel/VCFTools.jl"
+pkg"add https://github.com/OpenMendel/MendelIHT.jl"
 ```
 This package supports Julia `v1.5`+ for Mac, Linux, and window machines. 
 
