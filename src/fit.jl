@@ -44,6 +44,7 @@ function fit_iht(
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
+    fullIHT   :: Bool = false
     ) where T <: Float
 
     #start timer
@@ -69,7 +70,7 @@ function fit_iht(
     converged   = false             # scaled_norm < tol?
 
     # initialize variables
-    v = initialize(x, z, y, J, k, d, l, group, weight, est_r)
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, fullIHT)
     debias && (temp_glm = initialize_glm_object())
 
     # print information 

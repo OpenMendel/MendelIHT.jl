@@ -3,6 +3,11 @@
 
 Calculates the loglikelihood of observing `Y` given mean `μ` and precision matrix
 `Γ` (inverse covariance matrix) under a multivariate Gaussian.
+
+# TODO
+Fix logdet allocation by computing cholesky factor of Σ. 
+logdet(Γ) = logdet(inv(Σ)) = logdet(inv(LL')) = log(det(inv(L)')det(inv(L))) = 2logdet(L) (which shouldnt allocate since L is upper triangular)
+https://ucla-biostat-257-2020spring.github.io/slides/12-chol/chol.html#Multivariate-normal-density
 """
 function loglikelihood(v::mIHTVariable)
     Y = v.Y
@@ -55,6 +60,13 @@ function score!(v::mIHTVariable)
     mul!(v.r_by_n1, Γ, r) # r_by_n1 = Γ(Y - BX)
     mul!(v.df, v.r_by_n1, Transpose(v.X)) # v.df = Γ(Y - BX)X'
     mul!(v.df2, v.r_by_n1, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z'
+    v.fullIHT && score_Γ!(v)
+end
+
+# TODO: efficieny
+function score_Γ!(v::mIHTVariable)
+    mul!(v.r_by_r1, v.resid, v.resid') # r_by_r1 = (Y - BX)(Y - BX)'
+    v.dΓ = nsamples(v) / 2 * inv(v.Γ) - 0.5v.r_by_r1
 end
 
 """
@@ -77,7 +89,7 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
 
     # project beta to sparsity. Project Γ to nearest pd matrix or solve for Σ exactly
     project_k!(full_b, v.k)
-    solve_Σ!(v)
+    v.fullIHT ? project_Σ!(v) : solve_Σ!(v)
 
     # save model after projection
     copyto!(v.B, @view(full_b[:, 1:p]))
@@ -129,13 +141,26 @@ function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
     @inbounds for i in eachindex(v.dfidx)
         numer += abs2(v.dfidx[i])
     end
+    if v.fullIHT
+        for i in v.dΓ
+            numer += abs2(i)
+        end
+    end
 
     # compute denominator of step size
-    mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
-    mul!(v.r_by_n2, sqrt(v.Γ), v.r_by_n1) # r_by_n2 = sqrt(Γ)*∇f*X
+    # println(v.Γ)
+    # println(inv(v.Γ))
     denom = zero(T)
-    @inbounds for i in eachindex(v.r_by_n2)
-        denom += abs2(v.r_by_n2[i])
+    if v.fullIHT
+        # TODO efficiency
+        denom += tr(v.Xk' * v.dfidx' * v.Γ * v.dfidx * v.Xk)
+        denom += tr((inv(v.Γ) * v.dΓ)^2)
+    else
+        mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
+        mul!(v.r_by_n2, sqrt(v.Γ), v.r_by_n1) # r_by_n2 = sqrt(Γ)*∇f*X
+        @inbounds for i in eachindex(v.r_by_n2)
+            denom += abs2(v.r_by_n2[i])
+        end
     end
 
     return numer / denom :: T
@@ -145,9 +170,18 @@ end
     project_Σ!(A::AbstractMatrix)
 
 Projects square matrix `A` to the nearest covariance (symmetric + pos def) matrix.
+
+# TODO: efficiency
 """
-function project_Σ!(A::AbstractMatrix)
-    return A # TODO
+function project_Σ!(v::mIHTVariable, tol = 0.01)
+    λs, U = eigen(v.Γ)
+    for (i, λ) in enumerate(λs)
+        λ < 0 && (λs[i] = tol)
+    end
+    v.Γ = U * Diagonal(λs) * U'
+    # println("issymmetric = ", issymmetric(v.Γ))
+    # println("isposdef = ", isposdef(v.Γ))
+    # println("condition number = ", cond(v.Γ))
 end
 
 """
