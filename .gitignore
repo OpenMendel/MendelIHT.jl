@@ -12,3 +12,4 @@ test/*.fam
 test/*.bed
 test/*.bim
 test/*beta.txt
+test/gemma*
