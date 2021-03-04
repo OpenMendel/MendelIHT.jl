@@ -7,3 +7,8 @@
 *.log
 
 docs/build/
+
+test/*.fam
+test/*.bed
+test/*.bim
+test/*beta.txt

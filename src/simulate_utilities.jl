@@ -330,8 +330,8 @@ Creates .bim and .bed files from a SnpArray.
 - `name`: string that should match the `.bed` file (Do not include `.bim` or `.fam` extensions in `name`).
 - `y`: Trait vector that will go in to the 6th column of `.fam` file. 
 """
-function make_bim_fam_files(x::SnpArray, y, name::String)
-    ly = length(y)
+function make_bim_fam_files(x::SnpArray, y::AbstractVecOrMat, name::String)
+    ly = size(y, 1)
     n, p = size(x)
     @assert n == ly "dimension mismatch: phenotype data has length $ly but SnpArray has $n samples"
 
@@ -343,10 +343,14 @@ function make_bim_fam_files(x::SnpArray, y, name::String)
     end
 
     #create .fam file structure: https://www.cog-genomics.org/plink2/formats#fam
+    traits = size(y, 2)
     open(name * ".fam", "w") do f
         for i in 1:n
-            yi = y[i]
-            write(f, "$i\t1\t0\t0\t1\t$yi\n")
+            write(f, "$i\t1\t0\t0\t1")
+            for j in 1:traits
+                write(f, "\t$(y[i, j])")
+            end
+            write(f, "\n")
         end
     end
 end
