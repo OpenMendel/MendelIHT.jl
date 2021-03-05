@@ -83,11 +83,11 @@ function fit_iht(
     for iter in 1:max_iter
 
         # notify and return current model if maximum iteration exceeded
-        if iter > max_iter
+        if iter ≥ max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            verbose && printstyled("Did not converge after $max_iter " * 
-                "iterations! The run time for IHT was " * string(tot_time) *
+            printstyled("Did not converge after $max_iter " * 
+                "iterations! IHT run time was " * string(tot_time) *
                 " seconds\n", color=:red)
             break
         end
@@ -107,7 +107,7 @@ function fit_iht(
 
         # track convergence
         scaled_norm = check_convergence(v)
-        verbose && println("Iteration $iter: loglikelihood = $next_logl, tol = $scaled_norm")
+        verbose && println("Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm")
         if scaled_norm < tol
         # if iter > 1 && abs(next_logl - logl) < tol * (abs(logl) + 1.0)
             tot_time = time() - start_time
@@ -134,9 +134,10 @@ function iht_one_step!(
 
     # first calculate step size 
     η = iht_stepsize(v)
+    η2 = iht_stepsize_Γ(v)
 
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
-    _iht_gradstep(v, η)
+    _iht_gradstep(v, η, η2)
 
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v)
@@ -155,9 +156,10 @@ function iht_one_step!(
 
         # stephalving
         η /= 2
+        η2 /= 2
 
         # compute new loglikelihood after linesearch
-        new_logl = backtrack!(v, η)
+        new_logl = backtrack!(v, η, η2)
 
         # increment the counter
         η_step += 1

@@ -10,12 +10,9 @@ logdet(Γ) = logdet(inv(Σ)) = logdet(inv(LL')) = log(det(inv(L)')det(inv(L))) =
 https://ucla-biostat-257-2020spring.github.io/slides/12-chol/chol.html#Multivariate-normal-density
 """
 function loglikelihood(v::mIHTVariable)
-    Y = v.Y
-    Γ = v.Γ
-    δ = v.resid
-    mul!(v.r_by_r1, δ, Transpose(δ)) # r_by_r = (Y - BX)(Y - BX)'
-    mul!(v.r_by_r2, Γ, v.r_by_r1) # r_by_r2 = Γ(Y - BX)(Y - BX)'
-    return nsamples(v) / 2 * logdet(Γ) + tr(v.r_by_r2) # logdet allocates! 
+    mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r = (Y - BX)(Y - BX)'
+    mul!(v.r_by_r2, v.Γ, v.r_by_r1) # r_by_r2 = Γ(Y - BX)(Y - BX)'
+    return nsamples(v) / 2 * logdet(v.Γ) + tr(v.r_by_r2) # logdet allocates! 
 end
 
 """
@@ -26,7 +23,8 @@ Update the linear predictors `BX` with the new proposed `B`. `B` is sparse but
 """
 function update_xb!(v::mIHTVariable)
     copyto!(v.Xk, @view(v.X[v.idx, :]))
-    A_mul_B!(v.BX, v.CZ, view(v.B, :, v.idx), v.C, v.Xk, v.Z)
+    mul!(v.BX, view(v.B, :, v.idx), v.Xk)
+    mul!(v.CZ, v.C, v.Z)
 end
 
 """
@@ -36,11 +34,8 @@ Update the mean `μ` with the linear predictors `BX` and `CZ`. Here `BX` is the
 genetic contribution and `CZ` is the non-genetic contribution of all covariates
 """
 function update_μ!(v::mIHTVariable)
-    μ = v.μ
-    BX = v.BX
-    CZ = v.CZ
-    @inbounds @simd for i in eachindex(μ)
-        μ[i] = BX[i] + CZ[i]
+    @inbounds @simd for i in eachindex(v.μ)
+        v.μ[i] = v.BX[i] + v.CZ[i]
     end
 end
 
@@ -74,14 +69,14 @@ end
 
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::mIHTVariable, η::Float)
+function _iht_gradstep(v::mIHTVariable, η::Float, η_Γ::Float)
     full_b = v.full_b # use full_b as storage for complete beta = [v.b v.c]
     p = nsnps(v)
 
     # take gradient step: b = b + η ∇f
     BLAS.axpy!(η, v.df, v.B)
     BLAS.axpy!(η, v.df2, v.C)
-    BLAS.axpy!(η, v.dΓ, v.Γ)
+    BLAS.axpy!(η_Γ, v.dΓ, v.Γ)
 
     # store complete beta [v.b v.c] in full_b 
     full_b[:, 1:p] .= v.B
@@ -89,7 +84,12 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
 
     # project beta to sparsity. Project Γ to nearest pd matrix or solve for Σ exactly
     project_k!(full_b, v.k)
+    # println(v.Γ)
+    # println(v.dΓ)
+    # println(η)
     v.fullIHT ? project_Σ!(v) : solve_Σ!(v)
+    # println(v.Γ)
+    # fdsa
 
     # save model after projection
     copyto!(v.B, @view(full_b[:, 1:p]))
@@ -130,7 +130,7 @@ Computes the best step size `η = ||∇f||^2_F / tr(X'∇f'Γ∇fX)` where
 ∇f = Γ(Y - BX)(Y - BX)'. Note the denominator can be rewritten as
 ||v||^2_F where v = sqrt(Γ)∇fX.
 
-TODO: sqrt(Γ) is allocating
+TODO: sqrt(Γ) is allocating. calculate quadratic form instead. 
 """
 function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
     # store part of X corresponding to non-zero component of B
@@ -138,26 +138,24 @@ function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
 
     # compute numerator of step size
     numer = zero(T)
-    @inbounds for i in eachindex(v.dfidx)
-        numer += abs2(v.dfidx[i])
+    @inbounds for i in v.dfidx
+        numer += abs2(i)
     end
-    if v.fullIHT
-        for i in v.dΓ
-            numer += abs2(i)
-        end
-    end
+    # if v.fullIHT
+    #     @inbounds for i in v.dΓ
+    #         numer += abs2(i)
+    #     end
+    # end
 
     # compute denominator of step size
-    # println(v.Γ)
-    # println(inv(v.Γ))
     denom = zero(T)
     if v.fullIHT
         # TODO efficiency
         denom += tr(v.Xk' * v.dfidx' * v.Γ * v.dfidx * v.Xk)
-        denom += tr((inv(v.Γ) * v.dΓ)^2)
+        # denom += tr((inv(v.Γ) * v.dΓ)^2)
     else
         mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
-        mul!(v.r_by_n2, sqrt(v.Γ), v.r_by_n1) # r_by_n2 = sqrt(Γ)*∇f*X
+        mul!(v.r_by_n2, sqrt(v.Γ), v.r_by_n1) # r_by_n2 = sqrt(Γ)*∇f*X 
         @inbounds for i in eachindex(v.r_by_n2)
             denom += abs2(v.r_by_n2[i])
         end
@@ -165,23 +163,39 @@ function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
 
     return numer / denom :: T
 end
+function iht_stepsize_Γ(v::mIHTVariable{T, M}) where {T <: Float, M}
+    # store part of X corresponding to non-zero component of B
+    copyto!(v.dfidx, @view(v.df[:, v.idx]))
+
+    # compute numerator of step size
+    numer = zero(T)
+    @inbounds for i in v.dΓ
+        numer += abs2(i)
+    end
+
+    # compute denominator of step size
+    denom = zero(T)
+    denom += tr(v.Xk' * v.dfidx' * v.Γ * v.dfidx * v.Xk)
+    denom += tr((inv(v.Γ) * v.dΓ)^2)
+
+    return numer / denom :: T
+end
 
 """
     project_Σ!(A::AbstractMatrix)
 
-Projects square matrix `A` to the nearest covariance (symmetric + pos def) matrix.
+Projects square matrix `A` to the nearest symmetric and pos def matrix.
 
 # TODO: efficiency
 """
-function project_Σ!(v::mIHTVariable, tol = 0.01)
+function project_Σ!(v::mIHTVariable, minλ = 0.01)
     λs, U = eigen(v.Γ)
     for (i, λ) in enumerate(λs)
-        λ < 0 && (λs[i] = tol)
+        λ < minλ && (λs[i] = minλ)
     end
     v.Γ = U * Diagonal(λs) * U'
-    # println("issymmetric = ", issymmetric(v.Γ))
-    # println("isposdef = ", isposdef(v.Γ))
-    # println("condition number = ", cond(v.Γ))
+    issymmetric(v.Γ) || (v.Γ = 0.5(v.Γ + v.Γ')) # enforce symmetry for numerical accuracy
+    isposdef(v.Γ) || error("Γ not positive definite!")
 end
 
 """
@@ -298,7 +312,7 @@ function init_iht_indices!(v::mIHTVariable)
     update_μ!(v)
     score!(v)
 
-    # first `k` non-zero entries are chosen based on largest gradient
+    # first `k` non-zero entries in each β are chosen based on largest gradient
     p, q = nsnps(v), ncovariates(v)
     v.full_b[:, 1:p] .= v.df
     v.full_b[:, p+1:end] .= v.df2
@@ -320,7 +334,11 @@ function init_iht_indices!(v::mIHTVariable)
     check_covariate_supp!(v)
 
     # store relevant components of x for first iteration
-    copyto!(v.Xk, @view(v.X[v.idx, :])) 
+    copyto!(v.Xk, @view(v.X[v.idx, :]))
+
+    if v.fullIHT
+        solve_Σ!(v)
+    end
 end
 
 function check_convergence(v::mIHTVariable)
@@ -329,11 +347,12 @@ function check_convergence(v::mIHTVariable)
     return scaled_norm
 end
 
-function backtrack!(v::mIHTVariable, η::Float)
+function backtrack!(v::mIHTVariable, η::Float, η2)
     # recompute gradient step
     copyto!(v.B, v.B0)
     copyto!(v.C, v.C0)
-    _iht_gradstep(v, η)
+    v.fullIHT && copyto!(v.Γ, v.Γ0)
+    _iht_gradstep(v, η, η2)
 
     # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
     update_xb!(v)
