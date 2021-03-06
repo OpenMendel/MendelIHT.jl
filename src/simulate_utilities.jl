@@ -205,7 +205,7 @@ large. For other distributions, we choose `β ∼ N(0, 1)`.
 - `Zu`: Effect of non-genetic covariates. `Zu` should have dimension `n × 1`. 
 """
 function simulate_random_response(x::AbstractMatrix, k::Int, 
-    d::UnionAll, l::Link; r = 10, α = 1, Zu::AbstractVector = ones(size(x, 1)))
+    d::UnionAll, l::Link; r = 10, α = 1, Zu::AbstractVector = zeros(size(x, 1)))
     n, p = size(x)
     if (typeof(d) <: NegativeBinomial) || (typeof(d) <: Gamma)
         l == LogLink() || throw(ArgumentError("Distribution $d must use LogLink!"))
@@ -224,7 +224,7 @@ function simulate_random_response(x::AbstractMatrix, k::Int,
     #simulate phenotypes (e.g. vector y)
     if d == Normal || d == Poisson || d == Bernoulli
         prob = linkinv.(l, x * true_b + Zu)
-        # clamp!(prob, -20, 20)
+        clamp!(prob, -20, 20)
         y = [rand(d(i)) for i in prob]
     elseif d == NegativeBinomial
         μ = linkinv.(l, x * true_b + Zu)
@@ -262,7 +262,7 @@ positive definite and symmetric.
 - `correct_position`: Non-zero indices of `true_b`
 """
 function simulate_random_response(x::AbstractMatrix, k::Int, traits::Int;
-    Zu::AbstractMatrix = ones(size(x, 1), traits)
+    Zu::AbstractMatrix = zeros(size(x, 1), traits)
     )
     n, p = size(x)
 

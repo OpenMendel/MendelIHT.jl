@@ -203,28 +203,6 @@ end
     @test MendelIHT._iht_backtrack_(50.0, 100.0, 11, 11) == false
 end
 
-@testset "std_reciprocal" begin
-	Random.seed!(2019)
-
-    # first compute the correct answer by converting each column to floats and call std() directly
-    n, p = 10000, 10000
-    x = simulate_random_snparray(undef, n, p)
-    storage = zeros(n)
-    answer  = zeros(p)
-    for i in 1:p
-    	copyto!(storage, @view(x[:, i]))
-        answer[i] = std(storage)
-    end
-    answer .= 1.0 ./ answer
-
-    # now compute the std of ecah snp
-	xbm = SnpBitMatrix{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true); 
-    μ = 2.0maf(x)
-    std_vector = std_reciprocal(xbm, μ)
-
-    @test all(isapprox.(std_vector, answer, atol=1e-3))
-end
-
 @testset "standardize!" begin
 	Random.seed!(1017)
     z = rand(1000, 1000)

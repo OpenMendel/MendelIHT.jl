@@ -377,30 +377,6 @@ function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) wh
 end
 
 """
-    std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T})
-
-Compute the standard error of each columns of a SnpArray in place. 
-
-`mean_vec` stores the mean for each SNP. Note this function assumes all SNPs 
-are not missing. Otherwise, the inner loop should only add if data not missing.
-"""
-function std_reciprocal(x::SnpBitMatrix, mean_vec::Vector{T}) where {T <: Float}
-    m, n = size(x)
-    @assert n == length(mean_vec) "number of columns of snpmatrix doesn't agree with length of mean vector"
-    std_vector = zeros(T, n)
-
-    @inbounds for j in 1:n
-        @simd for i in 1:m
-            a1 = x.B1[i, j]
-            a2 = x.B2[i, j]
-            std_vector[j] += (convert(T, a1 + a2) - mean_vec[j])^2
-        end
-        std_vector[j] = 1.0 / sqrt(std_vector[j] / (m - 1))
-    end
-    return std_vector
-end
-
-"""
     standardize!(z::AbstractVecOrMat)
 
 Standardizes each column of `z` to mean 0 and variance 1. Make sure you 
@@ -631,7 +607,13 @@ function iht_stepsize(v::IHTVariable{T, M}) where {T <: Float, M}
     # now compute and return step size. Note non-genetic covariates are separated from x
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
     denom = Transpose(v.xgk) * Diagonal(v.zdf2) * v.xgk
-    return (numer / denom) :: T
+    η = numer / denom
+
+    # for bad boundary cases (sometimes, k = 1 in cross validation generates weird η)
+    isinf(η) && (η = 1e-8)
+    isnan(η) && (η = 1e-8)
+
+    return η :: T
 end
 
 # """

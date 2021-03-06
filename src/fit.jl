@@ -168,7 +168,6 @@ function iht_one_step!(
     # check for finiteness before moving to the next iteration
     isnan(new_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
     isinf(new_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
-    isinf(η) && throw(error("step size not finite! it is $η and max gradient is " * string(maximum(v.gk)) * "!!\n"))
 
     return η::T, η_step::Int, new_logl::T
 end
