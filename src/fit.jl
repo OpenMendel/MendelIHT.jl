@@ -44,7 +44,6 @@ function fit_iht(
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
-    fullIHT   :: Bool = false
     ) where T <: Float
 
     #start timer
@@ -70,7 +69,7 @@ function fit_iht(
     converged   = false             # scaled_norm < tol?
 
     # initialize variables
-    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, fullIHT)
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r)
     debias && (temp_glm = initialize_glm_object())
 
     # print information 
@@ -86,7 +85,7 @@ function fit_iht(
         if iter ≥ max_iter
             mm_iter  = iter
             tot_time = time() - start_time
-            printstyled("Did not converge after $max_iter " * 
+            verbose && printstyled("Did not converge after $max_iter " * 
                 "iterations! IHT run time was " * string(tot_time) *
                 " seconds\n", color=:red)
             break
@@ -134,10 +133,9 @@ function iht_one_step!(
 
     # first calculate step size 
     η = iht_stepsize(v)
-    η2 = iht_stepsize_Γ(v)
 
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
-    _iht_gradstep(v, η, η2)
+    _iht_gradstep(v, η)
 
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v)
@@ -156,10 +154,9 @@ function iht_one_step!(
 
         # stephalving
         η /= 2
-        η2 /= 2
 
         # compute new loglikelihood after linesearch
-        new_logl = backtrack!(v, η, η2)
+        new_logl = backtrack!(v, η)
 
         # increment the counter
         η_step += 1

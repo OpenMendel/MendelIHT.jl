@@ -55,13 +55,6 @@ function score!(v::mIHTVariable)
     mul!(v.r_by_n1, Γ, r) # r_by_n1 = Γ(Y - BX)
     mul!(v.df, v.r_by_n1, Transpose(v.X)) # v.df = Γ(Y - BX)X'
     mul!(v.df2, v.r_by_n1, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z'
-    v.fullIHT && score_Γ!(v)
-end
-
-# TODO: efficieny
-function score_Γ!(v::mIHTVariable)
-    mul!(v.r_by_r1, v.resid, v.resid') # r_by_r1 = (Y - BX)(Y - BX)'
-    v.dΓ = nsamples(v) / 2 * inv(v.Γ) - 0.5v.r_by_r1
 end
 
 """
@@ -69,14 +62,13 @@ end
 
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::mIHTVariable, η::Float, η_Γ::Float)
+function _iht_gradstep(v::mIHTVariable, η::Float)
     full_b = v.full_b # use full_b as storage for complete beta = [v.b v.c]
     p = nsnps(v)
 
     # take gradient step: b = b + η ∇f
     BLAS.axpy!(η, v.df, v.B)
     BLAS.axpy!(η, v.df2, v.C)
-    BLAS.axpy!(η_Γ, v.dΓ, v.Γ)
 
     # store complete beta [v.b v.c] in full_b 
     full_b[:, 1:p] .= v.B
@@ -84,12 +76,7 @@ function _iht_gradstep(v::mIHTVariable, η::Float, η_Γ::Float)
 
     # project beta to sparsity. Project Γ to nearest pd matrix or solve for Σ exactly
     project_k!(full_b, v.k)
-    # println(v.Γ)
-    # println(v.dΓ)
-    # println(η)
-    v.fullIHT ? project_Σ!(v) : solve_Σ!(v)
-    # println(v.Γ)
-    # fdsa
+    solve_Σ!(v)
 
     # save model after projection
     copyto!(v.B, @view(full_b[:, 1:p]))
@@ -141,42 +128,14 @@ function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
     @inbounds for i in v.dfidx
         numer += abs2(i)
     end
-    # if v.fullIHT
-    #     @inbounds for i in v.dΓ
-    #         numer += abs2(i)
-    #     end
-    # end
 
     # compute denominator of step size
     denom = zero(T)
-    if v.fullIHT
-        # TODO efficiency
-        denom += tr(v.Xk' * v.dfidx' * v.Γ * v.dfidx * v.Xk)
-        # denom += tr((inv(v.Γ) * v.dΓ)^2)
-    else
-        mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
-        mul!(v.r_by_n2, sqrt(v.Γ), v.r_by_n1) # r_by_n2 = sqrt(Γ)*∇f*X 
-        @inbounds for i in eachindex(v.r_by_n2)
-            denom += abs2(v.r_by_n2[i])
-        end
+    mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
+    mul!(v.r_by_n2, sqrt(v.Γ), v.r_by_n1) # r_by_n2 = sqrt(Γ)*∇f*X 
+    @inbounds for i in eachindex(v.r_by_n2)
+        denom += abs2(v.r_by_n2[i])
     end
-
-    return numer / denom :: T
-end
-function iht_stepsize_Γ(v::mIHTVariable{T, M}) where {T <: Float, M}
-    # store part of X corresponding to non-zero component of B
-    copyto!(v.dfidx, @view(v.df[:, v.idx]))
-
-    # compute numerator of step size
-    numer = zero(T)
-    @inbounds for i in v.dΓ
-        numer += abs2(i)
-    end
-
-    # compute denominator of step size
-    denom = zero(T)
-    denom += tr(v.Xk' * v.dfidx' * v.Γ * v.dfidx * v.Xk)
-    denom += tr((inv(v.Γ) * v.dΓ)^2)
 
     return numer / denom :: T
 end
@@ -335,10 +294,6 @@ function init_iht_indices!(v::mIHTVariable)
 
     # store relevant components of x for first iteration
     copyto!(v.Xk, @view(v.X[v.idx, :]))
-
-    if v.fullIHT
-        solve_Σ!(v)
-    end
 end
 
 function check_convergence(v::mIHTVariable)
@@ -351,8 +306,8 @@ function backtrack!(v::mIHTVariable, η::Float, η2)
     # recompute gradient step
     copyto!(v.B, v.B0)
     copyto!(v.C, v.C0)
-    v.fullIHT && copyto!(v.Γ, v.Γ0)
-    _iht_gradstep(v, η, η2)
+    copyto!(v.Γ, v.Γ0)
+    _iht_gradstep(v, η)
 
     # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
     update_xb!(v)

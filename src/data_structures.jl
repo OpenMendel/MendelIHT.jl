@@ -101,10 +101,10 @@ end
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     J::Int, k::Union{Int, Vector{Int}}, d::Distribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    fullIHT::Bool) where {T <: Float, M <: AbstractMatrix}
+    ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k, fullIHT)
+        v = mIHTVariable(x, z, y, k)
     else
         v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
     end
@@ -124,7 +124,6 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     Y      :: Matrix{T}     # response matrix (phenotypes)
     Z      :: VecOrMat{T}   # other non-genetic covariates 
     k      :: Int           # sparsity parameter
-    fullIHT:: Bool          # if true, will run gradient step on Γ and then truncate singular values. If false, will solve for Γ exactly at each step. 
     # internal IHT variables
     B      :: Matrix{T}     # r × p matrix that holds the statistical model for the genotype matrix, most will be 0
     B0     :: Matrix{T}     # estimated model for genotype matrix in the previous iteration
@@ -156,7 +155,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
-    k::Int, fullIHT::Bool) where {T <: Float, M <: AbstractMatrix}
+    k::Int) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 2) # number of samples 
     p = size(x, 1) # number of SNPs
@@ -195,7 +194,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     r_by_n2 = zeros(T, r, n)
 
     return mIHTVariable{T, M}(
-        x, y, z, k, fullIHT,
+        x, y, z, k,
         B, B0, BX, BX0, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
         CZ, CZ0, μ, Γ, Γ0, dΓ, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2)
 end
