@@ -2,7 +2,7 @@ name = "MendelIHT"
 uuid = "921c7187-1484-5754-b919-5d3ed9ac03c4"
 keywords = ["GWAS", "Genome-wide association studies", "feature selection", "iterative hard thresholding"]
 authors = ["Benjamin Chu <benchu99@hotmail.com>", "Kevin Keys <kevin.keys@ucsf.edu>"]
-version = "1.4.1"
+version = "1.3.3"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
