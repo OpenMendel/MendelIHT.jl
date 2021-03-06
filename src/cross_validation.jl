@@ -323,7 +323,7 @@ residuals (i.e. mean squared error for normal response) on the test set.
 This deviance residuals vector is returned.
 """
 function train_and_validate(train_idx::BitArray, test_idx::BitArray,
-    d::Distribution, l::Link, x::SnpArray, z::AbstractVecOrMat{T},
+    d::Distribution, l::Link, x::AbstractMatrix, z::AbstractVecOrMat{T},
     y::AbstractVecOrMat{T}, path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector=Int[], weight::AbstractVector{T}=T[],
     destin::String = "./", use_maf::Bool=false,
@@ -354,12 +354,11 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
             # compute estimated linear predictors and means
             id = myid()
             if is_multivariate(y)
-                A_mul_B!(@view(η_genetic[:, :, id]),
-                    @view(η_nongenetic[:, :, id]), result.beta, result.c,
-                    x_test, z_test,)
                 μi = @view(μ[:, :, id])
                 ηi_genetic = @view(η_genetic[:, :, id])
                 ηi_nongenetic = @view(η_nongenetic[:, :, id])
+                mul!(ηi_genetic, result.beta, x_test)
+                mul!(ηi_nongenetic, result.c, z_test)
                 @inbounds @simd for i in eachindex(μi)
                     μi[i] = ηi_genetic[i] + ηi_nongenetic[i]
                 end
@@ -369,9 +368,9 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
                 end
                 return mse
             else
-                A_mul_B!(@view(η_genetic[:, id]), @view(η_nongenetic[:, id]),
-                    x_test, z_test, result.beta, result.c)
-                @inbounds @simd for i in size(μ, 1)
+                mul!(@view(η_genetic[:, id]), x_test, result.beta)
+                mul!(@view(η_nongenetic[:, id]), z_test, result.c)
+                @inbounds @simd for i in 1:size(μ, 1)
                     μ[i, id] = linkinv(l, η_genetic[i, id] + η_nongenetic[i, id])
                 end
                 # return sum of squared deviance residuals. For normal, this is equivalent to MSE
@@ -450,6 +449,8 @@ estimated coefficients for genetic and non-genetic predictors.
 
 This function initialize the training model as a memory-mapped file at a `destin`, which will
 be removed upon completion. 
+
+# TODO: merge the 2 pfold_train
 """
 function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, d::UnivariateDistribution, l::Link, 
@@ -534,6 +535,8 @@ end
 This function takes a trained model, and returns the mean squared error (mse) of that model 
 on the test set. A vector of mse is returned, where each entry corresponds to the training
 set on each fold with different sparsity parameter. 
+
+# TODO: merge the 2 pfold_validate
 """
 function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, 
     cs::AbstractMatrix{T}, x::SnpArray, z::AbstractVecOrMat{T}, y::AbstractVector{T},
@@ -558,7 +561,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
     x_test = SnpArray(test_file, sum(test_idx), p)
     y_test = y[test_idx]
     copyto!(x_test, @view(x[test_idx, :]))
-    x_testbm = SnpBitMatrix{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
+    x_testbm = SnpLinAlg{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
     z_test = z[test_idx, :]
 
     # for each computed model stored in betas, compute the deviance residuals (i.e. generalized mean squared error) on test set
