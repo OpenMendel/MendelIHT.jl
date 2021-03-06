@@ -202,9 +202,10 @@ large. For other distributions, we choose `β ∼ N(0, 1)`.
 # Optional arguments 
 - `r`: The number of success until stopping in negative binomial regression, defaults to 10
 - `α`: Shape parameter of the gamma distribution, defaults to 1
+- `Zu`: Effect of non-genetic covariates. `Zu` should have dimension `n × 1`. 
 """
 function simulate_random_response(x::AbstractMatrix, k::Int, 
-    d::UnionAll, l::Link; r = 10, α = 1)
+    d::UnionAll, l::Link; r = 10, α = 1, Zu::AbstractVector = ones(size(x, 1)))
     n, p = size(x)
     if (typeof(d) <: NegativeBinomial) || (typeof(d) <: Gamma)
         l == LogLink() || throw(ArgumentError("Distribution $d must use LogLink!"))
@@ -222,16 +223,16 @@ function simulate_random_response(x::AbstractMatrix, k::Int,
 
     #simulate phenotypes (e.g. vector y)
     if d == Normal || d == Poisson || d == Bernoulli
-        prob = linkinv.(l, x * true_b)
-        clamp!(prob, -20, 20)
+        prob = linkinv.(l, x * true_b + Zu)
+        # clamp!(prob, -20, 20)
         y = [rand(d(i)) for i in prob]
     elseif d == NegativeBinomial
-        μ = linkinv.(l, x * true_b)
+        μ = linkinv.(l, x * true_b + Zu)
         clamp!(μ, -20, 20)
         prob = 1 ./ (1 .+ μ ./ r)
         y = [rand(d(r, i)) for i in prob] #number of failtures before r success occurs
     elseif d == Gamma
-        μ = linkinv.(l, x * true_b)
+        μ = linkinv.(l, x * true_b + Zu)
         β = 1 ./ μ # here β is the rate parameter for gamma distribution
         y = [rand(d(α, i)) for i in β] # α is the shape parameter for gamma
     end
@@ -247,9 +248,12 @@ assuming `k` non-zero `β` for each column of `x`. The covariance matrix `Σ` is
 positive definite and symmetric.
 
 # Arguments
-- `x`: Design matrix
+- `x`: Design matrix of dimension `n × p`. Each row is a sample. 
 - `k`: the true number of predictors (for each column of `x`)
 - `traits`: Number of traits
+
+# Optional arguments
+- `Zu`: Effect of non-genetic covariates. `Zu` should have dimension `n × traits`. 
 
 # Outputs
 - `Y`: Response matrix where each row is sampled from a multivariate normal with mean `μ[i] = X[i, :] * true_b` and variance `Σ`
@@ -257,9 +261,10 @@ positive definite and symmetric.
 - `true_b`: A sparse matrix containing true beta values. Each column has `k` non-zero position.
 - `correct_position`: Non-zero indices of `true_b`
 """
-function simulate_random_response(x::AbstractMatrix, k::Int, traits::Int)
+function simulate_random_response(x::AbstractMatrix, k::Int, traits::Int;
+    Zu::AbstractMatrix = ones(size(x, 1), traits)
+    )
     n, p = size(x)
-    d = MvNormal
 
     #simulate a random model β
     true_b = zeros(p, traits)
@@ -273,13 +278,13 @@ function simulate_random_response(x::AbstractMatrix, k::Int, traits::Int)
     Σ = random_covariance_matrix(traits)
 
     # simulate multivariate normal phenotype for each sample
-    μ = x * true_b
+    μ = x * true_b + Zu
 
     # simulate response
     Y = zeros(n, traits)
     for i in 1:n
         μi = @view(μ[i, :])
-        Y[i, :] = rand(d(μi, Σ))
+        Y[i, :] = rand(MvNormal(μi, Σ))
     end
 
     return Y, Σ, true_b, correct_position
