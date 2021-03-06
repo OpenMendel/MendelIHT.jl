@@ -75,7 +75,7 @@ function fit_iht(
     # print information 
     if verbose
         print_iht_signature()
-        print_parameters(k, d, l, use_maf, group, debias, tol)
+        print_parameters(k, d, l, use_maf, group, debias, tol, max_iter)
     end
 
     # Begin 'iterative' hard thresholding algorithm

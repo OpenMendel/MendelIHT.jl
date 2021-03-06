@@ -260,20 +260,12 @@ the score as nonzero components of b. This function set v.idx = 1 for
 those indices. 
 """
 function init_iht_indices!(v::mIHTVariable)
-    z = v.Z
-    y = v.Y
-    k = v.k
-    c = v.C
-
-    # find intercept by Newton's method
-    # ybar = mean(y)
-    # for iteration = 1:20 
-    #     g1 = g2 = c[1]
-    #     c[1] = c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
-    #     abs(g1 - ybar) < 1e-10 && break
-    # end
-    c[:, 1] .= 1.0
-    mul!(v.CZ, c, v.Z)
+    # initialize intercept to mean of each trait
+    for i in 1:ntraits(v)
+        ybar = mean(@view(v.Y[i, :]))
+        v.C[i, 1] = ybar
+    end
+    mul!(v.CZ, v.C, v.Z)
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v)
@@ -285,7 +277,7 @@ function init_iht_indices!(v::mIHTVariable)
     v.full_b[:, p+1:end] .= v.df2
     @inbounds for r in 1:ntraits(v)
         row = @view(v.full_b[r, :])
-        a = partialsort(row, k, by=abs, rev=true)
+        a = partialsort(row, v.k, by=abs, rev=true)
         for i in 1:p
             abs(v.df[r, i]) ≥ abs(a) && (v.idx[i] = true)
         end
