@@ -385,7 +385,7 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
                 rm(files, force=true) 
             end
         catch
-            println("Can't remove intermediate files! Please delete the following files manually:")
+            @warn("Can't remove intermediate files! Please delete the following files manually:")
             for files in mmaped_files
                 println(files) 
             end
@@ -401,10 +401,8 @@ estimated coefficients for genetic and non-genetic predictors.
 
 This function initialize the training model as a memory-mapped file at a `destin`, which will
 be removed upon completion. 
-
-# TODO: merge the 2 pfold_train
 """
-function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
+function pfold_train(train_idx::BitArray, x::AbstractMatrix, z::AbstractVecOrMat{T},
     y::AbstractVector{T}, d::UnivariateDistribution, l::Link, 
     path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
@@ -413,71 +411,37 @@ function pfold_train(train_idx::BitArray, x::SnpArray, z::AbstractVecOrMat{T},
     verbose::Bool = false
     ) where {T <: Float}
 
-    # create directory for memory mapping
-    train_file = destin * randstring(100) * ".bed"
-
     #preallocate arrays
     p, q = size(x, 2), size(z, 2)
-    nmodels = length(path)
-    betas = zeros(T, p, nmodels)
-    cs = zeros(T, q, nmodels)
+    betas = zeros(T, p, length(path))
+    cs = zeros(T, q, length(path))
 
-    # allocate training data
-    x_train = SnpArray(train_file, sum(train_idx), p)
-    copyto!(x_train, view(x, train_idx, :))
-    x_trainla = SnpLinAlg{T}(x_train, model=ADDITIVE_MODEL, center=true,
-        scale=true, impute=true)
-    y_train = y[train_idx]
-    z_train = z[train_idx, :]
+    # allocate train data
+    mmaped_files = String[]
+    x_train, y_train, z_train = allocate_train!(mmaped_files, train_idx, x, y, z, destin)
 
-    try 
+    try
+        # fit training model on various sparsity levels and store resulting β
         for i in 1:length(path)
             k = path[i]
-            result = fit_iht(y_train, x_trainla, z_train, J=1, k=k, d=d, l=l, 
+            result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, 
                 est_r=est_r, group=group, weight=weight, 
                 use_maf=use_maf, debias=debias, verbose=false)
             betas[:, i] .= result.beta
             cs[:, i] .= result.c
         end
     finally
-        try 
-            rm(train_file, force=true) 
+        # delete memory mapped files
+        try
+            for files in mmaped_files
+                rm(files, force=true)
+            end
         catch
-            println("Can't remove intermediate file! Windows users need to delete intermediate files manually.")
-        end    
-    end
-
-    return betas, cs
-end
-
-function pfold_train(train_idx::BitArray, x::AbstractMatrix{T}, z::AbstractVecOrMat{T},
-    y::AbstractVector{T}, d::UnivariateDistribution, l::Link, 
-    path::AbstractVector{Int}, est_r::Union{Symbol, Nothing};
-    group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", use_maf::Bool =false,
-    max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
-    verbose::Bool = false
-    ) where {T <: Float}
-
-    #preallocate arrays
-    p, q = size(x, 2), size(z, 2)
-    nmodels = length(path)
-    betas = zeros(T, p, nmodels)
-    cs = zeros(T, q, nmodels)
-
-    # allocate training model
-    x_train = x[train_idx, :]
-    y_train = y[train_idx]
-    z_train = z[train_idx, :]
-
-    # fit training model on various sparsity levels
-    for i in 1:length(path)
-        k = path[i]
-        result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, group=group,
-            weight=weight, use_maf=use_maf, debias=debias,
-            est_r=est_r, verbose=false) 
-        betas[:, i] .= result.beta
-        cs[:, i] .= result.c
+            @warn("Can't remove intermediate files! Please delete the following files manually:")
+            for files in mmaped_files
+                println(files)
+            end
+        end
     end
 
     return betas, cs
@@ -487,19 +451,14 @@ end
 This function takes a trained model, and returns the mean squared error (mse) of that model 
 on the test set. A vector of mse is returned, where each entry corresponds to the training
 set on each fold with different sparsity parameter. 
-
-# TODO: merge the 2 pfold_validate
 """
 function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, 
-    cs::AbstractMatrix{T}, x::SnpArray, z::AbstractVecOrMat{T}, y::AbstractVector{T},
+    cs::AbstractMatrix{T}, x::AbstractMatrix, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     d::UnivariateDistribution, l::Link, path::AbstractVector{Int};
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
     destin::String = "./", use_maf::Bool = false, 
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
     verbose::Bool = false) where {T <: Float}
-    
-    # create directory for memory mapping
-    test_file = destin * randstring(100) * ".bed"
 
     # preallocate arrays
     p, q = size(x, 2), size(z, 2)
@@ -510,65 +469,33 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
     μ  = zeros(T, test_size)
 
     # allocate test model
-    x_test = SnpArray(test_file, sum(test_idx), p)
-    y_test = y[test_idx]
-    copyto!(x_test, @view(x[test_idx, :]))
-    x_testbm = SnpLinAlg{T}(x_test, model=ADDITIVE_MODEL, center=true, scale=true); 
-    z_test = z[test_idx, :]
+    mmaped_files = String[]
+    x_test, y_test, z_test = allocate_test!(mmaped_files, test_idx, x, y, z, destin)
 
     # for each computed model stored in betas, compute the deviance residuals (i.e. generalized mean squared error) on test set
     try
         for i = 1:size(betas, 2)
             # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-            mul!(xb, x_testbm, @view(betas[:, i]))
+            mul!(xb, x_test, @view(betas[:, i]))
             mul!(zc, z_test, @view(cs[:, i]))
-            update_μ!(μ, xb .+ zc, l)
+            xb .+= zc
+            update_μ!(μ, xb, l)
 
             # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
             mse[i] = deviance(d, y_test, μ)
         end
     finally
-        try 
-            rm(test_file, force=true)
+        # delete memory mapped files
+        try
+            for files in mmaped_files
+                rm(files, force=true)
+            end
         catch
-            println("Can't remove intermediate file! Windows users need to delete intermediate files manually.")
-        end    
-    end
-
-    return mse
-end
-
-function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
-    cs::AbstractMatrix{T}, x::AbstractMatrix{T}, z::AbstractVecOrMat{T},
-    y::AbstractVector{T}, d::UnivariateDistribution, l::Link,
-    path::AbstractVector{Int}; group::AbstractVector{Int}=Int[], 
-    weight::AbstractVector{T}=T[], destin::String = "./", 
-    use_maf::Bool = false, max_iter::Int = 100, max_step::Int = 3,
-    debias::Bool = false, verbose::Bool = false
-    ) where {T <: Float}
-
-    # preallocate arrays
-    p, q = size(x, 2), size(z, 2)
-    test_size = sum(test_idx)
-    mse = zeros(T, length(path))
-    xb = zeros(T, test_size)
-    zc = zeros(T, test_size)
-    μ  = zeros(T, test_size)
-
-    # allocate test model
-    x_test = x[test_idx, :]
-    y_test = y[test_idx]
-    z_test = z[test_idx, :]
-
-    # Compute the deviance residuals on test set for each computed model stored in betas, c
-    for i = 1:size(betas, 2)
-        # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-        mul!(xb, x_test, @view(betas[:, i])) 
-        mul!(zc, z_test, @view(cs[:, i])) 
-        update_μ!(μ, xb .+ zc, l)
-
-        # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-        mse[i] = deviance(d, y_test, μ)
+            @warn("Can't remove intermediate files! Please delete the following files manually:")
+            for files in mmaped_files
+                println(files)
+            end
+        end  
     end
 
     return mse
