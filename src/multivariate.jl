@@ -80,7 +80,7 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
 
     # save model after projection
     copyto!(v.B, @view(full_b[:, 1:p]))
-    copyto!(v.C, @view(full_b[:, 1:p+1:end]))
+    copyto!(v.C, @view(full_b[:, p+1:end]))
 
     #recombute support
     update_support!(v.idx, v.B)
@@ -176,9 +176,17 @@ Project `x` so that each row contains `k` or fewer non-zero entries.
 
 TODO: How would this function work for shared predictors?
 """
+# function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
+#     for xi in eachrow(x)
+#         project_k!(xi, k)
+#     end
+# end
+
+# TODO efficiency
 function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
-    for xi in eachrow(x)
-        project_k!(xi, k)
+    a = abs(partialsort(vec(x), k, by=abs, rev=true))
+    @inbounds for i in eachindex(x)
+        abs(x[i]) < a && (x[i] = zero(T))
     end
 end
 
@@ -257,7 +265,7 @@ function init_iht_indices!(v::mIHTVariable)
     k = v.k
     c = v.C
 
-    # TODO: find intercept by Newton's method
+    # find intercept by Newton's method
     # ybar = mean(y)
     # for iteration = 1:20 
     #     g1 = g2 = c[1]
@@ -302,7 +310,7 @@ function check_convergence(v::mIHTVariable)
     return scaled_norm
 end
 
-function backtrack!(v::mIHTVariable, η::Float, η2)
+function backtrack!(v::mIHTVariable, η::Float)
     # recompute gradient step
     copyto!(v.B, v.B0)
     copyto!(v.C, v.C0)
