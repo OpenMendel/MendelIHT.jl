@@ -88,9 +88,12 @@ We clamp the max value of each entry to (-20, 20) because certain distributions
 """
 function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
     copyto!(v.xk, @view(v.x[:, v.idx]))
-    A_mul_B!(v.xb, v.zc, v.xk, v.z, view(v.b, v.idx), v.c)
-    clamp!(v.xb, -20, 20)
-    clamp!(v.zc, -20, 20)
+    mul!(v.xb, v.xk, view(v.b, v.idx))
+    mul!(v.zc, v.z, v.c)
+    if !(typeof(v.d) <: Normal)
+        clamp!(v.xb, -20, 20)
+        clamp!(v.zc, -20, 20)
+    end
 end
 
 """
@@ -106,7 +109,8 @@ function score!(v::IHTVariable{T, M}) where {T <: Float, M}
         w = mueta(l, η) / glmvar(d, v.μ[i])
         v.r[i] = w * (y[i] - v.μ[i])
     end
-    At_mul_B!(v.df, v.df2, x, z, v.r, v.r)
+    mul!(v.df, Transpose(x), v.r)
+    mul!(v.df2, Transpose(z), v.r)
 end
 
 """
@@ -617,7 +621,8 @@ function iht_stepsize(v::IHTVariable{T, M}) where {T <: Float, M}
 
     # first store relevant components of gradient
     copyto!(v.gk, view(v.df, v.idx))
-    A_mul_B!(v.xgk, v.zdf2, v.xk, view(z, :, v.idc), v.gk, view(v.df2, v.idc))
+    mul!(v.xgk, v.xk, v.gk)
+    mul!(v.zdf2, view(z, :, v.idc), view(v.df2, v.idc))
     
     #use zdf2 as temporary storage
     v.xgk .+= v.zdf2
@@ -627,38 +632,6 @@ function iht_stepsize(v::IHTVariable{T, M}) where {T <: Float, M}
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
     denom = Transpose(v.xgk) * Diagonal(v.zdf2) * v.xgk
     return (numer / denom) :: T
-end
-
-"""
-    A_mul_B!(C1, C2, A1, A2, B1, B2)
-
-Linear algebra function that computes [C1 ; C2] = [A1 ; A2] * [B1 ; B2] 
-where `typeof(A1) <: AbstractMatrix{T}` and A2 is a dense `Array{T, 2}`. 
-
-For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
-A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
-"""
-function A_mul_B!(C1::AbstractVecOrMat{T}, C2::AbstractVecOrMat{T},
-    A1::AbstractVecOrMat{T}, A2::AbstractVecOrMat{T},
-    B1::AbstractVecOrMat{T}, B2::AbstractVecOrMat{T}) where {T <: Float}
-    mul!(C1, A1, B1)
-    LinearAlgebra.mul!(C2, A2, B2)
-end
-
-"""
-    At_mul_B!(C1, C2, A1, A2, B1, B2)
-
-Linear algebra function that computes [C1 ; C2] = [A1 ; A2]^T * [B1 ; B2] 
-where `typeof(A1) <: AbstractMatrix{T}` and A2 is a dense `Array{T, 2}`. 
-
-For genotype matrix, `A1` is stored in compressed form (2 bits per entry) while
-A2 is the full single/double precision matrix (e.g. nongenetic covariates). 
-"""
-function At_mul_B!(C1::AbstractVecOrMat{T}, C2::AbstractVecOrMat{T}, 
-    A1::AbstractVecOrMat{T}, A2::AbstractVecOrMat{T},
-    B1::AbstractVecOrMat{T}, B2::AbstractVecOrMat{T}) where {T <: Float}
-    mul!(C1, Transpose(A1), B1) # custom matrix-vector multiplication
-    LinearAlgebra.mul!(C2, Transpose(A2), B2)
 end
 
 # """
@@ -769,10 +742,11 @@ function print_iht_signature()
     println("")
 end
 
-function print_parameters(k, d, l, use_maf, group, debias, tol)
+function print_parameters(k, d, l, use_maf, group, debias, tol, max_iter)
     regression = typeof(d) <: Normal ? "linear" : typeof(d) <: Bernoulli ? 
         "logistic" : typeof(d) <: Poisson ? "Poisson" : 
-        typeof(d) <: NegativeBinomial ? "NegativeBinomial" : "unknown"
+        typeof(d) <: NegativeBinomial ? "NegativeBinomial" : 
+        typeof(d) <: MvNormal ? "Multivariate Gaussian" : "unknown"
     println("Running sparse $regression regression")
     println("Link functin = $l")
     typeof(k) <: Int && println("Sparsity parameter (k) = $k")
@@ -780,8 +754,9 @@ function print_parameters(k, d, l, use_maf, group, debias, tol)
     println("Prior weight scaling = ", use_maf ? "on" : "off")
     println("Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
     println("Debias = ", debias ? "on" : "off")
-    println("")
-    println("Converging when tol < $tol:")
+    println("Debias = ", debias ? "on" : "off")
+    println("Max IHT iterations = $max_iter")
+    println("Converging when tol < $tol:\n")
 end
 
 function check_convergence(v::IHTVariable)

@@ -395,54 +395,6 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
     return mses
 end
 
-# for general matrix x 
-# function train_and_validate(train_idx::BitArray, test_idx::BitArray, d::UnivariateDistribution, 
-#     l::Link, x::AbstractMatrix{T}, z::AbstractVecOrMat{T}, y::AbstractVector{T}, 
-#     path::AbstractVector{Int}, est_r::Symbol;
-#     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-#     destin::String = "./", use_maf::Bool=false,
-#     debias::Bool=false, verbose::Bool=true, parallel::Bool=false
-#     ) where {T <: Float}
-
-#     # first allocate arrays needed for computing deviance residuals
-#     p, q = size(x, 2), size(z, 2)
-#     nmodels = length(path)
-#     test_size = sum(test_idx)
-#     xb = zeros(T, test_size)
-#     zc = zeros(T, test_size)
-#     μ  = zeros(T, test_size)
-
-#     # allocate train model and test models
-#     x_train = x[train_idx, :]
-#     z_train = z[train_idx, :]
-#     y_train = y[train_idx]
-#     x_test = x[test_idx, :]
-#     z_test = z[test_idx, :]
-#     y_test = y[test_idx]
-
-#     # allocate group and weight vectors if supplied
-#     group_train = (group == Int[] ? Int[] : group[train_idx])
-#     weight_train = (weight == T[] ? T[] : weight[train_idx])
-    
-#     # for each k in path, fit and compute mse
-#     mses = (parallel ? pmap : map)(path) do k
-
-#         #run IHT on training model with given k
-#         result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, est_r=est_r,
-#             group=group_train, weight=weight_train, use_maf=use_maf,
-#             debias=debias, verbose=verbose)
-
-#         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-#         A_mul_B!(xb, zc, x_test, z_test, result.beta, result.c) 
-#         update_μ!(μ, xb .+ zc, l)
-
-#         # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-#         return deviance(d, y_test, μ)
-#     end
-
-#     return mses
-# end
-
 """
 Creates training model of `x` based on `train_idx` and returns `betas` and `cs` that stores the 
 estimated coefficients for genetic and non-genetic predictors. 
@@ -568,7 +520,8 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
     try
         for i = 1:size(betas, 2)
             # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-            A_mul_B!(xb, zc, x_testbm, z_test, @view(betas[:, i]), @view(cs[:, i])) 
+            mul!(xb, x_testbm, @view(betas[:, i]))
+            mul!(zc, z_test, @view(cs[:, i]))
             update_μ!(μ, xb .+ zc, l)
 
             # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
@@ -610,7 +563,8 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
     # Compute the deviance residuals on test set for each computed model stored in betas, c
     for i = 1:size(betas, 2)
         # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-        A_mul_B!(xb, zc, x_test, z_test, @view(betas[:, i]), @view(cs[:, i])) 
+        mul!(xb, x_test, @view(betas[:, i])) 
+        mul!(zc, z_test, @view(cs[:, i])) 
         update_μ!(μ, xb .+ zc, l)
 
         # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
