@@ -736,7 +736,6 @@ function print_parameters(k, d, l, use_maf, group, debias, tol, max_iter)
     println("Prior weight scaling = ", use_maf ? "on" : "off")
     println("Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
     println("Debias = ", debias ? "on" : "off")
-    println("Debias = ", debias ? "on" : "off")
     println("Max IHT iterations = $max_iter")
     println("Converging when tol < $tol:\n")
 end

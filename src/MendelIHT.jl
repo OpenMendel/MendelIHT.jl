@@ -7,6 +7,7 @@ module MendelIHT
     import GLM: glmvar, mueta, fit, linkinv, Link, GeneralizedLinearModel, devresid, checky, canonicallink
     import SpecialFunctions: digamma, trigamma
     import Pkg
+    import StatsBase: sample, aweights
 
     using GLM
     using SnpArrays

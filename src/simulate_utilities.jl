@@ -243,34 +243,51 @@ end
 """
     simulate_random_response(x, k, traits)
 
-Simulates a multivariate Gaussian random response vector `y` with `trait` traits
-assuming `k` non-zero `β` for each column of `x`. The covariance matrix `Σ` is
-positive definite and symmetric.
+Simulates a response matrix `Y` where each row is an independent multivariate
+Gaussian with length `trait`. There are `k` non-zero `β` over all traits. Each
+trait shares `overlap` causal SNPs. The covariance matrix `Σ` is positive definite
+and symmetric.
 
 # Arguments
 - `x`: Design matrix of dimension `n × p`. Each row is a sample. 
-- `k`: the true number of predictors (for each column of `x`)
+- `k`: the total true number of causal SNPs (predictors)
 - `traits`: Number of traits
 
 # Optional arguments
 - `Zu`: Effect of non-genetic covariates. `Zu` should have dimension `n × traits`. 
+- `overlap`: Number of causal SNPs shared by all traits. Shared SNPs does not have the same effect size. 
 
 # Outputs
 - `Y`: Response matrix where each row is sampled from a multivariate normal with mean `μ[i] = X[i, :] * true_b` and variance `Σ`
 - `Σ`: the symmetric, positive definite covariance matrix used
-- `true_b`: A sparse matrix containing true beta values. Each column has `k` non-zero position.
+- `true_b`: A sparse matrix containing true beta values.
 - `correct_position`: Non-zero indices of `true_b`
 """
 function simulate_random_response(x::AbstractMatrix, k::Int, traits::Int;
-    Zu::AbstractMatrix = zeros(size(x, 1), traits)
+    Zu::AbstractMatrix = zeros(size(x, 1), traits), overlap::Int = 0
     )
     n, p = size(x)
+    traits * overlap ≤ k || error("traits * overlap cannot exceed k!")
 
-    #simulate a random model β
+    #simulate a random model β. Each trait can have different number of causal SNPs
     true_b = zeros(p, traits)
-    for i in 1:traits
-        true_b[1:k, i] = randn(k)
-        shuffle!(@view(true_b[:, i]))
+    if overlap == 0
+        causal_snps = sample(1:(traits * p), k, replace=false)
+        true_b[causal_snps] = randn(k)
+    else
+        shared_snps = sample(1:p, overlap, replace=false)
+        weight_vector = aweights(1 / (traits * (p - overlap)) * ones(traits * p))
+        for i in 1:traits
+            weight_vector[i*shared_snps] .= 0.0 # avoid sampling from shared snps
+        end
+        @assert sum(weight_vector) ≈ 1.0
+        # simulate β for shared predictors
+        for i in 1:traits
+            true_b[shared_snps, i] = randn(overlap)
+        end
+        # simulate β for none shared predictors
+        nonshared_snps = sample(1:(traits * p), weight_vector, k - traits * overlap, replace=false)
+        true_b[nonshared_snps] = randn(k - traits * overlap)
     end
     correct_position = findall(x -> x != 0, true_b)
 
