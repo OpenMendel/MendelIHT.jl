@@ -4,15 +4,13 @@
 Calculates the loglikelihood of observing `Y` given mean `μ` and precision matrix
 `Γ` (inverse covariance matrix) under a multivariate Gaussian.
 
-# TODO
-Fix logdet allocation by computing cholesky factor of Σ. 
-logdet(Γ) = logdet(inv(Σ)) = logdet(inv(LL')) = log(det(inv(L)')det(inv(L))) = 2logdet(L) (which shouldnt allocate since L is upper triangular)
-https://ucla-biostat-257-2020spring.github.io/slides/12-chol/chol.html#Multivariate-normal-density
+Caution: This function mutates storage variables `v.r_by_r1` and `v.r_by_r2`
 """
 function loglikelihood(v::mIHTVariable)
     mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r = (Y - BX)(Y - BX)'
     mul!(v.r_by_r2, v.Γ, v.r_by_r1) # r_by_r2 = Γ(Y - BX)(Y - BX)'
-    return nsamples(v) / 2 * logdet(v.Γ) + tr(v.r_by_r2) # logdet allocates! 
+    Γchol = cholesky!(v.Γ)
+    return nsamples(v) / 2 * logdet(Γchol) + tr(v.r_by_r2)
 end
 
 """
@@ -49,7 +47,7 @@ function score!(v::mIHTVariable)
     μ = v.μ
     r = v.resid # r × n
     Γ = v.Γ # r × r
-    @inbounds for i in eachindex(y)
+    @inbounds @simd for i in eachindex(y)
         r[i] = y[i] - μ[i]
     end
     mul!(v.r_by_n1, Γ, r) # r_by_n1 = Γ(Y - BX)
