@@ -115,9 +115,8 @@ end
 
 Computes the best step size `η = ||∇f||^2_F / tr(X'∇f'Γ∇fX)` where
 ∇f = Γ(Y - BX)(Y - BX)'. Note the denominator can be rewritten as
-||v||^2_F where v = sqrt(Γ)∇fX.
-
-TODO: sqrt(Γ) is allocating. calculate quadratic form instead. 
+`tr(X'∇f'LU∇fX) = ||v||^2_F` where `v = U∇fX`, `L = U'` is cholesky factor
+of `Γ`.
 """
 function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
     # store part of X corresponding to non-zero component of B
@@ -129,10 +128,11 @@ function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
         numer += abs2(i)
     end
 
-    # compute denominator of step size
     denom = zero(T)
     mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
-    mul!(v.r_by_n2, sqrt(v.Γ), v.r_by_n1) # r_by_n2 = sqrt(Γ)*∇f*X 
+    cholesky!(v.Γ) # overwrite upper triangular of Γ with U, where LU = Γ, U = L'
+    triu!(v.Γ) # set entries below diagonal to 0, so Γ = L'
+    mul!(v.r_by_n2, v.Γ, v.r_by_n1) # r_by_n2 = L'*∇f*X
     @inbounds for i in eachindex(v.r_by_n2)
         denom += abs2(v.r_by_n2[i])
     end
