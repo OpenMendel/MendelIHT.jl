@@ -297,20 +297,16 @@ end
     x, z, y, v = test_data(Normal(), IdentityLink())
 
     v.b .= rand(1000)
-    v.xb .= rand(1000)
     v.idx .= bitrand(1000)
     v.idc .= true
     v.c .= rand()
-    v.zc .= rand(1000)
 
     save_prev!(v)
 
     @test all(v.b .== v.b0)
-    @test all(v.xb .== v.xb0)
     @test all(v.idx .== v.idx0)
     @test all(v.idc .== v.idc0)
     @test all(v.c .== v.c0)
-    @test all(v.zc .== v.zc0)
 end
 
 @testset "iht_stepsize" begin

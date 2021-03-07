@@ -16,7 +16,6 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     b      :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
     b0     :: Vector{T}     # estimated model for genotype matrix in the previous iteration
     xb     :: Vector{T}     # vector that holds x*b
-    xb0    :: Vector{T}     # xb in the previous iteration
     xk     :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
     gk     :: Vector{T}     # numerator of step size. gk = df[idx]. 
     xgk    :: Vector{T}     # xk * gk, denominator of step size
@@ -30,7 +29,6 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     c      :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
     c0     :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
     zc     :: Vector{T}     # z * c (covariate matrix times c)
-    zc0    :: Vector{T}     # z * c (covariate matrix times c) in the previous iterate
     zdf2   :: Vector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
     group  :: Vector{Int}   # vector denoting group membership
     weight :: Vector{T}     # weights (typically minor allele freq) that will scale b prior to projection
@@ -74,7 +72,6 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     b      = zeros(T, p)
     b0     = zeros(T, p)
     xb     = zeros(T, n)
-    xb0    = zeros(T, n)
     xk     = zeros(T, n, J * columns - 1) # subtracting 1 because the intercept will likely be selected in the first iter
     gk     = zeros(T, J * columns - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
     xgk    = zeros(T, n)
@@ -88,14 +85,13 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     c      = zeros(T, q)
     c0     = zeros(T, q)
     zc     = zeros(T, n)
-    zc0    = zeros(T, n)
     zdf2   = zeros(T, n)
     μ      = zeros(T, n)
     storage = zeros(T, p + q)
 
     return IHTVariable{T, M}(
         x, y, z, k, J, ks, d, l, est_r, 
-        b, b0, xb, xb0, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zc0, zdf2, group, weight, μ, storage)
+        b, b0, xb, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zdf2, group, weight, μ, storage)
 end
 
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
@@ -128,7 +124,6 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     B      :: Matrix{T}     # r × p matrix that holds the statistical model for the genotype matrix, most will be 0
     B0     :: Matrix{T}     # estimated model for genotype matrix in the previous iteration
     BX     :: Matrix{T}     # r × n matrix that holds B*X
-    BX0    :: Matrix{T}     # BX in the previous iteration
     Xk     :: Matrix{T}     # the k × n subset of the design matrix x corresponding to non-0 elements of b
     idx    :: BitVector     # length p vector where idx[i] = 0 if i-th column of B is all zero, and idx[i] = 1 otherwise
     idx0   :: BitVector     # previous iterate of idx
@@ -141,13 +136,11 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     C      :: Matrix{T}     # r × q mtrix that holds the estimated model for non-genetic variates (first entry = intercept)
     C0     :: Matrix{T}     # estimated model for non-genetic variates in the previous iteration
     CZ     :: Matrix{T}     # r × n matrix holding C * Z (C times nongenetic covariates)
-    CZ0    :: Matrix{T}     # previous iterate of CZ
     μ      :: Matrix{T}     # mean of the current model: μ = BX + CZ
     Γ      :: Matrix{T}     # estimated inverse covariance matrix (TODO: try StaticArrays.jl here)
     Γ0     :: Matrix{T}     # Γ in previous iterate (TODO: try StaticArrays here)
-    dΓ     :: Matrix{T}     # gradient of Γ
     # storage variables
-    full_b :: Vector{T}     # storage for vectorized form of full beta [vec(B); vec(Z)] and full gradient [vec(df); vec(df2)]
+    full_b :: Vector{T}     # storage for vectorized form of full beta [vec(B); vec(Z)]
     r_by_r1 :: Matrix{T}    # an r × r storage (needed in loglikelihood)
     r_by_r2 :: Matrix{T}    # another r × r storage (needed in loglikelihood)
     r_by_n1 :: Matrix{T}    # an r × n storage (needed in score! function)
@@ -169,7 +162,6 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     B      = zeros(T, r, p)
     B0     = zeros(T, r, p)
     BX     = zeros(T, r, n)
-    BX0    = zeros(T, r, n)
     Xk     = zeros(T, k - 1, n) # subtracting 1 because the intercept will likely be selected in the first iter
     idx    = falses(p)
     idx0   = falses(p)
@@ -182,11 +174,9 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     C      = zeros(T, r, q)
     C0     = zeros(T, r, q)
     CZ     = zeros(T, r, n)
-    CZ0    = zeros(T, r, n)
     μ      = zeros(T, r, n)
     Γ      = Matrix{T}(I, r, r)
     Γ0     = Matrix{T}(I, r, r)
-    dΓ     = zeros(T, r, r)
     full_b = zeros(T, r * (p + q))
     r_by_r1 = zeros(T, r, r)
     r_by_r2 = zeros(T, r, r)
@@ -195,8 +185,8 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
 
     return mIHTVariable{T, M}(
         x, y, z, k,
-        B, B0, BX, BX0, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
-        CZ, CZ0, μ, Γ, Γ0, dΓ, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2)
+        B, B0, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
+        CZ, μ, Γ, Γ0, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2)
 end
 
 nsamples(v::mIHTVariable) = size(v.Y, 2)

@@ -270,11 +270,9 @@ Function that saves variables that need to be updated each iteration
 """
 function save_prev!(v::mIHTVariable)
     copyto!(v.B0, v.B)     # B0 = B
-    copyto!(v.BX0, v.BX)   # BX0 = BX
     copyto!(v.idx0, v.idx) # idx0 = idx
     copyto!(v.idc0, v.idc) # idc0 = idc
     copyto!(v.C0, v.C)     # C0 = C
-    copyto!(v.CZ0, v.CZ)   # CZ0 = CZ
     copyto!(v.Γ0, v.Γ)     # Γ0 = Γ
 end
 

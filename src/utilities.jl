@@ -577,11 +577,9 @@ Function that saves `b`, `xb`, `idx`, `idc`, `c`, and `zc` after each iteration.
 """
 function save_prev!(v::IHTVariable{T}) where {T <: Float}
     copyto!(v.b0, v.b)     # b0 = b
-    copyto!(v.xb0, v.xb)   # Xb0 = Xb
     copyto!(v.idx0, v.idx) # idx0 = idx
     copyto!(v.idc0, v.idc) # idc0 = idc
     copyto!(v.c0, v.c)     # c0 = c
-    copyto!(v.zc0, v.zc)   # Zc0 = Zc
 end
 
 """
