@@ -22,12 +22,3 @@
     @test idx[4] == true
     @test idx[5] == true
 end
-
-@testset "multivariate project_k!" begin
-    x = rand(5, 5)
-    k = 2
-    project_k!(x, k)
-    for xi in eachrow(x)
-        @test count(!iszero, xi) ≤ k
-    end
-end

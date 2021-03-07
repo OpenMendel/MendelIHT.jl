@@ -147,7 +147,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     Γ0     :: Matrix{T}     # Γ in previous iterate (TODO: try StaticArrays here)
     dΓ     :: Matrix{T}     # gradient of Γ
     # storage variables
-    full_b :: Matrix{T}     # storage for full beta [B Z] and full gradient [df df2]
+    full_b :: Vector{T}     # storage for vectorized form of full beta [vec(B); vec(Z)] and full gradient [vec(df); vec(df2)]
     r_by_r1 :: Matrix{T}    # an r × r storage (needed in loglikelihood)
     r_by_r2 :: Matrix{T}    # another r × r storage (needed in loglikelihood)
     r_by_n1 :: Matrix{T}    # an r × n storage (needed in score! function)
@@ -187,7 +187,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     Γ      = Matrix{T}(I, r, r)
     Γ0     = Matrix{T}(I, r, r)
     dΓ     = zeros(T, r, r)
-    full_b = zeros(T, r, p + q)
+    full_b = zeros(T, r * (p + q))
     r_by_r1 = zeros(T, r, r)
     r_by_r2 = zeros(T, r, r)
     r_by_n1 = zeros(T, r, n)

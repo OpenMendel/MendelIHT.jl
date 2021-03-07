@@ -71,26 +71,62 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
     BLAS.axpy!(η, v.df2, v.C)
 
     # store complete beta [v.b v.c] in full_b 
-    full_b[:, 1:p] .= v.B
-    full_b[:, p+1:end] .= v.C
+    vectorize!(full_b, v.B, v.C)
 
     # project beta to sparsity. Project Γ to nearest pd matrix or solve for Σ exactly
     project_k!(full_b, v.k)
     solve_Σ!(v)
 
     # save model after projection
-    copyto!(v.B, @view(full_b[:, 1:p]))
-    copyto!(v.C, @view(full_b[:, p+1:end]))
+    unvectorize!(v.B, v.C, full_b)
+
+    # if more than k entries are selected per column, randomly choose k of them
+    _choose!(v)
 
     #recombute support
     update_support!(v.idx, v.B)
     update_support!(v.idc, v.C)
 
-    # if more than k entries are selected per column, randomly choose k of them
-    _choose!(v)
-
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
+end
+
+"""
+    vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+
+Without allocations, copies `vec(B)` into `a` and the copies `vec(C)` into
+remaining parts of `a`.
+"""
+function vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+    i = 1
+    @inbounds @simd for j in eachindex(B)
+        a[i] = B[j]
+        i += 1
+    end
+    @inbounds @simd for j in eachindex(C)
+        a[i] = C[j]
+        i += 1
+    end
+    return nothing
+end
+
+"""
+    vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+
+Without allocations, copies the first `length(vec(B))` part of `a` into `B` 
+and the remaining parts of `a` into `C`.
+"""
+function unvectorize!(B::AbstractMatrix, C::AbstractMatrix, a::AbstractVector)
+    i = 1
+    @inbounds @simd for j in eachindex(B)
+        B[j] = a[i]
+        i += 1
+    end
+    @inbounds @simd for j in eachindex(C)
+        C[j] = a[i]
+        i += 1
+    end
+    return nothing
 end
 
 """
@@ -175,27 +211,6 @@ function solve_Σ!(v::mIHTVariable)
 end
 
 """
-    project_k!(x::AbstractMatrix{T}, k::Int64)
-
-Project `x` so that each row contains `k` or fewer non-zero entries. 
-
-TODO: How would this function work for shared predictors?
-"""
-# function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
-#     for xi in eachrow(x)
-#         project_k!(xi, k)
-#     end
-# end
-
-# TODO efficiency
-function project_k!(x::AbstractMatrix{T}, k::Int64) where {T <: Float}
-    a = abs(partialsort(vec(x), k, by=abs, rev=true))
-    @inbounds for i in eachindex(x)
-        abs(x[i]) < a && (x[i] = zero(T))
-    end
-end
-
-"""
     check_covariate_supp!(v::mIHTVariable)
 
 Possibly rescales `v.Xk` and `v.dfidx`, which needs to happen when non-genetic
@@ -213,35 +228,41 @@ end
 """
     _choose!(v::mIHTVariable)
 
-Strictly force each row of `B` to have `k` or fewer non-zero entries. When `B`
-has `≥k` non-zero entries in a row, randomly choose `k` among them. Due to
-numerical error, it is possible to have `≥k` non-zero entries per row after
-projection.
+When `B` has `≥k` non-zero entries in a row, randomly choose `k` among them. 
+
+Note: It is possible to have `≥k` non-zero entries after projection due to
+numerical errors.
 """
 function _choose!(v::mIHTVariable)
-    n, p = nsamples(v), nsnps(v)
     sparsity = v.k
-    nz_idx = Int[]
-    # loop through rows of full beta
-    @inbounds for i in 1:ntraits(v)
-        # find position of non-zero beta
-        nz = 0
-        for j in 1:p
-            if v.B[i, j] != 0
-                nz += 1
-                push!(nz_idx, j)
-            end
+    B_nz = 0
+    C_nz = 0
+    B_nz_idx = Int[]
+    C_nz_idx = Int[]
+    # find position of non-zero beta
+    for i in eachindex(v.B)
+        if v.B[i] != 0
+            B_nz += 1
+            push!(B_nz_idx, i)
         end
-        excess = nz - sparsity
-        # if more non-zero beta than expected, randomly set a few to zero
-        if excess > 0
-            shuffle!(nz_idx)
-            for i in 1:excess
-                v.B[i, nz_idx[i]] = 0
-            end
-        end
-        empty!(nz_idx)
     end
+    for i in eachindex(v.C)
+        if v.C[i] != 0
+            C_nz += 1
+            push!(C_nz_idx, i)
+        end
+    end
+
+    # if more non-zero than expected, randomly set entries (starting in B) to 0
+    excess = B_nz + C_nz - sparsity
+    if excess > 0
+        shuffle!(B_nz_idx)
+        for i in 1:excess
+            v.B[B_nz_idx[i]] = 0
+        end
+    end
+    empty!(B_nz_idx)
+    empty!(C_nz_idx)
 end
 
 """
@@ -277,22 +298,13 @@ function init_iht_indices!(v::mIHTVariable)
     score!(v)
 
     # first `k` non-zero entries in each β are chosen based on largest gradient
-    p, q = nsnps(v), ncovariates(v)
-    v.full_b[:, 1:p] .= v.df
-    v.full_b[:, p+1:end] .= v.df2
-    @inbounds for r in 1:ntraits(v)
-        row = @view(v.full_b[r, :])
-        a = partialsort(row, v.k, by=abs, rev=true)
-        for i in 1:p
-            abs(v.df[r, i]) ≥ abs(a) && (v.idx[i] = true)
-        end
-        for i in 1:q
-            abs(v.df2[r, i]) ≥ abs(a) && (v.idc[i] = true)
-        end
-    end
+    vectorize!(v.full_b, v.df, v.df2)
+    project_k!(v.full_b, v.k)
+    unvectorize!(v.df, v.df2, v.full_b)
 
-    # Choose randomly if more are selected
-    _choose!(v)
+    # compute support based on largest gradient
+    update_support!(v.idx, v.df)
+    update_support!(v.idc, v.df2)
 
     # make necessary resizing when necessary
     check_covariate_supp!(v)
