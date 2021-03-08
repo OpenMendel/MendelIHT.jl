@@ -251,9 +251,9 @@ function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     end
 
     # project to sparsity
-    # lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
-    lg == 0 ? project_by_clustering!(full_grad) : project_group_sparse!(full_grad, v.group, J, k)
-    println("number of nonzero entries in full_grad = ", count(!iszero, full_grad))
+    lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
+    # lg == 0 ? project_by_clustering!(full_grad) : project_group_sparse!(full_grad, v.group, J, k)
+    # println("number of nonzero entries in full_grad = ", count(!iszero, full_grad))
 
     # unweight the model after projection
     if lw == 0
