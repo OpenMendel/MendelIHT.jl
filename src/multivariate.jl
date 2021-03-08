@@ -9,8 +9,7 @@ Caution: This function mutates storage variables `v.r_by_r1` and `v.r_by_r2`
 function loglikelihood(v::mIHTVariable)
     mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r = (Y - BX)(Y - BX)'
     mul!(v.r_by_r2, v.Γ, v.r_by_r1) # r_by_r2 = Γ(Y - BX)(Y - BX)'
-    Γchol = cholesky!(v.Γ)
-    return nsamples(v) / 2 * logdet(Γchol) + tr(v.r_by_r2)
+    return nsamples(v) / 2 * logdet(v.Γ) + tr(v.r_by_r2) # logdet allocates! 
 end
 
 """

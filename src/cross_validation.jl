@@ -50,7 +50,8 @@ function cv_iht(
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
-    parallel :: Bool = false
+    parallel :: Bool = false,
+    max_iter :: Int = 100
     ) where T <: Float
 
     # preallocate mean squared error matrix
@@ -65,7 +66,8 @@ function cv_iht(
         # validate trained models on test data by computing deviance residuals
         mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y,
             path, est_r, group=group, weight=weight, destin=destin, 
-            use_maf=use_maf, debias=debias, verbose=false, parallel=parallel)
+            use_maf=use_maf, debias=debias, verbose=false, parallel=parallel,
+            max_iter=max_iter)
     end
 
     #weight mses for each fold by their size before averaging
@@ -155,7 +157,8 @@ function iht_run_many_models(
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
-    parallel :: Bool = false
+    parallel :: Bool = false,
+    max_iter :: Int = 100
     ) where T <: Float
 
     # for each k, fit model and store the loglikelihoods
@@ -164,10 +167,12 @@ function iht_run_many_models(
             xla = SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, 
                 impute=true)
             return fit_iht(y, xla, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
-                weight=weight, use_maf=use_maf, debias=debias, verbose=false)
+                weight=weight, use_maf=use_maf, debias=debias, verbose=false,
+                max_iter=max_iter)
         else 
             return fit_iht(y, x, z, J=1, k=k, d=d, l=l, est_r=est_r, group=group, 
-                weight=weight, use_maf=use_maf, debias=debias, verbose=false)
+                weight=weight, use_maf=use_maf, debias=debias, verbose=false,
+                max_iter=max_iter)
         end
     end
 
@@ -327,8 +332,8 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
     y::AbstractVecOrMat{T}, path::AbstractVector{Int}, est_r::Symbol;
     group::AbstractVector=Int[], weight::AbstractVector{T}=T[],
     destin::String = "./", use_maf::Bool=false,
-    debias::Bool=false, verbose::Bool=true, parallel::Bool=false
-    ) where {T <: Float}
+    debias::Bool=false, verbose::Bool=true, parallel::Bool=false,
+    max_iter::Int=100) where {T <: Float}
 
     mmaped_files = String[]
 
@@ -349,7 +354,8 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
             # run IHT on training model with given k
             result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l,
                 est_r=est_r, group=group_train, weight=weight_train, 
-                use_maf=use_maf, debias=debias, verbose=verbose)
+                use_maf=use_maf, debias=debias, verbose=verbose,
+                max_iter=max_iter)
 
             # compute estimated linear predictors and means
             id = myid()
@@ -408,7 +414,7 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix, z::AbstractVecOrMat
     group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
     destin::String = "./", use_maf::Bool =false,
     max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
-    verbose::Bool = false
+    verbose::Bool = false, 
     ) where {T <: Float}
 
     #preallocate arrays
@@ -426,7 +432,7 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix, z::AbstractVecOrMat
             k = path[i]
             result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, 
                 est_r=est_r, group=group, weight=weight, 
-                use_maf=use_maf, debias=debias, verbose=false)
+                use_maf=use_maf, debias=debias, verbose=false, max_iter=max_iter)
             betas[:, i] .= result.beta
             cs[:, i] .= result.c
         end

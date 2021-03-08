@@ -1,21 +1,7 @@
-using Revise
-using MendelIHT
-using SnpArrays
-using Random
-using GLM
-using DelimitedFiles
-using Test
-using Distributions
-using LinearAlgebra
-using CSV
-using DataFrames
-using BenchmarkTools
-
-function make_mIHTvar()
+function make_mIHTvar(r) # r = number of traits
     n = 1000  # number of samples
     p = 10000 # number of SNPs
     k = 10    # number of causal SNPs
-    r = 2     # number of traits
     
     # set random seed for reproducibility
     Random.seed!(2021)
@@ -26,10 +12,9 @@ function make_mIHTvar()
     
     # intercept is the only nongenetic covariate
     z = ones(n, 1)
-    intercepts = [10.0 1.0] # each trait have different intercept
     
     # simulate response y, true model b, and the correct non-0 positions of b
-    Y, true_Σ, true_b, correct_position = simulate_random_response(xla, k, r, Zu=z*intercepts, overlap=2);
+    Y, true_Σ, true_b, correct_position = simulate_random_response(xla, k, r);
     
     # everything is transposed for multivariate analysis!
     Yt = Matrix(Y')
@@ -65,18 +50,32 @@ end
 end
 
 @testset "benchmarks for multivariate function" begin
-    v, xla, Yt, Zt, k = make_mIHTvar()
-    @btime MendelIHT.init_iht_indices!(v) # 73.642 ms (10 allocations: 156.89 KiB) -> need to call `check_covariate_supp!` so might be okay
-    @btime MendelIHT.score!($v)           # 72.751 ms (7 allocations: 352 bytes)
-    @btime MendelIHT.loglikelihood($v)    # 2.210 μs (2 allocations: 48 bytes)
-    @btime MendelIHT.update_xb!($v)       # 85.013 μs (8 allocations: 656 bytes)
-    @btime MendelIHT.update_μ!($v)        # 297.873 ns (0 allocations: 0 bytes)
-    @btime MendelIHT._choose!($v)         # 13.436 μs (3 allocations: 208 bytes)
-    @btime MendelIHT.solve_Σ!(v)          # 2.365 μs (2 allocations: 48 bytes)
+
+    # r = 2 traits
+    v, xla, Yt, Zt, k = make_mIHTvar(2)
+    MendelIHT.init_iht_indices!(v)
+    @btime MendelIHT.score!($v)           # 120.270 ms (7 allocations: 352 bytes) -> this step takes so long other functions doesn't really matter
+    @btime MendelIHT.loglikelihood($v)    # 3.377 μs (2 allocations: 208 bytes)
+    @btime MendelIHT.update_xb!($v)       # 187.489 μs (8 allocations: 656 bytes)
+    @btime MendelIHT.update_μ!($v)        # 2.337 μs (0 allocations: 0 bytes)
+    @btime MendelIHT._choose!($v)         # 16.698 μs (3 allocations: 208 bytes)
+    @btime MendelIHT.solve_Σ!($v)         # 2.889 μs (2 allocations: 48 bytes)
     # @btime MendelIHT.iht_stepsize(v) # cannot be done because BenchmarkTools require multiple evaluations of the same function call, which makes Γ not pd
+    @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C)) # 10.299 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.unvectorize!($(v.B), $(v.C), $(v.full_b)) # 10.548 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 23.204 μs (0 allocations: 0 bytes)
 
-    @btime MendelIHT.vectorize!(v.full_b, v.B, v.C) # 4.003 μs (0 allocations: 0 bytes)
-    @btime MendelIHT.unvectorize!(v.B, v.C, v.full_b) # 3.934 μs (0 allocations: 0 bytes)
-    @btime MendelIHT.update_support!(v.idx, v.B) # 17.059 μs (0 allocations: 0 bytes)
-
+    # r = 10 traits
+    v, xla, Yt, Zt, k = make_mIHTvar(10)
+    MendelIHT.init_iht_indices!(v)
+    @btime MendelIHT.score!($v)           # 165.774 ms (7 allocations: 352 bytes) -> this step takes so long other functions doesn't really matter
+    @btime MendelIHT.loglikelihood($v)    # 12.208 μs (2 allocations: 1.03 KiB)
+    @btime MendelIHT.update_xb!($v)       # 219.192 μs (8 allocations: 656 bytes)
+    @btime MendelIHT.update_μ!($v)        # 1.963 μs (0 allocations: 0 bytes)
+    @btime MendelIHT._choose!($v)         # 68.161 μs (5 allocations: 432 bytes)
+    @btime MendelIHT.solve_Σ!($v)         # 12.623 μs (2 allocations: 48 bytes)
+    # @btime MendelIHT.iht_stepsize(v) # cannot be done because BenchmarkTools require multiple evaluations of the same function call, which makes Γ not pd
+    @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C)) # 23.712 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.unvectorize!($(v.B), $(v.C), $(v.full_b)) # 23.761 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 50.047 μs (0 allocations: 0 bytes)
 end

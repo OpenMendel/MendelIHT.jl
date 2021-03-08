@@ -10,6 +10,7 @@ addprocs(4)
 @everywhere using GLM
 @everywhere using Test
 @everywhere using Random
+@everywhere using BenchmarkTools
 
 # write your own tests here
 include("MendelIHT_utilities_test.jl")
