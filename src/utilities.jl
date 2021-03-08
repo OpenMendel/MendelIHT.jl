@@ -251,7 +251,9 @@ function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     end
 
     # project to sparsity
-    lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
+    # lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
+    lg == 0 ? project_by_clustering!(full_grad) : project_group_sparse!(full_grad, v.group, J, k)
+    println("number of nonzero entries in full_grad = ", count(!iszero, full_grad))
 
     # unweight the model after projection
     if lw == 0
@@ -445,6 +447,47 @@ function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
     a = abs(partialsort(x, k, by=abs, rev=true))
     @inbounds for i in eachindex(x)
         abs(x[i]) < a && (x[i] = zero(T))
+    end
+end
+
+"""
+    project_by_clustering!(x::AbstractVector)
+
+Projects `x` to sparsity by clustering. We run k-means with 2 clusters for 10
+iterations, and then project the cluster with the smaller mean.
+"""
+function project_by_clustering!(x::AbstractVector{T}) where {T <: Float}
+    center1, center2 = zero(T), one(T)
+    members1, members2 = Int[], Int[]
+
+    # run 10 iterations of k-means
+    for iter in 1:10
+        # assign xᵢ to the nearest cluster
+        empty!(members1) # refresh cluster members
+        empty!(members2) # refresh cluster members
+        for i in eachindex(x)
+            xi = abs(x[i])
+            abs2(xi - center1) < abs2(xi - center2) ? push!(members1, i) : push!(members2, i)
+        end
+
+        # update cluster centers
+        center1, center2 = zero(T), zero(T)
+        for i in members1
+            center1 += abs(x[i])
+        end
+        for i in members2
+            center2 += abs(x[i])
+        end
+        center1 /= length(members1)
+        center2 /= length(members2)
+    end
+    center1 ≥ 0 || error("center 1 is negative! Shouldn't happen!")
+    center2 ≥ 0 || error("center 2 is negative! Shouldn't happen!")
+
+    # project cluster with smaller mean
+    p = center1 < center2 ? members1 : members2
+    for i in p
+        x[i] = 0
     end
 end
 
