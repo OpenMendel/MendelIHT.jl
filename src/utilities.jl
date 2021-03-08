@@ -478,11 +478,11 @@ function project_by_clustering!(x::AbstractVector{T}) where {T <: Float}
         for i in members2
             center2 += abs(x[i])
         end
-        center1 /= length(members1)
-        center2 /= length(members2)
+        length(members1) != 0 && (center1 /= length(members1))
+        length(members2) != 0 && (center2 /= length(members2))
     end
-    center1 ≥ 0 || error("center 1 is negative! Shouldn't happen!")
-    center2 ≥ 0 || error("center 2 is negative! Shouldn't happen!")
+    center1 ≥ 0 || error("center 1 = $center1 is negative! Shouldn't happen!")
+    center2 ≥ 0 || error("center 2 = $center2 is negative! Shouldn't happen!")
 
     # project cluster with smaller mean
     p = center1 < center2 ? members1 : members2
