@@ -114,7 +114,7 @@ function fit_iht(
             break
         end
     end
-
+    
     return IHTResult(tot_time, next_logl, mm_iter, v)
 end
 

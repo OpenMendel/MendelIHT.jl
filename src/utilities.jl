@@ -254,9 +254,9 @@ function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     # lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k) #original IHT
     centers, members = project_by_clustering!(full_grad, k)
     # println("number of nonzero entries kept = ", count(!iszero, full_grad))
-    # for i in 1:k
-    #     println("cluster $i has mean $(centers[i]) with ", length(members[i]), " members")
-    # end
+    for i in 1:k
+        println("cluster $i has mean $(centers[i]) with ", length(members[i]), " members")
+    end
 
     # unweight the model after projection
     if lw == 0
@@ -468,6 +468,7 @@ function project_by_clustering!(x::AbstractVector{T}, groups::Int=3) where {T <:
         # assign xᵢ to the nearest cluster
         empty!.(members) # refresh cluster members
         for i in eachindex(x)
+            # xi, best_dist, best_group = abs(log(abs(x[i]))), typemax(T), 0
             xi, best_dist, best_group = abs(x[i]), typemax(T), 0
             for j in 1:groups
                 d = abs2(xi - centers[j])
