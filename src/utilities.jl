@@ -251,9 +251,12 @@ function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     end
 
     # project to sparsity
-    lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
-    # lg == 0 ? project_by_clustering!(full_grad) : project_group_sparse!(full_grad, v.group, J, k)
-    # println("number of nonzero entries in full_grad = ", count(!iszero, full_grad))
+    # lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k) #original IHT
+    centers, members = project_by_clustering!(full_grad, k)
+    # println("number of nonzero entries kept = ", count(!iszero, full_grad))
+    # for i in 1:k
+    #     println("cluster $i has mean $(centers[i]) with ", length(members[i]), " members")
+    # end
 
     # unweight the model after projection
     if lw == 0
@@ -269,7 +272,7 @@ function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     v.idc .= v.c .!= 0
 
     # if more than J*k entries are selected, randomly choose J*k of them
-    typeof(k) == Int && _choose!(v) 
+    # typeof(k) == Int && _choose!(v) 
 
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
@@ -453,42 +456,47 @@ end
 """
     project_by_clustering!(x::AbstractVector)
 
-Projects `x` to sparsity by clustering. We run k-means with 2 clusters for 10
-iterations, and then project the cluster with the smaller mean.
+Projects `x` to sparsity by clustering. We run k-means with `group` clusters for
+10 iterations, and then project the cluster with the smallest mean.
 """
-function project_by_clustering!(x::AbstractVector{T}) where {T <: Float}
-    center1, center2 = zero(T), one(T)
-    members1, members2 = Int[], Int[]
+function project_by_clustering!(x::AbstractVector{T}, groups::Int=3) where {T <: Float}
+    centers = collect(T, 0:1/(groups-1):1) # initialize cluster centers
+    members = [Int[] for _ in 1:groups]
 
     # run 10 iterations of k-means
     for iter in 1:10
         # assign xᵢ to the nearest cluster
-        empty!(members1) # refresh cluster members
-        empty!(members2) # refresh cluster members
+        empty!.(members) # refresh cluster members
         for i in eachindex(x)
-            xi = abs(x[i])
-            abs2(xi - center1) < abs2(xi - center2) ? push!(members1, i) : push!(members2, i)
+            xi, best_dist, best_group = abs(x[i]), typemax(T), 0
+            for j in 1:groups
+                d = abs2(xi - centers[j])
+                if d < best_dist
+                    best_dist = d
+                    best_group = j
+                end
+            end
+            push!(members[best_group], i)
         end
 
         # update cluster centers
-        center1, center2 = zero(T), zero(T)
-        for i in members1
-            center1 += abs(x[i])
+        centers .= zero(T)
+        for j in 1:groups
+            for i in members[j]
+                centers[j] += abs(x[i])
+            end
+            length(members[j]) != 0 && (centers[j] /= length(members[j]))
+            centers[j] ≥ 0 || error("center $j = $(centers[j]) is negative! Shouldn't happen!")
         end
-        for i in members2
-            center2 += abs(x[i])
-        end
-        length(members1) != 0 && (center1 /= length(members1))
-        length(members2) != 0 && (center2 /= length(members2))
     end
-    center1 ≥ 0 || error("center 1 = $center1 is negative! Shouldn't happen!")
-    center2 ≥ 0 || error("center 2 = $center2 is negative! Shouldn't happen!")
 
-    # project cluster with smaller mean
-    p = center1 < center2 ? members1 : members2
-    for i in p
+    # project cluster with smallest mean
+    mincenter, mincluster = findmin(centers)
+    for i in members[mincluster]
         x[i] = 0
     end
+
+    return centers, members
 end
 
 """ 
