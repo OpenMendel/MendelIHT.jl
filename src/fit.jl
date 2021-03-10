@@ -115,7 +115,10 @@ function fit_iht(
         end
     end
 
-    return IHTResult(tot_time, next_logl, mm_iter, v)
+    # compute narrow sense heritability
+    σ2 = heritability(v)
+
+    return IHTResult(tot_time, next_logl, mm_iter, σ2, v)
 end
 
 fit_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix{T}; kwargs...) where T = 

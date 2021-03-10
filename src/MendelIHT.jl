@@ -27,6 +27,7 @@ module MendelIHT
     export simulate_random_snparray, simulate_correlated_snparray
     export make_bim_fam_files, simulate_random_response, adhoc_add_correlation
     export random_covariance_matrix
+    export heritability
 
     # IHT will only work on single/double precision floats!
     const Float = Union{Float64,Float32}
@@ -38,6 +39,7 @@ module MendelIHT
     include("cross_validation.jl")
     include("multivariate.jl")
     include("wrapper.jl")
+    include("heritability.jl")
 
     # test data directory
     datadir(parts...) = joinpath(@__DIR__, "..", "data", parts...)    

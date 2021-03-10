@@ -207,9 +207,10 @@ struct IHTResult{T <: Float}
     k     :: Union{Int64, Vector{Int}}  # maximum number of predictors (vector if group IHT have differently sized groups)
     group :: Vector{Int64}              # group membership
     d     :: Distribution               # distribution of phenotype
+    σg    :: T                          # Estimated (narrow sense) SNP heritability
 end
-IHTResult(time, logl, iter, v::IHTVariable) = IHTResult(time, logl, iter,
-    v.b, v.c, v.J, v.k, v.group, v.d)
+IHTResult(time, logl, iter, σg, v::IHTVariable) = IHTResult(time, logl, iter,
+    v.b, v.c, v.J, v.k, v.group, v.d, σg)
 
 """
 Immutable object that houses results returned from a multivariate Gaussian IHT run. 
@@ -223,9 +224,10 @@ struct mIHTResult{T <: Float}
     k      :: Int64                      # maximum number of predictors
     traits :: Int64                      # number of traits analyzed jointly
     Σ      :: Matrix{T}                  # estimated covariance matrix for multivariate analysis
+    σg     :: T                          # Estimated (narrow sense) SNP heritability
 end
-IHTResult(time, logl, iter, v::mIHTVariable) = mIHTResult(time, logl, iter,
-    v.B, v.C, v.k, ntraits(v), inv(v.Γ))
+IHTResult(time, logl, iter, σg, v::mIHTVariable) = mIHTResult(time, logl, iter,
+    v.B, v.C, v.k, ntraits(v), inv(v.Γ), σg)
 
 """
 Displays IHTResults object
@@ -237,6 +239,7 @@ function Base.show(io::IO, x::IHTResult)
     println(io, "\nIHT estimated ", count(!iszero, x.beta), " nonzero SNP predictors and ", count(!iszero, x.c), " non-genetic predictors.")
     println(io, "\nCompute time (sec):     ", x.time)
     println(io, "Final loglikelihood:    ", x.logl)
+    println(io, "SNP heritability:       ", x.σg)
     println(io, "Iterations:             ", x.iter)
     println(io, "\nSelected genetic predictors:")
     print(io, DataFrame(Position=snp_position, Estimated_β=x.beta[snp_position]))
