@@ -1,5 +1,5 @@
 """
-    heritability(y, X, β)
+    heritability(y, X, β; l = IdentityLink())
 
 Estimates the proportion of phenotypic variance explained by typed genotypes 
 (i.e. chip heritability or SNP heritability).

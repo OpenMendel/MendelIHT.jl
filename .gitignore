@@ -13,3 +13,8 @@ test/*.bed
 test/*.bim
 test/*beta.txt
 test/gemma*
+test/heritability/*.fam
+test/heritability/*.bed
+test/heritability/*.bim
+test/heritability/*.phen
+test/heritability/univariate_true_beta.txt
