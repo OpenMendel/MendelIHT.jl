@@ -190,115 +190,57 @@ iht_run_many_models(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T 
     iht_run_many_models(y, x, ones(T, size(x, 1)); kwargs...)
 
 """
-    allocate_train!(mmaped_files, train_idx, x, y, z)
+    allocate!(mmaped_files, idx, x, y, z)
 
-Creates `x_train`, `y_train`, and `z_train` based on `train_idx` from the
-full data `x`, `y`, and `z`. Data is copied internally. 
+Copies `x`, `y`, and `z` based on `idx`. Data is copied internally. 
 
 If `typeof(x) <: SnpArray`, then relevant entries of `x` is copied into another
-memory mapped file and whose filename is saved in `mmaped_files`.
+memory mapped file and filename is saved in `mmaped_files`.
 """
-function allocate_train!(
+function allocate!(
     mmaped_files::Vector{String},
-    train_idx::BitVector,
+    idx::BitVector,
     x::SnpArray, 
     y::VecOrMat{T}, 
     z::VecOrMat{T},
     destin::String
     ) where T <: Float
-    train_file = destin * randstring(100) * ".bed"
-    x_train_snparray = SnpArray(train_file, sum(train_idx), size(x, 2))
-    copyto!(x_train_snparray, @view(x[train_idx, :]))
-    push!(mmaped_files, train_file)
+    new_file = destin * randstring(100) * ".bed"
+    x_new_snparray = SnpArray(new_file, sum(idx), size(x, 2))
+    copyto!(x_new_snparray, @view(x[idx, :]))
+    push!(mmaped_files, new_file)
 
     if is_multivariate(y) # sample phenotype/genotypes stored in columns
-        x_train = Transpose(SnpLinAlg{T}(x_train_snparray, model=ADDITIVE_MODEL,
+        x_new = Transpose(SnpLinAlg{T}(x_new_snparray, model=ADDITIVE_MODEL,
             center=true, scale=true, impute=true))
-        y_train = y[:, train_idx]
-        z_train = z[:, train_idx]
+        y_new = y[:, idx]
+        z_new = z[:, idx]
     else # sample phenotype/genotypes stored in rows
-        x_train = SnpLinAlg{T}(x_train_snparray, model=ADDITIVE_MODEL,
+        x_new = SnpLinAlg{T}(x_new_snparray, model=ADDITIVE_MODEL,
             center=true, scale=true, impute=true)
-        y_train = y[train_idx]
-        z_train = z[train_idx, :]
+        y_new = y[idx]
+        z_new = z[idx, :]
     end
-
-    return x_train, y_train, z_train
+    return x_new, y_new, z_new
 end
-function allocate_train!(
+function allocate!(
     mmaped_files::Vector{String},
-    train_idx::BitVector,
+    idx::BitVector,
     x::Matrix,
     y::VecOrMat{T},
     z::VecOrMat{T},
     destin::String
     ) where T <: Float
     if is_multivariate(y) # sample phenotype/genotypes stored in columns
-        x_train = x[:, train_idx]
-        y_train = y[:, train_idx]
-        z_train = z[:, train_idx]
+        x_new = x[:, idx]
+        y_new = y[:, idx]
+        z_new = z[:, idx]
     else # sample phenotype/genotypes stored in rows
-        x_train = x[train_idx, :]
-        y_train = y[train_idx]
-        z_train = z[train_idx, :]
+        x_new = x[idx, :]
+        y_new = y[idx]
+        z_new = z[idx, :]
     end
-    return x_train, y_train, z_train
-end
-
-"""
-    allocate_test!(mmaped_files, train_idx, x, y, z)
-
-Creates `x_test`, `y_test`, and `z_test` based on `test_idx` from the
-full data `x`, `y`, and `z`. Data is copied internally. 
-
-If `typeof(x) <: SnpArray`, then relevant entries of `x` is copied into another
-memory mapped file and whose filename is saved in `mmaped_files`.
-"""
-function allocate_test!(
-    mmaped_files::Vector{String},
-    test_idx::BitVector,
-    x::SnpArray, 
-    y::VecOrMat{T}, 
-    z::VecOrMat{T},
-    destin::String
-    ) where T <: Float
-    test_file = destin * randstring(100) * ".bed"
-    x_test_snparray = SnpArray(test_file, sum(test_idx), size(x, 2))
-    copyto!(x_test_snparray, @view(x[test_idx, :]))
-    push!(mmaped_files, test_file)
-
-    if is_multivariate(y) # sample phenotype/genotypes stored in columns
-        x_test = Transpose(SnpLinAlg{T}(x_test_snparray, model=ADDITIVE_MODEL,
-            center=true, scale=true, impute=true))
-        y_test = y[:, test_idx]
-        z_test = z[:, test_idx]
-    else # sample phenotype/genotypes stored in rows
-        x_test = SnpLinAlg{T}(x_test_snparray, model=ADDITIVE_MODEL,
-            center=true, scale=true, impute=true)
-        y_test = y[test_idx]
-        z_test = z[test_idx, :]
-    end
-    return x_test, y_test, z_test
-end
-function allocate_test!(
-    mmaped_files::Vector{String},
-    test_idx::BitVector,
-    x::Matrix,
-    y::VecOrMat{T},
-    z::VecOrMat{T},
-    destin::String
-    ) where T <: Float
-    test_size = sum(test_idx)
-    if is_multivariate(y)
-        x_test = x[:, test_idx]
-        y_test = y[:, test_idx]
-        z_test = z[:, test_idx]
-    else
-        x_test = x[test_idx, :]
-        y_test = y[test_idx]
-        z_test = z[test_idx, :]
-    end
-    return x_test, y_test, z_test
+    return x_new, y_new, z_new
 end
 
 function allocate_mean(
@@ -339,8 +281,8 @@ function train_and_validate(train_idx::BitArray, test_idx::BitArray,
 
     # allocate train/test/mean arrays
     traits = is_multivariate(y) ? size(y, 1) : 1
-    x_train, y_train, z_train = allocate_train!(mmaped_files, train_idx, x, y, z, destin)
-    x_test, y_test, z_test = allocate_test!(mmaped_files, test_idx, x, y, z, destin)
+    x_train, y_train, z_train = allocate!(mmaped_files, train_idx, x, y, z, destin)
+    x_test, y_test, z_test = allocate!(mmaped_files, test_idx, x, y, z, destin)
     η_genetic, η_nongenetic, μ = allocate_mean(test_idx, traits, T)
 
     # allocate group and weight vectors if supplied
@@ -424,7 +366,7 @@ function pfold_train(train_idx::BitArray, x::AbstractMatrix, z::AbstractVecOrMat
 
     # allocate train data
     mmaped_files = String[]
-    x_train, y_train, z_train = allocate_train!(mmaped_files, train_idx, x, y, z, destin)
+    x_train, y_train, z_train = allocate!(mmaped_files, train_idx, x, y, z, destin)
 
     try
         # fit training model on various sparsity levels and store resulting β
@@ -476,7 +418,7 @@ function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T},
 
     # allocate test model
     mmaped_files = String[]
-    x_test, y_test, z_test = allocate_test!(mmaped_files, test_idx, x, y, z, destin)
+    x_test, y_test, z_test = allocate!(mmaped_files, test_idx, x, y, z, destin)
 
     # for each computed model stored in betas, compute the deviance residuals (i.e. generalized mean squared error) on test set
     try
