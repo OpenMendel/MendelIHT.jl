@@ -61,7 +61,7 @@ deviance(v::IHTVariable{T, M}) where {T <: Float, M} =
 
 Update the mean (μ) using the linear predictor `xb` with link `l`.
 """
-function update_μ!(μ::AbstractVector{T}, xb::AbstractVector{T}, l::Link) where {T <: Float}
+function update_μ!(μ::AbstractVecOrMat{T}, xb::AbstractVecOrMat{T}, l::Link) where {T <: Float}
     @inbounds for i in eachindex(μ)
         μ[i] = linkinv(l, xb[i])
     end

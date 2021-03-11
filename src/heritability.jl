@@ -29,6 +29,6 @@ function heritability(v::IHTVariable)
 end
 
 function heritability(v::mIHTVariable)
-    update_μ!(v.μ, v.BX, IdentityLink) # update estimated mean μ with genotype predictors
+    update_μ!(v.μ, v.BX, IdentityLink()) # update estimated mean μ with genotype predictors
     return _heritability(v.Y, v.μ)
 end

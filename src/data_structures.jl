@@ -254,6 +254,8 @@ function Base.show(io::IO, x::mIHTResult)
     println(io, "\nCompute time (sec):     ", x.time)
     println(io, "Final loglikelihood:    ", x.logl)
     println(io, "Iterations:             ", x.iter)
+    println(io, "SNP heritability:       ", x.σg)
+
     for r in 1:x.traits
         β1 = @view(x.beta[r, :])
         C1 = @view(x.c[r, :])
