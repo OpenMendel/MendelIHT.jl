@@ -32,3 +32,10 @@ function heritability(v::mIHTVariable)
     update_μ!(v.μ, v.BX, IdentityLink()) # update estimated mean μ with genotype predictors
     return _heritability(v.Y, v.μ)
 end
+
+# function update_μ_with_intercept!(v::IHTVariable{T, M}) where {T <: Float, M}
+#     v.zc .= v.c[1] .* @view(v.z[:, 1]) # only update zc with intercept term, which is the 1st column in z
+#     @inbounds for i in eachindex(v.μ)
+#         v.μ[i] = linkinv(v.l, v.xb[i] + v.zc[i]) #genetic + nongenetic contributions
+#     end
+# end
