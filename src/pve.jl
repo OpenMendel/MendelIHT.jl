@@ -5,8 +5,8 @@ Estimates phenotype's Proportion of Variance Explained (PVE) by typed genotypes
 (i.e. chip heritability or SNP heritability).
 
 # Model
-We compute `Var(μ) / Var(y)` where `y` is the raw phenotypes, `X` contains 
-all the genotypes, and `μ = g^{-1}(Xβ)` is the predicted (average) phenotype
+We compute `Var(ŷ) / Var(y)` where `y` is the raw phenotypes, `X` contains 
+all the genotypes, and `ŷ = Xβ` is the predicted (average) phenotype
 values from the statistical model β. 
 """
 function pve(
@@ -30,6 +30,5 @@ end
 
 function pve(v::mIHTVariable)
     update_μ!(v.μ, v.BX, IdentityLink()) # update estimated mean μ with genotype predictors
-    r = ntraits(v)
-    return [_pve(@view(v.Y[i, :]), @view(v.μ[i, :])) for i in 1:r]
+    return [_pve(@view(v.Y[i, :]), @view(v.μ[i, :])) for i in 1:ntraits(v)]
 end

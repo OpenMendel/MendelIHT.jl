@@ -39,7 +39,7 @@ module MendelIHT
     include("cross_validation.jl")
     include("multivariate.jl")
     include("wrapper.jl")
-    include("heritability.jl")
+    include("pve.jl")
 
     # test data directory
     datadir(parts...) = joinpath(@__DIR__, "..", "data", parts...)    
