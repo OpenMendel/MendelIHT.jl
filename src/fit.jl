@@ -115,8 +115,8 @@ function fit_iht(
         end
     end
 
-    # compute narrow sense heritability
-    σ2 = heritability(v)
+    # compute phenotype's proportion of variation explained
+    σ2 = pve(v)
 
     return IHTResult(tot_time, next_logl, mm_iter, σ2, v)
 end
