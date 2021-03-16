@@ -75,7 +75,7 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
     solve_Σ!(v)
 
     # save model after projection
-    unvectorize!(v.B, v.C, full_b)
+    unvectorize!(full_b, v.B, v.C)
 
     # if more than k entries are selected per column, randomly choose k of them
     _choose!(v)
@@ -108,12 +108,12 @@ function vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
 end
 
 """
-    vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+    unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
 
 Without allocations, copies the first `length(vec(B))` part of `a` into `B` 
 and the remaining parts of `a` into `C`.
 """
-function unvectorize!(B::AbstractMatrix, C::AbstractMatrix, a::AbstractVector)
+function unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
     i = 1
     @inbounds @simd for j in eachindex(B)
         B[j] = a[i]
@@ -283,8 +283,7 @@ those indices.
 function init_iht_indices!(v::mIHTVariable)
     # initialize intercept to mean of each trait
     for i in 1:ntraits(v)
-        ybar = mean(@view(v.Y[i, :]))
-        v.C[i, 1] = ybar
+        v.C[i, 1] = mean(@view(v.Y[i, :]))
     end
     mul!(v.CZ, v.C, v.Z)
 
@@ -295,7 +294,7 @@ function init_iht_indices!(v::mIHTVariable)
     # first `k` non-zero entries in each β are chosen based on largest gradient
     vectorize!(v.full_b, v.df, v.df2)
     project_k!(v.full_b, v.k)
-    unvectorize!(v.df, v.df2, v.full_b)
+    unvectorize!(v.full_b, v.df, v.df2)
 
     # compute support based on largest gradient
     update_support!(v.idx, v.df)
