@@ -45,7 +45,6 @@ ntraits(v::IHTVariable) = 1
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    cv_wts::AbstractVector{T},
     ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
@@ -94,6 +93,7 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     zc     = zeros(T, n)
     zdf2   = zeros(T, n)
     μ      = zeros(T, n)
+    cv_wts = ones(T, n)
     storage = zeros(T, p + q)
 
     return IHTVariable{T, M}(
@@ -104,13 +104,12 @@ end
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     J::Int, k::Union{Int, Vector{Int}}, d::Distribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    cv_wts::AbstractVector{T},
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
         v = mIHTVariable(x, z, y, k, cv_wts)
     else
-        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, cv_wts)
+        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
     end
 
     # initialize non-zero indices
@@ -290,6 +289,7 @@ function print_cv_results(io::IO, errors::Vector{T},
     for i = 1:length(errors)
         println(io, "\t", path[i], "\t", errors[i])
     end
+    println("\nBest k = $k\n")
 end
 # default IO for print_cv_results is STDOUT
 print_cv_results(errors::Vector{T}, path::AbstractVector{<:Integer}, k::Int

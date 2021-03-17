@@ -63,11 +63,27 @@ function cv_iht(
         test_idx  = folds .== fold
         train_idx = .!test_idx
 
+        # For SnpArray `x`, create SnpLinAlg for doing linear algebra with genotypes
+        xla = typeof(x) <: AbstractSnpArray ?
+            SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, impute=true) : x
+
         # validate trained models on test data by computing deviance residuals
-        mses[:, fold] .= train_and_validate(train_idx, test_idx, d, l, x, z, y,
-            path, est_r, group=group, weight=weight, destin=destin, 
-            use_maf=use_maf, debias=debias, verbose=false, parallel=parallel,
-            max_iter=max_iter)
+        mses[:, fold] = (parallel ? pmap : map)(path) do k
+
+            # initialize IHT object
+            v = initialize(xla, z, y, 1, k, d, l, group, weight, est_r)
+            v.cv_wts[train_idx] .= one(T)
+            v.cv_wts[test_idx] .= zero(T)
+    
+            # run IHT on training model with given k
+            result = fit_iht!(v, debias=debias, verbose=false,
+                max_iter=max_iter)
+    
+            # compute estimated linear predictors and means
+            v.cv_wts[train_idx] .= zero(T)
+            v.cv_wts[test_idx] .= one(T)
+            return predict!(v, result)
+        end
     end
 
     #weight mses for each fold by their size before averaging
@@ -189,158 +205,40 @@ end
 iht_run_many_models(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T =
     iht_run_many_models(y, x, ones(T, size(x, 1)); kwargs...)
 
-"""
-    allocate!(mmaped_files, idx, x, y, z)
+function predict!(v::IHTVariable{T, M}, result::IHTResult) where {T <: Float, M}
+    # first update mean μ with estimated (trained) beta
+    v.b .= result.beta
+    v.c .= result.c
+    v.idx .= v.b .!= 0
+    v.idc .= v.c .!= 0
+    check_covariate_supp!(v)
+    update_xb!(v)
+    update_μ!(v)
 
-Copies `x`, `y`, and `z` based on `idx`. Data is copied internally. 
-
-If `typeof(x) <: SnpArray`, then relevant entries of `x` is copied into another
-memory mapped file and filename is saved in `mmaped_files`.
-"""
-function allocate!(
-    mmaped_files::Vector{String},
-    idx::BitVector,
-    x::SnpArray, 
-    y::VecOrMat{T}, 
-    z::VecOrMat{T},
-    destin::String
-    ) where T <: Float
-    new_file = destin * randstring(100) * ".bed"
-    x_new_snparray = SnpArray(new_file, sum(idx), size(x, 2))
-    copyto!(x_new_snparray, @view(x[idx, :]))
-    push!(mmaped_files, new_file)
-
-    if is_multivariate(y) # sample phenotype/genotypes stored in columns
-        x_new = Transpose(SnpLinAlg{T}(x_new_snparray, model=ADDITIVE_MODEL,
-            center=true, scale=true, impute=true))
-        y_new = y[:, idx]
-        z_new = z[:, idx]
-    else # sample phenotype/genotypes stored in rows
-        x_new = SnpLinAlg{T}(x_new_snparray, model=ADDITIVE_MODEL,
-            center=true, scale=true, impute=true)
-        y_new = y[idx]
-        z_new = z[idx, :]
+    # Compute deviance residual (MSE for Gaussian response)
+    mse = zero(T)
+    @inbounds for i in eachindex(v.y)
+        mse += abs2(v.y[i] - v.μ[i]) * v.cv_wts[i]
     end
-    return x_new, y_new, z_new
-end
-function allocate!(
-    mmaped_files::Vector{String},
-    idx::BitVector,
-    x::Matrix,
-    y::VecOrMat{T},
-    z::VecOrMat{T},
-    destin::String
-    ) where T <: Float
-    if is_multivariate(y) # sample phenotype/genotypes stored in columns
-        x_new = x[:, idx]
-        y_new = y[:, idx]
-        z_new = z[:, idx]
-    else # sample phenotype/genotypes stored in rows
-        x_new = x[idx, :]
-        y_new = y[idx]
-        z_new = z[idx, :]
-    end
-    return x_new, y_new, z_new
+    return mse
 end
 
-function allocate_mean(
-    test_idx::BitVector,
-    traits::Int,
-    t::Type{T}
-    ) where T <: Float
-    test_size = sum(test_idx)
-    if traits > 1 #multivariate analysis
-        η_genetic = zeros(t, traits, test_size, nprocs()) # BX holding linear response for genetic predictors
-        η_nongenetic = zeros(t, traits, test_size, nprocs()) # CZ holding linear response for nongenetic predictors
-        μ = zeros(t, traits, test_size, nprocs())
-    else
-        η_genetic = zeros(t, test_size, nprocs()) # xb holding linear response for genetic predictors
-        η_nongenetic = zeros(t, test_size, nprocs()) # zc holding linear response for nongenetic predictors
-        μ = zeros(t, test_size, nprocs())
-    end
-    return η_genetic, η_nongenetic, μ
-end
+function predict!(v::mIHTVariable{T, M}, result::mIHTResult) where {T <: Float, M}
+    # first update mean μ with estimated (trained) beta
+    # v.b .= result.beta
+    # v.c .= result.c
+    # v.idx .= v.b .!= 0
+    # v.idc .= v.c .!= 0
+    # check_covariate_supp!(v) 
+    # update_xb!(v)
+    # update_μ!(v)
 
-"""
-This function trains a bunch of models (univariate or multivariate trait) IHT.
-
-Each model has a different sparsity parameter, k, which is specified in the
-variable `path`. Then each trained model is used to compute the deviance
-residuals (i.e. mean squared error for normal response) on the test set.
-This deviance residuals vector is returned.
-"""
-function train_and_validate(train_idx::BitArray, test_idx::BitArray,
-    d::Distribution, l::Link, x::AbstractMatrix, z::AbstractVecOrMat{T},
-    y::AbstractVecOrMat{T}, path::AbstractVector{Int}, est_r::Symbol;
-    group::AbstractVector=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", use_maf::Bool=false,
-    debias::Bool=false, verbose::Bool=true, parallel::Bool=false,
-    max_iter::Int=100) where {T <: Float}
-
-    mmaped_files = String[]
-
-    # allocate train/test/mean arrays
-    traits = is_multivariate(y) ? size(y, 1) : 1
-    x_train, y_train, z_train = allocate!(mmaped_files, train_idx, x, y, z, destin)
-    x_test, y_test, z_test = allocate!(mmaped_files, test_idx, x, y, z, destin)
-    η_genetic, η_nongenetic, μ = allocate_mean(test_idx, traits, T)
-
-    # allocate group and weight vectors if supplied
-    group_train = (group == Int[] ? Int[] : group[train_idx])
-    weight_train = (weight == T[] ? T[] : weight[train_idx])
-
-    # fit and compute mse for each k in path
-    mses = try # this try statement enables deletion of intermediate files if `fit` fails
-        mses = (parallel ? pmap : map)(path) do k
-
-            # run IHT on training model with given k
-            result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l,
-                est_r=est_r, group=group_train, weight=weight_train, 
-                use_maf=use_maf, debias=debias, verbose=verbose,
-                max_iter=max_iter)
-
-            # compute estimated linear predictors and means
-            id = myid()
-            if is_multivariate(y)
-                μi = @view(μ[:, :, id])
-                ηi_genetic = @view(η_genetic[:, :, id])
-                ηi_nongenetic = @view(η_nongenetic[:, :, id])
-                mul!(ηi_genetic, result.beta, x_test)
-                mul!(ηi_nongenetic, result.c, z_test)
-                @inbounds @simd for i in eachindex(μi)
-                    μi[i] = ηi_genetic[i] + ηi_nongenetic[i]
-                end
-                mse = zero(T)
-                @inbounds for i in eachindex(y_test)
-                    mse += abs2(y_test[i] - μi[i])
-                end
-                return mse
-            else
-                mul!(@view(η_genetic[:, id]), x_test, result.beta)
-                mul!(@view(η_nongenetic[:, id]), z_test, result.c)
-                @inbounds @simd for i in 1:size(μ, 1)
-                    μ[i, id] = linkinv(l, η_genetic[i, id] + η_nongenetic[i, id])
-                end
-                # return sum of squared deviance residuals. For normal, this is equivalent to MSE
-                return deviance(d, y_test, @view(μ[:, id]))
-            end
-        end
-        return mses
-    finally
-        #clean up
-        try
-            for files in mmaped_files
-                rm(files, force=true) 
-            end
-        catch
-            @warn("Can't remove intermediate files! Please delete the following files manually:")
-            for files in mmaped_files
-                println(files) 
-            end
-        end
-    end
-
-    return mses
+    # # Compute deviance residual (MSE for Gaussian response)
+    # mse = zero(T)
+    # @inbounds for i in eachindex(v.y)
+    #     mse += abs2(v.y[i] - v.μ[i]) * v.cv_wts[i]
+    # end
+    # return mse
 end
 
 """

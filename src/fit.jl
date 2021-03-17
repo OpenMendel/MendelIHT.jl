@@ -58,8 +58,7 @@ function fit_iht(
     typeof(x) <: AbstractSnpArray && error("x is a SnpArray! Please convert it to a SnpLinAlg first!")
 
     # initialize IHT variable
-    cv_wts = ones(is_multivariate(y) ? size(x, 2) : size(x, 1)) # cross validation weights are all 1 for regular IHT fit
-    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, cv_wts)
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r)
 
     # print information 
     if verbose
@@ -105,13 +104,13 @@ Fits a IHT variable `v`.
 + `max_step`: is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
 """
 function fit_iht!(
-    v         :: Union{mIHTVariable, IHTVariable};
+    v         :: Union{mIHTVariable{T, M}, IHTVariable{T, M}};
     debias    :: Bool = false,
     verbose   :: Bool = true,          # print informative things
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 100,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
-    ) where T <: Float
+    ) where {T <: Float, M}
 
     #start timer
     start_time = time()
