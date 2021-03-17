@@ -38,7 +38,7 @@ function cv_iht(
     y        :: AbstractVecOrMat{T},
     x        :: AbstractMatrix,
     z        :: AbstractVecOrMat{T};
-    d        :: UnivariateDistribution = Normal(),
+    d         :: Distribution = size(y, 2) > 1 ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
     path     :: AbstractVector{<:Integer} = 1:20,
     q        :: Int64 = 5,
@@ -58,14 +58,14 @@ function cv_iht(
     nmodels = length(path)
     mses = zeros(nmodels, q)
 
+    # For SnpArray `x`, create SnpLinAlg for doing linear algebra with genotypes
+    xla = typeof(x) <: AbstractSnpArray ?
+        SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, impute=true) : x
+
     for fold in 1:q
         # find entries that are for test sets and train sets
         test_idx  = folds .== fold
         train_idx = .!test_idx
-
-        # For SnpArray `x`, create SnpLinAlg for doing linear algebra with genotypes
-        xla = typeof(x) <: AbstractSnpArray ?
-            SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, impute=true) : x
 
         # validate trained models on test data by computing deviance residuals
         mses[:, fold] = (parallel ? pmap : map)(path) do k
@@ -96,62 +96,10 @@ function cv_iht(
     return mse
 end
 
-cv_iht(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T = 
-    cv_iht(y, x, ones(T, size(x, 1)); kwargs...)
-
-"""
-Performs q-fold cross validation for Iterative hard thresholding to 
-determine the best model size `k`. The function is the same as `cv_iht` 
-except here each `fold` is distributed to a different CPU as opposed 
-to each `path` to a different CPU. 
-
-This function has the edge over `cv_iht` because one can fit different 
-sparsity levels on different computers. But this is assuming you have 
-enough RAM and disk space to store all training data simultaneously.
-"""
-function cv_iht_distribute_fold(
-    y        :: AbstractVector{T},
-    x        :: AbstractMatrix,
-    z        :: AbstractVecOrMat{T};
-    d        :: UnivariateDistribution = Normal(),
-    l        :: Link = IdentityLink,
-    path     :: AbstractVector{<:Integer} = 1:20,
-    q        :: Int64 = 5,
-    est_r    :: Symbol = :None,
-    group    :: AbstractVector{Int} = Int[],
-    weight   :: AbstractVector{T} = T[],
-    folds    :: AbstractVector{Int} = rand(1:q, size(x, 1)),
-    destin   :: String = "./", 
-    use_maf  :: Bool = false,
-    debias   :: Bool = false,
-    verbose  :: Bool = true,
-    parallel :: Bool = false
-    ) where T <: Float
-
-    # for each fold, allocate train/test set, train the model, and test the model
-    mses = (parallel ? pmap : map)(1:q) do fold
-        test_idx  = folds .== fold
-        train_idx = .!test_idx
-        betas, cs = pfold_train(train_idx, x, z, y, d, l, path, est_r, 
-            group=group, weight=weight, destin=destin, 
-            use_maf=use_maf, debias=debias, verbose=false)
-        return pfold_validate(test_idx, betas, cs, x, z, y, d, l, path,
-            group=group, weight=weight, destin=destin, 
-            use_maf=use_maf, debias=debias, verbose=false)
-    end
-
-    #weight mses for each fold by their size before averaging
-    mse = meanloss(mses, q, folds)
-
-    # find best model size and print cross validation result
-    k = path[argmin(mse)] :: Int
-    verbose && print_cv_results(mse, path, k)
-
-    return mse
+function cv_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs...) where T
+    z = is_multivariate(y) ? ones(T, 1, size(y, 2)) : ones(T, length(y))
+    return cv_iht(y, x, z; kwargs...)
 end
-
-cv_iht_distribute_fold(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T =
-    cv_iht_distribute_fold(y, x, ones(T, size(x, 1)); kwargs...)
 
 """
 Runs IHT across many different model sizes specifed in `path` using the full
@@ -202,8 +150,10 @@ function iht_run_many_models(
     return loglikelihoods
 end
 
-iht_run_many_models(y::AbstractVector{T}, x::AbstractMatrix; kwargs...) where T =
-    iht_run_many_models(y, x, ones(T, size(x, 1)); kwargs...)
+function iht_run_many_models(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs...) where T
+    z = is_multivariate(y) ? ones(T, 1, size(y, 2)) : ones(T, length(y))
+    return iht_run_many_models(y, x, z; kwargs...)
+end
 
 function predict!(v::IHTVariable{T, M}, result::IHTResult) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta
@@ -239,112 +189,6 @@ function predict!(v::mIHTVariable{T, M}, result::mIHTResult) where {T <: Float, 
     #     mse += abs2(v.y[i] - v.μ[i]) * v.cv_wts[i]
     # end
     # return mse
-end
-
-"""
-Creates training model of `x` based on `train_idx` and returns `betas` and `cs` that stores the 
-estimated coefficients for genetic and non-genetic predictors. 
-
-This function initialize the training model as a memory-mapped file at a `destin`, which will
-be removed upon completion. 
-"""
-function pfold_train(train_idx::BitArray, x::AbstractMatrix, z::AbstractVecOrMat{T},
-    y::AbstractVector{T}, d::UnivariateDistribution, l::Link, 
-    path::AbstractVector{Int}, est_r::Symbol;
-    group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", use_maf::Bool =false,
-    max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
-    verbose::Bool = false, 
-    ) where {T <: Float}
-
-    #preallocate arrays
-    p, q = size(x, 2), size(z, 2)
-    betas = zeros(T, p, length(path))
-    cs = zeros(T, q, length(path))
-
-    # allocate train data
-    mmaped_files = String[]
-    x_train, y_train, z_train = allocate!(mmaped_files, train_idx, x, y, z, destin)
-
-    try
-        # fit training model on various sparsity levels and store resulting β
-        for i in 1:length(path)
-            k = path[i]
-            result = fit_iht(y_train, x_train, z_train, J=1, k=k, d=d, l=l, 
-                est_r=est_r, group=group, weight=weight, 
-                use_maf=use_maf, debias=debias, verbose=false, max_iter=max_iter)
-            betas[:, i] .= result.beta
-            cs[:, i] .= result.c
-        end
-    finally
-        # delete memory mapped files
-        try
-            for files in mmaped_files
-                rm(files, force=true)
-            end
-        catch
-            @warn("Can't remove intermediate files! Please delete the following files manually:")
-            for files in mmaped_files
-                println(files)
-            end
-        end
-    end
-
-    return betas, cs
-end
-
-"""
-This function takes a trained model, and returns the mean squared error (mse) of that model 
-on the test set. A vector of mse is returned, where each entry corresponds to the training
-set on each fold with different sparsity parameter. 
-"""
-function pfold_validate(test_idx::BitArray, betas::AbstractMatrix{T}, 
-    cs::AbstractMatrix{T}, x::AbstractMatrix, z::AbstractVecOrMat{T}, y::AbstractVector{T},
-    d::UnivariateDistribution, l::Link, path::AbstractVector{Int};
-    group::AbstractVector{Int}=Int[], weight::AbstractVector{T}=T[],
-    destin::String = "./", use_maf::Bool = false, 
-    max_iter::Int = 100, max_step::Int = 3, debias::Bool = false,
-    verbose::Bool = false) where {T <: Float}
-
-    # preallocate arrays
-    p, q = size(x, 2), size(z, 2)
-    test_size = sum(test_idx)
-    mse = zeros(T, length(path))
-    xb = zeros(T, test_size)
-    zc = zeros(T, test_size)
-    μ  = zeros(T, test_size)
-
-    # allocate test model
-    mmaped_files = String[]
-    x_test, y_test, z_test = allocate!(mmaped_files, test_idx, x, y, z, destin)
-
-    # for each computed model stored in betas, compute the deviance residuals (i.e. generalized mean squared error) on test set
-    try
-        for i = 1:size(betas, 2)
-            # compute estimated response Xb: [xb zc] = [x_test z_test] * [b; c] and update mean μ = g^{-1}(xb)
-            mul!(xb, x_test, @view(betas[:, i]))
-            mul!(zc, z_test, @view(cs[:, i]))
-            xb .+= zc
-            update_μ!(μ, xb, l)
-
-            # compute sum of squared deviance residuals. For normal, this is equivalent to out-of-sample error
-            mse[i] = deviance(d, y_test, μ)
-        end
-    finally
-        # delete memory mapped files
-        try
-            for files in mmaped_files
-                rm(files, force=true)
-            end
-        catch
-            @warn("Can't remove intermediate files! Please delete the following files manually:")
-            for files in mmaped_files
-                println(files)
-            end
-        end  
-    end
-
-    return mse
 end
 
 """
