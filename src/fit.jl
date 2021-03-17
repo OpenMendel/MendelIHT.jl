@@ -135,10 +135,10 @@ function iht_one_step!(
     ) where {T <: Float, M <: AbstractMatrix}
 
     # first calculate step size 
-    η = iht_stepsize(v)
+    η = iht_stepsize!(v)
 
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
-    _iht_gradstep(v, η)
+    _iht_gradstep!(v, η)
 
     # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
     update_xb!(v)

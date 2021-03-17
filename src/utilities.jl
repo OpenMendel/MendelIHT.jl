@@ -228,7 +228,7 @@ end
 """
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
+function _iht_gradstep!(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     J = v.J
     k = v.k == 0 ? v.ks : v.k
     full_grad = v.full_b # use full_b as storage for complete beta = [v.b ; v.c]
@@ -352,7 +352,7 @@ function _choose!(v::IHTVariable{T}) where {T <: Float}
 end
 
 """
-In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
+In `_init_iht_indices` and `_iht_gradstep!`, if non-genetic cov got 
 included/excluded, we must resize `xk` and `gk`.
 
 TODO: Use ElasticArrays.jl
@@ -588,7 +588,7 @@ Computes the best step size η = v'v / v'Jv
 Here v is the score and J is the expected information matrix, which is 
 computed by J = g'(xb) / var(μ), assuming dispersion is 1
 """
-function iht_stepsize(v::IHTVariable{T, M}) where {T <: Float, M}
+function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     z = v.z # non genetic covariates
     d = v.d # distribution
     l = v.l # link function
@@ -748,7 +748,7 @@ function backtrack!(v::IHTVariable, η::Float)
     # recompute gradient step
     copyto!(v.b, v.b0)
     copyto!(v.c, v.c0)
-    _iht_gradstep(v, η)
+    _iht_gradstep!(v, η)
 
     # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
     update_xb!(v)

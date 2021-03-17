@@ -55,11 +55,11 @@ function score!(v::mIHTVariable)
 end
 
 """
-    _iht_gradstep(v::mIHTVariable, η::Float)
+    _iht_gradstep!(v::mIHTVariable, η::Float)
 
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::mIHTVariable, η::Float)
+function _iht_gradstep!(v::mIHTVariable, η::Float)
     full_b = v.full_b # use full_b as storage for complete beta = [v.b v.c]
     p = nsnps(v)
 
@@ -151,7 +151,7 @@ Computes the best step size `η = ||∇f||^2_F / tr(X'∇f'Γ∇fX)` where
 `tr(X'∇f'LU∇fX) = ||v||^2_F` where `v = U∇fX`, `L = U'` is cholesky factor
 of `Γ`.
 """
-function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
+function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
     # store part of X corresponding to non-zero component of B
     copyto!(v.dfidx, @view(v.df[:, v.idx]))
 
@@ -318,7 +318,7 @@ function backtrack!(v::mIHTVariable, η::Float)
     copyto!(v.B, v.B0)
     copyto!(v.C, v.C0)
     copyto!(v.Γ, v.Γ0)
-    _iht_gradstep(v, η)
+    _iht_gradstep!(v, η)
 
     # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
     update_xb!(v)
