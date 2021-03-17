@@ -33,12 +33,19 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     group  :: Vector{Int}   # vector denoting group membership
     weight :: Vector{T}     # weights (typically minor allele freq) that will scale b prior to projection
     μ      :: Vector{T}     # mean of the current model: μ = l^{-1}(xb)
+    cv_wts :: Vector{T}     # weights for cross validation. cv_wts[i] = 0 means sample i should not be included in fitting. 
     full_b :: Vector{T}     # storage for full beta and full gradient
 end
 
+nsamples(v::IHTVariable) = length(v.y)
+nsnps(v::IHTVariable) = size(v.x, 2)
+ncovariates(v::IHTVariable) = size(v.z, 2) # number of nongenetic covariates
+ntraits(v::IHTVariable) = 1
+
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
-    group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol
+    group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
+    cv_wts::AbstractVector{T},
     ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
@@ -91,18 +98,19 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
 
     return IHTVariable{T, M}(
         x, y, z, k, J, ks, d, l, est_r, 
-        b, b0, xb, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zdf2, group, weight, μ, storage)
+        b, b0, xb, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zdf2, group, weight, μ, cv_wts, storage)
 end
 
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     J::Int, k::Union{Int, Vector{Int}}, d::Distribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
+    cv_wts::AbstractVector{T},
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k)
+        v = mIHTVariable(x, z, y, k, cv_wts)
     else
-        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
+        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, cv_wts)
     end
 
     # initialize non-zero indices

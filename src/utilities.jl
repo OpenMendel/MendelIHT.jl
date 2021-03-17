@@ -10,10 +10,11 @@ function loglikelihood(v::IHTVariable{T, M}) where {T <: Float, M}
     d = v.d 
     y = v.y
     μ = v.μ
+    wts = v.cv_wts
     logl = zero(T)
     ϕ = MendelIHT.deviance(v) / length(y) # variance in the case of normal
     @inbounds for i in eachindex(y)
-        logl += loglik_obs(d, y[i], μ[i], 1, ϕ)
+        logl += loglik_obs(d, y[i], μ[i], wts[i], ϕ)
     end
     return logl
 end
@@ -22,7 +23,9 @@ end
 This function is taken from GLM.jl from: 
 https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
 
-`wt`: in GLM.jl, this is prior frequency (a.k.a. case) weights for observations, which is not used by us. Thus all wt = 1.
+`wt`: in GLM.jl, this is prior frequency (a.k.a. case) weights for observations.
+We use this for cross validation weighting: if sample `i` is being fitted,
+wt[i] = 1. Otherwise wt[i] = 0.
 """
 function loglik_obs end
 
@@ -46,15 +49,16 @@ Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian c
 Each individual sqared deviance residual is evaluated using `devresid`
 which is implemented in GLM.jl
 """
-function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
+function deviance(d::UnivariateDistribution, y::AbstractVector{T},
+    μ::AbstractVector{T}, wts::AbstractVector{T}) where {T <: Float}
     dev = zero(T)
     @inbounds for i in eachindex(y)
-        dev += devresid(d, y[i], μ[i])
+        dev += wts[i] * devresid(d, y[i], μ[i])
     end
     return dev
 end
 deviance(v::IHTVariable{T, M}) where {T <: Float, M} = 
-    MendelIHT.deviance(v.d, v.y, v.μ)
+    MendelIHT.deviance(v.d, v.y, v.μ, v.cv_wts)
 
 """
     update_μ!(μ, xb, l)
@@ -103,11 +107,11 @@ Calculates the score (gradient) `X^T * W * (y - g(x^T b))` for different GLMs.
 W is a diagonal matrix where `w[i, i] = dμ/dη / var(μ)` (see documentation)
 """
 function score!(v::IHTVariable{T, M}) where {T <: Float, M}
-    d, l, x, z, y = v.d, v.l, v.x, v.z, v.y
+    d, l, x, z, y, cv_wts = v.d, v.l, v.x, v.z, v.y, v.cv_wts
     @inbounds for i in eachindex(y)
         η = v.xb[i] + v.zc[i]
         w = mueta(l, η) / glmvar(d, v.μ[i])
-        v.r[i] = w * (y[i] - v.μ[i])
+        v.r[i] = w * (y[i] - v.μ[i]) * cv_wts[i] # cv_wts handles sample masking for cross validation
     end
     mul!(v.df, Transpose(x), v.r)
     mul!(v.df2, Transpose(z), v.r)
@@ -587,6 +591,8 @@ Computes the best step size η = v'v / v'Jv
 
 Here v is the score and J is the expected information matrix, which is 
 computed by J = g'(xb) / var(μ), assuming dispersion is 1
+
+Note: cross validation weights are implicitly included in the gradient.
 """
 function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     z = v.z # non genetic covariates

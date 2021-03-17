@@ -9,7 +9,7 @@ of predictors for group `i`.
 
 # Arguments:
 + `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or `Array{T, 2}` (multivariate Gaussian traits).
-+ `x`: Genotype matrix (an `Array{T, 2}`, `SnpBitMatrix`, or `SnpLinAlg` (recommended))
++ `x`: Genotype matrix (an `Array{T, 2}` or `SnpLinAlg`)
 + `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`. The first column should be the intercept (i.e. column of 1). 
 
 # Optional Arguments:
@@ -46,9 +46,6 @@ function fit_iht(
     max_step  :: Int = 5,              # maximum backtracking for each iteration
     ) where T <: Float
 
-    #start timer
-    start_time = time()
-
     # first handle errors
     @assert J ≥ 0        "Value of J (max number of groups) must be nonnegative!\n"
     @assert max_iter ≥ 0 "Value of max_iter must be nonnegative!\n"
@@ -58,6 +55,66 @@ function fit_iht(
     check_group(k, group) # make sure sparsity parameter `k` is reasonable. 
     !(typeof(d) <: NegativeBinomial) && est_r != :None && 
         error("Only negative binomial regression currently supports nuisance parameter estimation")
+    typeof(x) <: AbstractSnpArray && error("x is a SnpArray! Please convert it to a SnpLinAlg first!")
+
+    # initialize IHT variable
+    cv_wts = ones(is_multivariate(y) ? size(x, 2) : size(x, 1)) # cross validation weights are all 1 for regular IHT fit
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, cv_wts)
+
+    # print information 
+    if verbose
+        print_iht_signature()
+        print_parameters(k, d, l, use_maf, group, debias, tol, max_iter)
+    end
+
+    return fit_iht!(v, debias=debias, verbose=verbose, tol=tol, max_iter=max_iter, max_step=max_step)
+end
+
+function fit_iht(
+    y::AbstractVecOrMat{T},
+    x::AbstractMatrix{T};
+    kwargs...
+    ) where T 
+    z = is_multivariate(y) ? ones(T, 1, size(y, 2)) : ones(T, length(y))
+    return fit_iht(y, x, z; kwargs...)
+end
+
+"""
+    fit_iht!(v; kwargs...)
+
+Fits a IHT variable `v`. 
+
+# Arguments:
++ `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or `Array{T, 2}` (multivariate Gaussian traits).
++ `x`: Genotype matrix (an `Array{T, 2}` or `SnpLinAlg`)
++ `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`. The first column should be the intercept (i.e. column of 1). 
+
+# Optional Arguments:
++ `k`: Number of non-zero predictors. Can be a constant or a vector (for group IHT). 
++ `J`: The number of maximum groups (set as 1 if no group infomation available)
++ `d`: Distribution of your phenotype (e.g. Normal, Bernoulli)
++ `l`: A link function (e.g. IdentityLink, LogitLink, ProbitLink)
++ `group`: vector storing group membership
++ `weight`: vector storing vector of weights containing prior knowledge on each SNP
++ `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
++ `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)
++ `debias`: boolean indicating whether we debias at each iteration (see paper)
++ `verbose`: boolean indicating whether we want to print results if model does not converge.
++ `tol`: used to track convergence
++ `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
++ `max_step`: is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
+"""
+function fit_iht!(
+    v         :: Union{mIHTVariable, IHTVariable};
+    debias    :: Bool = false,
+    verbose   :: Bool = true,          # print informative things
+    tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
+    max_iter  :: Int = 100,            # maximum IHT iterations
+    max_step  :: Int = 5,              # maximum backtracking for each iteration
+    ) where T <: Float
+
+    #start timer
+    start_time = time()
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
@@ -69,14 +126,7 @@ function fit_iht(
     converged   = false             # scaled_norm < tol?
 
     # initialize variables
-    v = initialize(x, z, y, J, k, d, l, group, weight, est_r)
     debias && (temp_glm = initialize_glm_object())
-
-    # print information 
-    if verbose
-        print_iht_signature()
-        print_parameters(k, d, l, use_maf, group, debias, tol, max_iter)
-    end
 
     # Begin 'iterative' hard thresholding algorithm
     for iter in 1:max_iter
@@ -100,7 +150,7 @@ function fit_iht(
 
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
-            temp_glm = fit(GeneralizedLinearModel, v.xk, y, d, l)
+            temp_glm = fit(GeneralizedLinearModel, v.xk, y, v.d, v.l)
             view(v.b, v.idx) .= temp_glm.pp.beta0
         end
 
@@ -120,9 +170,6 @@ function fit_iht(
 
     return IHTResult(tot_time, next_logl, mm_iter, σ2, v)
 end
-
-fit_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix{T}; kwargs...) where T = 
-    fit_iht(y, x, ones(T, length(y)); kwargs...)
 
 """
 Performs 1 iteration of the IHT algorithm, backtracking a maximum of `nstep` times.
