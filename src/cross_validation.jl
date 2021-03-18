@@ -10,10 +10,6 @@ validation folds are cycled through sequentially different `paths` are fitted
 in parallel on different CPUs. Currently there are no routines to cross validate
 different group sizes. 
 
-# Warning
-Do not remove files with random file names when you run this function. These are 
-memory mapped files that will be deleted automatically once they are no longer needed.
-
 # Arguments
 - `y`: Response vector (phenotypes), should be an `Array{T, 1}`.
 - `x`: A design matrix (genotypes). Should be a `SnpArray` or an `Array{T, 2}`. 
@@ -36,31 +32,29 @@ memory mapped files that will be deleted automatically once they are no longer n
 """
 function cv_iht(
     y        :: AbstractVecOrMat{T},
-    x        :: AbstractMatrix,
+    x        :: AbstractMatrix{T},
     z        :: AbstractVecOrMat{T};
-    d         :: Distribution = size(y, 2) > 1 ? MvNormal(T[]) : Normal(),
+    d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
     path     :: AbstractVector{<:Integer} = 1:20,
     q        :: Int64 = 5,
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
-    folds    :: AbstractVector{Int} = rand(1:q, size(x, 1)),
+    folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
     destin   :: String = "./",
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
-    parallel :: Bool = false,
+    parallel :: Bool = true,
     max_iter :: Int = 100
     ) where T <: Float
+
+    typeof(x) <: AbstractSnpArray && error("x is a SnpArray! Please convert it to a SnpLinAlg first!")
 
     # preallocate mean squared error matrix
     nmodels = length(path)
     mses = zeros(nmodels, q)
-
-    # For SnpArray `x`, create SnpLinAlg for doing linear algebra with genotypes
-    xla = typeof(x) <: AbstractSnpArray ?
-        SnpLinAlg{T}(x, model=ADDITIVE_MODEL, center=true, scale=true, impute=true) : x
 
     for fold in 1:q
         # find entries that are for test sets and train sets
@@ -71,14 +65,13 @@ function cv_iht(
         mses[:, fold] = (parallel ? pmap : map)(path) do k
 
             # initialize IHT object
-            v = initialize(xla, z, y, 1, k, d, l, group, weight, est_r)
+            v = initialize(x, z, y, 1, k, d, l, group, weight, est_r)
             v.cv_wts[train_idx] .= one(T)
             v.cv_wts[test_idx] .= zero(T)
-    
+
             # run IHT on training model with given k
-            result = fit_iht!(v, debias=debias, verbose=false,
-                max_iter=max_iter)
-    
+            result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
+
             # compute estimated linear predictors and means
             v.cv_wts[train_idx] .= zero(T)
             v.cv_wts[test_idx] .= one(T)
@@ -166,29 +159,25 @@ function predict!(v::IHTVariable{T, M}, result::IHTResult) where {T <: Float, M}
     update_μ!(v)
 
     # Compute deviance residual (MSE for Gaussian response)
-    mse = zero(T)
-    @inbounds for i in eachindex(v.y)
-        mse += abs2(v.y[i] - v.μ[i]) * v.cv_wts[i]
-    end
-    return mse
+    return deviance(v)
 end
 
 function predict!(v::mIHTVariable{T, M}, result::mIHTResult) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta
-    # v.b .= result.beta
-    # v.c .= result.c
-    # v.idx .= v.b .!= 0
-    # v.idc .= v.c .!= 0
-    # check_covariate_supp!(v) 
-    # update_xb!(v)
-    # update_μ!(v)
+    v.B .= result.beta
+    v.C .= result.c
+    update_support!(v.idx, v.B)
+    update_support!(v.idc, v.C)
+    check_covariate_supp!(v) 
+    update_xb!(v)
+    update_μ!(v)
 
-    # # Compute deviance residual (MSE for Gaussian response)
-    # mse = zero(T)
-    # @inbounds for i in eachindex(v.y)
-    #     mse += abs2(v.y[i] - v.μ[i]) * v.cv_wts[i]
-    # end
-    # return mse
+    # Compute deviance residual (MSE for Gaussian response)
+    mse = zero(T)
+    @inbounds for j in 1:nsamples(v), i in 1:ntraits(v)
+        mse += abs2(v.Y[i, j] - v.μ[i, j]) * v.cv_wts[j]
+    end
+    return mse
 end
 
 """

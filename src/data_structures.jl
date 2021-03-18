@@ -37,7 +37,7 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     full_b :: Vector{T}     # storage for full beta and full gradient
 end
 
-nsamples(v::IHTVariable) = length(v.y)
+nsamples(v::IHTVariable) = count(!iszero, v.cv_wts)
 nsnps(v::IHTVariable) = size(v.x, 2)
 ncovariates(v::IHTVariable) = size(v.z, 2) # number of nongenetic covariates
 ntraits(v::IHTVariable) = 1
@@ -107,7 +107,7 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k, cv_wts)
+        v = mIHTVariable(x, z, y, k)
     else
         v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
     end
@@ -146,6 +146,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     μ      :: Matrix{T}     # mean of the current model: μ = BX + CZ
     Γ      :: Matrix{T}     # estimated inverse covariance matrix (TODO: try StaticArrays.jl here)
     Γ0     :: Matrix{T}     # Γ in previous iterate (TODO: try StaticArrays here)
+    cv_wts :: Vector{T}     # weights for cross validation. cv_wts[i] = 0 means sample i should not be included in fitting. 
     # storage variables
     full_b :: Vector{T}     # storage for vectorized form of full beta [vec(B); vec(Z)]
     r_by_r1 :: Matrix{T}    # an r × r storage (needed in loglikelihood)
@@ -184,6 +185,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     μ      = zeros(T, r, n)
     Γ      = Matrix{T}(I, r, r)
     Γ0     = Matrix{T}(I, r, r)
+    cv_wts = ones(T, n)
     full_b = zeros(T, r * (p + q))
     r_by_r1 = zeros(T, r, r)
     r_by_r2 = zeros(T, r, r)
@@ -193,10 +195,10 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     return mIHTVariable{T, M}(
         x, y, z, k,
         B, B0, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
-        CZ, μ, Γ, Γ0, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2)
+        CZ, μ, Γ, Γ0, cv_wts, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2)
 end
 
-nsamples(v::mIHTVariable) = size(v.Y, 2)
+nsamples(v::mIHTVariable) = count(!iszero, v.cv_wts)
 nsnps(v::mIHTVariable) = size(v.X, 1)
 ncovariates(v::mIHTVariable) = size(v.Z, 1) # number of nongenetic covariates
 ntraits(v::mIHTVariable) = size(v.Y, 1)

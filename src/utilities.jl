@@ -43,9 +43,9 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
-    deviance(d, y, μ)
+    deviance(d, y, μ, wts)
 
-Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian case) 
+Calculates the sum of the squared deviance residuals (e.g. (y - μ)^2 for Gaussian case) 
 Each individual sqared deviance residual is evaluated using `devresid`
 which is implemented in GLM.jl
 """

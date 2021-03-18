@@ -42,12 +42,13 @@ end
 Calculates the gradient `Γ(Y - XB)X'` for multivariate Gaussian model.
 """
 function score!(v::mIHTVariable)
-    y = v.Y
-    μ = v.μ
-    r = v.resid # r × n
+    y = v.Y # r × n
+    μ = v.μ # r × n
     Γ = v.Γ # r × r
-    @inbounds @simd for i in eachindex(y)
-        r[i] = y[i] - μ[i]
+    r = v.resid # r × n
+    cv_wts = v.cv_wts # n × 1 cross validation weights
+    @inbounds for j in 1:size(y, 2), i in 1:size(y, 1)
+        r[i, j] = (y[i, j] - μ[i, j]) * cv_wts[j]
     end
     mul!(v.r_by_n1, Γ, r) # r_by_n1 = Γ(Y - BX)
     mul!(v.df, v.r_by_n1, Transpose(v.X)) # v.df = Γ(Y - BX)X'
@@ -214,7 +215,7 @@ Possibly rescales `v.Xk` and `v.dfidx`, which needs to happen when non-genetic
 covariates get included/excluded between different iterations
 """
 function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
-    n, r = nsamples(v), ntraits(v)
+    n, r = size(v.X, 2), ntraits(v)
     nzidx = sum(v.idx)
     if nzidx != size(v.Xk, 1)
         v.Xk = zeros(T, nzidx, n)
