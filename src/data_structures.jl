@@ -45,7 +45,7 @@ ntraits(v::IHTVariable) = 1
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    cv_train_idx::BitVector=trues(T, size(x, 1))
+    cv_train_idx::BitVector=trues(size(x, 1))
     ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
@@ -294,7 +294,7 @@ function print_cv_results(io::IO, errors::Vector{T},
     for i = 1:length(errors)
         println(io, "\t", path[i], "\t", errors[i])
     end
-    println("\nBest k = $k\n")
+    println(io, "\nBest k = $k\n")
 end
 # default IO for print_cv_results is STDOUT
 print_cv_results(errors::Vector{T}, path::AbstractVector{<:Integer}, k::Int

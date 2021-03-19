@@ -201,4 +201,4 @@ function meanloss(fitloss::AbstractMatrix, q::Int64, folds::AbstractVector{Int})
 end
 
 meanloss(mses::Vector{Vector{T}}, num_fold, folds) where {T <: Float} = 
-    meanloss(hcat(mses...), num_fold, folds) 
+    meanloss(hcat(mses...), num_fold, folds)

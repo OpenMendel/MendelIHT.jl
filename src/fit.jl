@@ -149,7 +149,7 @@ function fit_iht!(
 
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
-            temp_glm = fit(GeneralizedLinearModel, v.xk, y, v.d, v.l)
+            temp_glm = fit(GeneralizedLinearModel, v.xk, v.y, v.d, v.l)
             view(v.b, v.idx) .= temp_glm.pp.beta0
         end
 
