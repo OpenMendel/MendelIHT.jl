@@ -45,6 +45,7 @@ ntraits(v::IHTVariable) = 1
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
+    cv_train_idx::BitVector=trues(T, size(x, 1))
     ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
@@ -93,7 +94,7 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     zc     = zeros(T, n)
     zdf2   = zeros(T, n)
     μ      = zeros(T, n)
-    cv_wts = ones(T, n)
+    cv_wts = ones(T, n); cv_wts[.!cv_train_idx] .= zero(T)
     storage = zeros(T, p + q)
 
     return IHTVariable{T, M}(
@@ -103,13 +104,14 @@ end
 
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     J::Int, k::Union{Int, Vector{Int}}, d::Distribution, l::Link,
-    group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
+    group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol;
+    cv_train_idx=trues(is_multivariate(y) ? size(x, 2) : size(x, 1))
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k)
+        v = mIHTVariable(x, z, y, k, cv_train_idx)
     else
-        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
+        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, cv_train_idx)
     end
 
     # initialize non-zero indices
@@ -156,7 +158,8 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
-    k::Int) where {T <: Float, M <: AbstractMatrix}
+    k::Int, cv_train_idx::BitVector=trues(size(x, 2))
+    ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 2) # number of samples 
     p = size(x, 1) # number of SNPs
@@ -185,7 +188,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     μ      = zeros(T, r, n)
     Γ      = Matrix{T}(I, r, r)
     Γ0     = Matrix{T}(I, r, r)
-    cv_wts = ones(T, n)
+    cv_wts = ones(T, n); cv_wts[.!cv_train_idx] .= zero(T)
     full_b = zeros(T, r * (p + q))
     r_by_r1 = zeros(T, r, r)
     r_by_r2 = zeros(T, r, r)

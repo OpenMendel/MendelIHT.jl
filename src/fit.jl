@@ -42,7 +42,7 @@ function fit_iht(
     debias    :: Bool = false,
     verbose   :: Bool = true,          # print informative things
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
-    max_iter  :: Int = 100,            # maximum IHT iterations
+    max_iter  :: Int = 200,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
     ) where T <: Float
 
@@ -108,7 +108,7 @@ function fit_iht!(
     debias    :: Bool = false,
     verbose   :: Bool = true,          # print informative things
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
-    max_iter  :: Int = 100,            # maximum IHT iterations
+    max_iter  :: Int = 200,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
     ) where {T <: Float, M}
 

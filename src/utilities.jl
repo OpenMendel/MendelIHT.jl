@@ -294,7 +294,11 @@ function init_iht_indices!(v::IHTVariable)
     group = v.group
 
     # find the intercept by Newton's method
-    ybar = mean(y)
+    ybar = zero(eltype(v.y))
+    @inbounds @simd for i in eachindex(v.y)
+        ybar += v.y[i] * v.cv_wts[i]
+    end
+    ybar /= count(!iszero, v.cv_wts)
     for iteration = 1:20 
         g1 = linkinv(l, v.c[1])
         g2 = mueta(l, v.c[1])
@@ -587,30 +591,33 @@ function save_prev!(v::IHTVariable{T}) where {T <: Float}
 end
 
 """
-Computes the best step size η = v'v / v'Jv
+Computes the best step size η = v'v / v'Jv = v'v / v'X'WXv
 
 Here v is the score and J is the expected information matrix, which is 
-computed by J = g'(xb) / var(μ), assuming dispersion is 1
+computed by J = g'(xb) / var(μ), assuming dispersion is 1. Note 
 
-Note: cross validation weights are implicitly included in the gradient.
+Note: cross validation weights are needed in W.
 """
 function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     z = v.z # non genetic covariates
     d = v.d # distribution
     l = v.l # link function
 
-    # first store relevant components of gradient
-    copyto!(v.gk, view(v.df, v.idx))
-    mul!(v.xgk, v.xk, v.gk)
+    # first compute Xv using relevant components of gradient
+    copyto!(v.gk, view(v.df, v.idx)) 
+    mul!(v.xgk, v.xk, v.gk) 
     mul!(v.zdf2, view(z, :, v.idc), view(v.df2, v.idc))
-    
-    #use zdf2 as temporary storage
-    v.xgk .+= v.zdf2
-    v.zdf2 .= mueta.(l, v.xb + v.zc).^2 ./ glmvar.(d, v.μ)
+    v.xgk .+= v.zdf2 # xgk = Xv
+
+    # Compute sqrt(W); use zdf2 as storage
+    @inbounds @simd for i in eachindex(v.zdf2)
+        v.zdf2[i] = sqrt(abs2(mueta(l, v.xb[i] + v.zc[i])) / glmvar(d, v.μ[i])) * v.cv_wts[i]
+    end
+    v.xgk .*= v.zdf2 # xgk = sqrt(W)Xv
 
     # now compute and return step size. Note non-genetic covariates are separated from x
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
-    denom = Transpose(v.xgk) * Diagonal(v.zdf2) * v.xgk
+    denom = dot(v.xgk, v.xgk)
     η = numer / denom
 
     # for bad boundary cases (sometimes, k = 1 in cross validation generates weird η)

@@ -65,9 +65,8 @@ function cv_iht(
         mses[:, fold] = (parallel ? pmap : map)(path) do k
 
             # initialize IHT object
-            v = initialize(x, z, y, 1, k, d, l, group, weight, est_r)
-            v.cv_wts[train_idx] .= one(T)
-            v.cv_wts[test_idx] .= zero(T)
+            v = initialize(x, z, y, 1, k, d, l, group, weight, est_r,
+                cv_train_idx=train_idx)
 
             # run IHT on training model with given k
             result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
@@ -149,13 +148,9 @@ function iht_run_many_models(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs..
 end
 
 function predict!(v::IHTVariable{T, M}, result::IHTResult) where {T <: Float, M}
-    # first update mean μ with estimated (trained) beta
-    v.b .= result.beta
-    v.c .= result.c
-    v.idx .= v.b .!= 0
-    v.idc .= v.c .!= 0
-    check_covariate_supp!(v)
-    update_xb!(v)
+    # first update mean μ with estimated (trained) beta (cv weights are handled in deviance)
+    mul!(v.xb, v.x, result.beta)
+    mul!(v.zc, v.z, result.c)
     update_μ!(v)
 
     # Compute deviance residual (MSE for Gaussian response)
