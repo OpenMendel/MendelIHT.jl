@@ -17,6 +17,7 @@ module MendelIHT
     using Distributed
     using Random
     using DelimitedFiles
+    using ProgressMeter
 
     export iht, cross_validate
     export fit_iht, cv_iht, cv_iht_distribute_fold, iht_run_many_models

@@ -56,27 +56,36 @@ function cv_iht(
     nmodels = length(path)
     mses = zeros(nmodels, q)
 
+    # for displaying cross validation progress
+    pmeter = Progress(q * length(path))
+    channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
+    @async while take!(channel)
+        next!(pmeter)
+    end
+
     for fold in 1:q
         # find entries that are for test sets and train sets
         test_idx  = folds .== fold
         train_idx = .!test_idx
 
-        # validate trained models on test data by computing deviance residuals
+        # test different k
         mses[:, fold] = (parallel ? pmap : map)(path) do k
 
-            # initialize IHT object
-            v = initialize(x, z, y, 1, k, d, l, group, weight, est_r,
-                cv_train_idx=train_idx)
-
-            # run IHT on training model with given k
+            # run IHT on training data with current k
+            v = initialize(x, z, y, 1, k, d, l, group, weight, est_r, cv_train_idx=train_idx)
             result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
 
-            # compute estimated linear predictors and means
+            # predict on validation data
             v.cv_wts[train_idx] .= zero(T)
             v.cv_wts[test_idx] .= one(T)
+
+            # update progres
+            put!(channel, true)
+
             return predict!(v, result)
         end
     end
+    put!(channel, false)
 
     #weight mses for each fold by their size before averaging
     mse = meanloss(mses, q, folds)
