@@ -151,6 +151,8 @@ Computes the best step size `η = ||∇f||^2_F / tr(X'∇f'Γ∇fX)` where
 ∇f = Γ(Y - BX)(Y - BX)'. Note the denominator can be rewritten as
 `tr(X'∇f'LU∇fX) = ||v||^2_F` where `v = U∇fX`, `L = U'` is cholesky factor
 of `Γ`.
+
+Must be careful for cross validation weights in ∇f * X
 """
 function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
     # store part of X corresponding to non-zero component of B
@@ -162,13 +164,17 @@ function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
         numer += abs2(i)
     end
 
+    # denominator of step size
     denom = zero(T)
     mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
+    for j in 1:size(v.Y, 2), i in 1:ntraits(v)
+        v.r_by_n1[i, j] *= v.cv_wts[j] # cross validation masking happens here
+    end
     cholesky!(v.Γ) # overwrite upper triangular of Γ with U, where LU = Γ, U = L'
     triu!(v.Γ) # set entries below diagonal to 0, so Γ = L'
     mul!(v.r_by_n2, v.Γ, v.r_by_n1) # r_by_n2 = L'*∇f*X
     @inbounds for i in eachindex(v.r_by_n2)
-        denom += abs2(v.r_by_n2[i])
+        denom += abs2(v.r_by_n2[i]) 
     end
 
     # for bad boundary cases (sometimes, k = 1 in cross validation generates weird η)
@@ -283,8 +289,13 @@ those indices.
 """
 function init_iht_indices!(v::mIHTVariable)
     # initialize intercept to mean of each trait
+    nz_samples = count(!iszero, v.cv_wts) # for cross validation masking
     for i in 1:ntraits(v)
-        v.C[i, 1] = mean(@view(v.Y[i, :]))
+        ybar = zero(eltype(v.C))
+        @inbounds for j in 1:size(v.Y, 2)
+            ybar += v.Y[i, j] * v.cv_wts[j]
+        end
+        v.C[i, 1] = ybar / nz_samples
     end
     mul!(v.CZ, v.C, v.Z)
 

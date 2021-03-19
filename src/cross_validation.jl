@@ -159,17 +159,13 @@ end
 
 function predict!(v::mIHTVariable{T, M}, result::mIHTResult) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta
-    v.B .= result.beta
-    v.C .= result.c
-    update_support!(v.idx, v.B)
-    update_support!(v.idc, v.C)
-    check_covariate_supp!(v) 
-    update_xb!(v)
+    mul!(v.BX, result.beta, v.X)
+    mul!(v.CZ, result.c, v.Z)
     update_μ!(v)
 
     # Compute deviance residual (MSE for Gaussian response)
     mse = zero(T)
-    @inbounds for j in 1:nsamples(v), i in 1:ntraits(v)
+    @inbounds for j in 1:size(v.Y, 2), i in 1:ntraits(v)
         mse += abs2(v.Y[i, j] - v.μ[i, j]) * v.cv_wts[j]
     end
     return mse
