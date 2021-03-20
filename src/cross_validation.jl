@@ -10,10 +10,17 @@ validation folds are cycled through sequentially different `paths` are fitted
 in parallel on different CPUs. Currently there are no routines to cross validate
 different group sizes. 
 
-# Arguments
-- `y`: Response vector (phenotypes), should be an `Array{T, 1}`.
-- `x`: A design matrix (genotypes). Should be a `SnpArray` or an `Array{T, 2}`. 
-- `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`. The first column should be the intercept (i.e. column of 1). 
+# Arguments:
++ `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or
+    `Array{T, 2}` (multivariate Gaussian traits). For multivariate traits, each 
+    column of `y` should be a sample. 
++ `x`: Genotype matrix (an `Array{T, 2}` or `SnpLinAlg`). For univariate
+    analysis, samples are rows of `x`. For multivariate analysis, samples are
+    columns of `x` (i.e. input `Transpose(x)` for `SnpLinAlg`)
++ `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`.
+    For univariate analysis, sample covariates are rows of `z`. For multivariate
+    analysis, sample covariates are columns of `z`. Also the first column (row)
+    should be the intercept (i.e. entire column of 1). 
 
 # Optional Arguments: 
 - `path`: Different model sizes to be tested in cross validation (default 1:20)
@@ -57,7 +64,7 @@ function cv_iht(
     mses = zeros(nmodels, q)
 
     # for displaying cross validation progress
-    pmeter = Progress(q * length(path))
+    pmeter = Progress(q * length(path), "Cross validating...")
     channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
     @async while take!(channel)
         next!(pmeter)

@@ -3,7 +3,7 @@
 
 Here we give numerous example analysis of GWAS data with `MendelIHT.jl`. 
 
-Users are highly encouraged to read the source code of our main [fit_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31) and [cv_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/cross_validation.jl#L38) functions, which contain more options than what is described here.
+Users are highly encouraged to read the source code of our main [fit_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L37) and [cv_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/cross_validation.jl#L40) functions, which contain more options than what is described here.
 
 
 ```julia
@@ -25,7 +25,7 @@ versioninfo()
 ```julia
 # add workers needed for parallel computing. Add only as many CPU cores available
 using Distributed
-addprocs(4)
+# addprocs(4)
 
 #load necessary packages for running all examples below
 @everywhere begin
@@ -45,9 +45,15 @@ end
 
 ## Example 1: GWAS with PLINK files
 
-For PLINK files, users are exposed to a few simple wrapper functions. For demonstration, we use simulated data under the `data` directory, as shown below. This data simulates quantitative (Gaussian) traits using $n=1000$ samples and $p=10,000$ SNPs. There are $8$ causal variants and 2 causal non-genetic covariates (intercept and sex). 
+In this example, our data are stored in binary PLINK files:
 
-Start Julia and execute the following:
++ `normal.bed`
++ `normal.bim`
++ `normal.fam`
+
+which contains simulated (Gaussian) phenotypes for $n=1000$ samples and $p=10,000$ SNPs. There are $8$ causal variants and 2 causal non-genetic covariates (intercept and sex). 
+
+These data are present under `MendelIHT/data` directory.
 
 
 ```julia
@@ -89,8 +95,7 @@ If phenotypes are stored in the `.fam` file and there are no other covariates (e
 
 ```julia
 # test k = 1, 2, ..., 20
-mses = cross_validate("normal", 1:20)
-@show argmin(mses);
+mses = cross_validate("normal", 1:20);
 
 # Alternative syntax
 # mses = cross_validate("normal", [1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
@@ -98,32 +103,39 @@ mses = cross_validate("normal", 1:20)
 # mses = cross_validate("phenotypes.txt", "normal", "covariates.txt", 1:20) # when phenotypes are stored separately
 ```
 
+    [32mCross validating...100%|████████████████████████████████| Time: 0:00:30[39m
+
+
     
     
     Crossvalidation Results:
     	k	MSE
-    	1	1408.9557521114687
-    	2	862.7203844607984
-    	3	680.8301874600056
-    	4	557.4855837639612
-    	5	464.8829558089964
-    	6	406.2939256668324
-    	7	353.51301550648583
-    	8	319.7246407718893
-    	9	330.61634612617485
-    	10	333.0672716462795
-    	11	342.3256426055285
-    	12	350.3298734086273
-    	13	348.1704138912411
-    	14	346.69570733633515
-    	15	354.3537342994825
-    	16	357.8427219980141
-    	17	365.61096068785577
-    	18	361.3342044625832
-    	19	367.01356167023937
-    	20	371.3741015581086
-    argmin(mses) = 8
+    	1	1408.1563764852363
+    	2	859.2530853501157
+    	3	675.489438272005
+    	4	554.241640057255
+    	5	457.7905801971809
+    	6	393.4038368630614
+    	7	340.4572103654293
+    	8	308.14840394813007
+    	9	313.19209629368044
+    	10	315.4842259795911
+    	11	324.98561588950076
+    	12	325.9700128835669
+    	13	328.5339681830119
+    	14	330.3025490829286
+    	15	326.8185639742826
+    	16	343.98518919049127
+    	17	335.8778323256304
+    	18	340.69382555553784
+    	19	345.50179778174197
+    	20	346.9362994901397
+    
+    Best k = 8
+    
 
+
+Do not be alarmed if you get slightly different MSEs, because cross validation breaks data into training/testing randomly. Set a seed by `Random.seed!(1234)` if you want reproducibility.
 
 ### Step 2: Run IHT on best k
 
@@ -134,7 +146,7 @@ According to cross validation, `k = 8` achieves the minimum MSE. Thus we run IHT
 result = iht("normal", 8)
 ```
 
-    ****                   MendelIHT Version 1.3.2                  ****
+    ****                   MendelIHT Version 1.3.3                  ****
     ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
     ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
     ****                                                            ****
@@ -147,13 +159,14 @@ result = iht("normal", 8)
     Prior weight scaling = off
     Doubly sparse projection = off
     Debias = off
-    Converging when tol < 0.0001
+    Max IHT iterations = 200
+    Converging when tol < 0.0001:
     
-    Iteration 1: tol = 0.7845860052299409
-    Iteration 2: tol = 0.02358096868235321
-    Iteration 3: tol = 0.001550076526387469
-    Iteration 4: tol = 0.00010521336604120053
-    Iteration 5: tol = 8.430366413828275e-6
+    Iteration 1: loglikelihood = -1632.5890039523172, backtracks = 0, tol = 0.7845860052299409
+    Iteration 2: loglikelihood = -1627.2942148015939, backtracks = 0, tol = 0.023580968682353067
+    Iteration 3: loglikelihood = -1627.2793358038934, backtracks = 0, tol = 0.0015500765263876102
+    Iteration 4: loglikelihood = -1627.2792456558277, backtracks = 0, tol = 0.00010521336604120053
+    Iteration 5: loglikelihood = -1627.279244876156, backtracks = 0, tol = 8.430366413828275e-6
 
 
 
@@ -162,8 +175,9 @@ result = iht("normal", 8)
     
     IHT estimated 7 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.0783851146697998
-    Final loglikelihood:    -1627.2792448761559
+    Compute time (sec):     0.03294205665588379
+    Final loglikelihood:    -1627.279244876156
+    SNP PVE:                0.8276388351471942
     Iterations:             5
     
     Selected genetic predictors:
@@ -196,7 +210,7 @@ result = iht("normal", "covariates.txt", argmin(mses))
 
 ### Step 3: Examine results
 
-IHT picked 7 SNPs and the intercept as the 8 most significant predictor. The SNP position is the order in which the SNP appeared in the PLINK file. To extract more information (for instance to extract `rs` IDs), we can do
+IHT picked 7 SNPs and the intercept as the 8 most significant predictor. Their position (the order in which the SNP appeared in the PLINK file) and estimated effect size are displayed. To extract more information (for instance to extract `rs` IDs), we can do
 
 
 ```julia
@@ -284,7 +298,7 @@ writedlm("sim.phenotypes.txt", y)
 
 !!! note
 
-    Please **standardize** your non-genetic covariates. If you use our `iht()` or `cross_validation()` functions, standardization is automatic. For genotype matrix, `SnpLinAlg` efficiently achieves this standardization. For non-genetic covariates, please use the built-in function `standardize!`. 
+    Please **standardize** (or at least center) your non-genetic covariates. If you use our `iht()` or `cross_validation()` functions, standardization is automatic. For genotype matrix, `SnpLinAlg` efficiently achieves this standardization. For non-genetic covariates, please use the built-in function `standardize!`. 
 
 ## Example 3: Logistic/Poisson/Negative-binomial GWAS
 
@@ -300,7 +314,7 @@ result = iht("sim", "sim.covariates.txt", 10, d=Bernoulli(), l=LogitLink())
 # result = iht("sim", 10, d=NegativeBinomial(), l=LogLink()) # Negative Binomial regression using canonical link
 ```
 
-    ****                   MendelIHT Version 1.3.2                  ****
+    ****                   MendelIHT Version 1.3.3                  ****
     ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
     ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
     ****                                                            ****
@@ -313,50 +327,51 @@ result = iht("sim", "sim.covariates.txt", 10, d=Bernoulli(), l=LogitLink())
     Prior weight scaling = off
     Doubly sparse projection = off
     Debias = off
-    Converging when tol < 0.0001
+    Max IHT iterations = 200
+    Converging when tol < 0.0001:
     
-    Iteration 1: tol = 0.5882274462947447
-    Iteration 2: tol = 0.2825138668458021
-    Iteration 3: tol = 0.19289827584644756
-    Iteration 4: tol = 0.14269962283934917
-    Iteration 5: tol = 0.022831477149267632
-    Iteration 6: tol = 0.019792429262653115
-    Iteration 7: tol = 0.019845664939460095
-    Iteration 8: tol = 0.00765066824120313
-    Iteration 9: tol = 0.006913691748350025
-    Iteration 10: tol = 0.006159757548662376
-    Iteration 11: tol = 0.0054730856932040705
-    Iteration 12: tol = 0.004854846133978282
-    Iteration 13: tol = 0.004300010671833966
-    Iteration 14: tol = 0.0038033387186573
-    Iteration 15: tol = 0.003359795402130408
-    Iteration 16: tol = 0.0029645876127234955
-    Iteration 17: tol = 0.0026131815201996976
-    Iteration 18: tol = 0.002301318021364227
-    Iteration 19: tol = 0.002025024729429744
-    Iteration 20: tol = 0.001780622915677454
-    Iteration 21: tol = 0.0015647287330161268
-    Iteration 22: tol = 0.0013742489121423226
-    Iteration 23: tol = 0.0012063716814260336
-    Iteration 24: tol = 0.0010585539268262742
-    Iteration 25: tol = 0.0009285056582307361
-    Iteration 26: tol = 0.0008141727680124563
-    Iteration 27: tol = 0.0007137189219975595
-    Iteration 28: tol = 0.0006255072563945025
-    Iteration 29: tol = 0.0005480823925167159
-    Iteration 30: tol = 0.00048015313770763916
-    Iteration 31: tol = 0.0004205761209236388
-    Iteration 32: tol = 0.00036834051544793833
-    Iteration 33: tol = 0.00032255392716466075
-    Iteration 34: tol = 0.00028242947163362354
-    Iteration 35: tol = 0.0002472740235281775
-    Iteration 36: tol = 0.00021647759466681234
-    Iteration 37: tol = 0.00018950377910949886
-    Iteration 38: tol = 0.00016588119325870545
-    Iteration 39: tol = 0.00014519583372057257
-    Iteration 40: tol = 0.0001270842743388486
-    Iteration 41: tol = 0.00011122762514495094
-    Iteration 42: tol = 9.734617909701182e-5
+    Iteration 1: loglikelihood = -403.91876912829696, backtracks = 0, tol = 0.588227446294744
+    Iteration 2: loglikelihood = -354.2415736389379, backtracks = 0, tol = 0.2825138668458029
+    Iteration 3: loglikelihood = -347.5483388154266, backtracks = 0, tol = 0.19289827584644767
+    Iteration 4: loglikelihood = -335.97152474649437, backtracks = 0, tol = 0.14269962283934898
+    Iteration 5: loglikelihood = -334.49756712078744, backtracks = 1, tol = 0.02283147714926755
+    Iteration 6: loglikelihood = -333.5432195711081, backtracks = 2, tol = 0.019792429262652955
+    Iteration 7: loglikelihood = -332.80672688543484, backtracks = 2, tol = 0.01984566493946018
+    Iteration 8: loglikelihood = -332.5588563458224, backtracks = 3, tol = 0.00765066824120313
+    Iteration 9: loglikelihood = -332.3619297572996, backtracks = 3, tol = 0.0069136917483499484
+    Iteration 10: loglikelihood = -332.20642890616097, backtracks = 3, tol = 0.006159757548662302
+    Iteration 11: loglikelihood = -332.0840431892422, backtracks = 3, tol = 0.0054730856932040705
+    Iteration 12: loglikelihood = -331.988004167528, backtracks = 3, tol = 0.004854846133978431
+    Iteration 13: loglikelihood = -331.912840859504, backtracks = 3, tol = 0.004300010671833966
+    Iteration 14: loglikelihood = -331.8541573752894, backtracks = 3, tol = 0.0038033387186571527
+    Iteration 15: loglikelihood = -331.8084401845103, backtracks = 3, tol = 0.0033597954021304085
+    Iteration 16: loglikelihood = -331.7728941748384, backtracks = 3, tol = 0.002964587612723496
+    Iteration 17: loglikelihood = -331.74530513071767, backtracks = 3, tol = 0.002613181520199698
+    Iteration 18: loglikelihood = -331.72392566719304, backtracks = 3, tol = 0.0023013180213642273
+    Iteration 19: loglikelihood = -331.707381516887, backtracks = 3, tol = 0.0020250247294297443
+    Iteration 20: loglikelihood = -331.69459517397274, backtracks = 3, tol = 0.0017806229156774542
+    Iteration 21: loglikelihood = -331.6847241325898, backtracks = 3, tol = 0.001564728733016127
+    Iteration 22: loglikelihood = -331.6771112518333, backtracks = 3, tol = 0.0013742489121423228
+    Iteration 23: loglikelihood = -331.6712450943089, backtracks = 3, tol = 0.0012063716814260338
+    Iteration 24: loglikelihood = -331.6667283950377, backtracks = 3, tol = 0.0010585539268262742
+    Iteration 25: loglikelihood = -331.6632531068335, backtracks = 3, tol = 0.0009285056582307363
+    Iteration 26: loglikelihood = -331.6605807292455, backtracks = 3, tol = 0.0008141727680124564
+    Iteration 27: loglikelihood = -331.6585268570941, backtracks = 3, tol = 0.0007137189219975596
+    Iteration 28: loglikelihood = -331.6569490812431, backtracks = 3, tol = 0.0006255072563945026
+    Iteration 29: loglikelihood = -331.65573754039684, backtracks = 3, tol = 0.000548082392516716
+    Iteration 30: loglikelihood = -331.65480756089744, backtracks = 3, tol = 0.0004801531377076392
+    Iteration 31: loglikelihood = -331.6540939353272, backtracks = 3, tol = 0.00042057612092363887
+    Iteration 32: loglikelihood = -331.6535464833441, backtracks = 3, tol = 0.0003683405154479384
+    Iteration 33: loglikelihood = -331.65312661305927, backtracks = 3, tol = 0.0003225539271646608
+    Iteration 34: loglikelihood = -331.6528046612901, backtracks = 3, tol = 0.00028242947163362354
+    Iteration 35: loglikelihood = -331.6525578388944, backtracks = 3, tol = 0.0002472740235281776
+    Iteration 36: loglikelihood = -331.6523686452689, backtracks = 3, tol = 0.00021647759466681237
+    Iteration 37: loglikelihood = -331.652223646102, backtracks = 3, tol = 0.00018950377910949889
+    Iteration 38: loglikelihood = -331.6521125319519, backtracks = 3, tol = 0.00016588119325870547
+    Iteration 39: loglikelihood = -331.65202739366003, backtracks = 3, tol = 0.0001451958337205726
+    Iteration 40: loglikelihood = -331.65196216503983, backtracks = 3, tol = 0.0001270842743388486
+    Iteration 41: loglikelihood = -331.65191219446064, backtracks = 3, tol = 0.00011122762514495095
+    Iteration 42: loglikelihood = -331.65187391567315, backtracks = 3, tol = 9.734617909715456e-5
 
 
 
@@ -365,8 +380,9 @@ result = iht("sim", "sim.covariates.txt", 10, d=Bernoulli(), l=LogitLink())
     
     IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     0.2472858428955078
-    Final loglikelihood:    -331.6518739156732
+    Compute time (sec):     0.30141711235046387
+    Final loglikelihood:    -331.65187391567315
+    SNP PVE:                0.4798854810844273
     Iterations:             42
     
     Selected genetic predictors:
@@ -475,30 +491,36 @@ Now we have the response $y$, design matrix $x$. Let's run IHT and compare with 
 mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());
 ```
 
+    [32mCross validating...100%|████████████████████████████████| Time: 0:00:15[39m
+
+
     
     
     Crossvalidation Results:
     	k	MSE
     	1	1489.8188363695676
-    	2	707.617523735003
-    	3	546.8867981545658
+    	2	707.6175237350031
+    	3	546.8867981545659
     	4	467.2192708681082
-    	5	440.0376189387275
+    	5	440.03761893872735
     	6	459.9446241516855
     	7	482.3184687223138
-    	8	504.0229684333778
-    	9	495.1263330806669
-    	10	525.4353275609004
+    	8	504.0229684333779
+    	9	495.12633308066677
+    	10	525.4353275609003
     	11	534.0267905856207
-    	12	524.7616148197881
-    	13	558.2726852255064
+    	12	524.761614819788
+    	13	558.2726852255062
     	14	561.6025100531801
     	15	561.3898895087017
-    	16	555.5897051455377
-    	17	618.3872529214123
-    	18	655.3952109246139
-    	19	652.4915677346953
-    	20	561.4237250226573
+    	16	555.5897051455378
+    	17	618.3872529214124
+    	18	655.395210924614
+    	19	652.4915677346956
+    	20	561.4237250226572
+    
+    Best k = 5
+    
 
 
 
@@ -507,7 +529,7 @@ mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());
 result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
 ```
 
-    ****                   MendelIHT Version 1.3.2                  ****
+    ****                   MendelIHT Version 1.3.3                  ****
     ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
     ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
     ****                                                            ****
@@ -520,29 +542,30 @@ result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
     Prior weight scaling = off
     Doubly sparse projection = off
     Debias = off
-    Converging when tol < 0.0001
+    Max IHT iterations = 200
+    Converging when tol < 0.0001:
     
-    Iteration 1: tol = 0.2928574304111577
-    Iteration 2: tol = 0.05230999409875649
-    Iteration 3: tol = 0.07104164424891493
-    Iteration 4: tol = 0.026208176849564724
-    Iteration 5: tol = 0.02023001613423483
-    Iteration 6: tol = 0.011080308351803689
-    Iteration 7: tol = 0.00930914236578197
-    Iteration 8: tol = 0.00556416943618412
-    Iteration 9: tol = 0.004609772037770406
-    Iteration 10: tol = 0.002861799512474864
-    Iteration 11: tol = 0.002340881298705853
-    Iteration 12: tol = 0.001479832987797599
-    Iteration 13: tol = 0.0012011066579049358
-    Iteration 14: tol = 0.0007661746047595665
-    Iteration 15: tol = 0.0006191995770663082
-    Iteration 16: tol = 0.00039678836835178535
-    Iteration 17: tol = 0.00031993814923964465
-    Iteration 18: tol = 0.00020549845888243352
-    Iteration 19: tol = 0.00016549800033345948
-    Iteration 20: tol = 0.00010642830220001078
-    Iteration 21: tol = 8.565816720868677e-5
+    Iteration 1: loglikelihood = -2847.082501924986, backtracks = 0, tol = 0.2928574304111579
+    Iteration 2: loglikelihood = -2465.401434829009, backtracks = 0, tol = 0.05230999409875657
+    Iteration 3: loglikelihood = -2376.6519599956155, backtracks = 0, tol = 0.07104164424891486
+    Iteration 4: loglikelihood = -2351.5833133504116, backtracks = 0, tol = 0.026208176849564724
+    Iteration 5: loglikelihood = -2343.11078282251, backtracks = 0, tol = 0.02023001613423483
+    Iteration 6: loglikelihood = -2339.0692529047387, backtracks = 0, tol = 0.011080308351803736
+    Iteration 7: loglikelihood = -2337.149479249759, backtracks = 0, tol = 0.00930914236578197
+    Iteration 8: loglikelihood = -2336.1781402958745, backtracks = 0, tol = 0.00556416943618412
+    Iteration 9: loglikelihood = -2335.6908426969235, backtracks = 0, tol = 0.004609772037770406
+    Iteration 10: loglikelihood = -2335.440388139586, backtracks = 0, tol = 0.002861799512474864
+    Iteration 11: loglikelihood = -2335.3124548737906, backtracks = 0, tol = 0.002340881298705853
+    Iteration 12: loglikelihood = -2335.2463824561282, backtracks = 0, tol = 0.001479832987797599
+    Iteration 13: loglikelihood = -2335.2123851939327, backtracks = 0, tol = 0.0012011066579049358
+    Iteration 14: loglikelihood = -2335.1947979604856, backtracks = 0, tol = 0.0007661746047595665
+    Iteration 15: loglikelihood = -2335.1857186752313, backtracks = 0, tol = 0.0006191995770663082
+    Iteration 16: loglikelihood = -2335.1810189052294, backtracks = 0, tol = 0.00039678836835178535
+    Iteration 17: loglikelihood = -2335.178588840017, backtracks = 0, tol = 0.00031993814923964465
+    Iteration 18: loglikelihood = -2335.177330620363, backtracks = 0, tol = 0.00020549845888243352
+    Iteration 19: loglikelihood = -2335.1766795324024, backtracks = 0, tol = 0.00016549800033345948
+    Iteration 20: loglikelihood = -2335.176342377269, backtracks = 0, tol = 0.00010642830220001078
+    Iteration 21: loglikelihood = -2335.176167840737, backtracks = 0, tol = 8.565816720868677e-5
 
 
 
@@ -551,8 +574,9 @@ result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
     
     IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.08089709281921387
+    Compute time (sec):     0.09447383880615234
     Final loglikelihood:    -2335.176167840737
+    SNP PVE:                0.09113449276174615
     Iterations:             21
     
     Selected genetic predictors:
@@ -806,6 +830,4 @@ rm("tmp.bed", force=true)
 
 ## Other examples and functionalities
 
-Other examples explored in our manuscript has [reproducible code](https://github.com/biona001/MendelIHT.jl/tree/master/figures). 
-
-Additional features are available as optional parameters in the [fit_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L31) function, but they should be treated as **experimental** features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.
+Additional features are available as optional parameters in the [fit_iht](https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L37) function, but they should be treated as **experimental** features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.

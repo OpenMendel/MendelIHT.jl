@@ -8,9 +8,16 @@ sparse IHT, construct `k` to be a vector where `k[i]` indicates the max number
 of predictors for group `i`. 
 
 # Arguments:
-+ `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or `Array{T, 2}` (multivariate Gaussian traits).
-+ `x`: Genotype matrix (an `Array{T, 2}` or `SnpLinAlg`)
-+ `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`. The first column should be the intercept (i.e. column of 1). 
++ `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or
+    `Array{T, 2}` (multivariate Gaussian traits). For multivariate traits, each 
+    column of `y` should be a sample. 
++ `x`: Genotype matrix (an `Array{T, 2}` or `SnpLinAlg`). For univariate
+    analysis, samples are rows of `x`. For multivariate analysis, samples are
+    columns of `x` (i.e. input `Transpose(x)` for `SnpLinAlg`)
++ `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`.
+    For univariate analysis, sample covariates are rows of `z`. For multivariate
+    analysis, sample covariates are columns of `z`. Also the first column (row)
+    should be the intercept (i.e. entire column of 1). 
 
 # Optional Arguments:
 + `k`: Number of non-zero predictors. Can be a constant or a vector (for group IHT). 
@@ -21,11 +28,11 @@ of predictors for group `i`.
 + `weight`: vector storing vector of weights containing prior knowledge on each SNP
 + `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
 + `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)
-+ `debias`: boolean indicating whether we debias at each iteration (see paper)
-+ `verbose`: boolean indicating whether we want to print results if model does not converge.
++ `debias`: boolean indicating whether we debias at each iteration (only works for univariate models)
++ `verbose`: boolean indicating whether we want to print intermediate results
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
-+ `max_step`: is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
++ `max_step`: is the maximum number of backtracking per IHT iteration. Defaults 5
 """
 function fit_iht(
     y         :: AbstractVecOrMat{T},

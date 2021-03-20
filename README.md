@@ -12,7 +12,6 @@ Download and install [Julia](https://julialang.org/downloads/). Within Julia, co
 ```
 using Pkg
 pkg"add https://github.com/OpenMendel/SnpArrays.jl"
-pkg"add https://github.com/OpenMendel/VCFTools.jl"
 pkg"add https://github.com/OpenMendel/MendelIHT.jl"
 ```
 This package supports Julia `v1.5`+ for Mac, Linux, and window machines. 
@@ -67,7 +66,7 @@ See our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823
 }
 ```
 
-In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
+In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. Some syntax may be outdated, so please file an issue if you encounter any problem with reproducibility.
 
 ## Bug fixes and user support
 
