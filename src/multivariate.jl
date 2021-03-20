@@ -42,12 +42,13 @@ end
 Calculates the gradient `Γ(Y - XB)X'` for multivariate Gaussian model.
 """
 function score!(v::mIHTVariable)
-    y = v.Y
-    μ = v.μ
-    r = v.resid # r × n
+    y = v.Y # r × n
+    μ = v.μ # r × n
     Γ = v.Γ # r × r
-    @inbounds @simd for i in eachindex(y)
-        r[i] = y[i] - μ[i]
+    r = v.resid # r × n
+    cv_wts = v.cv_wts # n × 1 cross validation weights
+    @inbounds for j in 1:size(y, 2), i in 1:size(y, 1)
+        r[i, j] = (y[i, j] - μ[i, j]) * cv_wts[j]
     end
     mul!(v.r_by_n1, Γ, r) # r_by_n1 = Γ(Y - BX)
     mul!(v.df, v.r_by_n1, Transpose(v.X)) # v.df = Γ(Y - BX)X'
@@ -55,11 +56,11 @@ function score!(v::mIHTVariable)
 end
 
 """
-    _iht_gradstep(v::mIHTVariable, η::Float)
+    _iht_gradstep!(v::mIHTVariable, η::Float)
 
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::mIHTVariable, η::Float)
+function _iht_gradstep!(v::mIHTVariable, η::Float)
     full_b = v.full_b # use full_b as storage for complete beta = [v.b v.c]
     p = nsnps(v)
 
@@ -75,7 +76,7 @@ function _iht_gradstep(v::mIHTVariable, η::Float)
     solve_Σ!(v)
 
     # save model after projection
-    unvectorize!(v.B, v.C, full_b)
+    unvectorize!(full_b, v.B, v.C)
 
     # if more than k entries are selected per column, randomly choose k of them
     _choose!(v)
@@ -108,12 +109,12 @@ function vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
 end
 
 """
-    vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+    unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
 
 Without allocations, copies the first `length(vec(B))` part of `a` into `B` 
 and the remaining parts of `a` into `C`.
 """
-function unvectorize!(B::AbstractMatrix, C::AbstractMatrix, a::AbstractVector)
+function unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
     i = 1
     @inbounds @simd for j in eachindex(B)
         B[j] = a[i]
@@ -150,8 +151,10 @@ Computes the best step size `η = ||∇f||^2_F / tr(X'∇f'Γ∇fX)` where
 ∇f = Γ(Y - BX)(Y - BX)'. Note the denominator can be rewritten as
 `tr(X'∇f'LU∇fX) = ||v||^2_F` where `v = U∇fX`, `L = U'` is cholesky factor
 of `Γ`.
+
+Must be careful for cross validation weights in ∇f * X
 """
-function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
+function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
     # store part of X corresponding to non-zero component of B
     copyto!(v.dfidx, @view(v.df[:, v.idx]))
 
@@ -161,13 +164,17 @@ function iht_stepsize(v::mIHTVariable{T, M}) where {T <: Float, M}
         numer += abs2(i)
     end
 
+    # denominator of step size
     denom = zero(T)
     mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
+    for j in 1:size(v.Y, 2), i in 1:ntraits(v)
+        v.r_by_n1[i, j] *= v.cv_wts[j] # cross validation masking happens here
+    end
     cholesky!(v.Γ) # overwrite upper triangular of Γ with U, where LU = Γ, U = L'
     triu!(v.Γ) # set entries below diagonal to 0, so Γ = L'
     mul!(v.r_by_n2, v.Γ, v.r_by_n1) # r_by_n2 = L'*∇f*X
     @inbounds for i in eachindex(v.r_by_n2)
-        denom += abs2(v.r_by_n2[i])
+        denom += abs2(v.r_by_n2[i]) 
     end
 
     # for bad boundary cases (sometimes, k = 1 in cross validation generates weird η)
@@ -214,7 +221,7 @@ Possibly rescales `v.Xk` and `v.dfidx`, which needs to happen when non-genetic
 covariates get included/excluded between different iterations
 """
 function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
-    n, r = nsamples(v), ntraits(v)
+    n, r = size(v.X, 2), ntraits(v)
     nzidx = sum(v.idx)
     if nzidx != size(v.Xk, 1)
         v.Xk = zeros(T, nzidx, n)
@@ -282,9 +289,13 @@ those indices.
 """
 function init_iht_indices!(v::mIHTVariable)
     # initialize intercept to mean of each trait
+    nz_samples = count(!iszero, v.cv_wts) # for cross validation masking
     for i in 1:ntraits(v)
-        ybar = mean(@view(v.Y[i, :]))
-        v.C[i, 1] = ybar
+        ybar = zero(eltype(v.C))
+        @inbounds for j in 1:size(v.Y, 2)
+            ybar += v.Y[i, j] * v.cv_wts[j]
+        end
+        v.C[i, 1] = ybar / nz_samples
     end
     mul!(v.CZ, v.C, v.Z)
 
@@ -295,7 +306,7 @@ function init_iht_indices!(v::mIHTVariable)
     # first `k` non-zero entries in each β are chosen based on largest gradient
     vectorize!(v.full_b, v.df, v.df2)
     project_k!(v.full_b, v.k)
-    unvectorize!(v.df, v.df2, v.full_b)
+    unvectorize!(v.full_b, v.df, v.df2)
 
     # compute support based on largest gradient
     update_support!(v.idx, v.df)
@@ -319,7 +330,7 @@ function backtrack!(v::mIHTVariable, η::Float)
     copyto!(v.B, v.B0)
     copyto!(v.C, v.C0)
     copyto!(v.Γ, v.Γ0)
-    _iht_gradstep(v, η)
+    _iht_gradstep!(v, η)
 
     # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
     update_xb!(v)

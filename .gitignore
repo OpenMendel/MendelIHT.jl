@@ -11,6 +11,8 @@ docs/build/
 test/*.fam
 test/*.bed
 test/*.bim
+test/*phen*
+test/plink*
 test/*beta.txt
 test/gemma*
 test/pve/*.fam

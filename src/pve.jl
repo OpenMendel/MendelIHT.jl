@@ -7,7 +7,7 @@ Estimates phenotype's Proportion of Variance Explained (PVE) by typed genotypes
 # Model
 We compute `Var(ŷ) / Var(y)` where `y` is the raw phenotypes, `X` contains 
 all the genotypes, and `ŷ = Xβ` is the predicted (average) phenotype
-values from the statistical model β. 
+values from the statistical model β. Intercept is NOT included.
 """
 function pve(
     y::AbstractVecOrMat,

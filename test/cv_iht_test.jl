@@ -1,3 +1,7 @@
+# Note: none of the cross validation tests precise numbers. This is because
+# random number generation can be different with Julia versions even if we 
+# set the seed. AKA I don't know any good way of ensuring continuous integration
+
 @testset "Cross validation on SnpArrays, normal model" begin
     #simulat data with k true predictors, from distribution d and with link l.
     n = 1000
@@ -22,29 +26,17 @@
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine that distributes `path` (with debias) 
-    @time distribute_path_debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
+    # cross validation routine (with debias) 
+    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
         folds=folds, verbose=true, debias=true, parallel=true);
-    @test length(distribute_path_debias) == 20
-    @test all(distribute_path_debias .> 0)
+    @test length(debias) == 20
+    @test all(debias .> 0)
 
-    # cross validation routine that distributes `fold` (with debias) 
-    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d(), l=l,
-        path=path, q=q, folds=folds, verbose=false, debias=true, parallel=true);
-    @test length(distribute_fold_debias) == 20
-    @test all(distribute_fold_debias .≈ distribute_path_debias)
-
-    # cross validation routine that distributes `path` (no debias) 
-    @time distribute_path_nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=false, debias=false, parallel=true);
-    @test length(distribute_path_nodebias) == 20
-    @test all(distribute_path_nodebias .> 0)
-
-    # cross validation routine that distributes `fold` (no debias) 
-    @time distribute_fold_nodebias = cv_iht_distribute_fold(y, x, z, d=d(), l=l,
-        path=path, q=q, folds=folds, verbose=false, debias=false, parallel=true);
-    @test length(distribute_fold_nodebias) == 20
-    @test all(distribute_fold_nodebias .≈ distribute_path_nodebias)
+    # cross validation routine (no debias) 
+    @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+        folds=folds, verbose=true, debias=false, parallel=true);
+    @test length(nodebias) == 20
+    @test all(nodebias .> 0)
 end
 
 @testset "Cross validation on floating point matrices, normal model" begin
@@ -78,34 +70,20 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine that distributes `path` (with debias) 
-    @time distribute_path_debias = cv_iht(y, x, z, d=d(), l=l, path=path,
-        q=q, folds=folds, verbose=false, debias=true, parallel=true)
-    @test length(distribute_path_debias) == 20
-    @test all(distribute_path_debias .> 0.0)
+    # cross validation routine (with debias) 
+    @time debias = cv_iht(y, x, z, d=d(), l=l, path=path,
+        q=q, folds=folds, verbose=true, debias=true, parallel=true);
+    @test length(debias) == 20
+    @test all(debias .> 0.0)
 
-    # cross validation routine that distributes `fold` (with debias) 
-    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d(), l=l, 
-        path=path, q=q, folds=folds, verbose=false, debias=true, parallel=true)
-    @test length(distribute_fold_debias) == 20
-    @test all(isapprox.(distribute_path_debias, distribute_fold_debias, atol=1e-3))
-
-    # cross validation routine that distributes `path` (no debias) 
-    @time distribute_path_nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=false, debias=false, parallel=true)
-    @test length(distribute_path_nodebias) == 20
-    @test all(distribute_path_nodebias .> 0.0)
-
-    # cross validation routine that distributes `fold` (no debias) 
-    @time distribute_fold_nodebias = cv_iht_distribute_fold(y, x, z, d=d(), l=l,
-        path=path, q=q, folds=folds, verbose=false, debias=false, parallel=true);
-    @test length(distribute_fold_nodebias) == 20
-    @test all(isapprox.(distribute_path_nodebias, distribute_fold_nodebias, atol=1e-3))
+    # cross validation routine (no debias) 
+    @time nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
+        folds=folds, verbose=true, debias=false, parallel=true);
+    @test length(nodebias) == 20
+    @test all(nodebias .> 0.0)
 end
 
 @testset "Cross validation on SnpArrays, logistic model" begin
-	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
-
     #simulat data with k true predictors, from distribution d and with link l.
 	n = 1000
 	p = 10000
@@ -129,29 +107,17 @@ end
 	q = 3
 	folds = rand(1:q, size(x, 1))
 
-	# cross validation routine that distributes `path` (with debias) 
-    @time distribute_path_debias = cv_iht(y, x, z, d=d(), l=l, path=path,
-        q=q, folds=folds, verbose=false, debias=true, parallel=true);
-    @test length(distribute_path_debias) == 20
-    @test all(distribute_path_debias .> 0.0)
+	# cross validation routine (with debias) 
+    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path,
+        q=q, folds=folds, verbose=true, debias=true, parallel=true);
+    @test length(debias) == 20
+    @test all(debias .> 0.0)
 
-	# cross validation routine that distributes `fold` (with debias) 
-    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d(), l=l,
-        path=path, q=q, folds=folds, verbose=false, debias=true, parallel=true);
-    @test length(distribute_fold_debias) == 20
-    @test all(distribute_fold_debias .≈ distribute_path_debias)
-
-	# cross validation routine that distributes `path` (no debias) 
-    @time distribute_path_nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=false, debias=false, parallel=true);
-    @test length(distribute_path_nodebias) == 20
-    @test all(distribute_path_debias .> 0)
-
-	# cross validation routine that distributes `fold` (no debias) 
-    @time distribute_fold_nodebias = cv_iht_distribute_fold(y, x, z, d=d(), l=l, 
-        path=path, q=q, folds=folds, verbose=false, debias=false, parallel=true);
-    @test length(distribute_fold_nodebias) == 20
-    @test all(distribute_fold_nodebias .≈ distribute_path_nodebias)
+	# cross validation routine (no debias) 
+    @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+        folds=folds, verbose=true, debias=false, parallel=true);
+    @test length(nodebias) == 20
+    @test all(nodebias .> 0)
 end
 
 @testset "Cross validation on floating point matrices, logistic model" begin
@@ -182,20 +148,20 @@ end
 
     #specify path and folds
     path = 1:20
-    q = 5
+    q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine that distributes `path` (with debias) 
-    @time distribute_path_debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=false, debias=true, parallel=true)
-    @test length(distribute_path_debias) == 20
-    @test all(distribute_path_debias .> 0.0)
+    # cross validation routine (with debias) 
+    @time debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
+        folds=folds, verbose=true, debias=true, parallel=true);
+    @test length(debias) == 20
+    @test all(debias .> 0.0)
 
-    # cross validation routine that distributes `fold` (with debias) 
-    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d(), l=l, 
-        path=path, q=q, folds=folds, verbose=false, debias=true, parallel=true);
-    @test length(distribute_fold_debias) == 20
-    @test all(distribute_fold_debias .≈ distribute_path_debias)
+    # cross validation routine (without debias) 
+    @time nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
+        folds=folds, verbose=true, debias=false, parallel=true);
+    @test length(nodebias) == 20
+    @test all(nodebias .> 0)
 end
 
 @testset "Cross validation on SnpArrays, Poisson model" begin
@@ -222,17 +188,17 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine that distributes `path` (with debias) 
-    @time distribute_path_debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=false, debias=true, parallel=true)
-    @test length(distribute_path_debias) == 20
-    @test all(distribute_path_debias .> 0.0)
+    # cross validation routine (with debias) 
+    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+        folds=folds, verbose=true, debias=true, parallel=true);
+    @test length(debias) == 20
+    @test all(debias .> 0.0)
 
-    # cross validation routine that distributes `fold` (with debias) 
-    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d(), l=l, 
-        path=path, q=q, folds=folds, verbose=false, debias=true, parallel=true);
-    @test length(distribute_path_debias) == 20
-    @test all(distribute_fold_debias .≈ distribute_path_debias)
+    # cross validation routine (without debias) 
+    @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q, 
+        folds=folds, verbose=true, debias=false, parallel=true);
+    @test length(nodebias) == 20
+    @test all(nodebias .> 0)
 end
 
 @testset "Cross validation on SnpArrays, NegativeBinomial model" begin
@@ -259,17 +225,17 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine that distributes `path` (with debias) 
-    @time distribute_path_debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=false, debias=true, parallel=true)
-    @test length(distribute_path_debias) == 20
-    @test all(distribute_path_debias .> 0.0)
+    # cross validation routine (with debias) 
+    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+        folds=folds, verbose=true, debias=true, parallel=true);
+    @test length(debias) == 20
+    @test all(debias .> 0.0)
 
-    # cross validation routine that distributes `fold` (with debias) 
-    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d(), l=l,
-        path=path, q=q, folds=folds, verbose=false, debias=true, parallel=true);
-    @test length(distribute_fold_debias) == 20
-    @test all(distribute_fold_debias .≈ distribute_path_debias)
+    # cross validation routine (no debias) 
+    @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+        folds=folds, verbose=true, debias=false, parallel=true);
+    @test length(nodebias) == 20
+    @test all(nodebias .> 0)
 end
 
 @testset "Cross validation on floating point matrices, NegativeBinomial model" begin
@@ -304,28 +270,16 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine that distributes `path` (with debias)
+    # cross validation routine (with debias)
 	d = d(1, T(0.5)) # need Float32 for eltype of d
-    @time distribute_path_debias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
-        folds=folds, verbose=false, debias=true, parallel=true)
-    @test length(distribute_path_debias) == 20
-    @test all(distribute_path_debias .> 0)
+    @time debias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
+        folds=folds, verbose=true, debias=true, parallel=true)
+    @test length(debias) == 20
+    @test all(debias .> 0)
 
-    # cross validation routine that distributes `fold` (with debias) 
-    @time distribute_fold_debias = cv_iht_distribute_fold(y, x, z, d=d, l=l,
-        path=path, q=q, folds=folds, verbose=false, debias=true, parallel=true);
-    @test length(distribute_fold_debias) == 20
-    @test isapprox(distribute_fold_debias, distribute_path_debias, atol=1e-4)
-
-    # cross validation routine that distributes `path` (no debias) 
-    @time distribute_path_nodebias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
-        folds=folds, verbose=false, debias=false, parallel=true);
-    @test length(distribute_path_nodebias) == 20
-    @test all(distribute_path_nodebias .> 0)
-
-    # cross validation routine that distributes `fold` (no debias) 
-    @time distribute_fold_nodebias = cv_iht_distribute_fold(y, x, z, d=d, l=l,
-        path=path, q=q, folds=folds, verbose=false, debias=false, parallel=true);
-    @test length(distribute_fold_nodebias) == 20
-    @test isapprox(distribute_fold_nodebias, distribute_path_nodebias, atol=1e-4)
+    # cross validation routine (no debias) 
+    @time nodebias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
+        folds=folds, verbose=true, debias=false, parallel=true);
+    @test length(nodebias) == 20
+    @test all(nodebias .> 0)
 end

@@ -135,7 +135,7 @@ end
     @test v.df2[1] ≈ 507.55935638764254
 end
 
-@testset "_iht_gradstep" begin
+@testset "_iht_gradstep!" begin
     Random.seed!(1111)
 
     x, z, y, v = test_data(Normal(), IdentityLink())
@@ -148,7 +148,7 @@ end
     η = 0.9
     v.k = k
 
-    MendelIHT._iht_gradstep(v, η) # this should keep 1 * 2 = 2 elements
+    MendelIHT._iht_gradstep!(v, η) # this should keep 1 * 2 = 2 elements
 
     @test v.b[1] ≈ 0.0 # because first entry is smallest, it should be set to 0
     @test v.b[2] ≈ (b + η*df)[2]
@@ -309,7 +309,7 @@ end
     @test all(v.c .== v.c0)
 end
 
-@testset "iht_stepsize" begin
+@testset "iht_stepsize!" begin
     Random.seed!(1234)
     d = Normal()
     l = canonicallink(d)
@@ -319,7 +319,7 @@ end
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v) ≥ 0
+    @test MendelIHT.iht_stepsize!(v) ≥ 0
 
     d = Poisson()
     l = canonicallink(d)
@@ -329,7 +329,7 @@ end
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v) ≥ 0
+    @test MendelIHT.iht_stepsize!(v) ≥ 0
 
     d = NegativeBinomial()
     l = LogLink()
@@ -339,7 +339,7 @@ end
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v) ≥ 0
+    @test MendelIHT.iht_stepsize!(v) ≥ 0
 
     d = Bernoulli()
     l = canonicallink(d)
@@ -349,5 +349,5 @@ end
     v.μ .= rand(1000)
     v.idx[1:9] .= trues(9)
 
-    @test MendelIHT.iht_stepsize(v) ≥ 0
+    @test MendelIHT.iht_stepsize!(v) ≥ 0
 end

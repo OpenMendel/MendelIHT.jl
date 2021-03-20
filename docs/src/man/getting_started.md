@@ -8,9 +8,8 @@ In this section, we outline the basic procedure to analyze your GWAS data with M
 Download and install [Julia](https://julialang.org/downloads/). Within Julia, copy and paste the following:
 ```
 using Pkg
-Pkg.add(PackageSpec(url="https://github.com/OpenMendel/SnpArrays.jl.git"))
-Pkg.add(PackageSpec(url="https://github.com/OpenMendel/VCFTools.jl.git"))
-Pkg.add(PackageSpec(url="https://github.com/OpenMendel/MendelIHT.jl.git"))
+pkg"add https://github.com/OpenMendel/SnpArrays.jl"
+pkg"add https://github.com/OpenMendel/MendelIHT.jl"
 ```
 `MendelIHT.jl` supports Julia 1.5+ for Mac, Linux, and window machines. A few features are disabled for windows users, and users will be warned when trying to use them.
 
@@ -27,8 +26,10 @@ For large datasets, one can run cross validation in parallel. Assuming you have 
 ```julia
 using Distributed
 addprocs(4) # 4 processors
-@everywhere using MendelIHT
-@everywhere using LinearAlgebra
-@everywhere BLAS.set_num_threads(1)
+@everywhere begin
+    using MendelIHT
+    using LinearAlgebra
+    BLAS.set_num_threads(1)
+end
 ```
 Note by default, BLAS runs with multiple threads, so the command `BLAS.set_num_threads(1)` sets the number of BLAS threads to 1, avoiding [oversubscription](https://ieeexplore.ieee.org/document/5470434)

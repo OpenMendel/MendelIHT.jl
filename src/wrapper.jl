@@ -162,7 +162,7 @@ function cross_validate(
     kwargs...
     )
     snpdata = SnpArrays.SnpData(plinkfile)
-    x = snpdata.snparray
+    x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, center=true, scale=true)
     y = parse.(Float64, snpdata.person_info.phenotype)
     return cv_iht(y, x, path=path; kwargs...)
 end
@@ -203,7 +203,7 @@ function cross_validate(
     kwargs...
     )
     snpdata = SnpArrays.SnpData(plinkfile)
-    x = snpdata.snparray
+    x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, center=true, scale=true)
     y = parse.(Float64, snpdata.person_info.phenotype)
     
     # read and standardize covariates 
@@ -256,7 +256,7 @@ function cross_validate(
     kwargs...
     )
     snpdata = SnpArrays.SnpData(plinkfile)
-    x = snpdata.snparray
+    x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, center=true, scale=true)
 
     # read phenotypes
     y = vec(readdlm(phenotypes, ',', Float64)) 

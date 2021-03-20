@@ -62,7 +62,7 @@ end
     @btime MendelIHT.solve_Σ!($v)         # 2.889 μs (2 allocations: 48 bytes)
     # @btime MendelIHT.iht_stepsize(v) # cannot be done because BenchmarkTools require multiple evaluations of the same function call, which makes Γ not pd
     @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C)) # 10.299 μs (0 allocations: 0 bytes)
-    @btime MendelIHT.unvectorize!($(v.B), $(v.C), $(v.full_b)) # 10.548 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.unvectorize!($(v.full_b), $(v.B), $(v.C)) # 10.548 μs (0 allocations: 0 bytes)
     @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 23.204 μs (0 allocations: 0 bytes)
 
     # r = 10 traits
@@ -76,6 +76,6 @@ end
     @btime MendelIHT.solve_Σ!($v)         # 12.623 μs (2 allocations: 48 bytes)
     # @btime MendelIHT.iht_stepsize(v) # cannot be done because BenchmarkTools require multiple evaluations of the same function call, which makes Γ not pd
     @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C)) # 23.712 μs (0 allocations: 0 bytes)
-    @btime MendelIHT.unvectorize!($(v.B), $(v.C), $(v.full_b)) # 23.761 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.unvectorize!($(v.full_b), $(v.B), $(v.C)) # 23.761 μs (0 allocations: 0 bytes)
     @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 50.047 μs (0 allocations: 0 bytes)
 end

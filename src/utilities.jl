@@ -10,10 +10,11 @@ function loglikelihood(v::IHTVariable{T, M}) where {T <: Float, M}
     d = v.d 
     y = v.y
     μ = v.μ
+    wts = v.cv_wts
     logl = zero(T)
     ϕ = MendelIHT.deviance(v) / length(y) # variance in the case of normal
     @inbounds for i in eachindex(y)
-        logl += loglik_obs(d, y[i], μ[i], 1, ϕ)
+        logl += loglik_obs(d, y[i], μ[i], wts[i], ϕ)
     end
     return logl
 end
@@ -22,7 +23,9 @@ end
 This function is taken from GLM.jl from: 
 https://github.com/JuliaStats/GLM.jl/blob/956a64e7df79e80405867238781f24567bd40c78/src/glmtools.jl#L445
 
-`wt`: in GLM.jl, this is prior frequency (a.k.a. case) weights for observations, which is not used by us. Thus all wt = 1.
+`wt`: in GLM.jl, this is prior frequency (a.k.a. case) weights for observations.
+We use this for cross validation weighting: if sample `i` is being fitted,
+wt[i] = 1. Otherwise wt[i] = 0.
 """
 function loglik_obs end
 
@@ -40,21 +43,22 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
 
 """
-    deviance(d, y, μ)
+    deviance(d, y, μ, wts)
 
-Calculates the sum of the squared deviance residuals (e.g. y - μ for Gaussian case) 
+Calculates the sum of the squared deviance residuals (e.g. (y - μ)^2 for Gaussian case) 
 Each individual sqared deviance residual is evaluated using `devresid`
 which is implemented in GLM.jl
 """
-function deviance(d::UnivariateDistribution, y::AbstractVector{T}, μ::AbstractVector{T}) where {T <: Float}
+function deviance(d::UnivariateDistribution, y::AbstractVector{T},
+    μ::AbstractVector{T}, wts::AbstractVector{T}) where {T <: Float}
     dev = zero(T)
     @inbounds for i in eachindex(y)
-        dev += devresid(d, y[i], μ[i])
+        dev += wts[i] * devresid(d, y[i], μ[i])
     end
     return dev
 end
 deviance(v::IHTVariable{T, M}) where {T <: Float, M} = 
-    MendelIHT.deviance(v.d, v.y, v.μ)
+    MendelIHT.deviance(v.d, v.y, v.μ, v.cv_wts)
 
 """
     update_μ!(μ, xb, l)
@@ -103,11 +107,11 @@ Calculates the score (gradient) `X^T * W * (y - g(x^T b))` for different GLMs.
 W is a diagonal matrix where `w[i, i] = dμ/dη / var(μ)` (see documentation)
 """
 function score!(v::IHTVariable{T, M}) where {T <: Float, M}
-    d, l, x, z, y = v.d, v.l, v.x, v.z, v.y
+    d, l, x, z, y, cv_wts = v.d, v.l, v.x, v.z, v.y, v.cv_wts
     @inbounds for i in eachindex(y)
         η = v.xb[i] + v.zc[i]
         w = mueta(l, η) / glmvar(d, v.μ[i])
-        v.r[i] = w * (y[i] - v.μ[i])
+        v.r[i] = w * (y[i] - v.μ[i]) * cv_wts[i] # cv_wts handles sample masking for cross validation
     end
     mul!(v.df, Transpose(x), v.r)
     mul!(v.df2, Transpose(z), v.r)
@@ -228,7 +232,7 @@ end
 """
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
-function _iht_gradstep(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
+function _iht_gradstep!(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     J = v.J
     k = v.k == 0 ? v.ks : v.k
     full_grad = v.full_b # use full_b as storage for complete beta = [v.b ; v.c]
@@ -290,7 +294,11 @@ function init_iht_indices!(v::IHTVariable)
     group = v.group
 
     # find the intercept by Newton's method
-    ybar = mean(y)
+    ybar = zero(eltype(v.y))
+    @inbounds @simd for i in eachindex(v.y)
+        ybar += v.y[i] * v.cv_wts[i]
+    end
+    ybar /= count(!iszero, v.cv_wts)
     for iteration = 1:20 
         g1 = linkinv(l, v.c[1])
         g2 = mueta(l, v.c[1])
@@ -307,15 +315,15 @@ function init_iht_indices!(v::IHTVariable)
     ldf = length(v.df)
     v.full_b[1:ldf] .= v.df
     v.full_b[ldf+1:end] .= v.df2
-    if typeof(k) == Int
+    if length(v.ks) == 0 # no group projection
         a = partialsort(v.full_b, k * J, by=abs, rev=true)
         v.idx .= abs.(v.df) .>= abs(a)
         v.idc .= abs.(v.df2) .>= abs(a)
 
         # Choose randomly if more are selected
         _choose!(v) 
-    else
-        project_group_sparse!(v.full_b, group, J, k) # k is a vector
+    else 
+        project_group_sparse!(v.full_b, group, J, v.ks)
         @inbounds for i in 1:ldf
             v.full_b[i] != 0 && (v.idx[i] = true)
         end
@@ -352,7 +360,7 @@ function _choose!(v::IHTVariable{T}) where {T <: Float}
 end
 
 """
-In `_init_iht_indices` and `_iht_gradstep`, if non-genetic cov got 
+In `_init_iht_indices` and `_iht_gradstep!`, if non-genetic cov got 
 included/excluded, we must resize `xk` and `gk`.
 
 TODO: Use ElasticArrays.jl
@@ -583,33 +591,38 @@ function save_prev!(v::IHTVariable{T}) where {T <: Float}
 end
 
 """
-Computes the best step size η = v'v / v'Jv
+Computes the best step size η = v'v / v'Jv = v'v / v'X'WXv
 
 Here v is the score and J is the expected information matrix, which is 
-computed by J = g'(xb) / var(μ), assuming dispersion is 1
+computed by J = g'(xb) / var(μ), assuming dispersion is 1. Note 
+
+Note: cross validation weights are needed in W.
 """
-function iht_stepsize(v::IHTVariable{T, M}) where {T <: Float, M}
+function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     z = v.z # non genetic covariates
     d = v.d # distribution
     l = v.l # link function
 
-    # first store relevant components of gradient
-    copyto!(v.gk, view(v.df, v.idx))
-    mul!(v.xgk, v.xk, v.gk)
+    # first compute Xv using relevant components of gradient
+    copyto!(v.gk, view(v.df, v.idx)) 
+    mul!(v.xgk, v.xk, v.gk) 
     mul!(v.zdf2, view(z, :, v.idc), view(v.df2, v.idc))
-    
-    #use zdf2 as temporary storage
-    v.xgk .+= v.zdf2
-    v.zdf2 .= mueta.(l, v.xb + v.zc).^2 ./ glmvar.(d, v.μ)
+    v.xgk .+= v.zdf2 # xgk = Xv
+
+    # Compute sqrt(W); use zdf2 as storage
+    @inbounds @simd for i in eachindex(v.zdf2)
+        v.zdf2[i] = sqrt(abs2(mueta(l, v.xb[i] + v.zc[i])) / glmvar(d, v.μ[i])) * v.cv_wts[i]
+    end
+    v.xgk .*= v.zdf2 # xgk = sqrt(W)Xv
 
     # now compute and return step size. Note non-genetic covariates are separated from x
     numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
-    denom = Transpose(v.xgk) * Diagonal(v.zdf2) * v.xgk
+    denom = dot(v.xgk, v.xgk)
     η = numer / denom
 
     # for bad boundary cases (sometimes, k = 1 in cross validation generates weird η)
-    isinf(η) && (η = 1e-8)
-    isnan(η) && (η = 1e-8)
+    isinf(η) && (η = T(1e-8))
+    isnan(η) && (η = T(1e-8))
 
     return η :: T
 end
@@ -748,7 +761,7 @@ function backtrack!(v::IHTVariable, η::Float)
     # recompute gradient step
     copyto!(v.b, v.b0)
     copyto!(v.c, v.c0)
-    _iht_gradstep(v, η)
+    _iht_gradstep!(v, η)
 
     # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
     update_xb!(v)
@@ -758,4 +771,24 @@ function backtrack!(v::IHTVariable, η::Float)
     end
     
     return loglikelihood(v)
+end
+
+function check_data_dim(y::AbstractVecOrMat, x::AbstractMatrix, z::AbstractVecOrMat)
+    if is_multivariate(y)
+        r, n1 = size(y)
+        p, n2 = size(x)
+        q, n3 = size(z)
+        n1 == n2 == n3 || error("Detected multivariate analysis but size(y, 2)" *
+            " = $n1, size(x, 2) = $n2, size(z, 2) = $n3 which don't match. " * 
+            "Recall each column of `y`, `x`, `z` should be sample " * 
+            "phenotypes/genotypes/covariates.")
+    else
+        n1 = length(y)
+        n2, p = size(x)
+        n3, = size(z)
+        n1 == n2 == n3 || error("Detected univariate analysis but length(y)" *
+        " = $n1, size(x, 1) = $n2, size(z, 1) = $n3 which don't match. " * 
+        "Recall each `y` should be a vector of phenotypes, and each row of `x`" * 
+        " and `z` should be sample genotypes/covariates.")
+    end
 end
