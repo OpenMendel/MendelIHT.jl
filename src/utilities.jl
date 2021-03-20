@@ -315,15 +315,15 @@ function init_iht_indices!(v::IHTVariable)
     ldf = length(v.df)
     v.full_b[1:ldf] .= v.df
     v.full_b[ldf+1:end] .= v.df2
-    if typeof(k) == Int
+    if length(v.ks) == 0 # no group projection
         a = partialsort(v.full_b, k * J, by=abs, rev=true)
         v.idx .= abs.(v.df) .>= abs(a)
         v.idc .= abs.(v.df2) .>= abs(a)
 
         # Choose randomly if more are selected
         _choose!(v) 
-    else
-        project_group_sparse!(v.full_b, group, J, k) # k is a vector
+    else 
+        project_group_sparse!(v.full_b, group, J, v.ks)
         @inbounds for i in 1:ldf
             v.full_b[i] != 0 && (v.idx[i] = true)
         end
