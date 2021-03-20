@@ -63,6 +63,7 @@ function fit_iht(
     !(typeof(d) <: NegativeBinomial) && est_r != :None && 
         error("Only negative binomial regression currently supports nuisance parameter estimation")
     typeof(x) <: AbstractSnpArray && error("x is a SnpArray! Please convert it to a SnpLinAlg first!")
+    check_data_dim(y, x, z)
 
     # initialize IHT variable
     v = initialize(x, z, y, J, k, d, l, group, weight, est_r)
@@ -91,19 +92,9 @@ end
 Fits a IHT variable `v`. 
 
 # Arguments:
-+ `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or `Array{T, 2}` (multivariate Gaussian traits).
-+ `x`: Genotype matrix (an `Array{T, 2}` or `SnpLinAlg`)
-+ `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`. The first column should be the intercept (i.e. column of 1). 
++ `v`: A properly initialized `mIHTVariable` or `IHTVariable`. Users should run [`fit_iht`](@ref)
 
 # Optional Arguments:
-+ `k`: Number of non-zero predictors. Can be a constant or a vector (for group IHT). 
-+ `J`: The number of maximum groups (set as 1 if no group infomation available)
-+ `d`: Distribution of your phenotype (e.g. Normal, Bernoulli)
-+ `l`: A link function (e.g. IdentityLink, LogitLink, ProbitLink)
-+ `group`: vector storing group membership
-+ `weight`: vector storing vector of weights containing prior knowledge on each SNP
-+ `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
-+ `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)
 + `debias`: boolean indicating whether we debias at each iteration (see paper)
 + `verbose`: boolean indicating whether we want to print results if model does not converge.
 + `tol`: used to track convergence

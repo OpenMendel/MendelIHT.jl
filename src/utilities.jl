@@ -772,3 +772,23 @@ function backtrack!(v::IHTVariable, η::Float)
     
     return loglikelihood(v)
 end
+
+function check_data_dim(y::AbstractVecOrMat, x::AbstractMatrix, z::AbstractVecOrMat)
+    if is_multivariate(y)
+        r, n1 = size(y)
+        p, n2 = size(x)
+        q, n3 = size(z)
+        n1 == n2 == n3 || error("Detected multivariate analysis but size(y, 2)" *
+            " = $n1, size(x, 2) = $n2, size(z, 2) = $n3 which don't match. " * 
+            "Recall each column of `y`, `x`, `z` should be sample " * 
+            "phenotypes/genotypes/covariates.")
+    else
+        n1 = length(y)
+        n2, p = size(x)
+        n3, = size(z)
+        n1 == n2 == n3 || error("Detected univariate analysis but length(y)" *
+        " = $n1, size(x, 1) = $n2, size(z, 1) = $n3 which don't match. " * 
+        "Recall each `y` should be a vector of phenotypes, and each row of `x`" * 
+        " and `z` should be sample genotypes/covariates.")
+    end
+end

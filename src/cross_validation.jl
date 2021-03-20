@@ -58,6 +58,7 @@ function cv_iht(
     ) where T <: Float
 
     typeof(x) <: AbstractSnpArray && error("x is a SnpArray! Please convert it to a SnpLinAlg first!")
+    check_data_dim(y, x, z)
 
     # preallocate mean squared error matrix
     nmodels = length(path)
@@ -179,7 +180,7 @@ function predict!(v::mIHTVariable{T, M}, result::mIHTResult) where {T <: Float, 
     mul!(v.CZ, result.c, v.Z)
     update_μ!(v)
 
-    # Compute deviance residual (MSE for Gaussian response)
+    # Compute MSE
     mse = zero(T)
     @inbounds for j in 1:size(v.Y, 2), i in 1:ntraits(v)
         mse += abs2(v.Y[i, j] - v.μ[i, j]) * v.cv_wts[j]
