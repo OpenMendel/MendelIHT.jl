@@ -179,8 +179,8 @@ function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
 
     # for bad boundary cases (sometimes, k = 1 in cross validation generates weird η)
     η = numer / denom
-    isinf(η) && (η = 1e-8)
-    isnan(η) && (η = 1e-8)
+    isinf(η) && (η = T(1e-8))
+    isnan(η) && (η = T(1e-8))
 
     return η :: T
 end

@@ -16,8 +16,9 @@ of predictors for group `i`.
     columns of `x` (i.e. input `Transpose(x)` for `SnpLinAlg`)
 + `z`: Matrix of non-genetic covariates of type `Array{T, 2}` or `Array{T, 1}`.
     For univariate analysis, sample covariates are rows of `z`. For multivariate
-    analysis, sample covariates are columns of `z`. Also the first column (row)
-    should be the intercept (i.e. entire column of 1). 
+    analysis, sample covariates are columns of `z`. If this is not specified, an
+    intercept term will be included automatically. If `z` is specified, make sure
+    the first column (row) is all 1s to represent the intercept. 
 
 # Optional Arguments:
 + `k`: Number of non-zero predictors. Can be a constant or a vector (for group IHT). 
