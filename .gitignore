@@ -20,3 +20,6 @@ test/pve/*.bed
 test/pve/*.bim
 test/pve/*.phen
 test/pve/univariate_true_beta.txt
+test/sim*
+test/*cXX.txt
+test/*.sh
