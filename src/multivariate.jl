@@ -69,9 +69,16 @@ to compute `X * vi` for each volumn of `V`. Thus, we compute:
 `v.df = Transpose(v.p_by_r)`
 """
 function update_df!(v::mIHTVariable)
-    v.n_by_r .= Transpose(v.r_by_n1)
-    adhoc_mul!(v.p_by_r, v.X, v.n_by_r) # note v.X is Transpose(SnpLinAlg)
-    v.df .= Transpose(v.p_by_r)
+    T = eltype(v.Y)
+    if typeof(v.X) <: Union{Transpose{T, SnpLinAlg{T}}, Adjoint{T, SnpLinAlg{T}}}
+        v.n_by_r .= Transpose(v.r_by_n1)
+        adhoc_mul!(v.p_by_r, v.X, v.n_by_r) # note v.X is Transpose(SnpLinAlg)
+        v.df .= Transpose(v.p_by_r)
+    elseif typeof(v.X) <: Union{Adjoint, Transpose} # v.X is transposed already
+        mul!(v.df, v.r_by_n1, v.X.parent)
+    else
+        mul!(v.df, v.r_by_n1, Transpose(v.X))
+    end
 end
 function adhoc_mul!(
     out::AbstractMatrix{T}, 

@@ -62,8 +62,7 @@ function cv_iht(
     check_data_dim(y, x, z)
 
     # preallocate mean squared error matrix
-    nmodels = length(path)
-    mses = zeros(nmodels, q)
+    mses = zeros(length(path), q)
 
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
