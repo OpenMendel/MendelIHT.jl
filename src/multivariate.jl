@@ -58,26 +58,27 @@ end
 """
     update_df!(v::mIHTVariable)
 
-Compute `v.df = Γ(Y - BX)X'` efficiently where `v.r_by_n1 = Γ(Y - BX)`.
+Compute `v.df = Γ(Y - BX)X'` efficiently where `v.r_by_n1 = Γ(Y - BX)`. Here
+`X` is `p × n` where `p` is number of SNPs and `n` is number of samples. 
 
 Note if `X` is a `SnpLinAlg`, currently only `X * v` for vector `v` is
-efficiently implemented in `SnpArrays.jl`. For `X * v` with matrix `V`, we need
+efficiently implemented in `SnpArrays.jl`. For `X * V` with matrix `V`, we need
 to compute `X * vi` for each volumn of `V`. Thus, we compute:
 
 `v.n_by_r = Transpose(r_by_n1)`
-`v.p_by_r = v.X * v.n1_by_r`
+`v.p_by_r[:, i] = v.X * v.n1_by_r[:, i]` # compute matrix-vector using SnpArrays's efficient routine
 `v.df = Transpose(v.p_by_r)`
 """
 function update_df!(v::mIHTVariable)
-    T = eltype(v.Y)
+    T = eltype(v.X)
     if typeof(v.X) <: Union{Transpose{T, SnpLinAlg{T}}, Adjoint{T, SnpLinAlg{T}}}
         v.n_by_r .= Transpose(v.r_by_n1)
         adhoc_mul!(v.p_by_r, v.X, v.n_by_r) # note v.X is Transpose(SnpLinAlg)
         v.df .= Transpose(v.p_by_r)
-    elseif typeof(v.X) <: Union{Adjoint, Transpose} # v.X is transposed already
+    elseif typeof(v.X) <: Union{Transpose{T, AbstractMatrix{T}}, Adjoint{T, AbstractMatrix{T}}} # v.X is transposed numeric matrix
         mul!(v.df, v.r_by_n1, v.X.parent)
     else
-        mul!(v.df, v.r_by_n1, Transpose(v.X))
+        mul!(v.df, v.r_by_n1, Transpose(v.X)) # v.X is numeric matrix
     end
 end
 function adhoc_mul!(
