@@ -51,8 +51,38 @@ function score!(v::mIHTVariable)
         r[i, j] = (y[i, j] - μ[i, j]) * cv_wts[j]
     end
     mul!(v.r_by_n1, Γ, r) # r_by_n1 = Γ(Y - BX)
-    mul!(v.df, v.r_by_n1, Transpose(v.X)) # v.df = Γ(Y - BX)X'
+    update_df!(v) # v.df = Γ(Y - BX)X'
     mul!(v.df2, v.r_by_n1, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z'
+end
+
+"""
+    update_df!(v::mIHTVariable)
+
+Compute `v.df = Γ(Y - BX)X'` efficiently where `v.r_by_n1 = Γ(Y - BX)`.
+
+Note if `X` is a `SnpLinAlg`, currently only `X * v` for vector `v` is
+efficiently implemented in `SnpArrays.jl`. For `X * v` with matrix `V`, we need
+to compute `X * vi` for each volumn of `V`. Thus, we compute:
+
+`v.n_by_r = Transpose(r_by_n1)`
+`v.p_by_r = v.X * v.n1_by_r`
+`v.df = Transpose(v.p_by_r)`
+"""
+function update_df!(v::mIHTVariable)
+    v.n_by_r .= Transpose(v.r_by_n1)
+    adhoc_mul!(v.p_by_r, v.X, v.n_by_r) # note v.X is Transpose(SnpLinAlg)
+    v.df .= Transpose(v.p_by_r)
+end
+function adhoc_mul!(
+    out::AbstractMatrix{T}, 
+    st::Union{Transpose{T, SnpLinAlg{T}}, Adjoint{T, SnpLinAlg{T}}},
+    v::AbstractMatrix{T}) where T <: AbstractFloat
+    @assert size(out, 1) == size(st, 1) && size(v, 2) == size(v, 2) && size(st, 2) == size(v, 1)
+    for i in 1:size(v, 2)
+        outi = @view(out[:, i])
+        vi = @view(v[:, i])
+        SnpArrays.mul!(outi, st, vi)
+    end
 end
 
 """

@@ -155,6 +155,8 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     r_by_r2 :: Matrix{T}    # another r × r storage (needed in loglikelihood)
     r_by_n1 :: Matrix{T}    # an r × n storage (needed in score! function)
     r_by_n2 :: Matrix{T}    # an r × n storage (needed in stepsize calculation)
+    n_by_r  :: Matrix{T}    # an n × r storage (needed to efficiently compute gradient)
+    p_by_r  :: Matrix{T}    # an p × r storage (needed to efficiently compute gradient)
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
@@ -194,11 +196,14 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     r_by_r2 = zeros(T, r, r)
     r_by_n1 = zeros(T, r, n)
     r_by_n2 = zeros(T, r, n)
+    n_by_r = zeros(T, n, r)
+    p_by_r = zeros(T, p, r)
 
     return mIHTVariable{T, M}(
         x, y, z, k,
         B, B0, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
-        CZ, μ, Γ, Γ0, cv_wts, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2)
+        CZ, μ, Γ, Γ0, cv_wts, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2,
+        n_by_r, p_by_r)
 end
 
 nsamples(v::mIHTVariable) = count(!iszero, v.cv_wts)
