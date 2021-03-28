@@ -1,3 +1,7 @@
+# TODO: Handle missing phenotypes (-9 or NA)
+# TODO: IHT signature and timings
+# TODO: Autimatic write to output file
+
 """
     iht(plinkfile, k, kwargs...)
 
@@ -9,18 +13,23 @@ result = iht("plinkfile", 10)
 
 # Phenotypes and other covariates
 Will use 6th column of `.fam` file for phenotype values and will automatically
-include an intercept as the only non-genetic covariate. 
+include an intercept as the only non-genetic covariate. Current there should
+be NO missing phenotypes. 
 
 # Arguments
 - `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
 - `k`: An `Int` for sparsity parameter = number of none-zero coefficients
 
 # Optional Arguments
+- `col`: Column of `.fam` file that stores phenotype. Can be integer (for 
+    univariate analysis) or vector of integers (multivariate analysis). 
+    Default is 6. 
 All arguments available in [`fit_iht`](@ref)
 """
 function iht(
     plinkfile::AbstractString,
     k::Int;
+    col::Union{Int, AbstractVector{Int}}=6,
     kwargs...
     )
     snpdata = SnpArrays.SnpData(plinkfile)
@@ -28,6 +37,43 @@ function iht(
     xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
         center=true, scale=true, impute=true)
     return fit_iht(y, xla, k=k; kwargs...)
+end
+
+"""
+    parse_phenotypes(x::SnpData, col::AbstractVector{Int})
+
+Reads phenotypes from columns `col` of a `SnpData` for multivariate analysis. 
+Missing phenotypes are imputed as the mean.
+"""
+function parse_phenotypes(x::SnpData, col::AbstractVector{Int})
+    n = x.people
+    r = length(col) # number of traits
+    y = Matrix{Float64}(undef, r, n)
+
+    # impute missing phenotypes "-9" by mean of observed phenotypes
+    missing_idx = Int[]
+    for c in col
+        fill!(missing_idx, false)
+        s = 0.0
+        for i in 1:n
+            if phenotype_is_missing(x.person_info[i, c])
+                y[c, i] = 0.0
+                push!(missing_idx, i)
+            else
+                y[c, i] = parse(Float64, x.person_info[i, c])
+                s += y[c, i]
+            end
+        end
+        avg = s / (n - length(missing_idx))
+        for i in missing_idx
+            y[c, i] = avg
+        end
+    end
+    return y
+end
+
+function phenotype_is_missing(s::AbstractString)
+    return s == "-9" || s == "NA"
 end
 
 """
