@@ -292,23 +292,6 @@ end
     @test p[15] == 2.0
 end
 
-@testset "save_prev!" begin
-    Random.seed!(1111)
-    x, z, y, v = test_data(Normal(), IdentityLink())
-
-    v.b .= rand(1000)
-    v.idx .= bitrand(1000)
-    v.idc .= true
-    v.c .= rand()
-
-    save_prev!(v)
-
-    @test all(v.b .== v.b0)
-    @test all(v.idx .== v.idx0)
-    @test all(v.idc .== v.idc0)
-    @test all(v.c .== v.c0)
-end
-
 @testset "iht_stepsize!" begin
     Random.seed!(1234)
     d = Normal()

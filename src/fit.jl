@@ -129,7 +129,7 @@ function fit_iht!(
 
         # notify and return current model if maximum iteration exceeded
         if iter ≥ max_iter
-            save_prev!(v, next_logl, best_logl)
+            best_logl = save_prev!(v, next_logl, best_logl)
             save_best_model!(v)
             mm_iter  = iter
             tot_time = time() - start_time
@@ -156,6 +156,7 @@ function fit_iht!(
         scaled_norm = check_convergence(v)
         verbose && println("Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm")
         if scaled_norm < tol
+            best_logl = save_prev!(v, next_logl, best_logl)
             save_best_model!(v)
             tot_time = time() - start_time
             mm_iter  = iter
