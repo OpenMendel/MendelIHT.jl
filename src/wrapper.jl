@@ -53,7 +53,7 @@ function parse_phenotypes(x::SnpData, col::AbstractVector{Int})
     # impute missing phenotypes "-9" by mean of observed phenotypes
     missing_idx = Int[]
     for c in col
-        fill!(missing_idx, false)
+        empty!(missing_idx)
         s = 0.0
         for i in 1:n
             if phenotype_is_missing(x.person_info[i, c])

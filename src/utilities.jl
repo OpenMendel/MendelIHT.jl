@@ -804,6 +804,7 @@ function save_best_model!(v::IHTVariable)
     copyto!(v.c, v.best_c)
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
+    check_covariate_supp!(v)
     update_xb!(v)
 
     # update estimated mean μ with genotype predictors
