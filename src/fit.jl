@@ -116,12 +116,10 @@ function fit_iht!(
 
     # initialize constants
     mm_iter     = 0                 # number of iterations 
-    tot_time    = 0.0               # compute time *within* L0_reg
-    next_logl   = oftype(tol,-Inf)  # loglikelihood
-    the_norm    = 0.0               # norm(b - b0)
-    scaled_norm = 0.0               # the_norm / (norm(b0) + 1)
+    tot_time    = 0.0               # compute time *within* fit!
+    next_logl   = typemin(T)        # loglikelihood
+    best_logl   = typemin(T)        # best loglikelihood achieved
     η_step      = 0                 # counts number of backtracking steps for η
-    converged   = false             # scaled_norm < tol?
 
     # initialize variables
     debias && (temp_glm = initialize_glm_object())
@@ -131,6 +129,8 @@ function fit_iht!(
 
         # notify and return current model if maximum iteration exceeded
         if iter ≥ max_iter
+            save_prev!(v, next_logl, best_logl)
+            save_best_model!(v)
             mm_iter  = iter
             tot_time = time() - start_time
             verbose && printstyled("Did not converge after $max_iter " * 
@@ -140,7 +140,7 @@ function fit_iht!(
         end
 
         # save values from previous iterate and update loglikelihood
-        save_prev!(v)
+        best_logl = save_prev!(v, next_logl, best_logl)
         logl = next_logl
 
         # take one IHT step in positive score direction
@@ -156,7 +156,7 @@ function fit_iht!(
         scaled_norm = check_convergence(v)
         verbose && println("Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm")
         if scaled_norm < tol
-        # if iter > 1 && abs(next_logl - logl) < tol * (abs(logl) + 1.0)
+            save_best_model!(v)
             tot_time = time() - start_time
             mm_iter  = iter
             break
@@ -166,7 +166,7 @@ function fit_iht!(
     # compute phenotype's proportion of variation explained
     σ2 = pve(v)
 
-    return IHTResult(tot_time, next_logl, mm_iter, σ2, v)
+    return IHTResult(tot_time, best_logl, mm_iter, σ2, v)
 end
 
 """

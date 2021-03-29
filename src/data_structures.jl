@@ -15,6 +15,7 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     # internal IHT variables
     b      :: Vector{T}     # the statistical model for the genotype matrix, most will be 0
     b0     :: Vector{T}     # estimated model for genotype matrix in the previous iteration
+    best_b :: Vector{T}     # best estimated genotype model in terms of loglikelihood
     xb     :: Vector{T}     # vector that holds x*b
     xk     :: Matrix{T}     # the n by k subset of the design matrix x corresponding to non-0 elements of b
     gk     :: Vector{T}     # numerator of step size. gk = df[idx]. 
@@ -28,6 +29,7 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     df2    :: Vector{T}     # non-genetic covariates portion of the score
     c      :: Vector{T}     # estimated model for non-genetic variates (first entry = intercept)
     c0     :: Vector{T}     # estimated model for non-genetic variates in the previous iteration
+    best_c :: Vector{T}     # best estimated model for non-genetic variates in terms of loglikelihood
     zc     :: Vector{T}     # z * c (covariate matrix times c)
     zdf2   :: Vector{T}     # z * df2 needed to calculate non-genetic covariate contribution for denomicator of step size 
     group  :: Vector{Int}   # vector denoting group membership
@@ -78,6 +80,7 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
 
     b      = zeros(T, p)
     b0     = zeros(T, p)
+    best_b = zeros(T, p)
     xb     = zeros(T, n)
     xk     = zeros(T, n, J * columns - 1) # subtracting 1 because the intercept will likely be selected in the first iter
     gk     = zeros(T, J * columns - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
@@ -90,6 +93,7 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     df     = zeros(T, p)
     df2    = zeros(T, q)
     c      = zeros(T, q)
+    best_c = zeros(T, q)
     c0     = zeros(T, q)
     zc     = zeros(T, n)
     zdf2   = zeros(T, n)
@@ -99,7 +103,8 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
 
     return IHTVariable{T, M}(
         x, y, z, k, J, ks, d, l, est_r, 
-        b, b0, xb, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2, c, c0, zc, zdf2, group, weight, μ, cv_wts, storage)
+        b, b0, best_b, xb, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2,
+        c, c0, best_c, zc, zdf2, group, weight, μ, cv_wts, storage)
 end
 
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
@@ -132,6 +137,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     # internal IHT variables
     B      :: Matrix{T}     # r × p matrix that holds the statistical model for the genotype matrix, most will be 0
     B0     :: Matrix{T}     # estimated model for genotype matrix in the previous iteration
+    best_B :: Matrix{T}     # best statistical model for the genotype matrix in terms of loglikelihood
     BX     :: Matrix{T}     # r × n matrix that holds B*X
     Xk     :: Matrix{T}     # the k × n subset of the design matrix x corresponding to non-0 elements of b
     idx    :: BitVector     # length p vector where idx[i] = 0 if i-th column of B is all zero, and idx[i] = 1 otherwise
@@ -144,6 +150,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     dfidx  :: Matrix{T}     # r × k matrix storing df[:, idx], needed in stepsize calculation
     C      :: Matrix{T}     # r × q mtrix that holds the estimated model for non-genetic variates (first entry = intercept)
     C0     :: Matrix{T}     # estimated model for non-genetic variates in the previous iteration
+    best_C :: Matrix{T}     # best statistical model for the non-genetic variates in terms of loglikelihood
     CZ     :: Matrix{T}     # r × n matrix holding C * Z (C times nongenetic covariates)
     μ      :: Matrix{T}     # mean of the current model: μ = BX + CZ
     Γ      :: Matrix{T}     # estimated inverse covariance matrix (TODO: try StaticArrays.jl here)
@@ -174,6 +181,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
 
     B      = zeros(T, r, p)
     B0     = zeros(T, r, p)
+    best_B = zeros(T, r, p)
     BX     = zeros(T, r, n)
     Xk     = zeros(T, k - 1, n) # subtracting 1 because the intercept will likely be selected in the first iter
     idx    = falses(p)
@@ -186,6 +194,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     dfidx  = zeros(T, r, k - 1)
     C      = zeros(T, r, q)
     C0     = zeros(T, r, q)
+    best_C = zeros(T, r, q)
     CZ     = zeros(T, r, n)
     μ      = zeros(T, r, n)
     Γ      = Matrix{T}(I, r, r)
@@ -201,9 +210,9 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
 
     return mIHTVariable{T, M}(
         x, y, z, k,
-        B, B0, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C, C0,
-        CZ, μ, Γ, Γ0, cv_wts, full_b, r_by_r1, r_by_r2, r_by_n1, r_by_n2,
-        n_by_r, p_by_r)
+        B, B0, best_B, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C,
+        C0, best_C, CZ, μ, Γ, Γ0, cv_wts, full_b, r_by_r1, r_by_r2, r_by_n1,
+        r_by_n2, n_by_r, p_by_r)
 end
 
 nsamples(v::mIHTVariable) = count(!iszero, v.cv_wts)
@@ -216,7 +225,7 @@ Immutable object that houses results returned from a single-trait IHT run.
 """
 struct IHTResult{T <: Float}
     time  :: Float64                    # total compute time
-    logl  :: T                          # final loglikelihood
+    logl  :: T                          # best loglikelihood achieved
     iter  :: Int64                      # number of iterations until convergence
     beta  :: Vector{T}                  # estimated beta for genetic predictors
     c     :: Vector{T}                  # estimated beta for nongenetic predictors
@@ -227,14 +236,14 @@ struct IHTResult{T <: Float}
     σg    :: T                          # Estimated proportion of variance explained in phenotype
 end
 IHTResult(time, logl, iter, σg, v::IHTVariable) = IHTResult(time, logl, iter,
-    v.b, v.c, v.J, v.k, v.group, v.d, σg)
+    v.best_b, v.best_c, v.J, v.k, v.group, v.d, σg)
 
 """
 Immutable object that houses results returned from a multivariate Gaussian IHT run. 
 """
 struct mIHTResult{T <: Float}
     time   :: Float64                    # total compute time
-    logl   :: T                          # final loglikelihood
+    logl   :: T                          # best loglikelihood achieved
     iter   :: Int64                      # number of iterations until convergence
     beta   :: VecOrMat{T}                # estimated beta for genetic predictors
     c      :: VecOrMat{T}                # estimated beta for nongenetic predictors
@@ -244,7 +253,7 @@ struct mIHTResult{T <: Float}
     σg     :: Vector{T}                  # Estimated proportion of variance explained in phenotype
 end
 IHTResult(time, logl, iter, σg, v::mIHTVariable) = mIHTResult(time, logl, iter,
-    v.B, v.C, v.k, ntraits(v), inv(v.Γ), σg)
+    v.best_B, v.best_C, v.k, ntraits(v), inv(v.Γ), σg)
 
 """
 Displays IHTResults object

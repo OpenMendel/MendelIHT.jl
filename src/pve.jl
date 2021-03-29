@@ -24,11 +24,9 @@ function _pve(y::AbstractVecOrMat, μ::AbstractVecOrMat)
 end
 
 function pve(v::IHTVariable)
-    update_μ!(v.μ, v.xb, v.l) # update estimated mean μ with genotype predictors
     return _pve(v.y, v.μ)
 end
 
 function pve(v::mIHTVariable)
-    update_μ!(v.μ, v.BX, IdentityLink()) # update estimated mean μ with genotype predictors
     return [_pve(@view(v.Y[i, :]), @view(v.μ[i, :])) for i in 1:ntraits(v)]
 end

@@ -310,12 +310,17 @@ end
 """
 Function that saves variables that need to be updated each iteration
 """
-function save_prev!(v::mIHTVariable)
+function save_prev!(v::mIHTVariable, cur_logl, best_logl)
     copyto!(v.B0, v.B)     # B0 = B
     copyto!(v.idx0, v.idx) # idx0 = idx
     copyto!(v.idc0, v.idc) # idc0 = idc
     copyto!(v.C0, v.C)     # C0 = C
     copyto!(v.Γ0, v.Γ)     # Γ0 = Γ
+    if cur_logl > best_logl
+        copyto!(v.best_B, v.B) # best_B = B
+        copyto!(v.best_C, v.C) # best_C = C
+    end
+    return max(cur_logl, best_logl)
 end
 
 checky(y::AbstractMatrix, d::MvNormal) = nothing
@@ -385,4 +390,16 @@ distributions. Currently simply checks whether there is >1 trait
 """
 function is_multivariate(y::AbstractVecOrMat)
     size(y, 1) > 1 && size(y, 2) > 1
+end
+
+function save_best_model!(v::mIHTVariable)
+    # compute η = BX with the best estimated model
+    copyto!(v.B, v.best_B)
+    copyto!(v.C, v.best_C)
+    update_support!(v.idx, v.B)
+    update_support!(v.idc, v.C)
+    update_xb!(v)
+
+    # update estimated mean μ with genotype predictors
+    update_μ!(v) 
 end

@@ -583,11 +583,16 @@ end
 """
 Function that saves `b`, `xb`, `idx`, `idc`, `c`, and `zc` after each iteration. 
 """
-function save_prev!(v::IHTVariable{T}) where {T <: Float}
+function save_prev!(v::IHTVariable{T}, cur_logl::T, best_logl::T) where {T <: Float}
     copyto!(v.b0, v.b)     # b0 = b
     copyto!(v.idx0, v.idx) # idx0 = idx
     copyto!(v.idc0, v.idc) # idc0 = idc
     copyto!(v.c0, v.c)     # c0 = c
+    if cur_logl > best_logl
+        copyto!(v.best_b, v.b) # best_b = b
+        copyto!(v.best_c, v.c) # best_c = c
+    end
+    return max(cur_logl, best_logl)
 end
 
 """
@@ -791,4 +796,16 @@ function check_data_dim(y::AbstractVecOrMat, x::AbstractMatrix, z::AbstractVecOr
         "Recall each `y` should be a vector of phenotypes, and each row of `x`" * 
         " and `z` should be sample genotypes/covariates.")
     end
+end
+
+function save_best_model!(v::IHTVariable)
+    # compute η = xb with the best estimated model
+    copyto!(v.b, v.best_b)
+    copyto!(v.c, v.best_c)
+    v.idx .= v.b .!= 0
+    v.idc .= v.c .!= 0
+    update_xb!(v)
+
+    # update estimated mean μ with genotype predictors
+    update_μ!(v.μ, v.xb, v.l) 
 end
