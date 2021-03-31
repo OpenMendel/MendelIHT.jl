@@ -11,6 +11,7 @@ addprocs(4)
 @everywhere using Test
 @everywhere using Random
 @everywhere using BenchmarkTools
+@everywhere using DelimitedFiles
 
 # write your own tests here
 include("utilities_test.jl")

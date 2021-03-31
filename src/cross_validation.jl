@@ -78,7 +78,6 @@ function cv_iht(
 
         # test different k
         mses[:, fold] = (parallel ? pmap : map)(path) do k
-
             # run IHT on training data with current k
             v = initialize(x, z, y, 1, k, d, l, group, weight, est_r, cv_train_idx=train_idx)
             result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)

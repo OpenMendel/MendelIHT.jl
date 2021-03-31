@@ -141,10 +141,9 @@ function fit_iht!(
 
         # save values from previous iterate and update loglikelihood
         best_logl = save_prev!(v, next_logl, best_logl)
-        logl = next_logl
 
         # take one IHT step in positive score direction
-        (η, η_step, next_logl) = iht_one_step!(v, logl, max_step)
+        (η, η_step, next_logl) = iht_one_step!(v, next_logl, max_step)
 
         # perform debiasing if requested
         if debias && sum(v.idx) == size(v.xk, 2)
