@@ -18,6 +18,7 @@ module MendelIHT
     using Random
     using DelimitedFiles
     using ProgressMeter
+    using Reexport
 
     export iht, cross_validate
     export fit_iht, cv_iht, cv_iht_distribute_fold, iht_run_many_models
@@ -29,6 +30,7 @@ module MendelIHT
     export make_bim_fam_files, simulate_random_response, adhoc_add_correlation
     export random_covariance_matrix
     export heritability
+    @reexport using Distributions
 
     # IHT will only work on single/double precision floats!
     const Float = Union{Float64,Float32}

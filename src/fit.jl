@@ -34,6 +34,7 @@ of predictors for group `i`.
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
 + `max_step`: is the maximum number of backtracking per IHT iteration. Defaults 5
++ `io`: An `IO` object for displaying intermediate results. Default `stdout`.
 """
 function fit_iht(
     y         :: AbstractVecOrMat{T},
@@ -103,6 +104,7 @@ Fits a IHT variable `v`.
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
 + `max_step`: is the maximum number of backtracking. Since l0 norm is not convex, we have no ascent guarantee
++ `io`: An `IO` object for displaying intermediate results. Default `stdout`.
 """
 function fit_iht!(
     v         :: Union{mIHTVariable{T, M}, IHTVariable{T, M}};

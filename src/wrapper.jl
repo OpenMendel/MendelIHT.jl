@@ -11,52 +11,66 @@ Runs IHT with sparsity level `k`. Example:
 result = iht("plinkfile", 10)
 ```
 
-# Phenotypes
-Will use column(s) specified in `col` of the `.fam` file for phenotype values. 
-For instance, `col = 6` (default) means we will use the `6`th column of the `.fam` file as 
-phenotype. We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
-(univariate or multivariate), missing phenotypes are imputed with the mean. Binary
-and count phenotypes cannot be imputed. 
-
-# Other covariates
-An intercept will be automatically included as the only non-genetic covariate. 
-If you have more covariates, see the 3 argument `iht` function.
-
 # Arguments
 - `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
 - `k`: An `Int` for sparsity parameter = number of none-zero coefficients
+- `d`: Distribution of phenotypes. Specify `Normal` for quantitative traits,
+    `Bernoulli` for binary traits, `Poisson` or `NegativeBinomial` for
+    count traits, and `MvNormal` for multiple quantitative traits. 
 
 # Optional Arguments
-- `col`: Column of `.fam` file that stores phenotype. Can be integer (for 
-    univariate analysis) or vector of integers (multivariate analysis). 
-    Default is 6.
-- `d`: Distribution of phenotypes. Use `Normal()` for quantitative traits,
-    `Bernoulli()` for binary traits, `Poisson()` or `NegativeBinomial()` for
-    count traits, and `MvNormal` for multivariate traits. 
+- `phenotypes`: Phenotype file name (`String`), an integer, or vector of integer. Integer(s)
+    coresponds to the column(s) of `.fam` file that stores phenotypes (default 6). 
+    We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
+    (univariate or multivariate), missing phenotypes are imputed with the mean. Binary
+    and count phenotypes cannot be imputed. Phenotype files are read using `readdlm` function
+    in Julia base. We require each subject's phenotype to occupy a different row. The file
+    should not include a header line. Each row should be listed in the same order as in
+    the PLINK. 
+- `covariates`: Covariate file name. Default is nothing (i.e. ""), where an intercept
+    term will be automatically included. If `covariates` file specified, it will be 
+    read using `readdlm` function in Julia base. We require the covariate file to be
+    comma separated, and not include a header line. Each row should be listed in the
+    same order as in the PLINK. The first column should be all 1s to indicate an
+    intercept. All other columns will be standardized to mean 0 variance 1. 
+- `summaryfile`: Output file name for saving IHT's summary statistics. Default
+    `iht.summary.txt`.
+- `betafile`: Output file name for saving IHT's estimated genotype effect sizes. 
+    Default `iht.beta.txt`. 
 - All arguments available in [`fit_iht`](@ref)
 """
 function iht(
     plinkfile::AbstractString,
-    k::Int;
+    k::Int,
+    d::UnionAll;
+    phenotypes::Union{AbstractString, Int, AbstractVector{Int}} = 6,
+    covariates::AbstractString = "",
     summaryfile::AbstractString = "iht.summary.txt",
     betafile::AbstractString = "iht.beta.txt",
-    col::Union{Int, AbstractVector{Int}}=6,
-    d::Distribution = length(col) > 1 ? MvNormal(Float64[]) : Normal(),
     kwargs...
     )
+    # read genotypes
     snpdata = SnpArrays.SnpData(plinkfile)
-    y = parse_phenotypes(snpdata, col, d)
     xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
         center=true, scale=true, impute=true)
 
+    # read phenotypes
+    y = parse_phenotypes(snpdata, phenotypes, d())
+
+    # read and standardize covariates 
+    z = covariates == "" ? ones(size(xla, 1)) : 
+        parse_covariates(covariates, standardize=true)
+    is_multivariate(y) && (z = convert(Matrix{Float64}, Transpose(z)))
+
     # run IHT
     if is_multivariate(y)
-        result = fit_iht(y, Transpose(xla), k=k, d=d; kwargs...)
+        result = fit_iht(y, Transpose(xla), z, k=k; kwargs...)
     else
-        result = fit_iht(y, xla, k=k, d=d; kwargs...)
+        l = d == NegativeBinomial ? LogLink() : canonicallink(d()) # link function
+        result = fit_iht(y, xla, z, k=k, d=d(), l=l; kwargs...)
     end
 
-    # save results
+    # save resultsf
     open(summaryfile, "w") do io
         show(io, result)
     end
@@ -65,12 +79,17 @@ function iht(
     return result
 end
 
-"""
-    parse_phenotypes(x::SnpData, col::Union{Int, AbstractVector{Int}}, ::Distribution)
+# adhoc constructor for empty MvNormal distribution
+MvNormal() = MvNormal(Float64[])
 
-Reads phenotypes from columns `col` of a `SnpData`. We recognize missing phenotypes
-as `NA` or `-9`. For quantitative traits (univariate or multivariate), missing
-phenotypes are imputed with the mean. Binary and count phenotypes cannot be imputed. 
+"""
+    parse_phenotypes(x, col::Union{Int, AbstractVector{Int}}, ::Distribution)
+
+Reads phenotypes to numeric array. If `x` is a `SnpData`, columns `col` of the `.fam`
+file will be parsed as phenotypes. Otherwise, will read `x` as comma-separated text
+file where each sample occupies a row. We recognize missing phenotypes as `NA` or
+`-9`. For quantitative traits (univariate or multivariate), missing phenotypes are
+imputed with the mean. Binary and count phenotypes cannot be imputed. 
 """
 function parse_phenotypes end
 
@@ -142,130 +161,32 @@ function parse_phenotypes(x::SnpData, col::Int, ::UnivariateDistribution)
     return y
 end
 
-function phenotype_is_missing(s::AbstractString)
-    return s == "-9" || s == "NA"
-end
-
-"""
-    iht(plinkfile, covariates, k, kwargs...)
-
-Runs IHT with sparsity level `k`, with additional covariates stored separately. Example:
-
-```julia
-result = iht("plinkfile", "covariates.txt", 10)
-```
-
-# Phenotypes
-Will use column(s) specified in `col` of the `.fam` file for phenotype values. 
-For instance, `col = 6` (default) means we will use the `6`th column of the `.fam` file as 
-phenotype. We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
-(univariate or multivariate), missing phenotypes are imputed with the mean. Binary
-and count phenotypes cannot be imputed. 
-
-# Covariate file
-Covariates are read using `readdlm` function in Julia base. We require the
-covariate file to be comma separated, and not include a header line. Each row
-should be a sample listed in the same order as in the PLINK. The first column
-should be all 1s to indicate an intercept. All other columns will be automatically
-standardized to mean 0 variance 1. 
-
-# Arguments
-- `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
-- `covariates`: A `String` for covariate file name
-- `k`: An `Int` for sparsity parameter = number of none-zero coefficients
-
-# Optional Arguments
-All arguments available in [`fit_iht`](@ref)
-"""
-function iht(
-    plinkfile::AbstractString,
-    covariates::AbstractString,
-    k::Int;
-    col::Union{Int, AbstractVector{Int}}=6,
-    d::Distribution = length(col) > 1 ? MvNormal(Float64[]) : Normal(),
-    kwargs...
-    )
-    snpdata = SnpArrays.SnpData(plinkfile)
-    y = parse_phenotypes(snpdata, col, d)
-    xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
-        center=true, scale=true, impute=true)
-    
-    # read and standardize covariates 
-    z = readdlm(covariates, ',', Float64)
-    standardize!(@view(z[:, 2:end]))
-    is_multivariate(y) && (z = convert(Matrix{Float64}, Transpose(z)))
-
+function parse_phenotypes(x::SnpData, pheno_filename::AbstractString, d)
+    y = readdlm(pheno_filename, ',', Float64)
     if is_multivariate(y)
-        return fit_iht(y, Transpose(xla), z, k=k; kwargs...)
-    else
-        return fit_iht(y, xla, z, k=k, d=d; kwargs...)
-    end
-end
-
-"""
-    iht(phenotypes, plinkfile, covariates, k, kwargs...)
-
-Runs IHT with sparsity level `k`, where both phenotypes and additional covariates
-are stored separately. Example:
-
-```julia
-result = iht("phenotypes.txt", "plinkfile", "covariates.txt", 10)
-```
-
-# Phenotypes
-Phenotypes are read using `readdlm` function in Julia base. We require each 
-subject's phenotype to occupy a different row. The file should not include a header
-line. Each row should be listed in the same order as in the PLINK. For multivariate
-traits, different phenotypes should be comma separated. All phenotypes will be read
-into memory but only phenotypes specified in columns `col` will be analyzed (jointly). 
-
-# Covariate file
-Covariates are read using `readdlm` function in Julia base. We require the
-covariate file to be comma separated, and not include a header line. Each row
-should be a sample listed in the same order as in the PLINK. The first column
-should be all 1s to indicate an intercept. All other columns will be automatically
-standardized to mean 0 variance 1.
-
-# Arguments
-- `phenotypes`: A `String` for phenotype file name
-- `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
-- `covariates`: A `String` for covariate file name
-- `k`: An `Int` for sparsity parameter = number of none-zero coefficients
-
-# Optional Arguments
-All arguments available in [`fit_iht`](@ref)
-"""
-function iht(
-    phenotypes::AbstractString,
-    plinkfile::AbstractString,
-    covariates::AbstractString,
-    k::Int;
-    col::Union{Int, AbstractVector{Int}}=6,
-    kwargs...
-    )
-    offset = 5
-    snpdata = SnpArrays.SnpData(plinkfile)
-    xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
-        center=true, scale=true, impute=true)
-
-    # read phenotypes
-    y = readdlm(phenotypes, ',', Float64)
-    if is_multivariate(y)
-        y = convert(Matrix{Float64}, Transpose(y[:, col .- offset]))
+        y = convert(Matrix{Float64}, Transpose(y))
     else
         y = dropdims(y, dims=2)
     end
+    return y
+end
 
-    # read and standardize covariates 
-    z = readdlm(covariates, ',', Float64)
+"""
+    parse_covariates(x::AbstractString; standardize::Bool=true)
+
+Reads a comma separated text file `x`. Each row should be a sample ordered the 
+same as in the plink file. The first column should be array of 1 (representing
+intercept). Each covariate should be comma separated. If `standardize=true`, 
+columns 2 and beyond will be normalized to mean 0 variance 1. 
+"""
+function parse_covariates(x::AbstractString; standardize::Bool=true)
+    z = readdlm(x, ',', Float64)
     standardize!(@view(z[:, 2:end]))
-    is_multivariate(y) && (z = convert(Matrix{Float64}, Transpose(z)))
+    return z
+end
 
-    if is_multivariate(y)
-        return fit_iht(y, Transpose(xla), z, k=k; kwargs...)
-    else
-        return fit_iht(y, xla, z, k=k; kwargs...)
-    end
+function phenotype_is_missing(s::AbstractString)
+    return s == "-9" || s == "NA"
 end
 
 """
