@@ -28,7 +28,7 @@ function simulate_random_beta(k::Int, p::Int, traits::Int; overlap::Int=0)
     return true_b
 end
 
-@testset "iht wrapper univariate" begin
+@testset "wrapper univariate" begin
     n = 1000  # number of samples
     p = 10000 # number of SNPs
     k = 10    # number of causal SNPs per trait
@@ -54,14 +54,24 @@ end
         make_bim_fam_files(x, y, "univariate")
         writedlm("univariate.phen", y, ',')
 
-        result1 = iht("univariate", 11, d = d(), l = l)
-        result2 = iht("univariate", "covariates.txt", 11, d = d(), l = l)
-        result3 = iht("univariate.phen", "univariate", "covariates.txt", 11, d = d(), l = l)
+        result1 = iht("univariate", 11, d, verbose=false)
+        result2 = iht("univariate", 11, d, covariates="covariates.txt", verbose=false)
+        result3 = iht("univariate", 11, d, covariates="covariates.txt", phenotypes="univariate.phen", verbose=false);
 
         @test all(result1.beta .≈ result2.beta .≈ result3.beta)
         @test result1.logl ≈ result2.logl ≈ result3.logl
         @test result1.iter == result2.iter == result3.iter
         @test result1.σg ≈ result2.σg ≈ result3.σg
+
+        Random.seed!(2021)
+        result1 = cross_validate("univariate", d, verbose=false)
+        Random.seed!(2021)
+        result2 = cross_validate("univariate", d, covariates="covariates.txt", verbose=false)
+        Random.seed!(2021)
+        result3 = cross_validate("univariate", d, covariates="covariates.txt", 
+            phenotypes="univariate.phen", verbose=false)
+
+        @test all(result1 .≈ result2 .≈ result3)
     end
 
     rm("univariate.bim", force=true)
@@ -69,13 +79,17 @@ end
     rm("univariate.fam", force=true)
     rm("univariate.phen", force=true)
     rm("covariates.txt", force=true)
+    rm("cviht.summary.txt", force=true)
+    rm("iht.summary.txt", force=true)
+    rm("iht.beta.txt", force=true)
 end
 
-@testset "iht wrapper multivariate" begin
+@testset "wrapper multivariate" begin
     n = 1000  # number of samples
     p = 10000 # number of SNPs
     k = 10    # number of causal SNPs
     r = 2     # number of traits
+    d = MvNormal
 
     # set random seed for reproducibility
     Random.seed!(111)
@@ -113,9 +127,10 @@ end
     # save phenotypes in separate file (each sample occupies a row)
     writedlm("multivariate_$(r)traits.phen", Yt', ',')
 
-    result1 = iht("multivariate_$(r)traits", 17, col=[6, 7], verbose=false)
-    result2 = iht("multivariate_$(r)traits", "covariates.txt", 17, col=[6, 7], verbose=false)
-    result3 = iht("multivariate_$(r)traits.phen", "multivariate_$(r)traits", "covariates.txt", 17, col=[6, 7], verbose=false);
+    result1 = iht("multivariate_$(r)traits", 17, d, phenotypes=[6, 7], verbose=false)
+    result2 = iht("multivariate_$(r)traits", 17, d, phenotypes=[6, 7], covariates="covariates.txt", verbose=false)
+    result3 = iht("multivariate_$(r)traits", 17, d, phenotypes="multivariate_$(r)traits.phen",
+        covariates="covariates.txt", verbose=false);
 
     true_b1_idx = findall(!iszero, B[:, 1])
     true_b2_idx = findall(!iszero, B[:, 2])
@@ -126,9 +141,22 @@ end
     @test result1.σg ≈ result2.σg ≈ result3.σg
     @test result1.iter == result2.iter == result3.iter
 
+    Random.seed!(2020)
+    result1 = cross_validate("multivariate_$(r)traits", d, phenotypes=[6, 7], verbose=false)
+    Random.seed!(2020)
+    result2 = cross_validate("multivariate_$(r)traits", d, phenotypes=[6, 7], covariates="covariates.txt", verbose=false)
+    Random.seed!(2020)
+    result3 = cross_validate("multivariate_$(r)traits", d, phenotypes="multivariate_$(r)traits.phen", 
+        covariates="covariates.txt", verbose=false)
+
+    @test all(result1 .≈ result2 .≈ result3)
+
     rm("multivariate_$(r)traits.bim", force=true)
     rm("multivariate_$(r)traits.bed", force=true)
     rm("multivariate_$(r)traits.fam", force=true)
     rm("multivariate_$(r)traits.phen", force=true)
     rm("covariates.txt", force=true)
+    rm("cviht.summary.txt", force=true)
+    rm("iht.summary.txt", force=true)
+    rm("iht.beta.txt", force=true)
 end
