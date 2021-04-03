@@ -70,11 +70,13 @@ function iht(
         result = fit_iht(y, xla, z, k=k, d=d(), l=l; kwargs...)
     end
 
-    # save resultsf
+    # save results
     open(summaryfile, "w") do io
         show(io, result)
     end
-    writedlm(betafile, result.beta)
+    is_multivariate(y) ? writedlm(betafile, result.beta') : writedlm(betafile, result.beta)
+
+    @show result
 
     return result
 end
@@ -190,92 +192,6 @@ function phenotype_is_missing(s::AbstractString)
 end
 
 """
-    cross_validate(plinkfile, path, kwargs...)
-
-Runs cross-validation to determinal optimal sparsity level `k`. Sparsity levels
-is specified in `path. Example:
-
-```julia
-mses = cross_validate("plinkfile", 1:20)
-mses = cross_validate("plinkfile", [1, 2, 3, 4, 5]) # alternative syntax
-```
-
-# Phenotypes and other covariates
-Will use 6th column of `.fam` file for phenotype values and will automatically
-include an intercept as the only non-genetic covariate. 
-
-# Arguments
-- `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
-- `path`: Different sparsity levels. Can be an integer range (default 1:20) or vector of integers. 
-
-# Optional Arguments
-All arguments available in [`cv_iht`](@ref)
-"""
-function cross_validate(
-    plinkfile::AbstractString,
-    path::AbstractVector{<:Integer};
-    col::Union{Int, AbstractVector{Int}}=6,
-    d::Distribution = length(col) > 1 ? MvNormal(Float64[]) : Normal(),
-    kwargs...
-    )
-    snpdata = SnpArrays.SnpData(plinkfile)
-    x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, center=true, scale=true)
-    y = parse_phenotypes(snpdata, col, d)
-    return cv_iht(y, x, path=path; kwargs...)
-end
-
-"""
-    cross_validate(plinkfile, covariates, path, kwargs...)
-
-Runs cross-validation to determinal optimal sparsity level `k`. Sparsity levels
-is specified in `path. Example:
-
-```julia
-mses = cross_validate("plinkfile", "covariates.txt", 1:20)
-mses = cross_validate("plinkfile", "covariates.txt", [1, 10, 20]) # alternative syntax
-```
-
-# Phenotypes
-Will use 6th column of `.fam` file for phenotype values. 
-
-# Covariate file
-Covariates are read using `readdlm` function in Julia base. We require the
-covariate file to be comma separated, and not include a header line. Each row
-should be a sample listed in the same order as in the PLINK. The first column
-should be all 1s to indicate an intercept. All other columns will be automatically
-standardized to mean 0 variance 1.
-
-# Arguments
-- `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
-- `covariates`: A `String` for covariate file name
-- `path`: Different sparsity levels. Can be an integer range (default 1:20) or vector of integers. 
-
-# Optional Arguments
-All arguments available in [`cv_iht`](@ref)
-"""
-function cross_validate(
-    plinkfile::AbstractString,
-    covariates::AbstractString,
-    path::AbstractVector{<:Integer};
-    col::Union{Int, AbstractVector{Int}}=6,
-    d::Distribution = length(col) > 1 ? MvNormal(Float64[]) : Normal(),
-    kwargs...
-    )
-    snpdata = SnpArrays.SnpData(plinkfile)
-    x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, center=true, scale=true)
-    y = parse_phenotypes(snpdata, col, d)
-    
-    # read and standardize covariates 
-    z = readdlm(covariates, ',', Float64)
-    standardize!(@view(z[:, 2:end])) 
-
-    @assert size(z, 1) == size(x, 1) "$(size(z, 1)) samples detected in " * 
-        "covariate file but $(size(x, 1)) samples detected in PLINK file."
-
-    return cv_iht(y, x, z, path=path; kwargs...)
-end
-
-"""
     cross_validate(phenotypes, plinkfile, covariates, path, kwargs...)
 
 Runs cross-validation to determinal optimal sparsity level `k`. Sparsity levels
@@ -305,28 +221,60 @@ standardized to mean 0 variance 1.
 - `path`: Different sparsity levels. Can be an integer range (default 1:20) or vector of integers. 
 
 # Optional Arguments
-All arguments available in [`cv_iht`](@ref)
+- `phenotypes`: Phenotype file name (`String`), an integer, or vector of integer. Integer(s)
+    coresponds to the column(s) of `.fam` file that stores phenotypes (default 6). 
+    We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
+    (univariate or multivariate), missing phenotypes are imputed with the mean. Binary
+    and count phenotypes cannot be imputed. Phenotype files are read using `readdlm` function
+    in Julia base. We require each subject's phenotype to occupy a different row. The file
+    should not include a header line. Each row should be listed in the same order as in
+    the PLINK. 
+- `covariates`: Covariate file name. Default is nothing (i.e. ""), where an intercept
+    term will be automatically included. If `covariates` file specified, it will be 
+    read using `readdlm` function in Julia base. We require the covariate file to be
+    comma separated, and not include a header line. Each row should be listed in the
+    same order as in the PLINK. The first column should be all 1s to indicate an
+    intercept. All other columns will be standardized to mean 0 variance 1. 
+- All arguments available in [`cv_iht`](@ref)
 """
 function cross_validate(
-    phenotypes::AbstractString,
     plinkfile::AbstractString,
-    covariates::AbstractString,
-    path::AbstractVector{<:Integer};
+    d::UnionAll;
+    phenotypes::Union{AbstractString, Int, AbstractVector{Int}} = 6,
+    covariates::AbstractString = "",
+    cv_summaryfile::AbstractString = "cviht.summary.txt",
+    path::AbstractVector{<:Integer} = 1:20,
+    q::Int = 5,
     kwargs...
     )
+    start_time = time()
     snpdata = SnpArrays.SnpData(plinkfile)
-    x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, center=true, scale=true)
+    x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, center=true,
+        scale=true, impute=true)
 
     # read phenotypes
-    y = vec(readdlm(phenotypes, ',', Float64)) 
+    y = parse_phenotypes(snpdata, phenotypes, d())
 
     # read and standardize covariates 
-    z = readdlm(covariates, ',', Float64)
-    standardize!(@view(z[:, 2:end])) 
+    z = covariates == "" ? ones(size(x, 1)) : 
+        parse_covariates(covariates, standardize=true)
+    is_multivariate(y) && (z = convert(Matrix{Float64}, Transpose(z)))
 
-    @assert size(y, 1) == size(z, 1) == size(x, 1) "Dimension mismatch: " * 
-        "detected $(size(y, 1)) phenotypes, $(size(z, 1)) sample covariates, " * 
-        "and $(size(x, 1)) sample genotypes."
+    # run cross validation
+    if is_multivariate(y)
+        mse = cv_iht(y, Transpose(x), z, path=path, q=q; kwargs...)
+    else
+        l = d == NegativeBinomial ? LogLink() : canonicallink(d()) # link function
+        mse = cv_iht(y, x, z, path=path, q=q, d=d(), l=l; kwargs...)
+    end
 
-    return cv_iht(y, x, z, path=path; kwargs...)
+    # save results
+    open(cv_summaryfile, "w") do io
+        k = path[argmin(mse)]
+        print_cv_results(io, mse, path, k)
+        end_time = time() - start_time
+        println(io, "Total cross validation time = $end_time seconds")
+    end
+
+    return mse
 end
