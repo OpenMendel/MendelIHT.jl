@@ -729,32 +729,35 @@ end
 # helper function from https://discourse.julialang.org/t/how-to-find-out-the-version-of-a-package-from-its-module/37755
 pkgversion(m::Module) = Pkg.TOML.parsefile(joinpath(dirname(string(first(methods(m.eval)).file)), "..", "Project.toml"))["version"]
 
-function print_iht_signature()
+function print_iht_signature(io::IO)
     v = pkgversion(MendelIHT)
-    println("****                   MendelIHT Version $v                  ****")
-    println("****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****")
-    println("****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****")
-    println("****                                                            ****")
-    println("****                 Please cite our paper!                     ****")
-    println("****         https://doi.org/10.1093/gigascience/giaa044        ****")
-    println("")
+    println(io, "****                   MendelIHT Version $v                  ****")
+    println(io, "****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****")
+    println(io, "****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****")
+    println(io, "****                                                            ****")
+    println(io, "****                 Please cite our paper!                     ****")
+    println(io, "****         https://doi.org/10.1093/gigascience/giaa044        ****")
+    println(io, "")
 end
+print_iht_signature() = print_iht_signature(stdout)
 
-function print_parameters(k, d, l, use_maf, group, debias, tol, max_iter)
+function print_parameters(io::IO, k, d, l, use_maf, group, debias, tol, max_iter)
     regression = typeof(d) <: Normal ? "linear" : typeof(d) <: Bernoulli ? 
         "logistic" : typeof(d) <: Poisson ? "Poisson" : 
         typeof(d) <: NegativeBinomial ? "NegativeBinomial" : 
         typeof(d) <: MvNormal ? "Multivariate Gaussian" : "unknown"
-    println("Running sparse $regression regression")
-    println("Link functin = $l")
-    typeof(k) <: Int && println("Sparsity parameter (k) = $k")
-    typeof(k) <: Vector{Int} && println("Sparsity parameter (k) = using group membership specified in k")
-    println("Prior weight scaling = ", use_maf ? "on" : "off")
-    println("Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
-    println("Debias = ", debias ? "on" : "off")
-    println("Max IHT iterations = $max_iter")
-    println("Converging when tol < $tol:\n")
+    println(io, "Running sparse $regression regression")
+    println(io, "Link functin = $l")
+    typeof(k) <: Int && println(io, "Sparsity parameter (k) = $k")
+    typeof(k) <: Vector{Int} && println(io, "Sparsity parameter (k) = using group membership specified in k")
+    println(io, "Prior weight scaling = ", use_maf ? "on" : "off")
+    println(io, "Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
+    println(io, "Debias = ", debias ? "on" : "off")
+    println(io, "Max IHT iterations = $max_iter")
+    println(io, "Converging when tol < $tol:\n")
 end
+print_parameters(k, d, l, use_maf, group, debias, tol, max_iter) = 
+    print_parameters(stdout, k, d, l, use_maf, group, debias, tol, max_iter)
 
 function check_convergence(v::IHTVariable)
     the_norm = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))

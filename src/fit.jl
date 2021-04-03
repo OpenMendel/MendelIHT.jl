@@ -48,10 +48,11 @@ function fit_iht(
     est_r     :: Symbol = :None,
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
-    verbose   :: Bool = true,          # print informative things
+    verbose   :: Bool = true,          # print informative things to stdout
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
+    io        :: IO = stdout
     ) where T <: Float
 
     # first handle errors
@@ -69,13 +70,14 @@ function fit_iht(
     # initialize IHT variable
     v = initialize(x, z, y, J, k, d, l, group, weight, est_r)
 
-    # print information 
+    # print information
     if verbose
-        print_iht_signature()
-        print_parameters(k, d, l, use_maf, group, debias, tol, max_iter)
+        print_iht_signature(io)
+        print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter)
     end
 
-    return fit_iht!(v, debias=debias, verbose=verbose, tol=tol, max_iter=max_iter, max_step=max_step)
+    return fit_iht!(v, debias=debias, verbose=verbose, tol=tol, max_iter=max_iter,
+        max_step=max_step, io=io)
 end
 
 function fit_iht(
@@ -109,6 +111,7 @@ function fit_iht!(
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
     max_step  :: Int = 5,              # maximum backtracking for each iteration
+    io        :: IO = stdout
     ) where {T <: Float, M}
 
     #start timer
@@ -133,7 +136,7 @@ function fit_iht!(
             save_best_model!(v)
             mm_iter  = iter
             tot_time = time() - start_time
-            verbose && printstyled("Did not converge after $max_iter " * 
+            verbose && printstyled(io, "Did not converge after $max_iter " * 
                 "iterations! IHT run time was " * string(tot_time) *
                 " seconds\n", color=:red)
             break

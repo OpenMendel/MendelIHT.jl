@@ -1,5 +1,4 @@
 # TODO: Handle missing phenotypes (-9 or NA)
-# TODO: IHT signature and timings
 # TODO: Autimatic write to output file
 # TODO: VCF read
 
@@ -39,6 +38,8 @@ If you have more covariates, see the 3 argument `iht` function.
 function iht(
     plinkfile::AbstractString,
     k::Int;
+    summaryfile::AbstractString = "iht.summary.txt",
+    betafile::AbstractString = "iht.beta.txt",
     col::Union{Int, AbstractVector{Int}}=6,
     d::Distribution = length(col) > 1 ? MvNormal(Float64[]) : Normal(),
     kwargs...
@@ -48,11 +49,20 @@ function iht(
     xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
         center=true, scale=true, impute=true)
 
+    # run IHT
     if is_multivariate(y)
-        return fit_iht(y, Transpose(xla), k=k, d=d; kwargs...)
+        result = fit_iht(y, Transpose(xla), k=k, d=d; kwargs...)
     else
-        return fit_iht(y, xla, k=k, d=d; kwargs...)
+        result = fit_iht(y, xla, k=k, d=d; kwargs...)
     end
+
+    # save results
+    open(summaryfile, "w") do io
+        show(io, result)
+    end
+    writedlm(betafile, result.beta)
+
+    return result
 end
 
 """

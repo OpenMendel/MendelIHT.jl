@@ -272,6 +272,8 @@ function Base.show(io::IO, x::IHTResult)
     println(io, "\n\nSelected nongenetic predictors:")
     print(io, DataFrame(Position=nongenetic_position, Estimated_β=x.c[nongenetic_position]))
 end
+# default IO for show is stdout
+show(x::IHTResult) = show(stdout, x)
 
 """
 Displays mIHTResult object
@@ -310,7 +312,7 @@ function print_cv_results(io::IO, errors::Vector{T},
     end
     println(io, "\nBest k = $k\n")
 end
-# default IO for print_cv_results is STDOUT
+# default IO for print_cv_results is stdout
 print_cv_results(errors::Vector{T}, path::AbstractVector{<:Integer}, k::Int
     ) where {T <: Float} = print_cv_results(stdout, errors, path, k)
 
@@ -328,7 +330,7 @@ function print_a_bunch_of_path_results(io::IO, loglikelihoods::AbstractVector{T}
     "appropriate model sizes, which is roughly the values of k where the " *
     "loglikelihood stop increasing significantly.")
 end
-# default IO for print_a_bunch_of_path_results is STDOUT
+# default IO for print_a_bunch_of_path_results is stdout
 print_a_bunch_of_path_results(loglikelihoods::AbstractVector{T}, 
     path::AbstractVector{<:Integer}) where {T <: Float} =
     print_a_bunch_of_path_results(stdout, loglikelihoods, path)
