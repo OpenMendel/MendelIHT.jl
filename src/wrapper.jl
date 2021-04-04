@@ -235,6 +235,11 @@ standardized to mean 0 variance 1.
     comma separated, and not include a header line. Each row should be listed in the
     same order as in the PLINK. The first column should be all 1s to indicate an
     intercept. All other columns will be standardized to mean 0 variance 1. 
+- `summaryfile`: Output file name for saving IHT's cross validation summary statistics.
+    Default `cviht.summary.txt`.
+- `path`: Different values of `k` that should be tested. Default `1:20`
+- `q`: Number of cross validation folds. Larger means more accurate and more computationally
+    intensive. Should be larger 2 and smaller than 10. Default 5. 
 - All arguments available in [`cv_iht`](@ref)
 """
 function cross_validate(

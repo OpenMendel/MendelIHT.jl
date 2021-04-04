@@ -23,3 +23,4 @@ test/pve/univariate_true_beta.txt
 test/sim*
 test/*cXX.txt
 test/*.sh
+test/NFBCsim
