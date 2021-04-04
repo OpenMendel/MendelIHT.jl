@@ -3,7 +3,7 @@
 
 ## Wrapper Functions
 
-Most users will use the following wrapper functions. The user only has to specify where the PLINK files (and possibly the phenotype/covariate files) are located. These functions will soon be updated to support VCF and BGEN formats.
+Most users will use the following wrapper functions. Users specify location of PLINK files and possibly the phenotype/covariate files. These functions will soon be updated to support VCF and BGEN formats.
 
 ```@docs
   iht
@@ -12,7 +12,7 @@ Most users will use the following wrapper functions. The user only has to specif
 
 ## Core Functions
 
-For advanced users, one can also run IHT regression or cross-validation directly. 
+Users can also use the `fit_iht` and `cv_iht` functions directly. One must import genotypes via [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) and phenotypes/covariates using Julia's standard routine. 
 
 ```@docs
   fit_iht

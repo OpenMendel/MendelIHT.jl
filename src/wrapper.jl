@@ -3,13 +3,9 @@
 # TODO: VCF read
 
 """
-    iht(plinkfile, k, kwargs...)
+    iht(plinkfile, k, d, ...)
 
-Runs IHT with sparsity level `k`. Example:
-
-```julia
-result = iht("plinkfile", 10)
-```
+Runs IHT with sparsity level `k`. 
 
 # Arguments
 - `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
@@ -20,24 +16,25 @@ result = iht("plinkfile", 10)
 
 # Optional Arguments
 - `phenotypes`: Phenotype file name (`String`), an integer, or vector of integer. Integer(s)
-    coresponds to the column(s) of `.fam` file that stores phenotypes (default 6). 
+    coresponds to the column(s) of `.fam` file that stores phenotypes (default `phenotypes=6`). 
+    Enter multiple integers for multivariate analysis (e.g. `phenotypes=[6, 7]`).
     We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
     (univariate or multivariate), missing phenotypes are imputed with the mean. Binary
     and count phenotypes cannot be imputed. Phenotype files are read using `readdlm` function
     in Julia base. We require each subject's phenotype to occupy a different row. The file
     should not include a header line. Each row should be listed in the same order as in
-    the PLINK. 
-- `covariates`: Covariate file name. Default is nothing (i.e. ""), where an intercept
+    the PLINK and (for multivariate analysis) be comma separated. 
+- `covariates`: Covariate file name. Default (covariates=""), where an intercept
     term will be automatically included. If `covariates` file specified, it will be 
     read using `readdlm` function in Julia base. We require the covariate file to be
     comma separated, and not include a header line. Each row should be listed in the
     same order as in the PLINK. The first column should be all 1s to indicate an
     intercept. All other columns will be standardized to mean 0 variance 1. 
 - `summaryfile`: Output file name for saving IHT's summary statistics. Default
-    `iht.summary.txt`.
+    `summaryfile=iht.summary.txt`.
 - `betafile`: Output file name for saving IHT's estimated genotype effect sizes. 
-    Default `iht.beta.txt`. 
-- All arguments available in [`fit_iht`](@ref)
+    Default `betafile=iht.beta.txt`. 
+- All optional arguments available in [`fit_iht`](@ref)
 """
 function iht(
     plinkfile::AbstractString,
@@ -192,15 +189,10 @@ function phenotype_is_missing(s::AbstractString)
 end
 
 """
-    cross_validate(phenotypes, plinkfile, covariates, path, kwargs...)
+    cross_validate(plinkfile, d, ...)
 
 Runs cross-validation to determinal optimal sparsity level `k`. Sparsity levels
-is specified in `path. Example:
-
-```julia
-mses = cross_validate("phenotypes.txt", "plinkfile", "covariates.txt", 1:20)
-mses = cross_validate("phenotypes.txt", "plinkfile", "covariates.txt", [1, 10, 20]) # alternative syntax
-```
+is specified in `path. 
 
 # Phenotypes
 Phenotypes are read using `readdlm` function in Julia base. We require each 
