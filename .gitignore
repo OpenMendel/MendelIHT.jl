@@ -24,3 +24,4 @@ test/sim*
 test/*cXX.txt
 test/*.sh
 test/NFBCsim
+test/NFBCsim*

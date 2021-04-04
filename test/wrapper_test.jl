@@ -72,16 +72,16 @@ end
             phenotypes="univariate.phen", verbose=false)
 
         @test all(result1 .≈ result2 .≈ result3)
-    end
 
-    rm("univariate.bim", force=true)
-    rm("univariate.bed", force=true)
-    rm("univariate.fam", force=true)
-    rm("univariate.phen", force=true)
-    rm("covariates.txt", force=true)
-    rm("cviht.summary.txt", force=true)
-    rm("iht.summary.txt", force=true)
-    rm("iht.beta.txt", force=true)
+        rm("univariate.bim", force=true)
+        rm("univariate.bed", force=true)
+        rm("univariate.fam", force=true)
+        rm("univariate.phen", force=true)
+        rm("covariates.txt", force=true)
+        rm("cviht.summary.txt", force=true)
+        rm("iht.summary.txt", force=true)
+        rm("iht.beta.txt", force=true)
+    end
 end
 
 @testset "wrapper multivariate" begin
