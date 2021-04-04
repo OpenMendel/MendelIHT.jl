@@ -39,7 +39,7 @@ end
         Random.seed!(2021)
 
         # simulate `.bed` file with no missing data
-        x = simulate_random_snparray("univariate.bed", n, p)
+        x = simulate_random_snparray("univariate$d.bed", n, p)
         xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
 
         # intercept is the only nongenetic covariate
@@ -50,13 +50,16 @@ end
         y, true_b, correct_position = simulate_random_response(xla, k, d, l, Zu=z*intercept);
 
         # create covariate files, `.bim` and `.bam` files, and separate phenotype file
-        writedlm("covariates.txt", z)
-        make_bim_fam_files(x, y, "univariate")
-        writedlm("univariate.phen", y, ',')
+        writedlm("covariates$d.txt", z)
+        make_bim_fam_files(x, y, "univariate$d")
+        writedlm("univariate$d.phen", y, ',')
 
-        result1 = iht("univariate", 11, d, verbose=false)
-        result2 = iht("univariate", 11, d, covariates="covariates.txt", verbose=false)
-        result3 = iht("univariate", 11, d, covariates="covariates.txt", phenotypes="univariate.phen", verbose=false);
+        result1 = iht("univariate$d", 11, d, verbose=false, summaryfile="iht.$(d)summary.txt",
+            betafile="iht.$(d)beta.txt", max_iter=5)
+        result2 = iht("univariate$d", 11, d, covariates="covariates$d.txt", verbose=false,
+            summaryfile="iht.$(d)summary.txt", betafile="iht.$(d)beta.txt", max_iter=5)
+        result3 = iht("univariate$d", 11, d, covariates="covariates$d.txt", phenotypes="univariate$d.phen",
+            summaryfile="iht.$(d)summary.txt", betafile="iht.$(d)beta.txt", verbose=false, max_iter=5)
 
         @test all(result1.beta .≈ result2.beta .≈ result3.beta)
         @test result1.logl ≈ result2.logl ≈ result3.logl
@@ -64,23 +67,29 @@ end
         @test result1.σg ≈ result2.σg ≈ result3.σg
 
         Random.seed!(2021)
-        result1 = cross_validate("univariate", d, verbose=false)
+        result1 = cross_validate("univariate$d", d, verbose=false, cv_summaryfile="cviht.$(d)summary.txt", max_iter=5)
         Random.seed!(2021)
-        result2 = cross_validate("univariate", d, covariates="covariates.txt", verbose=false)
+        result2 = cross_validate("univariate$d", d, covariates="covariates$d.txt", verbose=false, max_iter=5)
         Random.seed!(2021)
-        result3 = cross_validate("univariate", d, covariates="covariates.txt", 
-            phenotypes="univariate.phen", verbose=false)
+        result3 = cross_validate("univariate$d", d, covariates="covariates$d.txt", 
+            phenotypes="univariate$d.phen", verbose=false, max_iter=5)
 
         @test all(result1 .≈ result2 .≈ result3)
 
-        rm("univariate.bim", force=true)
-        rm("univariate.bed", force=true)
-        rm("univariate.fam", force=true)
-        rm("univariate.phen", force=true)
-        rm("covariates.txt", force=true)
-        rm("cviht.summary.txt", force=true)
-        rm("iht.summary.txt", force=true)
-        rm("iht.beta.txt", force=true)
+        try
+            rm("univariate$d.bim", force=true)
+            rm("univariate$d.bed", force=true)
+            rm("univariate$d.fam", force=true)
+            rm("univariate$d.phen", force=true)
+            rm("covariates$d.txt", force=true)
+            rm("cviht.$(d)summary.txt", force=true)
+            rm("iht.$(d)summary.txt", force=true)
+            rm("iht.$(d)beta.txt", force=true)
+        catch
+            println("Unsuccessful deletion of intermediate files generated in" * 
+                " unit tests! Windows users can remove these files manually " * 
+                "located at " * normpath(pathof(MendelIHT) * "../../../test"))
+        end
     end
 end
 
@@ -151,12 +160,18 @@ end
 
     @test all(result1 .≈ result2 .≈ result3)
 
-    rm("multivariate_$(r)traits.bim", force=true)
-    rm("multivariate_$(r)traits.bed", force=true)
-    rm("multivariate_$(r)traits.fam", force=true)
-    rm("multivariate_$(r)traits.phen", force=true)
-    rm("covariates.txt", force=true)
-    rm("cviht.summary.txt", force=true)
-    rm("iht.summary.txt", force=true)
-    rm("iht.beta.txt", force=true)
+    try
+        rm("multivariate_$(r)traits.bim", force=true)
+        rm("multivariate_$(r)traits.bed", force=true)
+        rm("multivariate_$(r)traits.fam", force=true)
+        rm("multivariate_$(r)traits.phen", force=true)
+        rm("covariates.txt", force=true)
+        rm("cviht.summary.txt", force=true)
+        rm("iht.summary.txt", force=true)
+        rm("iht.beta.txt", force=true)
+    catch
+        println("Unsuccessful deletion of intermediate files generated in" * 
+            " unit tests! Windows users can remove these files manually " * 
+            "located at " * normpath(pathof(MendelIHT) * "../../../test"))
+    end
 end

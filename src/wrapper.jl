@@ -1,5 +1,3 @@
-# TODO: Handle missing phenotypes (-9 or NA)
-# TODO: Autimatic write to output file
 # TODO: VCF read
 
 """
@@ -31,9 +29,9 @@ Runs IHT with sparsity level `k`.
     same order as in the PLINK. The first column should be all 1s to indicate an
     intercept. All other columns will be standardized to mean 0 variance 1. 
 - `summaryfile`: Output file name for saving IHT's summary statistics. Default
-    `summaryfile=iht.summary.txt`.
+    `summaryfile="iht.summary.txt"`.
 - `betafile`: Output file name for saving IHT's estimated genotype effect sizes. 
-    Default `betafile=iht.beta.txt`. 
+    Default `betafile="iht.beta.txt"`. 
 - All optional arguments available in [`fit_iht`](@ref)
 """
 function iht(
@@ -194,23 +192,11 @@ end
 Runs cross-validation to determinal optimal sparsity level `k`. Sparsity levels
 is specified in `path. 
 
-# Phenotypes
-Phenotypes are read using `readdlm` function in Julia base. We require each 
-subject's phenotype to occupy a different row. The file should not include a header
-line. Each row should be listed in the same order as in the PLINK. 
-
-# Covariate file
-Covariates are read using `readdlm` function in Julia base. We require the
-covariate file to be comma separated, and not include a header line. Each row
-should be a sample listed in the same order as in the PLINK. The first column
-should be all 1s to indicate an intercept. All other columns will be automatically
-standardized to mean 0 variance 1.
-
 # Arguments
-- `phenotypes`: A `String` for phenotype file name
 - `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
-- `covariates`: A `String` for covariate file name
-- `path`: Different sparsity levels. Can be an integer range (default 1:20) or vector of integers. 
+- `d`: Distribution of phenotypes. Specify `Normal` for quantitative traits,
+    `Bernoulli` for binary traits, `Poisson` or `NegativeBinomial` for
+    count traits, and `MvNormal` for multiple quantitative traits. 
 
 # Optional Arguments
 - `phenotypes`: Phenotype file name (`String`), an integer, or vector of integer. Integer(s)
@@ -227,12 +213,12 @@ standardized to mean 0 variance 1.
     comma separated, and not include a header line. Each row should be listed in the
     same order as in the PLINK. The first column should be all 1s to indicate an
     intercept. All other columns will be standardized to mean 0 variance 1. 
-- `summaryfile`: Output file name for saving IHT's cross validation summary statistics.
-    Default `cviht.summary.txt`.
-- `path`: Different values of `k` that should be tested. Default `1:20`
+- `cv_summaryfile`: Output file name for saving IHT's cross validation summary statistics.
+    Default `cv_summaryfile="cviht.summary.txt"`.
+- `path`: Different values of `k` that should be tested. Default `path=1:20`
 - `q`: Number of cross validation folds. Larger means more accurate and more computationally
-    intensive. Should be larger 2 and smaller than 10. Default 5. 
-- All arguments available in [`cv_iht`](@ref)
+    intensive. Should be larger 2 and smaller than 10. Default `q=5`. 
+- All optional arguments available in [`cv_iht`](@ref)
 """
 function cross_validate(
     plinkfile::AbstractString,
