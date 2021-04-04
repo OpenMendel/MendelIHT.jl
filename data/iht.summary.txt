@@ -1,0 +1,29 @@
+
+IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
+
+Compute time (sec):     0.04064011573791504
+Final loglikelihood:    -1390.3003586022403
+SNP PVE:                0.7056046687054848
+Iterations:             9
+
+Selected genetic predictors:
+8×2 DataFrame
+ Row │ Position  Estimated_β
+     │ Int64     Float64
+─────┼───────────────────────
+   1 │     3136    -0.118964
+   2 │     3137     0.422123
+   3 │     4246     0.521803
+   4 │     4717     0.928709
+   5 │     6290    -0.673318
+   6 │     7755    -0.544042
+   7 │     8375    -0.788316
+   8 │     9415    -2.17957
+
+Selected nongenetic predictors:
+2×2 DataFrame
+ Row │ Position  Estimated_β
+     │ Int64     Float64
+─────┼───────────────────────
+   1 │        1     0.951727
+   2 │        2     1.49986

@@ -30,21 +30,25 @@ The following uses data under the `data` directory. PLINK files are stored in `n
 using MendelIHT
 cd(normpath(MendelIHT.datadir()))
 
-# if sparsity parameter k is known
-result = iht("normal", 9) # run IHT with k = 9, default d=Normal(), l = IdentityLink()
-result = iht("normal", "covariates.txt", 10) # separately include covariates, k = 10
-result = iht("phenotypes.txt", "normal", "covariates.txt", 10) # if phenotypes are in separate file
+# select k SNPs PLINK file
+result = iht("normal", 9, Normal) # run IHT with k = 9
+result = iht("normal", 10, Normal, covariates="covariates.txt") # separately include covariates, k = 10
+result = iht("normal", 10, Normal, covariates="covariates.txt", phenotypes="phenotypes.txt") # phenotypes are stored separately
 
 # run cross validation to determine best k
-mses = cross_validate("normal", 1:20) # test k = 1, 2, ..., 20
-mses = cross_validate("normal", [1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
-mses = cross_validate("normal", "covariates.txt", 1:20) # separately include covariates
-mses = cross_validate("phenotypes.txt", "normal", "covariates.txt", 1:20) # if phenotypes are in separate file
+mses = cross_validate("normal", Normal, path=1:20) # test k = 1, 2, ..., 20
+mses = cross_validate("normal", Normal, path=[1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
+mses = cross_validate("normal", Normal, path=1:20, covariates="covariates.txt") # separately include covariates
+mses = cross_validate("normal", Normal, path=1:20, covariates="covariates.txt", phenotypes="phenotypes.txt") # if phenotypes are in separate file
 
 # other distributions
-result = iht("plinkfile", 10, d=Bernoulli(), l = LogitLink()) # logistic regression with k = 10
-result = iht("plinkfile", 10, d=Poisson(), l = LogLink()) # Poisson regression with k = 10
-result = iht("plinkfile", 10, d=NegativeBinomial(), l = LogLink(), est_r=true) # Negative Binomial regression with k = 10
+result = iht("plinkfile", 10, Bernoulli) # logistic regression with k = 10
+result = iht("plinkfile", 10, Poisson) # Poisson regression with k = 10
+result = iht("plinkfile", 10, NegativeBinomial, est_r=:Newton) # Negative Binomial regression + nuisnace parameter estimation
+
+# Multivariate regression (multiple quantitative phenotypes)
+result = iht("plinkfile", 10, MvNormal, phenotypes=[6, 7]) # phenotypes stored in 6th and 7th column of .fam file
+result = iht("plinkfile", 10, MvNormal, phenotypes="phenotypes.txt") # phenotypes stored separate file
 ```
 
 Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/latest/) for more detail. 
