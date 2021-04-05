@@ -12,7 +12,7 @@ Most users will use the following wrapper functions. Users specify location of P
 
 ## Core Functions
 
-Users can also use the `fit_iht` and `cv_iht` functions directly. One must import genotypes via [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) and phenotypes/covariates using Julia's standard routine. 
+Users can also use the `fit_iht` and `cv_iht` functions directly. One must import genotypes via [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) (and use `SnpLinAlg` type for `x` argument) or [VCFTools.jl](https://github.com/OpenMendel/VCFTools.jl). Phenotypes/covariates must also be imported using Julia's standard routine (typically with `Base.readdlm`). 
 
 ```@docs
   fit_iht

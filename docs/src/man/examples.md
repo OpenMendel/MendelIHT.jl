@@ -41,6 +41,10 @@ addprocs(4)
 end
 ```
 
+    ┌ Info: Precompiling MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
+    └ @ Base loading.jl:1278
+
+
 ## Using MendelIHT.jl
 
 Users are exposed to 2 levels of interface:
@@ -77,7 +81,7 @@ readdir()
 
 
 
-    13-element Array{String,1}:
+    12-element Array{String,1}:
      ".DS_Store"
      "README.md"
      "covariates.txt"
@@ -90,7 +94,6 @@ readdir()
      "normal_true_beta.txt"
      "phenotypes.txt"
      "simulate.jl"
-     "univariate"
 
 
 
@@ -109,33 +112,33 @@ mses = cross_validate("normal", Normal, covariates="covariates.txt", phenotypes=
 # mses = cross_validate("normal", Normal, covariates="covariates.txt", phenotypes="phenotypes.txt", path=1:20) # when phenotypes are stored separately
 ```
 
-    [32mCross validating...100%|████████████████████████████████| Time: 0:00:35[39m
+    [32mCross validating...100%|████████████████████████████████| Time: 0:00:41[39m
 
 
     
     
     Crossvalidation Results:
     	k	MSE
-    	1	1407.2735970192766
-    	2	858.9323667647981
-    	3	695.3281033011649
-    	4	574.9357159487766
-    	5	426.30145951172085
-    	6	336.31511946184327
-    	7	289.01531777955694
-    	8	230.659699154335
-    	9	195.438939949433
-    	10	199.83469223996426
-    	11	201.34513294669145
-    	12	203.75379485200406
-    	13	208.37926053125014
-    	14	213.51428971882075
-    	15	221.47325404994524
-    	16	219.64716813029995
-    	17	221.40881497802621
-    	18	227.25440479675385
-    	19	235.0540681425773
-    	20	236.588333388475
+    	1	1406.4552580959744
+    	2	857.6790422237751
+    	3	675.7053829929064
+    	4	559.0287748247562
+    	5	424.84955802133055
+    	6	334.9624624153284
+    	7	304.97292908540294
+    	8	231.28136259326723
+    	9	197.38097683148538
+    	10	203.0158421015343
+    	11	205.5234762375722
+    	12	210.0832431714208
+    	13	208.30403888253082
+    	14	214.60823015711009
+    	15	215.379771415479
+    	16	229.2967482083606
+    	17	229.69491766374526
+    	18	234.89500599022892
+    	19	240.76951401560154
+    	20	242.39038987978827
     
     Best k = 9
     
@@ -149,7 +152,7 @@ According to cross validation, `k = 9` achieves the minimum MSE. Thus we run IHT
 
 
 ```julia
-result = iht("normal", 9, Normal, covariates="covariates.txt", phenotypes=6)
+result = iht("normal", 9, Normal, covariates="covariates.txt", phenotypes=6);
 ```
 
     ****                   MendelIHT Version 1.4.0                  ****
@@ -176,7 +179,7 @@ result = iht("normal", 9, Normal, covariates="covariates.txt", phenotypes=6)
     result = 
     IHT estimated 7 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     0.3655970096588135
+    Compute time (sec):     0.7361938953399658
     Final loglikelihood:    -1397.8807416471927
     SNP PVE:                0.834374956294435
     Iterations:             5
@@ -201,40 +204,6 @@ result = iht("normal", 9, Normal, covariates="covariates.txt", phenotypes=6)
     ─────┼───────────────────────
        1 │        1     1.65223
        2 │        2     0.749866
-
-
-
-
-
-    
-    IHT estimated 7 nonzero SNP predictors and 2 non-genetic predictors.
-    
-    Compute time (sec):     0.3655970096588135
-    Final loglikelihood:    -1397.8807416471927
-    SNP PVE:                0.834374956294435
-    Iterations:             5
-    
-    Selected genetic predictors:
-    [1m7×2 DataFrame[0m
-    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
-    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
-    ─────┼───────────────────────
-       1 │     3137     0.424377
-       2 │     4246     0.52343
-       3 │     4717     0.922857
-       4 │     6290    -0.677832
-       5 │     7755    -0.542981
-       6 │     8375    -0.792815
-       7 │     9415    -2.17998
-    
-    Selected nongenetic predictors:
-    [1m2×2 DataFrame[0m
-    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
-    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
-    ─────┼───────────────────────
-       1 │        1     1.65223
-       2 │        2     0.749866
-
 
 
 ### Step 3: Examine results
@@ -335,7 +304,7 @@ In Example 2, we simulated binary phenotypes, genotypes, non-genetic covariates,
 
 
 ```julia
-result = iht("sim", 10, Bernoulli, covariates="sim.covariates.txt")
+result = iht("sim", 10, Bernoulli, covariates="sim.covariates.txt");
 ```
 
     ****                   MendelIHT Version 1.4.0                  ****
@@ -399,7 +368,7 @@ result = iht("sim", 10, Bernoulli, covariates="sim.covariates.txt")
     result = 
     IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     2.5963549613952637
+    Compute time (sec):     4.042757987976074
     Final loglikelihood:    -331.6518739156732
     SNP PVE:                0.4798854810844273
     Iterations:             42
@@ -425,41 +394,6 @@ result = iht("sim", 10, Bernoulli, covariates="sim.covariates.txt")
     ─────┼───────────────────────
        1 │        1      1.03892
        2 │        2      1.5844
-
-
-
-
-
-    
-    IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
-    
-    Compute time (sec):     2.5963549613952637
-    Final loglikelihood:    -331.6518739156732
-    SNP PVE:                0.4798854810844273
-    Iterations:             42
-    
-    Selected genetic predictors:
-    [1m8×2 DataFrame[0m
-    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
-    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
-    ─────┼───────────────────────
-       1 │     3137     0.503252
-       2 │     4246     0.590809
-       3 │     4248    -0.37987
-       4 │     4717     1.04006
-       5 │     6290    -0.741734
-       6 │     7755    -0.437585
-       7 │     8375    -0.942293
-       8 │     9415    -2.11206
-    
-    Selected nongenetic predictors:
-    [1m2×2 DataFrame[0m
-    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
-    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
-    ─────┼───────────────────────
-       1 │        1      1.03892
-       2 │        2      1.5844
-
 
 
 Since data is simulated, we can compare IHT's estimated effect size with the truth. 
@@ -547,7 +481,7 @@ Now we have the response $y$, design matrix $x$. Let's run IHT and compare with 
 mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());
 ```
 
-    [32mCross validating...100%|████████████████████████████████| Time: 0:00:12[39m
+    [32mCross validating...100%|████████████████████████████████| Time: 0:00:13[39m
 
 
     
@@ -631,7 +565,7 @@ result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
     
     IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.11967015266418457
+    Compute time (sec):     0.12793207168579102
     Final loglikelihood:    -2335.176167840737
     SNP PVE:                0.09113449276174615
     Iterations:             21

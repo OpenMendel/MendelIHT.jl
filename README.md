@@ -30,7 +30,7 @@ The following uses data under the `data` directory. PLINK files are stored in `n
 using MendelIHT
 cd(normpath(MendelIHT.datadir()))
 
-# select k SNPs PLINK file
+# select k SNPs in PLINK file
 result = iht("normal", 9, Normal) # run IHT with k = 9
 result = iht("normal", 10, Normal, covariates="covariates.txt") # separately include covariates, k = 10
 result = iht("normal", 10, Normal, covariates="covariates.txt", phenotypes="phenotypes.txt") # phenotypes are stored separately
