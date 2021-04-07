@@ -24,7 +24,8 @@ addprocs(4)
     using DelimitedFiles
     using Statistics
     using BenchmarkTools
-end</code></pre><h2 id="Using-MendelIHT.jl"><a class="docs-heading-anchor" href="#Using-MendelIHT.jl">Using MendelIHT.jl</a><a id="Using-MendelIHT.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Using-MendelIHT.jl" title="Permalink"></a></h2><p>Users are exposed to 2 levels of interface:</p><ul><li>Wrapper functions <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht">iht()</a> and <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate">cross_validate()</a>. These functions are simple scripts that import data, runs IHT, and writes result to output automatically. Since they are very simplistic, they might fail for whatever reason (please file an issue on GitHub). If so, please use:</li><li>Core functions <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht">fit_iht()</a> and <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht">cv_iht()</a>. Input arguments for these functions must be first imported into Julia by the user manually.</li></ul><h2 id="Example-1:-GWAS-with-PLINK-files"><a class="docs-heading-anchor" href="#Example-1:-GWAS-with-PLINK-files">Example 1: GWAS with PLINK files</a><a id="Example-1:-GWAS-with-PLINK-files-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-GWAS-with-PLINK-files" title="Permalink"></a></h2><p>In this example, our data are stored in binary PLINK files:</p><ul><li><code>normal.bed</code></li><li><code>normal.bim</code></li><li><code>normal.fam</code></li></ul><p>which contains simulated (Gaussian) phenotypes for <span>$n=1000$</span> samples and <span>$p=10,000$</span> SNPs. There are <span>$8$</span> causal variants and 2 causal non-genetic covariates (intercept and sex). </p><p>These data are present under <code>MendelIHT/data</code> directory.</p><pre><code class="language-julia"># change directory to where example data is located
+end</code></pre><pre><code class="language-none">┌ Info: Precompiling MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
+└ @ Base loading.jl:1278</code></pre><h2 id="Using-MendelIHT.jl"><a class="docs-heading-anchor" href="#Using-MendelIHT.jl">Using MendelIHT.jl</a><a id="Using-MendelIHT.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Using-MendelIHT.jl" title="Permalink"></a></h2><p>Users are exposed to 2 levels of interface:</p><ul><li>Wrapper functions <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht">iht()</a> and <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate">cross_validate()</a>. These functions are simple scripts that import data, runs IHT, and writes result to output automatically. Since they are very simplistic, they might fail for whatever reason (please file an issue on GitHub). If so, please use:</li><li>Core functions <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht">fit_iht()</a> and <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht">cv_iht()</a>. Input arguments for these functions must be first imported into Julia by the user manually.</li></ul><h2 id="Example-1:-GWAS-with-PLINK-files"><a class="docs-heading-anchor" href="#Example-1:-GWAS-with-PLINK-files">Example 1: GWAS with PLINK files</a><a id="Example-1:-GWAS-with-PLINK-files-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-GWAS-with-PLINK-files" title="Permalink"></a></h2><p>In this example, our data are stored in binary PLINK files:</p><ul><li><code>normal.bed</code></li><li><code>normal.bim</code></li><li><code>normal.fam</code></li></ul><p>which contains simulated (Gaussian) phenotypes for <span>$n=1000$</span> samples and <span>$p=10,000$</span> SNPs. There are <span>$8$</span> causal variants and 2 causal non-genetic covariates (intercept and sex). </p><p>These data are present under <code>MendelIHT/data</code> directory.</p><pre><code class="language-julia"># change directory to where example data is located
 cd(normpath(MendelIHT.datadir()))
 
 # show working directory
@@ -37,7 +38,7 @@ readdir()</code></pre><pre><code class="language-none">pwd() = &quot;/Users/bion
 
 
 
-13-element Array{String,1}:
+12-element Array{String,1}:
  &quot;.DS_Store&quot;
  &quot;README.md&quot;
  &quot;covariates.txt&quot;
@@ -49,40 +50,39 @@ readdir()</code></pre><pre><code class="language-none">pwd() = &quot;/Users/bion
  &quot;normal.fam&quot;
  &quot;normal_true_beta.txt&quot;
  &quot;phenotypes.txt&quot;
- &quot;simulate.jl&quot;
- &quot;univariate&quot;</code></pre><p>Here <code>covariates.txt</code> contains non-genetic covariates, <code>normal.bed/bim/fam</code> are the PLINK files storing genetic covariates, <code>phenotypes.txt</code> are phenotypes for each sample, <code>normal_true_beta.txt</code> is the true statistical model used to generate the phenotypes, and <code>simulate.jl</code> is the script used to generate all the files. </p><h3 id="Step-1:-Run-cross-validation-to-determine-best-model-size"><a class="docs-heading-anchor" href="#Step-1:-Run-cross-validation-to-determine-best-model-size">Step 1: Run cross validation to determine best model size</a><a id="Step-1:-Run-cross-validation-to-determine-best-model-size-1"></a><a class="docs-heading-anchor-permalink" href="#Step-1:-Run-cross-validation-to-determine-best-model-size" title="Permalink"></a></h3><p>Here phenotypes are stored in the 6th column of <code>.fam</code> file. Other covariates are stored separately (which includes a column of 1 as intercept). Here we cross validate <span>$k = 1,2,...20$</span>. </p><pre><code class="language-julia">mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6, path=1:20);
+ &quot;simulate.jl&quot;</code></pre><p>Here <code>covariates.txt</code> contains non-genetic covariates, <code>normal.bed/bim/fam</code> are the PLINK files storing genetic covariates, <code>phenotypes.txt</code> are phenotypes for each sample, <code>normal_true_beta.txt</code> is the true statistical model used to generate the phenotypes, and <code>simulate.jl</code> is the script used to generate all the files. </p><h3 id="Step-1:-Run-cross-validation-to-determine-best-model-size"><a class="docs-heading-anchor" href="#Step-1:-Run-cross-validation-to-determine-best-model-size">Step 1: Run cross validation to determine best model size</a><a id="Step-1:-Run-cross-validation-to-determine-best-model-size-1"></a><a class="docs-heading-anchor-permalink" href="#Step-1:-Run-cross-validation-to-determine-best-model-size" title="Permalink"></a></h3><p>Here phenotypes are stored in the 6th column of <code>.fam</code> file. Other covariates are stored separately (which includes a column of 1 as intercept). Here we cross validate <span>$k = 1,2,...20$</span>. </p><pre><code class="language-julia">mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6, path=1:20);
 
 # Alternative syntax
 # mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6, path=[1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
-# mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=&quot;phenotypes.txt&quot;, path=1:20) # when phenotypes are stored separately</code></pre><pre><code class="language-none">[32mCross validating...100%|████████████████████████████████| Time: 0:00:35[39m
+# mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=&quot;phenotypes.txt&quot;, path=1:20) # when phenotypes are stored separately</code></pre><pre><code class="language-none">[32mCross validating...100%|████████████████████████████████| Time: 0:00:41[39m
 
 
 
 
 Crossvalidation Results:
 	k	MSE
-	1	1407.2735970192766
-	2	858.9323667647981
-	3	695.3281033011649
-	4	574.9357159487766
-	5	426.30145951172085
-	6	336.31511946184327
-	7	289.01531777955694
-	8	230.659699154335
-	9	195.438939949433
-	10	199.83469223996426
-	11	201.34513294669145
-	12	203.75379485200406
-	13	208.37926053125014
-	14	213.51428971882075
-	15	221.47325404994524
-	16	219.64716813029995
-	17	221.40881497802621
-	18	227.25440479675385
-	19	235.0540681425773
-	20	236.588333388475
+	1	1406.4552580959744
+	2	857.6790422237751
+	3	675.7053829929064
+	4	559.0287748247562
+	5	424.84955802133055
+	6	334.9624624153284
+	7	304.97292908540294
+	8	231.28136259326723
+	9	197.38097683148538
+	10	203.0158421015343
+	11	205.5234762375722
+	12	210.0832431714208
+	13	208.30403888253082
+	14	214.60823015711009
+	15	215.379771415479
+	16	229.2967482083606
+	17	229.69491766374526
+	18	234.89500599022892
+	19	240.76951401560154
+	20	242.39038987978827
 
-Best k = 9</code></pre><p>Do not be alarmed if you get slightly different numbers, because cross validation breaks data into training/testing randomly. Set a seed by <code>Random.seed!(1234)</code> if you want reproducibility.</p><h3 id="Step-2:-Run-IHT-on-best-k"><a class="docs-heading-anchor" href="#Step-2:-Run-IHT-on-best-k">Step 2: Run IHT on best k</a><a id="Step-2:-Run-IHT-on-best-k-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Run-IHT-on-best-k" title="Permalink"></a></h3><p>According to cross validation, <code>k = 9</code> achieves the minimum MSE. Thus we run IHT on the full dataset.</p><pre><code class="language-julia">result = iht(&quot;normal&quot;, 9, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6)</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.4.0                  ****
+Best k = 9</code></pre><p>Do not be alarmed if you get slightly different numbers, because cross validation breaks data into training/testing randomly. Set a seed by <code>Random.seed!(1234)</code> if you want reproducibility.</p><h3 id="Step-2:-Run-IHT-on-best-k"><a class="docs-heading-anchor" href="#Step-2:-Run-IHT-on-best-k">Step 2: Run IHT on best k</a><a id="Step-2:-Run-IHT-on-best-k-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Run-IHT-on-best-k" title="Permalink"></a></h3><p>According to cross validation, <code>k = 9</code> achieves the minimum MSE. Thus we run IHT on the full dataset.</p><pre><code class="language-julia">result = iht(&quot;normal&quot;, 9, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6);</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.4.0                  ****
 ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
 ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
 ****                                                            ****
@@ -106,7 +106,7 @@ Iteration 5: loglikelihood = -1397.8807416471927, backtracks = 0, tol = 1.674491
 result = 
 IHT estimated 7 nonzero SNP predictors and 2 non-genetic predictors.
 
-Compute time (sec):     0.3655970096588135
+Compute time (sec):     0.7361938953399658
 Final loglikelihood:    -1397.8807416471927
 SNP PVE:                0.834374956294435
 Iterations:             5
@@ -128,39 +128,6 @@ Selected nongenetic predictors:
 2×2 DataFrame
  Row │ Position  Estimated_β
      │ Int64     Float64
-─────┼───────────────────────
-   1 │        1     1.65223
-   2 │        2     0.749866
-
-
-
-
-
-
-IHT estimated 7 nonzero SNP predictors and 2 non-genetic predictors.
-
-Compute time (sec):     0.3655970096588135
-Final loglikelihood:    -1397.8807416471927
-SNP PVE:                0.834374956294435
-Iterations:             5
-
-Selected genetic predictors:
-[1m7×2 DataFrame[0m
-[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
-[1m     [0m│[90m Int64    [0m[90m Float64     [0m
-─────┼───────────────────────
-   1 │     3137     0.424377
-   2 │     4246     0.52343
-   3 │     4717     0.922857
-   4 │     6290    -0.677832
-   5 │     7755    -0.542981
-   6 │     8375    -0.792815
-   7 │     9415    -2.17998
-
-Selected nongenetic predictors:
-[1m2×2 DataFrame[0m
-[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
-[1m     [0m│[90m Int64    [0m[90m Float64     [0m
 ─────┼───────────────────────
    1 │        1     1.65223
    2 │        2     0.749866</code></pre><h3 id="Step-3:-Examine-results"><a class="docs-heading-anchor" href="#Step-3:-Examine-results">Step 3: Examine results</a><a id="Step-3:-Examine-results-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-Examine-results" title="Permalink"></a></h3><p>IHT picked 7 SNPs and 2 non-genetic predictors: intercept and sex. The <code>Position</code> argument corresponds to the order in which the SNP appeared in the PLINK file, and the <code>Estimated_β</code> argument is the estimated effect size for the selected SNPs. To extract more information (for instance to extract <code>rs</code> IDs), we can do</p><pre><code class="language-julia">snpdata = SnpData(&quot;normal&quot;)                   # import PLINK information
@@ -215,7 +182,7 @@ make_bim_fam_files(x, y, &quot;sim&quot;)
 
 #save covariates and phenotypes (without header)
 writedlm(&quot;sim.covariates.txt&quot;, z, &#39;,&#39;)
-writedlm(&quot;sim.phenotypes.txt&quot;, y)</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Please <strong>standardize</strong> (or at least center) your non-genetic covariates. If you use our <code>iht()</code> or <code>cross_validation()</code> functions, standardization is automatic. For genotype matrix, <code>SnpLinAlg</code> efficiently achieves this standardization. For non-genetic covariates, please use the built-in function <code>standardize!</code>. </p></div></div><h2 id="Example-3:-Logistic/Poisson/Negative-binomial-GWAS"><a class="docs-heading-anchor" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS">Example 3: Logistic/Poisson/Negative-binomial GWAS</a><a id="Example-3:-Logistic/Poisson/Negative-binomial-GWAS-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS" title="Permalink"></a></h2><p>In Example 2, we simulated binary phenotypes, genotypes, non-genetic covariates, and we know true <span>$k = 10$</span>. Let&#39;s try running a logistic regression (i.e. phenotype follows the Bernoulli distribution) on this data. </p><pre><code class="language-julia">result = iht(&quot;sim&quot;, 10, Bernoulli, covariates=&quot;sim.covariates.txt&quot;)</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.4.0                  ****
+writedlm(&quot;sim.phenotypes.txt&quot;, y)</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Please <strong>standardize</strong> (or at least center) your non-genetic covariates. If you use our <code>iht()</code> or <code>cross_validation()</code> functions, standardization is automatic. For genotype matrix, <code>SnpLinAlg</code> efficiently achieves this standardization. For non-genetic covariates, please use the built-in function <code>standardize!</code>. </p></div></div><h2 id="Example-3:-Logistic/Poisson/Negative-binomial-GWAS"><a class="docs-heading-anchor" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS">Example 3: Logistic/Poisson/Negative-binomial GWAS</a><a id="Example-3:-Logistic/Poisson/Negative-binomial-GWAS-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS" title="Permalink"></a></h2><p>In Example 2, we simulated binary phenotypes, genotypes, non-genetic covariates, and we know true <span>$k = 10$</span>. Let&#39;s try running a logistic regression (i.e. phenotype follows the Bernoulli distribution) on this data. </p><pre><code class="language-julia">result = iht(&quot;sim&quot;, 10, Bernoulli, covariates=&quot;sim.covariates.txt&quot;);</code></pre><pre><code class="language-none">****                   MendelIHT Version 1.4.0                  ****
 ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
 ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
 ****                                                            ****
@@ -276,7 +243,7 @@ Iteration 42: loglikelihood = -331.6518739156732, backtracks = 3, tol = 9.734617
 result = 
 IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
 
-Compute time (sec):     2.5963549613952637
+Compute time (sec):     4.042757987976074
 Final loglikelihood:    -331.6518739156732
 SNP PVE:                0.4798854810844273
 Iterations:             42
@@ -299,40 +266,6 @@ Selected nongenetic predictors:
 2×2 DataFrame
  Row │ Position  Estimated_β
      │ Int64     Float64
-─────┼───────────────────────
-   1 │        1      1.03892
-   2 │        2      1.5844
-
-
-
-
-
-
-IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
-
-Compute time (sec):     2.5963549613952637
-Final loglikelihood:    -331.6518739156732
-SNP PVE:                0.4798854810844273
-Iterations:             42
-
-Selected genetic predictors:
-[1m8×2 DataFrame[0m
-[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
-[1m     [0m│[90m Int64    [0m[90m Float64     [0m
-─────┼───────────────────────
-   1 │     3137     0.503252
-   2 │     4246     0.590809
-   3 │     4248    -0.37987
-   4 │     4717     1.04006
-   5 │     6290    -0.741734
-   6 │     7755    -0.437585
-   7 │     8375    -0.942293
-   8 │     9415    -2.11206
-
-Selected nongenetic predictors:
-[1m2×2 DataFrame[0m
-[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
-[1m     [0m│[90m Int64    [0m[90m Float64     [0m
 ─────┼───────────────────────
    1 │        1      1.03892
    2 │        2      1.5844</code></pre><p>Since data is simulated, we can compare IHT&#39;s estimated effect size with the truth. </p><pre><code class="language-julia">[true_b[correct_position] result.beta[correct_position]]</code></pre><pre><code class="language-none">8×2 Array{Float64,2}:
@@ -373,7 +306,7 @@ prob = GLM.linkinv.(l, intercept .+ x * true_b)
 clamp!(prob, -20, 20) # prevents overflow
 y = [rand(d(i)) for i in prob]
 y = Float64.(y); # convert phenotypes to double precision</code></pre><p>Now we have the response <span>$y$</span>, design matrix <span>$x$</span>. Let&#39;s run IHT and compare with truth.</p><pre><code class="language-julia"># first run cross validation 
-mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());</code></pre><pre><code class="language-none">[32mCross validating...100%|████████████████████████████████| Time: 0:00:12[39m
+mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());</code></pre><pre><code class="language-none">[32mCross validating...100%|████████████████████████████████| Time: 0:00:13[39m
 
 
 
@@ -446,7 +379,7 @@ Iteration 21: loglikelihood = -2335.176167840737, backtracks = 0, tol = 8.565816
 
 IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
 
-Compute time (sec):     0.11967015266418457
+Compute time (sec):     0.12793207168579102
 Final loglikelihood:    -2335.176167840737
 SNP PVE:                0.09113449276174615
 Iterations:             21
@@ -622,4 +555,4 @@ rm(&quot;tmp.bed&quot;, force=true)</code></pre><pre><code class="language-none"
    7 │     6378  -0.0155173    0.0        0.0
    8 │     7007  -0.123301     0.0        0.0
    9 │     7063   0.0183886    0.0        0.0
-  10 │     7995  -0.102122     0.0       -0.142201</code></pre><p><strong>Conclusion</strong>: weighted IHT found 2 extra predictor than non-weighted IHT.</p><h2 id="Other-examples-and-functionalities"><a class="docs-heading-anchor" href="#Other-examples-and-functionalities">Other examples and functionalities</a><a id="Other-examples-and-functionalities-1"></a><a class="docs-heading-anchor-permalink" href="#Other-examples-and-functionalities" title="Permalink"></a></h2><p>Additional features are available as optional parameters in the <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L37">fit_iht</a> function, but they should be treated as <strong>experimental</strong> features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting_started/">« Getting Started</a><a class="docs-footer-nextpage" href="../math/">Mathematical Details »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 4 April 2021 20:13">Sunday 4 April 2021</span>. Using Julia version 1.5.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  10 │     7995  -0.102122     0.0       -0.142201</code></pre><p><strong>Conclusion</strong>: weighted IHT found 2 extra predictor than non-weighted IHT.</p><h2 id="Other-examples-and-functionalities"><a class="docs-heading-anchor" href="#Other-examples-and-functionalities">Other examples and functionalities</a><a id="Other-examples-and-functionalities-1"></a><a class="docs-heading-anchor-permalink" href="#Other-examples-and-functionalities" title="Permalink"></a></h2><p>Additional features are available as optional parameters in the <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L37">fit_iht</a> function, but they should be treated as <strong>experimental</strong> features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting_started/">« Getting Started</a><a class="docs-footer-nextpage" href="../math/">Mathematical Details »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 7 April 2021 07:33">Wednesday 7 April 2021</span>. Using Julia version 1.5.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
