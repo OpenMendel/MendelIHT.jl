@@ -1,5 +1,7 @@
 """
-    fit_iht(y, x, z; kwargs...)
+    fit_iht(y, x, z; k=10, J=1, d = Normal(), l=IdentityLink(), group=Int[], 
+        weight=Float64[], est_r=:None, debias=false, verbose=true, tol=1e-4,
+        max_iter=200, max_step=5, io=stdout)
 
 Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
 and non-genetic covariates `z` on a specific sparsity parameter `k`. If `k` is 
@@ -23,9 +25,13 @@ of predictors for group `i`.
 # Optional Arguments:
 + `k`: Number of non-zero predictors. Can be a constant or a vector (for group IHT). 
 + `J`: The number of maximum groups (set as 1 if no group infomation available)
-+ `d`: Distribution of your phenotype (e.g. Normal, Bernoulli)
-+ `l`: A link function (e.g. IdentityLink, LogitLink, ProbitLink)
-+ `group`: vector storing group membership
++ `d`: Distribution of phenotypes. Specify `Normal()` for quantitative traits,
+    `Bernoulli()` for binary traits, `Poisson()` or `NegativeBinomial()` for
+    count traits, and `MvNormal()` for multiple quantitative traits. 
++ `l`: A link function. The recommended link functions are `l=IdentityLink()` for
+    quantitative traits, `l=LogitLink()` for binary traits, `l=LogLink()` for Poisson
+    distribution, and `l=Loglink()` for NegativeBinomial distribution. 
++ `group`: vector storing (non-overlapping) group membership
 + `weight`: vector storing vector of weights containing prior knowledge on each SNP
 + `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
 + `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)

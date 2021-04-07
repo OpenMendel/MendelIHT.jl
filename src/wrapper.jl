@@ -1,7 +1,8 @@
 # TODO: VCF read
 
 """
-    iht(plinkfile, k, d, ...)
+    iht(plinkfile, k, d, phenotypes=6, covariates="", summaryfile="iht.summary.txt",
+        betafile="iht.beta.txt", kwargs...)
 
 Runs IHT with sparsity level `k`. 
 
@@ -178,7 +179,7 @@ columns 2 and beyond will be normalized to mean 0 variance 1.
 """
 function parse_covariates(x::AbstractString; standardize::Bool=true)
     z = readdlm(x, ',', Float64)
-    standardize!(@view(z[:, 2:end]))
+    standardize && standardize!(@view(z[:, 2:end]))
     return z
 end
 
@@ -187,10 +188,11 @@ function phenotype_is_missing(s::AbstractString)
 end
 
 """
-    cross_validate(plinkfile, d, ...)
+    cross_validate(plinkfile, d, path=1:20, phenotypes=6, covariates="", 
+        cv_summaryfile="cviht.summary.txt", q=5, kwargs...)
 
 Runs cross-validation to determinal optimal sparsity level `k`. Sparsity levels
-is specified in `path. 
+is specified in `path`. 
 
 # Arguments
 - `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
@@ -199,6 +201,8 @@ is specified in `path.
     count traits, and `MvNormal` for multiple quantitative traits. 
 
 # Optional Arguments
+- `path`: Different values of `k` that should be tested. One can input a vector of 
+    `Int` (e.g. `path=[5, 10, 15, 20]`) or a range (default `path=1:20`).
 - `phenotypes`: Phenotype file name (`String`), an integer, or vector of integer. Integer(s)
     coresponds to the column(s) of `.fam` file that stores phenotypes (default 6). 
     We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
@@ -215,7 +219,6 @@ is specified in `path.
     intercept. All other columns will be standardized to mean 0 variance 1. 
 - `cv_summaryfile`: Output file name for saving IHT's cross validation summary statistics.
     Default `cv_summaryfile="cviht.summary.txt"`.
-- `path`: Different values of `k` that should be tested. Default `path=1:20`
 - `q`: Number of cross validation folds. Larger means more accurate and more computationally
     intensive. Should be larger 2 and smaller than 10. Default `q=5`. 
 - All optional arguments available in [`cv_iht`](@ref)
@@ -223,10 +226,10 @@ is specified in `path.
 function cross_validate(
     plinkfile::AbstractString,
     d::UnionAll;
+    path::AbstractVector{<:Integer} = 1:20,
     phenotypes::Union{AbstractString, Int, AbstractVector{Int}} = 6,
     covariates::AbstractString = "",
     cv_summaryfile::AbstractString = "cviht.summary.txt",
-    path::AbstractVector{<:Integer} = 1:20,
     q::Int = 5,
     kwargs...
     )

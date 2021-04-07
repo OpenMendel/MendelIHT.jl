@@ -1,5 +1,8 @@
 """
-    cv_iht(y, x, z; kwargs...)
+    cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), est_r=:None,
+        group=Int[], weight=Float64[], folds=rand(1:q, is_multivariate(y) ?
+        size(x, 2) : size(x, 1)), use_maf=false, debias=false, verbose=true,
+        parallel=true, max_iter=100)
 
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. 
@@ -7,8 +10,7 @@ returns the (averaged) deviance residuals.
 The purpose of this function is to find the best sparsity level `k`, obtained
 from selecting the model with the minimum out-of-sample error. Different cross
 validation folds are cycled through sequentially different `paths` are fitted
-in parallel on different CPUs. Currently there are no routines to cross validate
-different group sizes. 
+in parallel on different CPUs. 
 
 # Arguments:
 + `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or
@@ -24,19 +26,26 @@ different group sizes.
     the first column (row) is all 1s to represent the intercept. 
 
 # Optional Arguments: 
-- `path`: Different model sizes to be tested in cross validation (default 1:20)
-- `q`: Number of cross validation folds. (default 5)
-- `d`: Distribution of your phenotype. (default Normal)
-- `l`: A link function (default IdentityLink)
-- `est_r`: Symbol for whether to estimate nuisance parameters. Only supported distribution is negative binomial and choices include :Newton or :MM.
+- `path`: Different values of `k` that should be tested. One can input a vector of 
+    `Int` (e.g. `path=[5, 10, 15, 20]`) or a range (default `path=1:20`).
+- `q`: Number of cross validation folds. Larger means more accurate and more computationally
+    intensive. Should be larger 2 and smaller than 10. Default `q=5`.
+- `d`: Distribution of phenotypes. Specify `Normal()` for quantitative traits,
+    `Bernoulli()` for binary traits, `Poisson()` or `NegativeBinomial()` for
+    count traits, and `MvNormal()` for multiple quantitative traits. 
+- `l`: A link function. The recommended link functions are `l=IdentityLink()` for
+    quantitative traits, `l=LogitLink()` for binary traits, `l=LogLink()` for Poisson
+    distribution, and `l=Loglink()` for NegativeBinomial distribution. 
+- `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
 - `group`: vector storing group membership for each predictor
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
-- `folds`: Vector that separates the sample into q disjoint subsets
-- `destin`: Directory where intermediate files will be generated. Directory name must end with `/`.
+- `folds`: Vector that separates the sample into `q` disjoint subsets
 - `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
 - `debias`: Boolean indicating whether we should debias at each IHT step
 - `verbose`: Whether we want IHT to print meaningful intermediate steps
-- `parallel`: Whether we want to run cv_iht using multiple CPUs (highly recommended)
+- `parallel`: Whether we want to run `cv_iht` using multiple CPUs (note one must
+    call `using Distributed; addprocs(4)` and set `parallel=true` for this function
+    to truely use 4 CPUs.)
 """
 function cv_iht(
     y        :: AbstractVecOrMat{T},
@@ -50,7 +59,6 @@ function cv_iht(
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
-    destin   :: String = "./",
     use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
