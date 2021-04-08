@@ -191,8 +191,8 @@ end
     cross_validate(plinkfile, d, path=1:20, phenotypes=6, covariates="", 
         cv_summaryfile="cviht.summary.txt", q=5, kwargs...)
 
-Runs cross-validation to determinal optimal sparsity level `k`. Sparsity levels
-is specified in `path`. 
+Runs cross-validation to determinal optimal sparsity level `k`. Different
+sparsity levels are specified in `path`. 
 
 # Arguments
 - `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
