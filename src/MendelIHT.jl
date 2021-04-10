@@ -25,7 +25,7 @@ module MendelIHT
     export loglikelihood, deviance, score!, mle_for_r
     export project_k!, project_group_sparse!
     export IHTVariable, make_snparray, standardize!, maf_weights
-    export save_prev!, naive_impute
+    export save_prev!, naive_impute, initialize_beta
     export simulate_random_snparray, simulate_correlated_snparray
     export make_bim_fam_files, simulate_random_response, adhoc_add_correlation
     export random_covariance_matrix

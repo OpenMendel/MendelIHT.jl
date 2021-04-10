@@ -171,11 +171,11 @@ function fit_iht!(
         end
 
         # track convergence
-        # Note: estimated beta in iter 1 can be very small, so scaled_norm is very small
-        # Thus we force IHT to iterate at least 2 times
+        # Note: estimated beta in first few iterations can be very small, so scaled_norm is very small
+        # Thus we force IHT to iterate at least 5 times
         scaled_norm = check_convergence(v)
         verbose && println("Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm")
-        if iter ≥ 10 && scaled_norm < tol
+        if iter ≥ 5 && scaled_norm < tol
             best_logl = save_prev!(v, next_logl, best_logl)
             save_best_model!(v)
             tot_time = time() - start_time

@@ -113,19 +113,19 @@ end
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     J::Int, k::Union{Int, Vector{Int}}, d::Distribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    initialize_beta;
+    initialize_beta::Bool;
     cv_train_idx=trues(is_multivariate(y) ? size(x, 2) : size(x, 1)),
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k, cv_train_idx, initialize_beta)
+        v = mIHTVariable(x, z, y, k, initialize_beta, cv_train_idx)
     else
         v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, 
             initialize_beta, cv_train_idx)
     end
 
     # initialize non-zero indices
-    MendelIHT.init_iht_indices!(v)
+    MendelIHT.init_iht_indices!(v, initialize_beta)
 
     return v
 end
@@ -172,7 +172,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
-    k::Int, cv_train_idx::BitVector=trues(size(x, 2))
+    k::Int, init_beta::Bool, cv_train_idx::BitVector=trues(size(x, 2))
     ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 2) # number of samples 
@@ -184,7 +184,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
         throw(DimensionMismatch("number of samples in y, x, and z = $(size(y, 2)), $n, $(size(z, 2)) are not equal"))
     end
 
-    B      = zeros(T, r, p)
+    B      = init_beta ? initialize_beta(y, x) : zeros(T, r, p)
     B0     = zeros(T, r, p)
     best_B = zeros(T, r, p)
     BX     = zeros(T, r, n)

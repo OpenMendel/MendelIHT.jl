@@ -280,12 +280,14 @@ end
 """
 When initializing the IHT algorithm, take largest elements in magnitude of each
 group of the score as nonzero components of b. This function set v.idx = 1 for
-those indices. 
+those indices. If `initialized_beta=true`, then beta values were all initialized to
+their univariate values (see [`initialize_beta`](@ref)), in which case we will simply
+choose top `k` entries
 
 `J` is the maximum number of active groups, and `k` is the maximum number of
 predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable)
+function init_iht_indices!(v::IHTVariable, initialized_beta::Bool)
     z = v.z
     y = v.y
     l = v.l
@@ -311,24 +313,28 @@ function init_iht_indices!(v::IHTVariable)
     update_μ!(v)
     score!(v)
 
-    # first `k` non-zero entries are chosen based on largest gradient
-    ldf = length(v.df)
-    v.full_b[1:ldf] .= v.df
-    v.full_b[ldf+1:end] .= v.df2
-    if length(v.ks) == 0 # no group projection
-        a = partialsort(v.full_b, k * J, by=abs, rev=true)
-        v.idx .= abs.(v.df) .>= abs(a)
-        v.idc .= abs.(v.df2) .>= abs(a)
+    if initialized_beta && v.k > 0
+        project_k!(v)
+    else
+        # first `k` non-zero entries are chosen based on largest gradient
+        ldf = length(v.df)
+        v.full_b[1:ldf] .= v.df
+        v.full_b[ldf+1:end] .= v.df2
+        if length(v.ks) == 0 # no group projection
+            a = partialsort(v.full_b, k * J, by=abs, rev=true)
+            v.idx .= abs.(v.df) .>= abs(a)
+            v.idc .= abs.(v.df2) .>= abs(a)
 
-        # Choose randomly if more are selected
-        _choose!(v) 
-    else 
-        project_group_sparse!(v.full_b, group, J, v.ks)
-        @inbounds for i in 1:ldf
-            v.full_b[i] != 0 && (v.idx[i] = true)
-        end
-        @inbounds for i in 1:length(v.idc)
-            v.full_b[ldf+i] != 0 && (v.idc[i] = true)
+            # Choose randomly if more are selected
+            _choose!(v) 
+        else 
+            project_group_sparse!(v.full_b, group, J, v.ks)
+            @inbounds for i in 1:ldf
+                v.full_b[i] != 0 && (v.idx[i] = true)
+            end
+            @inbounds for i in 1:length(v.idc)
+                v.full_b[ldf+i] != 0 && (v.idc[i] = true)
+            end
         end
     end
 
@@ -454,6 +460,24 @@ function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
     @inbounds for i in eachindex(x)
         abs(x[i]) < a && (x[i] = zero(T))
     end
+end
+
+function project_k!(v::IHTVariable)
+    full_grad = v.full_b
+    lb = length(v.b)
+    lf = length(full_grad)
+    v.k ≤ 0 && error("Attempted to project to sparsity level $k")
+
+    # copy genetic and non-genetic effects to full_grad, project, and copy back
+    copyto!(@view(full_grad[1:lb]), v.b)
+    copyto!(@view(full_grad[lb+1:lf]), v.c)
+    project_k!(full_grad, v.k)
+    copyto!(v.b, @view(full_grad[1:lb]))
+    copyto!(v.c, @view(full_grad[lb+1:lf]))
+
+    # update support
+    v.idx .= v.b .!= 0
+    v.idc .= v.c .!= 0
 end
 
 """ 
@@ -645,7 +669,7 @@ function initialize_beta(y::AbstractVector{T}, x::AbstractMatrix{T}) where T <: 
     xtx_store = zeros(T, 2, 2)
     xty_store = zeros(T, 2)
     β = zeros(p)
-    for i in 1:p
+    @inbounds for i in 1:p
         linreg!(@view(x[:, i]), y, xtx_store, xty_store)
         β[i] = xty_store[2]
     end

@@ -330,7 +330,7 @@ When initializing the IHT algorithm, take `k` largest elements in magnitude of
 the score as nonzero components of b. This function set v.idx = 1 for
 those indices. 
 """
-function init_iht_indices!(v::mIHTVariable)
+function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
     # initialize intercept to mean of each trait
     nz_samples = count(!iszero, v.cv_wts) # for cross validation masking
     for i in 1:ntraits(v)
@@ -346,14 +346,24 @@ function init_iht_indices!(v::mIHTVariable)
     update_μ!(v)
     score!(v)
 
-    # first `k` non-zero entries in each β are chosen based on largest gradient
-    vectorize!(v.full_b, v.df, v.df2)
-    project_k!(v.full_b, v.k)
-    unvectorize!(v.full_b, v.df, v.df2)
+    if initialized_beta
+        vectorize!(v.full_b, v.B, v.C)
+        project_k!(v.full_b, 5 * v.k)
+        unvectorize!(v.full_b, v.B, v.C)
 
-    # compute support based on largest gradient
-    update_support!(v.idx, v.df)
-    update_support!(v.idc, v.df2)
+        # compute support based on largest gradient
+        update_support!(v.idx, v.B)
+        update_support!(v.idc, v.C)
+    else
+        # first `k` non-zero entries in each β are chosen based on largest gradient
+        vectorize!(v.full_b, v.df, v.df2)
+        project_k!(v.full_b, v.k)
+        unvectorize!(v.full_b, v.df, v.df2)
+
+        # compute support based on largest gradient
+        update_support!(v.idx, v.df)
+        update_support!(v.idc, v.df2)
+    end
 
     # make necessary resizing when necessary
     check_covariate_supp!(v)
@@ -403,4 +413,39 @@ function save_best_model!(v::mIHTVariable)
 
     # update estimated mean μ with genotype predictors
     update_μ!(v) 
+end
+
+function save_last_model!(v::mIHTVariable)
+    # compute η = BX with the estimated model from last IHT iteration
+    update_support!(v.idx, v.B)
+    update_support!(v.idc, v.C)
+    check_covariate_supp!(v)
+    update_xb!(v)
+
+    # update estimated mean μ with genotype predictors
+    update_μ!(v)
+end
+
+"""
+    initialize_beta(y::AbstractMatrix, x::AbstractMatrix{T})
+
+Initialze beta to univariate regression values. That is, `β[i, j]` is set to the estimated
+beta with `y[` as response, and `x[:, i]` with an intercept term as covariate.
+
+Note: this function assumes quantitative (Gaussian) phenotypes. 
+"""
+function initialize_beta(y::AbstractMatrix{T}, x::AbstractMatrix{T}) where T <: Float
+    p, n = size(x)
+    r = size(y, 1) # number of traits
+    xtx_store = zeros(T, 2, 2)
+    xty_store = zeros(T, 2)
+    B = zeros(r, p)
+    for j in 1:r # loop over each y
+        yj = @view(y[j, :])
+        for i in 1:p
+            linreg!(@view(x[i, :]), yj, xtx_store, xty_store)
+            B[j, i] = xty_store[2]
+        end
+    end
+    return B
 end

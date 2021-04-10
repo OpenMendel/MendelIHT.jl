@@ -3,7 +3,7 @@ function test_data(d, l)
     xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
     z = ones(1000, 1)
     y = rand(1000)
-    v = IHTVariable(xla, z, y, 1, 10, d, l, Int[], Float64[], :none)
+    v = IHTVariable(xla, z, y, 1, 10, d, l, Int[], Float64[], :none, false)
 
     return x, z, y, v
 end
@@ -11,7 +11,7 @@ end
 function make_IHTvar(d, μ, y)
     n = length(μ)
     v = IHTVariable(rand(n, 1), rand(n, 1), y, 1, 10, d, IdentityLink(),
-        Int[], Float64[], :none) 
+        Int[], Float64[], :none, false)
     v.μ = μ
     return v
 end
@@ -338,7 +338,7 @@ end
 @testset "initialze beta" begin
     # general matrices
     Random.seed!(2021)
-    n = 1000
+    n = 10000
     p = 10
     x = randn(n, p)
     βtrue = randn(p)

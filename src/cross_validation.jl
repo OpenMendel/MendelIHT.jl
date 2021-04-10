@@ -46,6 +46,8 @@ in parallel on different CPUs.
 - `parallel`: Whether we want to run `cv_iht` using multiple CPUs (note one must
     call `using Distributed; addprocs(4)` and set `parallel=true` for this function
     to truely use 4 CPUs.)
+- `init_beta`: Whether to initialize beta values to univariate regression values. 
+    Currently only Gaussian traits can be initialized. Default `false`. 
 """
 function cv_iht(
     y        :: AbstractVecOrMat{T},
@@ -63,7 +65,8 @@ function cv_iht(
     debias   :: Bool = false,
     verbose  :: Bool = true,
     parallel :: Bool = true,
-    max_iter :: Int = 100
+    max_iter :: Int = 100,
+    init_beta :: Bool = false
     ) where T <: Float
 
     typeof(x) <: AbstractSnpArray && error("x is a SnpArray! Please convert it to a SnpLinAlg first!")
@@ -87,7 +90,8 @@ function cv_iht(
         # test different k
         mses[:, fold] = (parallel ? pmap : map)(path) do k
             # run IHT on training data with current k
-            v = initialize(x, z, y, 1, k, d, l, group, weight, est_r, cv_train_idx=train_idx)
+            v = initialize(x, z, y, 1, k, d, l, group, weight, est_r, init_beta,
+                cv_train_idx=train_idx)
             result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
 
             # predict on validation data

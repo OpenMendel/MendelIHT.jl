@@ -19,7 +19,7 @@ function make_mIHTvar(r) # r = number of traits
     # everything is transposed for multivariate analysis!
     Yt = Matrix(Y')
     Zt = Matrix(z')
-    v = MendelIHT.mIHTVariable(Transpose(xla), Zt, Yt, k)
+    v = MendelIHT.mIHTVariable(Transpose(xla), Zt, Yt, k, false)
 
     return v, Transpose(xla), Yt, Zt, k
 end
@@ -53,7 +53,7 @@ end
 
     # r = 2 traits
     v, xla, Yt, Zt, k = make_mIHTvar(2)
-    MendelIHT.init_iht_indices!(v)
+    MendelIHT.init_iht_indices!(v, false)
     @btime MendelIHT.score!($v)           # 120.270 ms (7 allocations: 352 bytes) -> this step takes so long other functions doesn't really matter
     @btime MendelIHT.loglikelihood($v)    # 3.377 μs (2 allocations: 208 bytes)
     @btime MendelIHT.update_xb!($v)       # 187.489 μs (8 allocations: 656 bytes)
@@ -67,7 +67,7 @@ end
 
     # r = 10 traits
     v, xla, Yt, Zt, k = make_mIHTvar(10)
-    MendelIHT.init_iht_indices!(v)
+    MendelIHT.init_iht_indices!(v, false)
     @btime MendelIHT.score!($v)           # 165.774 ms (7 allocations: 352 bytes) -> this step takes so long other functions doesn't really matter
     @btime MendelIHT.loglikelihood($v)    # 12.208 μs (2 allocations: 1.03 KiB)
     @btime MendelIHT.update_xb!($v)       # 219.192 μs (8 allocations: 656 bytes)
@@ -78,4 +78,32 @@ end
     @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C)) # 23.712 μs (0 allocations: 0 bytes)
     @btime MendelIHT.unvectorize!($(v.full_b), $(v.B), $(v.C)) # 23.761 μs (0 allocations: 0 bytes)
     @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 50.047 μs (0 allocations: 0 bytes)
+end
+
+@testset "initialze beta" begin
+    # SnpLinAlg
+    n = 1000  # number of samples
+    p = 10000 # number of SNPs
+    k = 10    # number of causal SNPs
+    r = 2     # number of traits
+    
+    # set random seed for reproducibility
+    Random.seed!(2021)
+    
+    # simulate `.bed` file with no missing data
+    x = simulate_random_snparray("multivariate_$(r)traits.bed", n, p)
+    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+    
+    # intercept is the only nongenetic covariate
+    z = ones(n, 1)
+    intercepts = [10.0 1.0] # each trait have different intercept
+    
+    # simulate response y, true model b, and the correct non-0 positions of b
+    Y, true_Σ, true_b, correct_position = simulate_random_response(xla, k, r, Zu=z*intercepts, overlap=2)
+    correct_snps = [x[1] for x in correct_position] # causal snps
+    Yt = Matrix(Y'); # in MendelIHT, multivariate traits should be rows
+
+    Binit = initialize_beta(Yt, Transpose(xla))
+    @test all(true_b[correct_snps, 1] - Binit[1, correct_snps] .< 0.15)
+    @test all(true_b[correct_snps, 2] - Binit[2, correct_snps] .< 0.15)
 end
