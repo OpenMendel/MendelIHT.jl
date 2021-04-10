@@ -128,7 +128,7 @@ function mle_for_r(v::IHTVariable{T, M}) where {T <: Float, M}
     elseif method == :Newton
         return update_r_newton(v)
     else
-        error("Only support method is Newton or MM, but got $method")
+        throw(ArgumentError("Only support method is Newton or MM, but got $method"))
     end
 
     return nothing
@@ -466,7 +466,7 @@ function project_k!(v::IHTVariable)
     full_grad = v.full_b
     lb = length(v.b)
     lf = length(full_grad)
-    v.k ≤ 0 && error("Attempted to project to sparsity level $k")
+    v.k ≤ 0 && throw(DomainError("Attempted to project to sparsity level $k"))
 
     # copy genetic and non-genetic effects to full_grad, project, and copy back
     copyto!(@view(full_grad[1:lb]), v.b)
@@ -762,10 +762,13 @@ end
 # small function to check sparsity parameter `k` is reasonable. 
 function check_group(k, group)
     if typeof(k) <: Vector 
-        @assert length(group) > 1 "Doubly sparse projection specified (since k is a vector) but there are no group information." 
+        @assert length(group) > 1 "Doubly sparse projection specified (since k" * 
+            " is a vector) but there are no group information."
         for i in 1:length(k)
             group_member = count(x -> x == i, group)
-            group_member > k[i] || error("Maximum predictors for group $i was $(k[i]) but there are only $group_member predictors is this group. Please choose a smaller number.")
+            group_member > k[i] || throw(DomainError("Maximum predictors for group " * 
+                "$i was $(k[i]) but there are only $group_member predictors is this " * 
+                "group. Please choose a smaller number."))
         end
     else
         @assert k >= 0 "Value of k (max predictors per group) must be nonnegative!\n"
@@ -832,18 +835,18 @@ function check_data_dim(y::AbstractVecOrMat, x::AbstractMatrix, z::AbstractVecOr
         r, n1 = size(y)
         p, n2 = size(x)
         q, n3 = size(z)
-        n1 == n2 == n3 || error("Detected multivariate analysis but size(y, 2)" *
-            " = $n1, size(x, 2) = $n2, size(z, 2) = $n3 which don't match. " * 
-            "Recall each column of `y`, `x`, `z` should be sample " * 
-            "phenotypes/genotypes/covariates.")
+        n1 == n2 == n3 || throw(DimensionMismatch("Detected multivariate analysis" *
+            " but size(y, 2) = $n1, size(x, 2) = $n2, size(z, 2) = $n3 which don't " * 
+            "match. Recall each column of `y`, `x`, `z` should be sample " * 
+            "phenotypes/genotypes/covariates."))
     else
         n1 = length(y)
         n2, p = size(x)
         n3, = size(z)
-        n1 == n2 == n3 || error("Detected univariate analysis but length(y)" *
-        " = $n1, size(x, 1) = $n2, size(z, 1) = $n3 which don't match. " * 
+        n1 == n2 == n3 || throw(DimensionMismatch("Detected univariate analysis " *
+        "but length(y) = $n1, size(x, 1) = $n2, size(z, 1) = $n3 which don't match. " * 
         "Recall each `y` should be a vector of phenotypes, and each row of `x`" * 
-        " and `z` should be sample genotypes/covariates.")
+        " and `z` should be sample genotypes/covariates."))
     end
 end
 

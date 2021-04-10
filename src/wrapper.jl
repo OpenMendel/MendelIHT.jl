@@ -155,9 +155,9 @@ function parse_phenotypes(x::SnpData, col::Int, ::UnivariateDistribution)
     # missing phenotypes NOT allowed for binary/count phenotypes
     for i in 1:n
         if phenotype_is_missing(x.person_info[i, col])
-            error("Missing phenotype detected for sample $i. Automatic phenotype " * 
-                "imputation are only possible for quantitative traits. Please " * 
-                "exclude them or impute phenotypes first. ")
+            throw(MissingException("Missing phenotype detected for sample $i. Automatic " * 
+                "phenotype imputation are only possible for quantitative traits. " * 
+                "Please exclude missing phenotypes or impute them first."))
         else
             y[i] = parse(Float64, x.person_info[i, col])
         end

@@ -94,7 +94,7 @@ function _make_snparray(s::Union{String, UndefInitializer}, A1::BitArray, A2::Bi
         elseif c == 2
             x[i] = 0x03
         else
-            throw(error("matrix shouldn't have missing values!"))
+            throw(MissingException("matrix shouldn't have missing values!"))
         end
     end
     return x
@@ -180,7 +180,7 @@ function _copy_blocks!(x::SnpArray, row, snps, cur_block, block_length)
         elseif c == 2
             x[row, col] = 0x03
         else
-            throw(error("SNP values should be 0, 1, or 2 but was $c"))
+            throw(ArgumentError("SNP values should be 0, 1, or 2 but was $c"))
         end
     end
 end
@@ -267,7 +267,7 @@ function simulate_random_response(x::AbstractMatrix, k::Int, traits::Int;
     Zu::AbstractMatrix = zeros(size(x, 1), traits), overlap::Int = 0
     )
     n, p = size(x)
-    traits * overlap ≤ k || error("traits * overlap cannot exceed k!")
+    traits * overlap ≤ k || throw(ArgumentError("traits * overlap cannot exceed k!"))
 
     #simulate a random model β. Each trait can have different number of causal SNPs
     true_b = zeros(p, traits)

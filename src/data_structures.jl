@@ -79,7 +79,7 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     end
 
     init_beta && !(typeof(d) <: Normal) && 
-        error("Intializing beta values only work for Gaussian phenotypes! Sorry!")
+        throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
 
     b      = init_beta ? initialize_beta(y, x) : zeros(T, p)
     b0     = zeros(T, p)

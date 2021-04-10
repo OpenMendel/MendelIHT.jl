@@ -69,7 +69,7 @@ function cv_iht(
     init_beta :: Bool = false
     ) where T <: Float
 
-    typeof(x) <: AbstractSnpArray && error("x is a SnpArray! Please convert it to a SnpLinAlg first!")
+    typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
     check_data_dim(y, x, z)
 
     # preallocate mean squared error matrix
