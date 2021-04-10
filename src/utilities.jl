@@ -632,29 +632,51 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     return η :: T
 end
 
-# """
-#     initialize_beta!(v::IHTVariable, y::AbstractVector, x::AbstractMatrix{T}, d::UnivariateDistribution, l::Link)
+"""
+    initialize_beta(y::AbstractVector, x::AbstractMatrix{T})
 
-# Fits a univariate regression (+ intercept) with each β_i corresponding to `x`'s predictor.
+Initialze beta to univariate regression values. That is, `β[i]` is set to the estimated
+beta with `y` as response, and `x[:, i]` with an intercept term as covariate.
 
-# Used to find a good starting β. Fitting is done using scoring (newton) algorithm 
-# implemented in `GLM.jl`. The intial intercept is separately fitted using in init_iht_indices(). 
+Note: this function assumes quantitative (Gaussian) phenotypes. 
+"""
+function initialize_beta(y::AbstractVector{T}, x::AbstractMatrix{T}) where T <: Float
+    n, p = size(x)
+    xtx_store = zeros(T, 2, 2)
+    xty_store = zeros(T, 2)
+    β = zeros(p)
+    for i in 1:p
+        linreg!(@view(x[:, i]), y, xtx_store, xty_store)
+        β[i] = xty_store[2]
+    end
+    return β
+end
 
-# Note: this function is quite slow and not memory efficient. 
-# """
-# function initialize_beta!(v::IHTVariable{T}, y::AbstractVector{T}, x::AbstractMatrix{T},
-#                           d::UnivariateDistribution, l::Link) where {T <: Float}
-#     n, p = size(x)
-#     temp_matrix = ones(n, 2)           # n by 2 matrix of the intercept and 1 single covariate
-#     temp_glm = initialize_glm_object() # preallocating in a dumb ways
+"""
+    linreg!(x::Vector, y::Vector)
 
-#     intercept = 0.0
-#     for i in 1:p
-#         temp_matrix[:, 2] .= x[:, i]
-#         temp_glm = fit(GeneralizedLinearModel, temp_matrix, y, d, l)
-#         v.b[i] = temp_glm.pp.beta0[2]
-#     end
-# end
+Performs linear regression with `y` as response, `x` and a vector of 1 as
+covariate. `β̂` will be stored in `xty_store`. 
+
+Code inspired from Doug Bates on Discourse:
+https://discourse.julialang.org/t/efficient-way-of-doing-linear-regression/31232/28
+"""
+function linreg!(
+    x::AbstractVector{T},
+    y::AbstractVector{T},
+    xtx_store::AbstractMatrix{T} = zeros(T, 2, 2),
+    xty_store::AbstractVector{T} = zeros(T, 2)
+    ) where {T<:AbstractFloat}
+    N = length(x)
+    N == length(y) || throw(DimensionMismatch())
+    xtx_store[1, 1] = N
+    xtx_store[1, 2] = sum(x)
+    xtx_store[2, 2] = sum(abs2, x)
+    xty_store[1] = sum(y)
+    xty_store[2] = dot(x, y)
+    ldiv!(cholesky!(Symmetric(xtx_store, :U)), xty_store)
+    return xty_store
+end
 
 """
 This function initializes 1 instance of a GeneralizedLinearModel(G<:GlmResp, L<:LinPred, Bool). 

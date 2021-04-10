@@ -39,8 +39,10 @@ of predictors for group `i`.
 + `verbose`: boolean indicating whether we want to print intermediate results
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
-+ `max_step`: is the maximum number of backtracking per IHT iteration. Defaults 5
++ `max_step`: is the maximum number of backtracking per IHT iteration. Defaults 3
 + `io`: An `IO` object for displaying intermediate results. Default `stdout`.
++ `init_beta`: Whether to initialize beta values to univariate regression values. 
+    Currently only Gaussian traits can be initialized. Default `false`. 
 """
 function fit_iht(
     y         :: AbstractVecOrMat{T},
@@ -58,24 +60,30 @@ function fit_iht(
     verbose   :: Bool = true,          # print informative things to stdout
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
-    max_step  :: Int = 5,              # maximum backtracking for each iteration
-    io        :: IO = stdout
+    max_step  :: Int = 3,              # maximum backtracking for each iteration
+    io        :: IO = stdout,
+    init_beta :: Bool = false
     ) where T <: Float
 
     # first handle errors
     @assert J ≥ 0        "Value of J (max number of groups) must be nonnegative!\n"
     @assert max_iter ≥ 0 "Value of max_iter must be nonnegative!\n"
     @assert max_step ≥ 0 "Value of max_step must be nonnegative!\n"
-    @assert tol > eps(T)  "Value of global tol must exceed machine precision!\n"
+    @assert tol > eps(T) "Value of global tol must exceed machine precision!\n"
     checky(y, d) # make sure response data y is in the form compatible with specified GLM
     check_group(k, group) # make sure sparsity parameter `k` is reasonable. 
     !(typeof(d) <: NegativeBinomial) && est_r != :None && 
         error("Only negative binomial regression currently supports nuisance parameter estimation")
     typeof(x) <: AbstractSnpArray && error("x is a SnpArray! Please convert it to a SnpLinAlg first!")
     check_data_dim(y, x, z)
+    if typeof(x) <: SnpLinAlg 
+        x.center || error("x is not centered! Please construct SnpLinAlg{Float64}(::SnpArray, center=true, scale=true)")
+        x.scale || @warn("x is not scaled! We highly recommend `scale=true` in `SnpLinAlg` constructor")
+        x.impute || @warn("x does not have impute flag! We highly recommend `impute=true` in `SnpLinAlg` constructor")
+    end
 
     # initialize IHT variable
-    v = initialize(x, z, y, J, k, d, l, group, weight, est_r)
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta)
 
     # print information
     if verbose
@@ -118,7 +126,7 @@ function fit_iht!(
     verbose   :: Bool = true,          # print informative things
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
-    max_step  :: Int = 5,              # maximum backtracking for each iteration
+    max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout
     ) where {T <: Float, M}
 
@@ -163,9 +171,11 @@ function fit_iht!(
         end
 
         # track convergence
+        # Note: estimated beta in iter 1 can be very small, so scaled_norm is very small
+        # Thus we force IHT to iterate at least 2 times
         scaled_norm = check_convergence(v)
         verbose && println("Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm")
-        if scaled_norm < tol
+        if iter ≥ 10 && scaled_norm < tol
             best_logl = save_prev!(v, next_logl, best_logl)
             save_best_model!(v)
             tot_time = time() - start_time

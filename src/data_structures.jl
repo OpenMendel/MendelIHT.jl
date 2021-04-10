@@ -47,7 +47,7 @@ ntraits(v::IHTVariable) = 1
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    cv_train_idx::BitVector=trues(size(x, 1))
+    init_beta::Bool, cv_train_idx::BitVector=trues(size(x, 1))
     ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
@@ -78,7 +78,10 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
         ks, k = k, 0
     end
 
-    b      = zeros(T, p)
+    init_beta && !(typeof(d) <: Normal) && 
+        error("Intializing beta values only work for Gaussian phenotypes! Sorry!")
+
+    b      = init_beta ? initialize_beta(y, x) : zeros(T, p)
     b0     = zeros(T, p)
     best_b = zeros(T, p)
     xb     = zeros(T, n)
@@ -109,14 +112,16 @@ end
 
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     J::Int, k::Union{Int, Vector{Int}}, d::Distribution, l::Link,
-    group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol;
-    cv_train_idx=trues(is_multivariate(y) ? size(x, 2) : size(x, 1))
+    group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
+    initialize_beta;
+    cv_train_idx=trues(is_multivariate(y) ? size(x, 2) : size(x, 1)),
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k, cv_train_idx)
+        v = mIHTVariable(x, z, y, k, cv_train_idx, initialize_beta)
     else
-        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, cv_train_idx)
+        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, 
+            initialize_beta, cv_train_idx)
     end
 
     # initialize non-zero indices
