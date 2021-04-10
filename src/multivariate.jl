@@ -99,22 +99,28 @@ end
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep!(v::mIHTVariable, η::Float)
-    full_b = v.full_b # use full_b as storage for complete beta = [v.b v.c]
     p = nsnps(v)
 
     # take gradient step: b = b + η ∇f
     BLAS.axpy!(η, v.df, v.B)
     BLAS.axpy!(η, v.df2, v.C)
 
-    # store complete beta [v.b v.c] in full_b 
-    vectorize!(full_b, v.B, v.C)
+    # project beta to sparsity
+    project_k!(v)
 
-    # project beta to sparsity. Project Γ to nearest pd matrix or solve for Σ exactly
-    project_k!(full_b, v.k)
+    # update covariance matrix (i.e. project Γ to nearest pd matrix or solve for Σ exactly)
     solve_Σ!(v)
+end
+
+function project_k!(v::mIHTVariable)
+    # store complete beta [v.b v.c] in full_b 
+    vectorize!(v.full_b, v.B, v.C)
+
+    # project vectorized beta to sparsity
+    project_k!(v.full_b, v.k)
 
     # save model after projection
-    unvectorize!(full_b, v.B, v.C)
+    unvectorize!(v.full_b, v.B, v.C)
 
     # if more than k entries are selected per column, randomly choose k of them
     _choose!(v)
@@ -448,4 +454,27 @@ function initialize_beta(y::AbstractMatrix{T}, x::AbstractMatrix{T}) where T <: 
         end
     end
     return B
+end
+
+"""
+    debias!(v::mIHTVariable)
+
+Solves the multivariate linear regression `Y = BX + E` by `B̂ = inv(X'X) X'Y` on the
+support set of `B`. Since `B` is sparse, this is a low dimensional problem, and 
+the solution is unique.
+
+Note: since `X` and `Y` are transposed in memory, we actually need `inv(XX')XY'`
+
+TODO: preallocate storage
+"""
+function debias!(v::mIHTVariable)
+    X = v.Xk
+    Y = v.Y
+    XY = similar(v.B[:, v.idx]')
+    mul!(XY, X, Transpose(Y))
+    ldiv!(cholesky!(Symmetric(X*X', :U)), XY)
+    v.B[:, v.idx] .= XY'
+
+    # ensure B is k-sparse
+    project_k!(v)
 end

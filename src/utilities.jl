@@ -478,6 +478,7 @@ function project_k!(v::IHTVariable)
     # update support
     v.idx .= v.b .!= 0
     v.idc .= v.c .!= 0
+    check_covariate_supp!(v)
 end
 
 """ 
@@ -861,4 +862,17 @@ function save_best_model!(v::IHTVariable)
 
     # update estimated mean μ with genotype predictors
     update_μ!(v.μ, v.xb, v.l) 
+end
+
+"""
+    debias!(v::IHTVariable)
+
+After each IHT iteration, `β` is sparse. This function solves for the exact
+solution `β̂` on the non-zero indices of `β`, a process known as debiasing.
+"""
+function debias!(v::IHTVariable)
+    if sum(v.idx) == size(v.xk, 2)
+        temp_glm = fit(GeneralizedLinearModel, v.xk, v.y, v.d, v.l)
+        view(v.b, v.idx) .= temp_glm.pp.beta0
+    end
 end

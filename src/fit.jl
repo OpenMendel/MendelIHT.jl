@@ -35,7 +35,7 @@ of predictors for group `i`.
 + `weight`: vector storing vector of weights containing prior knowledge on each SNP
 + `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
 + `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)
-+ `debias`: boolean indicating whether we debias at each iteration (only works for univariate models)
++ `debias`: boolean indicating whether we debias at each iteration
 + `verbose`: boolean indicating whether we want to print intermediate results
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
@@ -113,7 +113,7 @@ Fits a IHT variable `v`.
 + `v`: A properly initialized `mIHTVariable` or `IHTVariable`. Users should run [`fit_iht`](@ref)
 
 # Optional Arguments:
-+ `debias`: boolean indicating whether we debias at each iteration (see paper)
++ `debias`: boolean indicating whether we debias at each iteration
 + `verbose`: boolean indicating whether we want to print results if model does not converge.
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
@@ -140,9 +140,6 @@ function fit_iht!(
     best_logl   = typemin(T)        # best loglikelihood achieved
     η_step      = 0                 # counts number of backtracking steps for η
 
-    # initialize variables
-    debias && (temp_glm = initialize_glm_object())
-
     # Begin 'iterative' hard thresholding algorithm
     for iter in 1:max_iter
 
@@ -165,10 +162,7 @@ function fit_iht!(
         (η, η_step, next_logl) = iht_one_step!(v, next_logl, max_step)
 
         # perform debiasing if requested
-        if debias && sum(v.idx) == size(v.xk, 2)
-            temp_glm = fit(GeneralizedLinearModel, v.xk, v.y, v.d, v.l)
-            view(v.b, v.idx) .= temp_glm.pp.beta0
-        end
+        debias && debias!(v)
 
         # track convergence
         # Note: estimated beta in first few iterations can be very small, so scaled_norm is very small
