@@ -463,17 +463,21 @@ Solves the multivariate linear regression `Y = BX + E` by `B̂ = inv(X'X) X'Y` o
 support set of `B`. Since `B` is sparse, this is a low dimensional problem, and 
 the solution is unique.
 
-Note: since `X` and `Y` are transposed in memory, we actually need `inv(XX')XY'`
-
-TODO: preallocate storage
+Note: since `X` and `Y` are transposed in memory, we actually have `B̂ = inv(XX')XY'`
 """
-function debias!(v::mIHTVariable)
-    X = v.Xk
-    Y = v.Y
-    XY = similar(v.B[:, v.idx]')
-    mul!(XY, X, Transpose(Y))
-    ldiv!(cholesky!(Symmetric(X*X', :U)), XY)
-    v.B[:, v.idx] .= XY'
+function debias!(v::mIHTVariable{T, M}) where {T <: Float, M}
+    # first rescale matrix dimension if needed
+    supp_size = sum(v.idx)
+    if supp_size != size(v.k_by_r, 1)
+        v.k_by_r = Matrix{T}(undef, supp_size, size(v.k_by_r, 2))
+        v.k_by_k = Matrix{T}(undef, supp_size, supp_size)
+    end
+
+    # compute B̂ = inv(XX')XY'
+    mul!(v.k_by_r, v.Xk, Transpose(v.Y))
+    mul!(v.k_by_k, v.Xk, Transpose(v.Xk))
+    ldiv!(cholesky!(Symmetric(v.k_by_k, :U)), v.k_by_r)
+    v.B[:, v.idx] .= v.k_by_r'
 
     # ensure B is k-sparse
     project_k!(v)

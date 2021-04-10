@@ -135,9 +135,9 @@ Multivaraite Gaussian IHT object, containing intermediate variables and temporar
 """
 mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     # data and pre-specified parameters for fitting
-    X      :: M             # design matrix (genotypes) of subtype AbstractMatrix{T}
-    Y      :: Matrix{T}     # response matrix (phenotypes)
-    Z      :: VecOrMat{T}   # other non-genetic covariates 
+    X      :: M             # p × n design matrix (genotypes) of subtype AbstractMatrix{T}
+    Y      :: Matrix{T}     # r × n response matrix (phenotypes)
+    Z      :: VecOrMat{T}   # q × n other non-genetic covariates (intercept goes here)
     k      :: Int           # sparsity parameter
     # internal IHT variables
     B      :: Matrix{T}     # r × p matrix that holds the statistical model for the genotype matrix, most will be 0
@@ -169,6 +169,8 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     r_by_n2 :: Matrix{T}    # an r × n storage (needed in stepsize calculation)
     n_by_r  :: Matrix{T}    # an n × r storage (needed to efficiently compute gradient)
     p_by_r  :: Matrix{T}    # an p × r storage (needed to efficiently compute gradient)
+    k_by_r  :: Matrix{T}    # an k × r storage (needed for debiasing)
+    k_by_k  :: Matrix{T}    # an k × k storage (needed for debiasing)
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
@@ -212,12 +214,14 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     r_by_n2 = zeros(T, r, n)
     n_by_r = zeros(T, n, r)
     p_by_r = zeros(T, p, r)
+    k_by_r = zeros(T, k, r)
+    k_by_k = zeros(T, k, k)
 
     return mIHTVariable{T, M}(
         x, y, z, k,
         B, B0, best_B, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C,
         C0, best_C, CZ, μ, Γ, Γ0, cv_wts, full_b, r_by_r1, r_by_r2, r_by_n1,
-        r_by_n2, n_by_r, p_by_r)
+        r_by_n2, n_by_r, p_by_r, k_by_r, k_by_k)
 end
 
 nsamples(v::mIHTVariable) = count(!iszero, v.cv_wts)
