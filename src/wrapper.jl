@@ -119,6 +119,12 @@ function parse_phenotypes(x::SnpData, col::AbstractVector{Int}, ::MvNormal)
     return y
 end
 
+parse_phenotypes(::SnpData, ::Int, ::MvNormal) = 
+    throw(ArgumentError("Multivariate analysis requires multiple phenotypes! Please specify " * 
+        "e.g. phenotypes=[6, 7] or save each sample's phenotypes in a comma-" * 
+        "separated file where each sample occupies a different row and each" * 
+        " phenotype is separated by a single comma."))
+
 function parse_phenotypes(x::SnpData, col::Int, ::Normal)
     n = x.people
     y = Vector{Float64}(undef, n)
@@ -159,7 +165,7 @@ function parse_phenotypes(x::SnpData, col::Int, ::UnivariateDistribution)
     return y
 end
 
-function parse_phenotypes(x::SnpData, pheno_filename::AbstractString, d)
+function parse_phenotypes(::SnpData, pheno_filename::AbstractString, d)
     y = readdlm(pheno_filename, ',', Float64)
     if is_multivariate(y)
         y = convert(Matrix{Float64}, Transpose(y))

@@ -136,9 +136,11 @@ end
     # save phenotypes in separate file (each sample occupies a row)
     writedlm("multivariate_$(r)traits.phen", Yt', ',')
 
-    result1 = iht("multivariate_$(r)traits", 17, d, phenotypes=[6, 7], verbose=false)
-    result2 = iht("multivariate_$(r)traits", 17, d, phenotypes=[6, 7], covariates="covariates.txt", verbose=false)
-    result3 = iht("multivariate_$(r)traits", 17, d, phenotypes="multivariate_$(r)traits.phen",
+    @test_throws ArgumentError iht("multivariate_$(r)traits", 17, MvNormal) 
+
+    result1 = iht("multivariate_$(r)traits", 17, MvNormal, phenotypes=[6, 7], verbose=false)
+    result2 = iht("multivariate_$(r)traits", 17, MvNormal, phenotypes=[6, 7], covariates="covariates.txt", verbose=false)
+    result3 = iht("multivariate_$(r)traits", 17, MvNormal, phenotypes="multivariate_$(r)traits.phen",
         covariates="covariates.txt", verbose=false);
 
     true_b1_idx = findall(!iszero, B[:, 1])
