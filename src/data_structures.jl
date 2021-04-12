@@ -81,7 +81,7 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     init_beta && !(typeof(d) <: Normal) && 
         throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
 
-    b      = init_beta ? initialize_beta(y, x) : zeros(T, p)
+    b      = init_beta ? initialize_beta(y, x, cv_train_idx) : zeros(T, p)
     b0     = zeros(T, p)
     best_b = zeros(T, p)
     xb     = zeros(T, n)
@@ -186,7 +186,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
         throw(DimensionMismatch("number of samples in y, x, and z = $(size(y, 2)), $n, $(size(z, 2)) are not equal"))
     end
 
-    B      = init_beta ? initialize_beta(y, x) : zeros(T, r, p)
+    B      = init_beta ? initialize_beta(y, x, cv_train_idx) : zeros(T, r, p)
     B0     = zeros(T, r, p)
     best_B = zeros(T, r, p)
     BX     = zeros(T, r, n)

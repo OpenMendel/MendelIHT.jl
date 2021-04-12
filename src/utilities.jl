@@ -665,13 +665,17 @@ beta with `y` as response, and `x[:, i]` with an intercept term as covariate.
 
 Note: this function assumes quantitative (Gaussian) phenotypes. 
 """
-function initialize_beta(y::AbstractVector{T}, x::AbstractMatrix{T}) where T <: Float
+function initialize_beta(
+    y::AbstractVector{T},
+    x::AbstractMatrix{T},
+    cv_wts::BitVector=trues(length(y)) # cross validation weights; 1 = sample is present, 0 = not present
+    ) where T <: Float
     n, p = size(x)
     xtx_store = zeros(T, 2, 2)
     xty_store = zeros(T, 2)
     β = zeros(p)
     @inbounds for i in 1:p
-        linreg!(@view(x[:, i]), y, xtx_store, xty_store)
+        linreg!(@view(x[cv_wts, i]), @view(y[cv_wts]), xtx_store, xty_store)
         β[i] = xty_store[2]
     end
     return β
