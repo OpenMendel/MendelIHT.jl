@@ -668,7 +668,7 @@ Note: this function assumes quantitative (Gaussian) phenotypes.
 function initialize_beta(
     y::AbstractVector{T},
     x::AbstractMatrix{T},
-    cv_wts::BitVector=trues(length(y)) # cross validation weights; 1 = sample is present, 0 = not present
+    cv_wts::BitVector=ones(T, length(y)) # cross validation weights; 1 = sample is present, 0 = not present
     ) where T <: Float
     n, p = size(x)
     xtx_store = zeros(T, 2, 2)
