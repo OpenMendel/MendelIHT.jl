@@ -443,7 +443,7 @@ Note: this function assumes quantitative (Gaussian) phenotypes.
 function initialize_beta(
     y::AbstractMatrix{T},
     x::AbstractMatrix{T},
-    cv_wts::BitVector=ones(T, size(y, 2)) # cross validation weights; 1 = sample is present, 0 = not present
+    cv_wts::BitVector=trues(size(y, 2)) # cross validation weights; 1 = sample is present, 0 = not present
     ) where T <: Float
     p, n = size(x)
     r = size(y, 1) # number of traits
