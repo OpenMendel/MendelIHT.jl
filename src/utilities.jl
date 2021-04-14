@@ -703,7 +703,11 @@ function linreg!(
     xtx_store[2, 2] = sum(abs2, x)
     xty_store[1] = sum(y)
     xty_store[2] = dot(x, y)
-    ldiv!(cholesky!(Symmetric(xtx_store, :U)), xty_store)
+    try # rare SNPs may have 0s everywhere, causing cholesky to fail
+        ldiv!(cholesky!(Symmetric(xtx_store, :U)), xty_store)
+    catch
+        return xty_store
+    end
     return xty_store
 end
 
