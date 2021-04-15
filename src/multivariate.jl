@@ -15,8 +15,8 @@ end
 """
     update_xb!(v::mIHTVariable)
 
-Update the linear predictors with the new proposed `B` (effect size for
-genetic covariates) and `C` (non-genetic covariates).
+Using only support of B, update `v.BX` with the new proposed `B` (effect size
+for genetic covariates) and `C` (non-genetic covariates).
 """
 function update_xb!(v::mIHTVariable)
     copyto!(v.Xk, @view(v.X[v.idx, :]))
@@ -116,7 +116,7 @@ function _iht_gradstep!(v::mIHTVariable, η::Float)
     # project beta to sparsity
     project_k!(v)
 
-    # update covariance matrix (i.e. project Γ to nearest pd matrix or solve for Σ exactly)
+    # update covariance matrix
     solve_Σ!(v)
 end
 
@@ -222,7 +222,7 @@ function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
     for j in 1:size(v.Y, 2), i in 1:ntraits(v)
         v.r_by_n1[i, j] *= v.cv_wts[j] # cross validation masking happens here
     end
-    cholesky!(v.Γ) # overwrite upper triangular of Γ with U, where LU = Γ, U = L'
+    cholesky!(Symmetric(v.Γ, :U), Val(true)) # overwrite upper triangular of Γ with U, where LU = Γ, U = L'
     triu!(v.Γ) # set entries below diagonal to 0, so Γ = L'
     mul!(v.r_by_n2, v.Γ, v.r_by_n1) # r_by_n2 = L'*∇f*X
     @inbounds for i in eachindex(v.r_by_n2)
@@ -250,8 +250,6 @@ function project_Σ!(v::mIHTVariable, minλ = 0.01)
         λ < minλ && (λs[i] = minλ)
     end
     v.Γ = U * Diagonal(λs) * U'
-    issymmetric(v.Γ) || (v.Γ = 0.5(v.Γ + v.Γ')) # enforce symmetry for numerical accuracy
-    isposdef(v.Γ) || error("Γ not positive definite!")
 end
 
 """
@@ -262,7 +260,7 @@ Solve for `Σ = 1/n(Y-BX)(Y-BX)'` exactly rather than projecting
 function solve_Σ!(v::mIHTVariable)
     mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r1 = (Y-BX)(Y-BX)'
     v.r_by_r1 ./= nsamples(v)
-    LinearAlgebra.inv!(cholesky!(v.r_by_r1)) # r_by_r1 = (1/n(Y-BX)(Y-BX)')^{-1}
+    LinearAlgebra.inv!(cholesky!(Symmetric(v.r_by_r1, :U))) # r_by_r1 = (1/n(Y-BX)(Y-BX)')^{-1}
     copyto!(v.Γ, v.r_by_r1)
 end
 
@@ -341,8 +339,8 @@ checky(y::AbstractMatrix, d::MvNormal) = nothing
 
 """
 When initializing the IHT algorithm, take `k` largest elements in magnitude of 
-the score as nonzero components of b. This function set v.idx = 1 for
-those indices. 
+the score as nonzero components of `v.B`. This function set v.idx = 1 for
+those indices. `v.μ`, `v.df`, `v.df2`, and possibly `v.BX` are also updated. 
 """
 function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
     # initialize intercept to mean of each trait
@@ -357,12 +355,13 @@ function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
     mul!(v.CZ, v.C, v.Z)
 
     # update mean vector and use them to compute score (gradient)
+    initialized_beta && mul!(v.BX, v.B, v.X) # TODO efficiency
     update_μ!(v)
     score!(v)
 
     if initialized_beta
         vectorize!(v.full_b, v.B, v.C)
-        project_k!(v.full_b, 5 * v.k)
+        project_k!(v.full_b, v.k)
         unvectorize!(v.full_b, v.B, v.C)
 
         # compute support based on largest gradient
