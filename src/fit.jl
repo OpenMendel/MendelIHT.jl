@@ -1,7 +1,7 @@
 """
     fit_iht(y, x, z; k=10, J=1, d = Normal(), l=IdentityLink(), group=Int[], 
         weight=Float64[], est_r=:None, debias=false, verbose=true, tol=1e-4,
-        max_iter=200, max_step=5, io=stdout)
+        max_iter=200, max_step=3, io=stdout)
 
 Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
 and non-genetic covariates `z` on a specific sparsity parameter `k`. If `k` is 

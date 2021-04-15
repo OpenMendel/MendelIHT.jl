@@ -15,8 +15,8 @@ end
 """
     update_xb!(v::mIHTVariable)
 
-Update the linear predictors `BX` with the new proposed `B`. `B` is sparse but 
-`C` (beta for non-genetic covariates) is dense.
+Update the linear predictors with the new proposed `B` (effect size for
+genetic covariates) and `C` (non-genetic covariates).
 """
 function update_xb!(v::mIHTVariable)
     copyto!(v.Xk, @view(v.X[v.idx, :]))
@@ -28,11 +28,26 @@ end
     update_μ!(v::mIHTVariable)
 
 Update the mean `μ` with the linear predictors `BX` and `CZ`. Here `BX` is the 
-genetic contribution and `CZ` is the non-genetic contribution of all covariates
+genetic contribution and `CZ` is the non-genetic contribution
 """
 function update_μ!(v::mIHTVariable)
     @inbounds @simd for i in eachindex(v.μ)
         v.μ[i] = v.BX[i] + v.CZ[i]
+    end
+end
+
+"""
+    update_resid!(v)
+
+Update residuals `resid = (Y - BX)` where `BX = μ` has already been computed.
+"""
+function update_resid!(v::mIHTVariable)
+    y = v.Y # r × n
+    μ = v.μ # r × n
+    r = v.resid # r × n
+    cv_wts = v.cv_wts # n × 1 cross validation weights
+    @inbounds for j in 1:size(y, 2), i in 1:size(y, 1)
+        r[i, j] = (y[i, j] - μ[i, j]) * cv_wts[j]
     end
 end
 
@@ -42,17 +57,10 @@ end
 Calculates the gradient `Γ(Y - XB)X'` for multivariate Gaussian model.
 """
 function score!(v::mIHTVariable)
-    y = v.Y # r × n
-    μ = v.μ # r × n
-    Γ = v.Γ # r × r
-    r = v.resid # r × n
-    cv_wts = v.cv_wts # n × 1 cross validation weights
-    @inbounds for j in 1:size(y, 2), i in 1:size(y, 1)
-        r[i, j] = (y[i, j] - μ[i, j]) * cv_wts[j]
-    end
-    mul!(v.r_by_n1, Γ, r) # r_by_n1 = Γ(Y - BX)
-    update_df!(v) # v.df = Γ(Y - BX)X'
-    mul!(v.df2, v.r_by_n1, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z'
+    update_resid!(v) # v.resid = (Y - XB)
+    mul!(v.r_by_n1, v.Γ, v.resid) # r_by_n1 = Γ(Y - BX)
+    update_df!(v) # v.df = Γ(Y - BX)X' (genetic gradient)
+    mul!(v.df2, v.r_by_n1, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z' (nongenetic gradient)
 end
 
 """
@@ -385,16 +393,17 @@ function check_convergence(v::mIHTVariable)
 end
 
 function backtrack!(v::mIHTVariable, η::Float)
-    # recompute gradient step
+    # recompute gradient step with the new (halved) step size η 
     copyto!(v.B, v.B0)
     copyto!(v.C, v.C0)
     copyto!(v.Γ, v.Γ0)
     _iht_gradstep!(v, η)
 
-    # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
+    # recompute BX and ZC, μ (includes genetic + nongenetic component), and loglikelihood
     update_xb!(v)
     update_μ!(v)
-    
+    update_resid!(v)
+
     return loglikelihood(v)
 end
 
