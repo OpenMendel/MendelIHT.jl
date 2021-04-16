@@ -161,8 +161,8 @@ function fit_iht!(
         # take one IHT step in positive score direction
         (η, η_step, next_logl) = iht_one_step!(v, next_logl, max_step)
 
-        # perform debiasing if requested
-        debias && debias!(v)
+        # perform debiasing if support didn't change
+        debias && v.idx == v.idx0 && debias!(v)
 
         # track convergence
         # Note: estimated beta in first few iterations can be very small, so scaled_norm is very small

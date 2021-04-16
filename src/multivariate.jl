@@ -485,10 +485,14 @@ function debias!(v::mIHTVariable{T, M}) where {T <: Float, M}
         v.k_by_k = Matrix{T}(undef, supp_size, supp_size)
     end
 
-    # compute B̂ = inv(XX')XY'
+    # try debiasing: B̂ = inv(XX')XY'. Do nothing if it fals
     mul!(v.k_by_r, v.Xk, Transpose(v.Y))
     mul!(v.k_by_k, v.Xk, Transpose(v.Xk))
-    ldiv!(cholesky!(Symmetric(v.k_by_k, :U)), v.k_by_r)
+    try
+        ldiv!(cholesky!(Symmetric(v.k_by_k, :U)), v.k_by_r)
+    catch
+        return nothing
+    end
     v.B[:, v.idx] .= v.k_by_r'
 
     # ensure B is k-sparse
