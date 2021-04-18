@@ -340,7 +340,7 @@ checky(y::AbstractMatrix, d::MvNormal) = nothing
 """
 When initializing the IHT algorithm, take `k` largest elements in magnitude of 
 the score as nonzero components of `v.B`. This function set v.idx = 1 for
-those indices. `v.μ`, `v.df`, `v.df2`, and possibly `v.BX` are also updated. 
+those indices. `v.μ`, `v.df`, `v.df2`, and possibly `v.BX` are also initialized. 
 """
 function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
     # initialize intercept to mean of each trait
@@ -354,20 +354,15 @@ function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
     end
     mul!(v.CZ, v.C, v.Z)
 
-    # update mean vector and use them to compute score (gradient)
-    initialized_beta && mul!(v.BX, v.B, v.X) # TODO efficiency
+    # update mean vector and use it to compute score (gradient)
+    if initialized_beta
+        project_k!(v)
+        update_xb!(v)
+    end
     update_μ!(v)
     score!(v)
 
-    if initialized_beta
-        vectorize!(v.full_b, v.B, v.C)
-        project_k!(v.full_b, v.k)
-        unvectorize!(v.full_b, v.B, v.C)
-
-        # compute support based on largest gradient
-        update_support!(v.idx, v.B)
-        update_support!(v.idc, v.C)
-    else
+    if !initialized_beta
         # first `k` non-zero entries in each β are chosen based on largest gradient
         vectorize!(v.full_b, v.df, v.df2)
         project_k!(v.full_b, v.k)
@@ -465,6 +460,7 @@ function initialize_beta(
             B[j, i] = xty_store[2]
         end
     end
+    clamp!(B, -2, 2)
     return B
 end
 
