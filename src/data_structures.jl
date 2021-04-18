@@ -294,7 +294,8 @@ function Base.show(io::IO, x::mIHTResult)
     for r in 1:x.traits
         println(io, "Trait $r's SNP PVE:      ", x.σg[r])
     end
-    println("")
+    println(io, "\nEstimated trait covariance:")
+    println(io, DataFrame(x.Σ, ["trait$i" for i in 1:x.traits]))
     for r in 1:x.traits
         β1 = @view(x.beta[r, :])
         C1 = @view(x.c[r, :])

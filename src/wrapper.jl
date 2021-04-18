@@ -33,6 +33,8 @@ Runs IHT with sparsity level `k`.
     `summaryfile="iht.summary.txt"`.
 - `betafile`: Output file name for saving IHT's estimated genotype effect sizes. 
     Default `betafile="iht.beta.txt"`. 
+- `covariancefile`: Output file name for saving IHT's estimated trait covariance
+    matrix for multivariate analysis. Default `covariancefile="iht.cov.txt"`. 
 - All optional arguments available in [`fit_iht`](@ref)
 """
 function iht(
@@ -43,6 +45,7 @@ function iht(
     covariates::AbstractString = "",
     summaryfile::AbstractString = "iht.summary.txt",
     betafile::AbstractString = "iht.beta.txt",
+    covariancefile::AbstractString = "iht.cov.txt",
     kwargs...
     )
     # read genotypes
@@ -70,7 +73,12 @@ function iht(
     open(summaryfile, "w") do io
         show(io, result)
     end
-    is_multivariate(y) ? writedlm(betafile, result.beta') : writedlm(betafile, result.beta)
+    if is_multivariate(y)
+        writedlm(betafile, result.beta')
+        writedlm(covariancefile, result.Σ)
+    else
+        writedlm(betafile, result.beta)
+    end
 
     @show result
 
