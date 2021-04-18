@@ -18,10 +18,6 @@ module MendelIHT
     using Random
     using DelimitedFiles
     using ProgressMeter
-    using Reexport
-
-    @reexport using Distributions
-    @reexport using SnpArrays
 
     export iht, cross_validate
     export fit_iht, cv_iht, cv_iht_distribute_fold, iht_run_many_models
