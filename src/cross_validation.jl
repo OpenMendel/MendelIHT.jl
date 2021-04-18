@@ -72,6 +72,10 @@ function cv_iht(
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
     check_data_dim(y, x, z)
 
+    # preallocated arrays for efficiency
+    test_idx  = [falses(length(folds)) for i in 1:nprocs()]
+    train_idx = [falses(length(folds)) for i in 1:nprocs()]
+
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
     channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
@@ -83,17 +87,18 @@ function cv_iht(
     combinations = allocate_fold_and_k(q, path)
     mses = (parallel ? pmap : map)(combinations) do (fold, k)
         # assign train/test indices
-        test_idx  = folds .== fold
-        train_idx = .!test_idx
+        id = myid()
+        test_idx[id]  .= folds .== fold
+        train_idx[id] .= folds .!= fold
 
         # run IHT on training data with current k
         v = initialize(x, z, y, 1, k, d, l, group, weight, est_r, init_beta,
-            cv_train_idx=train_idx)
+            cv_train_idx=train_idx[id])
         result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
 
         # predict on validation data
-        v.cv_wts[train_idx] .= zero(T)
-        v.cv_wts[test_idx] .= one(T)
+        v.cv_wts[train_idx[id]] .= zero(T)
+        v.cv_wts[test_idx[id]] .= one(T)
 
         # update progres
         put!(channel, true)
