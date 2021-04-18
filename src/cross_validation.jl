@@ -72,9 +72,6 @@ function cv_iht(
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
     check_data_dim(y, x, z)
 
-    # preallocate mean squared error matrix
-    mses = zeros(length(path), q)
-
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
     channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
@@ -82,27 +79,26 @@ function cv_iht(
         next!(pmeter)
     end
 
-    for fold in 1:q
-        # find entries that are for test sets and train sets
+    # cross validation all (fold, k) combinations
+    combinations = allocate_fold_and_k(q, path)
+    mses = (parallel ? pmap : map)(combinations) do (fold, k)
+        # assign train/test indices
         test_idx  = folds .== fold
         train_idx = .!test_idx
 
-        # test different k
-        mses[:, fold] = (parallel ? pmap : map)(path) do k
-            # run IHT on training data with current k
-            v = initialize(x, z, y, 1, k, d, l, group, weight, est_r, init_beta,
-                cv_train_idx=train_idx)
-            result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
+        # run IHT on training data with current k
+        v = initialize(x, z, y, 1, k, d, l, group, weight, est_r, init_beta,
+            cv_train_idx=train_idx)
+        result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
 
-            # predict on validation data
-            v.cv_wts[train_idx] .= zero(T)
-            v.cv_wts[test_idx] .= one(T)
+        # predict on validation data
+        v.cv_wts[train_idx] .= zero(T)
+        v.cv_wts[test_idx] .= one(T)
 
-            # update progres
-            put!(channel, true)
+        # update progres
+        put!(channel, true)
 
-            return predict!(v, result)
-        end
+        return predict!(v, result)
     end
     put!(channel, false)
 
@@ -119,6 +115,18 @@ end
 function cv_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs...) where T
     z = is_multivariate(y) ? ones(T, 1, size(y, 2)) : ones(T, length(y))
     return cv_iht(y, x, z; kwargs...)
+end
+
+"""
+    allocate_fold_and_k()
+
+"""
+function allocate_fold_and_k(q::Int, path::AbstractVector{<:Integer})
+    combinations = Tuple{Int, Int}[]
+    for fold in 1:q, k in path
+        push!(combinations, (fold, k))
+    end
+    return combinations
 end
 
 """
@@ -202,22 +210,20 @@ end
 """
 Scale mean squared errors (deviance residuals) for each fold by its own fold size.
 """
-function meanloss(fitloss::AbstractMatrix, q::Int64, folds::AbstractVector{Int})
+function meanloss(fitloss::AbstractVector, q::Int64, folds::AbstractVector{Int})
     ninfold = zeros(Int, q)
     for fold in folds
         ninfold[fold] += 1
     end
 
-    loss = zeros(eltype(fitloss), size(fitloss, 1))
-    for j = 1:size(fitloss, 2)
-        wfold = convert(eltype(fitloss), ninfold[j]/length(folds))
-        for i = 1:size(fitloss, 1)
-            loss[i] += fitloss[i, j]*wfold
+    pathsize = Int(length(fitloss) / q)
+    loss = zeros(eltype(fitloss), pathsize)
+    for j = 1:q
+        wfold = convert(eltype(fitloss), ninfold[j] / length(folds))
+        for i = 1:pathsize
+            loss[i] += fitloss[i + (j - 1) * pathsize] * wfold
         end
     end
 
     return loss
 end
-
-meanloss(mses::Vector{Vector{T}}, num_fold, folds) where {T <: Float} = 
-    meanloss(hcat(mses...), num_fold, folds)
