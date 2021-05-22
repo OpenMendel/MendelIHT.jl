@@ -9,7 +9,7 @@ Caution: This function mutates storage variables `v.r_by_r1` and `v.r_by_r2`
 function loglikelihood(v::mIHTVariable)
     mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r = (Y - BX)(Y - BX)'
     mul!(v.r_by_r2, v.Γ, v.r_by_r1) # r_by_r2 = Γ(Y - BX)(Y - BX)'
-    return nsamples(v) / 2 * logdet(v.Γ) + tr(v.r_by_r2) # logdet allocates! 
+    return nsamples(v) / 2 * logdet(v.Γ) - 0.5 * tr(v.r_by_r2) # logdet allocates! 
 end
 
 """
@@ -240,7 +240,7 @@ end
 """
     project_Σ!(A::AbstractMatrix)
 
-Projects square matrix `A` to the nearest symmetric and pos def matrix.
+Projects symmetric matrix `A` to the nearest positive semidefinite matrix.
 
 # TODO: efficiency
 """
@@ -354,11 +354,13 @@ function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
     end
     mul!(v.CZ, v.C, v.Z)
 
-    # update mean vector and use it to compute score (gradient)
+    # if beta have been initialized to univariate values, project it to sparsity
     if initialized_beta
         project_k!(v)
         update_xb!(v)
     end
+
+    # update mean and compute score (gradient)
     update_μ!(v)
     score!(v)
 
