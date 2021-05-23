@@ -57,7 +57,6 @@ end
 Calculates the gradient `Γ(Y - XB)X'` for multivariate Gaussian model.
 """
 function score!(v::mIHTVariable)
-    update_resid!(v) # v.resid = (Y - XB)
     mul!(v.r_by_n1, v.Γ, v.resid) # r_by_n1 = Γ(Y - BX)
     update_df!(v) # v.df = Γ(Y - BX)X' (genetic gradient)
     mul!(v.df2, v.r_by_n1, Transpose(v.Z)) # v.df2 = Γ(Y - BX)Z' (nongenetic gradient)
@@ -107,17 +106,12 @@ end
 Computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep!(v::mIHTVariable, η::Float)
-    p = nsnps(v)
-
     # take gradient step: b = b + η ∇f
     BLAS.axpy!(η, v.df, v.B)
     BLAS.axpy!(η, v.df2, v.C)
 
     # project beta to sparsity
     project_k!(v)
-
-    # update covariance matrix
-    solve_Σ!(v)
 end
 
 function project_k!(v::mIHTVariable)
@@ -395,10 +389,11 @@ function backtrack!(v::mIHTVariable, η::Float)
     copyto!(v.Γ, v.Γ0)
     _iht_gradstep!(v, η)
 
-    # recompute BX and ZC, μ (includes genetic + nongenetic component), and loglikelihood
+    # recompute BX and ZC, μ (includes genetic + nongenetic component), and Γ
     update_xb!(v)
     update_μ!(v)
     update_resid!(v)
+    solve_Σ!(v)
 
     return loglikelihood(v)
 end
