@@ -252,6 +252,7 @@ end
 Solve for `Σ = 1/n(Y-BX)(Y-BX)'` exactly rather than projecting
 """
 function solve_Σ!(v::mIHTVariable)
+    update_resid!(v) # v.resid = Y - BX
     mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r1 = (Y-BX)(Y-BX)'
     v.r_by_r1 ./= nsamples(v)
     LinearAlgebra.inv!(cholesky!(Symmetric(v.r_by_r1, :U))) # r_by_r1 = (1/n(Y-BX)(Y-BX)')^{-1}
@@ -392,7 +393,6 @@ function backtrack!(v::mIHTVariable, η::Float)
     # recompute BX and ZC, μ (includes genetic + nongenetic component), and Γ
     update_xb!(v)
     update_μ!(v)
-    update_resid!(v)
     solve_Σ!(v)
 
     return loglikelihood(v)

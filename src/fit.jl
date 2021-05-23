@@ -169,6 +169,12 @@ function fit_iht!(
         # Thus we force IHT to iterate at least 5 times
         scaled_norm = check_convergence(v)
         verbose && println("Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm")
+        # if verbose
+        #     trueb = [837, 2918, 6678, 7685, 9709, 9861, 6268, 8428]
+        #     println("v.B = ", v.B[:, trueb])
+        #     println("v.df = ", v.df[:, trueb])
+        #     println("η = $η")
+        # end  
         if iter ≥ 5 && scaled_norm < tol
             best_logl = save_prev!(v, next_logl, best_logl)
             save_best_model!(v)
@@ -200,9 +206,14 @@ function iht_one_step!(
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
     _iht_gradstep!(v, η)
 
-    # update the linear predictors `xb` with the new proposed b, and use that to compute the mean
+    # update the linear predictors `xb`, `μ`, and residuals with the new proposed b
     update_xb!(v)
     update_μ!(v)
+
+    # for multivariate IHT, also update precision matrix Γ = 1/n * (Y-BX)(Y-BX)' 
+    if typeof(v) <: mIHTVariable
+        solve_Σ!(v)
+    end
 
     # update r (nuisance parameter for negative binomial)
     if typeof(v) <: IHTVariable && v.est_r != :None
