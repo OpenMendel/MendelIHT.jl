@@ -663,7 +663,7 @@ end
 Initialze beta to univariate regression values. That is, `β[i]` is set to the estimated
 beta with `y` as response, and `x[:, i]` with an intercept term as covariate.
 
-Note: this function assumes quantitative (Gaussian) phenotypes. 
+TODO: this function assumes quantitative (Gaussian) phenotypes. Make it work for other distributions
 """
 function initialize_beta(
     y::AbstractVector{T},

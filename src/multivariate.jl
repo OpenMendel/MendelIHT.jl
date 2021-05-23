@@ -54,7 +54,8 @@ end
 """
     score!(v::mIHTVariable)
 
-Calculates the gradient `Γ(Y - XB)X'` for multivariate Gaussian model.
+Calculates the gradient `Γ(Y - XB)X'` for multivariate Gaussian model. Residuals
+were updated in solve_Σ!. 
 """
 function score!(v::mIHTVariable)
     mul!(v.r_by_n1, v.Γ, v.resid) # r_by_n1 = Γ(Y - BX)
