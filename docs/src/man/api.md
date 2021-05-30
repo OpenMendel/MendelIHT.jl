@@ -1,6 +1,11 @@
 
 # API
 
+Here is a list of available function calls. A detailed description can be found below. 
+```@index
+Pages = ["api.md"]
+```
+
 ## Wrapper Functions
 
 Most users will use the following wrapper functions. Users specify location of PLINK files and possibly the phenotype/covariate files. These functions will soon be updated to support VCF and BGEN formats.
