@@ -62,17 +62,16 @@ function iht(
     is_multivariate(y) && (z = convert(Matrix{Float64}, Transpose(z)))
 
     # run IHT
+    io = open(summaryfile, "w")
     if is_multivariate(y)
-        result = fit_iht(y, Transpose(xla), z, k=k; kwargs...)
+        result = fit_iht(y, Transpose(xla), z, k=k, io=io; kwargs...)
     else
         l = d == NegativeBinomial ? LogLink() : canonicallink(d()) # link function
-        result = fit_iht(y, xla, z, k=k, d=d(), l=l; kwargs...)
+        result = fit_iht(y, xla, z, k=k, d=d(), l=l, io=io; kwargs...)
     end
 
-    # save results
-    open(summaryfile, "w") do io
-        show(io, result)
-    end
+    show(io, result)
+
     if is_multivariate(y)
         writedlm(betafile, result.beta')
         writedlm(covariancefile, result.Σ)
@@ -80,7 +79,8 @@ function iht(
         writedlm(betafile, result.beta)
     end
 
-    @show result
+    close(io)
+    flush(io)
 
     return result
 end

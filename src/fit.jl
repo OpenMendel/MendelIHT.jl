@@ -168,13 +168,9 @@ function fit_iht!(
         # Note: estimated beta in first few iterations can be very small, so scaled_norm is very small
         # Thus we force IHT to iterate at least 5 times
         scaled_norm = check_convergence(v)
-        verbose && println("Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm")
-        # if verbose
-        #     trueb = [837, 2918, 6678, 7685, 9709, 9861, 6268, 8428]
-        #     println("v.B = ", v.B[:, trueb])
-        #     println("v.df = ", v.df[:, trueb])
-        #     println("η = $η")
-        # end  
+        progr = "Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm"
+        verbose && println(io, progr)
+        verbose && io != stdout && println(progr)
         if iter ≥ 5 && scaled_norm < tol
             best_logl = save_prev!(v, next_logl, best_logl)
             save_best_model!(v)
