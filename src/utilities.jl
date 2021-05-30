@@ -796,6 +796,7 @@ function print_iht_signature(io::IO)
     println(io, "****                 Please cite our paper!                     ****")
     println(io, "****         https://doi.org/10.1093/gigascience/giaa044        ****")
     println(io, "")
+    io != stdout && print_iht_signature(stdout)
 end
 print_iht_signature() = print_iht_signature(stdout)
 
@@ -813,6 +814,7 @@ function print_parameters(io::IO, k, d, l, use_maf, group, debias, tol, max_iter
     println(io, "Debias = ", debias ? "on" : "off")
     println(io, "Max IHT iterations = $max_iter")
     println(io, "Converging when tol < $tol:\n")
+    io != stdout && print_parameters(stdout, k, d, l, use_maf, group, debias, tol, max_iter)
 end
 print_parameters(k, d, l, use_maf, group, debias, tol, max_iter) = 
     print_parameters(stdout, k, d, l, use_maf, group, debias, tol, max_iter)
