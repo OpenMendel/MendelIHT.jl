@@ -81,23 +81,12 @@ function update_df!(v::mIHTVariable)
     T = eltype(v.X)
     if typeof(v.X) <: Union{Transpose{T, SnpLinAlg{T}}, Adjoint{T, SnpLinAlg{T}}}
         v.n_by_r .= Transpose(v.r_by_n1)
-        adhoc_mul!(v.p_by_r, v.X, v.n_by_r) # note v.X is Transpose(SnpLinAlg)
+        SnpArrays.mul!(v.p_by_r, v.X, v.n_by_r) # note v.X is Transpose(SnpLinAlg)
         v.df .= Transpose(v.p_by_r)
     elseif typeof(v.X) <: Union{Transpose{T, AbstractMatrix{T}}, Adjoint{T, AbstractMatrix{T}}} # v.X is transposed numeric matrix
         mul!(v.df, v.r_by_n1, v.X.parent)
     else
         mul!(v.df, v.r_by_n1, Transpose(v.X)) # v.X is numeric matrix
-    end
-end
-function adhoc_mul!(
-    out::AbstractMatrix{T}, 
-    st::Union{Transpose{T, SnpLinAlg{T}}, Adjoint{T, SnpLinAlg{T}}},
-    v::AbstractMatrix{T}) where T <: AbstractFloat
-    @assert size(out, 1) == size(st, 1) && size(v, 2) == size(v, 2) && size(st, 2) == size(v, 1)
-    for i in 1:size(v, 2)
-        outi = @view(out[:, i])
-        vi = @view(v[:, i])
-        SnpArrays.mul!(outi, st, vi)
     end
 end
 
