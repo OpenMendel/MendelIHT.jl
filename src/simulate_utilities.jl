@@ -310,11 +310,15 @@ end
 """
     random_covariance_matrix(n::Int)
 
-Generates a positive definite, symmetric matrix. 
+Generates a positive definite, symmetric matrix, with eigenvalues randomly selected
+from `evals` (to control for maximum condition number)
+https://discourse.julialang.org/t/generate-a-positive-definite-matrix/48582
 """
-function random_covariance_matrix(rng::AbstractRNG, T::Type, n::Int)
-    x = randn(rng, T, n, n)
-    return x' * x
+function random_covariance_matrix(rng::AbstractRNG, T::Type, n::Int, evals=1:10)
+    Q, _ = qr(randn(rng, T, n, n))
+    eigvals = rand(evals, n)
+    D = Diagonal(eigvals)
+    return Q * D * Q'
 end
 random_covariance_matrix(rng::AbstractRNG, n::Int) = random_covariance_matrix(rng, Float64, n)
 random_covariance_matrix(T::Type, n::Int) = random_covariance_matrix(Random.GLOBAL_RNG, T, n)
