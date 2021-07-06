@@ -1,4 +1,4 @@
-# TODO: VCF read
+# TODO: VCF and BGEN read
 
 """
     iht(plinkfile, k, d, phenotypes=6, covariates="", summaryfile="iht.summary.txt",
@@ -23,18 +23,21 @@ Runs IHT with sparsity level `k`.
     in Julia base. We require each subject's phenotype to occupy a different row. The file
     should not include a header line. Each row should be listed in the same order as in
     the PLINK and (for multivariate analysis) be comma separated. 
-- `covariates`: Covariate file name. Default (covariates=""), where an intercept
-    term will be automatically included. If `covariates` file specified, it will be 
+- `covariates`: Covariate file name. Default `covariates=""` (in which case an intercept
+    term will be automatically included). If `covariates` file specified, it will be 
     read using `readdlm` function in Julia base. We require the covariate file to be
     comma separated, and not include a header line. Each row should be listed in the
     same order as in the PLINK. The first column should be all 1s to indicate an
-    intercept. All other columns will be standardized to mean 0 variance 1. 
+    intercept. All other columns not specified in `exclude_std_idx` will be standardized
+    to mean 0 variance 1. 
 - `summaryfile`: Output file name for saving IHT's summary statistics. Default
     `summaryfile="iht.summary.txt"`.
 - `betafile`: Output file name for saving IHT's estimated genotype effect sizes. 
     Default `betafile="iht.beta.txt"`. 
 - `covariancefile`: Output file name for saving IHT's estimated trait covariance
     matrix for multivariate analysis. Default `covariancefile="iht.cov.txt"`. 
+- `exclude_std_idx`: Indices of non-genetic covariates that should be excluded from
+    standardization. 
 - All optional arguments available in [`fit_iht`](@ref)
 """
 function iht(
@@ -46,6 +49,7 @@ function iht(
     summaryfile::AbstractString = "iht.summary.txt",
     betafile::AbstractString = "iht.beta.txt",
     covariancefile::AbstractString = "iht.cov.txt",
+    exclude_std_idx::AbstractVector{<:Integer} = Int[],
     kwargs...
     )
     # read genotypes
@@ -58,7 +62,7 @@ function iht(
 
     # read and standardize covariates 
     z = covariates == "" ? ones(size(xla, 1)) : 
-        parse_covariates(covariates, standardize=true)
+        parse_covariates(covariates, exclude_std_idx, standardize=true)
     is_multivariate(y) && (z = convert(Matrix{Float64}, Transpose(z)))
 
     # run IHT
@@ -184,16 +188,31 @@ function parse_phenotypes(::SnpData, pheno_filename::AbstractString, d)
 end
 
 """
-    parse_covariates(x::AbstractString; standardize::Bool=true)
+    parse_covariates(filename, exclude_std_idx; standardize::Bool=true)
 
-Reads a comma separated text file `x`. Each row should be a sample ordered the 
+Reads a comma separated text file `filename`. Each row should be a sample ordered the 
 same as in the plink file. The first column should be array of 1 (representing
 intercept). Each covariate should be comma separated. If `standardize=true`, 
-columns 2 and beyond will be normalized to mean 0 variance 1. 
+all columns except those in `exclude_std_idx` will be standardized. 
 """
-function parse_covariates(x::AbstractString; standardize::Bool=true)
-    z = readdlm(x, ',', Float64)
-    standardize && standardize!(@view(z[:, 2:end]))
+function parse_covariates(filename::AbstractString, exclude_std_idx::AbstractVector{<:Integer};
+    standardize::Bool=true)
+    z = readdlm(filename, ',', Float64)
+
+    if eltype(exclude_std_idx) == Bool
+        mask = exclude_std_idx
+    else
+        mask = falses(size(z, 2))
+        mask[exclude_std_idx] .= true
+    end
+
+    if all(x == 1 for x in @view(z[:, 1]))
+        length(mask) > 1 && (mask[1] = true) # don't standardize intercept
+    else
+        @warn("Covariate file provided but did not detect an intercept An intercept will not be included in IHT!")
+    end
+
+    standardize && standardize!(@view(z[:, mask]))
     return z
 end
 
@@ -225,12 +244,13 @@ sparsity levels are specified in `path`.
     in Julia base. We require each subject's phenotype to occupy a different row. The file
     should not include a header line. Each row should be listed in the same order as in
     the PLINK. 
-- `covariates`: Covariate file name. Default is nothing (i.e. ""), where an intercept
-    term will be automatically included. If `covariates` file specified, it will be 
+- `covariates`: Covariate file name. Default `covariates=""` (in which case an intercept
+    term will be automatically included). If `covariates` file specified, it will be 
     read using `readdlm` function in Julia base. We require the covariate file to be
     comma separated, and not include a header line. Each row should be listed in the
     same order as in the PLINK. The first column should be all 1s to indicate an
-    intercept. All other columns will be standardized to mean 0 variance 1. 
+    intercept. All other columns not specified in `exclude_std_idx` will be standardized
+    to mean 0 variance 1
 - `cv_summaryfile`: Output file name for saving IHT's cross validation summary statistics.
     Default `cv_summaryfile="cviht.summary.txt"`.
 - `q`: Number of cross validation folds. Larger means more accurate and more computationally
@@ -245,6 +265,7 @@ function cross_validate(
     covariates::AbstractString = "",
     cv_summaryfile::AbstractString = "cviht.summary.txt",
     q::Int = 5,
+    exclude_std_idx::AbstractVector{<:Integer} = Int[],
     kwargs...
     )
     start_time = time()
@@ -255,9 +276,9 @@ function cross_validate(
     # read phenotypes
     y = parse_phenotypes(snpdata, phenotypes, d())
 
-    # read and standardize covariates 
+    # read and standardize covariates
     z = covariates == "" ? ones(size(x, 1)) : 
-        parse_covariates(covariates, standardize=true)
+        parse_covariates(covariates, exclude_std_idx, standardize=true)
     is_multivariate(y) && (z = convert(Matrix{Float64}, Transpose(z)))
 
     # run cross validation
