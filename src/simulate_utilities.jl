@@ -308,21 +308,25 @@ function simulate_random_response(x::AbstractMatrix, k::Int, traits::Int;
 end
 
 """
-    random_covariance_matrix(n::Int)
+    random_covariance_matrix(n::Int, [κ=10])
 
-Generates a positive definite, symmetric matrix, with eigenvalues randomly selected
-from `evals` (to control for maximum condition number)
+Generates a `n × n` positive definite, symmetric matrix with condition number less than `κ`
 https://discourse.julialang.org/t/generate-a-positive-definite-matrix/48582
+
+Both issymmetric(random_covariance_matrix(n)) and isposdef(random_covariance_matrix(n))
+will always return true, and cond(random_covariance_matrix(n)) ≤ κ
 """
-function random_covariance_matrix(rng::AbstractRNG, T::Type, n::Int, evals=1:10)
-    Q, _ = qr(randn(rng, T, n, n))
-    eigvals = rand(evals, n)
-    D = Diagonal(eigvals)
-    return Q * D * Q'
+function random_covariance_matrix(n::Int, κ=10)
+    Q, _ = qr(randn(n, n))
+    σ = abs.(randn(n)) # simulated eigenvalues
+    while maximum(σ) / minimum(σ) ≥ sqrt(κ)
+        randn!(σ)
+        σ .= abs.(σ)
+    end
+    D = Diagonal(σ)
+    A = Q * D * Q'
+    return A' * A
 end
-random_covariance_matrix(rng::AbstractRNG, n::Int) = random_covariance_matrix(rng, Float64, n)
-random_covariance_matrix(T::Type, n::Int) = random_covariance_matrix(Random.GLOBAL_RNG, T, n)
-random_covariance_matrix(n::Int) = random_covariance_matrix(Random.GLOBAL_RNG, n)
 
 """
     adhoc_add_correlation!(x::SnpArray, ρ::Float64, pos::Int64, location::Vector{Int})
