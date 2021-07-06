@@ -434,7 +434,9 @@ version = "1.0.0"
 
 [[SnpArrays]]
 deps = ["Adapt", "CSV", "CodecBzip2", "CodecXz", "CodecZlib", "CodecZstd", "DataFrames", "DelimitedFiles", "Glob", "LinearAlgebra", "LoopVectorization", "Missings", "Mmap", "Printf", "Random", "Requires", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "Tables", "TranscodingStreams", "VariantCallFormat", "VectorizationBase"]
-path = "/Users/biona001/.julia/dev/SnpArrays"
+git-tree-sha1 = "1e45cc432fa657c19a38ca33a12e40b1c2523569"
+repo-rev = "master"
+repo-url = "https://github.com/OpenMendel/SnpArrays.jl"
 uuid = "4e780e97-f5bf-4111-9dc4-b70aaf691b06"
 version = "0.3.8"
 
