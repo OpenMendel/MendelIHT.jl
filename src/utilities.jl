@@ -280,20 +280,39 @@ end
 """
 When initializing the IHT algorithm, take largest elements in magnitude of each
 group of the score as nonzero components of b. This function set v.idx = 1 for
-those indices. If `initialized_beta=true`, then beta values were all initialized to
+those indices. If `init_beta=true`, then beta values will be initialized to
 their univariate values (see [`initialize_beta`](@ref)), in which case we will simply
 choose top `k` entries
 
 `J` is the maximum number of active groups, and `k` is the maximum number of
 predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable, initialized_beta::Bool)
-    z = v.z
-    y = v.y
-    l = v.l
-    J = v.J
-    k = v.k
-    group = v.group
+function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
+    fill!(v.b, 0)
+    fill!(v.b0, 0)
+    fill!(v.best_b, 0)
+    fill!(v.xb, 0)
+    fill!(v.xk, 0)
+    fill!(v.gk, 0)
+    fill!(v.xgk, 0)
+    fill!(v.idx, false)
+    fill!(v.idx0, false)
+    fill!(v.idc, false)
+    fill!(v.idc0, false)
+    fill!(v.r, 0)
+    fill!(v.df, 0)
+    fill!(v.df2, 0)
+    fill!(v.c, 0)
+    fill!(v.best_c, 0)
+    fill!(v.c0, 0)
+    fill!(v.zc, 0)
+    fill!(v.zdf2, 0)
+    fill!(v.μ, 0)
+    fill!(v.cv_wts, 0)
+    v.cv_wts[cv_idx] .= 1
+
+    init_beta && !(typeof(d) <: Normal) && 
+        throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
 
     # find the intercept by Newton's method
     ybar = zero(eltype(v.y))
@@ -302,33 +321,34 @@ function init_iht_indices!(v::IHTVariable, initialized_beta::Bool)
     end
     ybar /= count(!iszero, v.cv_wts)
     for iteration = 1:20 
-        g1 = linkinv(l, v.c[1])
-        g2 = mueta(l, v.c[1])
+        g1 = linkinv(v.l, v.c[1])
+        g2 = mueta(v.l, v.c[1])
         v.c[1] = v.c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
         abs(g1 - ybar) < 1e-10 && break
     end
-    mul!(v.zc, z, v.c)
+    mul!(v.zc, v.z, v.c)
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v)
     score!(v)
 
-    if initialized_beta && v.k > 0
-        project_k!(v)
+    if init_beta
+        v.b = initialize_beta(v.y, v.x, v.cv_wts)
+        v.k > 0 && project_k!(v)
     else
         # first `k` non-zero entries are chosen based on largest gradient
         ldf = length(v.df)
         v.full_b[1:ldf] .= v.df
         v.full_b[ldf+1:end] .= v.df2
         if length(v.ks) == 0 # no group projection
-            a = partialsort(v.full_b, k * J, by=abs, rev=true)
+            a = partialsort(v.full_b, v.k * v.J, by=abs, rev=true)
             v.idx .= abs.(v.df) .>= abs(a)
             v.idc .= abs.(v.df2) .>= abs(a)
 
             # Choose randomly if more are selected
             _choose!(v) 
         else 
-            project_group_sparse!(v.full_b, group, J, v.ks)
+            project_group_sparse!(v.full_b, v.group, v.J, v.ks)
             @inbounds for i in 1:ldf
                 v.full_b[i] != 0 && (v.idx[i] = true)
             end

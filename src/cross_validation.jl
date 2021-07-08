@@ -75,6 +75,8 @@ function cv_iht(
     # preallocated arrays for efficiency
     test_idx  = [falses(length(folds)) for i in 1:nprocs()]
     train_idx = [falses(length(folds)) for i in 1:nprocs()]
+    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, init_beta,
+        cv_train_idx=train_idx[i]) for i in 1:nprocs()]
 
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
@@ -90,20 +92,22 @@ function cv_iht(
         id = myid()
         test_idx[id]  .= folds .== fold
         train_idx[id] .= folds .!= fold
+        v = V[id]
 
-        # run IHT on training data with current k
-        v = initialize(x, z, y, 1, k, d, l, group, weight, est_r, init_beta,
-            cv_train_idx=train_idx[id])
-        result = fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
+        # run IHT on training data with current (fold, k)
+        v.k = k
+        init_iht_indices!(v, init_beta, train_idx[id])
+        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
 
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)
         v.cv_wts[test_idx[id]] .= one(T)
+        mse = predict!(v)
 
         # update progres
         put!(channel, true)
 
-        return predict!(v, result)
+        return mse
     end
     put!(channel, false)
 
@@ -123,8 +127,10 @@ function cv_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs...) where T
 end
 
 """
-    allocate_fold_and_k()
+    allocate_fold_and_k(q, path)
 
+Returns all combinations of (qᵢ, kᵢ) where `q` is number of cross validation fold
+and path is a vector of different `k` to be tested. 
 """
 function allocate_fold_and_k(q::Int, path::AbstractVector{<:Integer})
     combinations = Tuple{Int, Int}[]
@@ -188,10 +194,10 @@ function iht_run_many_models(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs..
     return iht_run_many_models(y, x, z; kwargs...)
 end
 
-function predict!(v::IHTVariable{T, M}, result::IHTResult) where {T <: Float, M}
+function predict!(v::IHTVariable{T, M}) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta (cv weights are handled in deviance)
-    mul!(v.xb, v.x, result.beta)
-    mul!(v.zc, v.z, result.c)
+    mul!(v.xb, v.x, v.best_b)
+    mul!(v.zc, v.z, v.best_c)
     update_μ!(v)
 
     # Compute deviance residual (MSE for Gaussian response)

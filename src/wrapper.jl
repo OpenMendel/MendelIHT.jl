@@ -209,7 +209,7 @@ function parse_covariates(filename::AbstractString, exclude_std_idx::AbstractVec
     if all(x == 1 for x in @view(z[:, 1]))
         length(mask) > 1 && (mask[1] = true) # don't standardize intercept
     else
-        @warn("Covariate file provided but did not detect an intercept An intercept will not be included in IHT!")
+        @warn("Covariate file provided but did not detect an intercept. An intercept will NOT be included in IHT!")
     end
 
     standardize && standardize!(@view(z[:, mask]))

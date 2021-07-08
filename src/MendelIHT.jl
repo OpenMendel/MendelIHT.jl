@@ -1,5 +1,3 @@
-__precompile__()
-
 module MendelIHT
 
     import Distances: euclidean, chebyshev, sqeuclidean

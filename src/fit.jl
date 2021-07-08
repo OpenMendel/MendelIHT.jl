@@ -91,8 +91,13 @@ function fit_iht(
         print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter)
     end
 
-    return fit_iht!(v, debias=debias, verbose=verbose, tol=tol, max_iter=max_iter,
-        max_step=max_step, io=io)
+    tot_time, best_logl, mm_iter = fit_iht!(v, debias=debias, verbose=verbose,
+        tol=tol, max_iter=max_iter, max_step=max_step, io=io)
+
+    # compute phenotype's proportion of variation explained
+    σ2 = pve(v)
+
+    return IHTResult(tot_time, best_logl, mm_iter, σ2, v)
 end
 
 function fit_iht(
@@ -180,10 +185,7 @@ function fit_iht!(
         end
     end
 
-    # compute phenotype's proportion of variation explained
-    σ2 = pve(v)
-
-    return IHTResult(tot_time, best_logl, mm_iter, σ2, v)
+    return tot_time, best_logl, mm_iter
 end
 
 """

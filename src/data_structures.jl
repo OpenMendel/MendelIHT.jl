@@ -47,7 +47,6 @@ ntraits(v::IHTVariable) = 1
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    init_beta::Bool, cv_train_idx::BitVector=trues(size(x, 1))
     ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
@@ -78,31 +77,28 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
         ks, k = k, 0
     end
 
-    init_beta && !(typeof(d) <: Normal) && 
-        throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
-
-    b      = init_beta ? initialize_beta(y, x, cv_train_idx) : zeros(T, p)
-    b0     = zeros(T, p)
-    best_b = zeros(T, p)
-    xb     = zeros(T, n)
-    xk     = zeros(T, n, J * columns - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    gk     = zeros(T, J * columns - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
-    xgk    = zeros(T, n)
-    idx    = falses(p)
-    idx0   = falses(p)
-    idc    = falses(q)
-    idc0   = falses(q)
-    r      = zeros(T, n)
-    df     = zeros(T, p)
-    df2    = zeros(T, q)
-    c      = zeros(T, q)
-    best_c = zeros(T, q)
-    c0     = zeros(T, q)
-    zc     = zeros(T, n)
-    zdf2   = zeros(T, n)
-    μ      = zeros(T, n)
-    cv_wts = ones(T, n); cv_wts[.!cv_train_idx] .= zero(T)
-    storage = zeros(T, p + q)
+    b      = Vector{T}(undef, p)
+    b0     = Vector{T}(undef, p)
+    best_b = Vector{T}(undef, p)
+    xb     = Vector{T}(undef, n)
+    xk     = Matrix{T}(undef, n, J * columns - 1) # subtracting 1 because the intercept will likely be selected in the first iter
+    gk     = Vector{T}(undef, J * columns - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
+    xgk    = Vector{T}(undef, n)
+    idx    = BitArray(undef, p)
+    idx0   = BitArray(undef, p)
+    idc    = BitArray(undef, q)
+    idc0   = BitArray(undef, q)
+    r      = Vector{T}(undef, n)
+    df     = Vector{T}(undef, p)
+    df2    = Vector{T}(undef, q)
+    c      = Vector{T}(undef, q)
+    best_c = Vector{T}(undef, q)
+    c0     = Vector{T}(undef, q)
+    zc     = Vector{T}(undef, n)
+    zdf2   = Vector{T}(undef, n)
+    μ      = Vector{T}(undef, n)
+    cv_wts = Vector{T}(undef, n)
+    storage = Vector{T}(undef, p + q)
 
     return IHTVariable{T, M}(
         x, y, z, k, J, ks, d, l, est_r, 
@@ -118,14 +114,13 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k, initialize_beta, cv_train_idx)
+        v = mIHTVariable(x, z, y, k, cv_train_idx)
     else
-        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, 
-            initialize_beta, cv_train_idx)
+        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
     end
 
     # initialize non-zero indices
-    MendelIHT.init_iht_indices!(v, initialize_beta)
+    MendelIHT.init_iht_indices!(v, initialize_beta, cv_train_idx)
 
     return v
 end
