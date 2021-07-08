@@ -46,6 +46,78 @@ minimum out-of-sample error.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
 """
+# function cv_iht(
+#     y        :: AbstractVecOrMat{T},
+#     x        :: AbstractMatrix{T},
+#     z        :: AbstractVecOrMat{T};
+#     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
+#     l        :: Link = IdentityLink(),
+#     path     :: AbstractVector{<:Integer} = 1:20,
+#     q        :: Int64 = 5,
+#     est_r    :: Symbol = :None,
+#     group    :: AbstractVector{Int} = Int[],
+#     weight   :: AbstractVector{T} = T[],
+#     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
+#     use_maf  :: Bool = false,
+#     debias   :: Bool = false,
+#     verbose  :: Bool = true,
+#     parallel :: Bool = true,
+#     max_iter :: Int = 100,
+#     init_beta :: Bool = false
+#     ) where T <: Float
+
+#     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
+#     check_data_dim(y, x, z)
+
+#     # preallocated arrays for efficiency
+#     test_idx  = [falses(length(folds)) for i in 1:nprocs()]
+#     train_idx = [falses(length(folds)) for i in 1:nprocs()]
+#     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, init_beta,
+#         cv_train_idx=train_idx[i]) for i in 1:nprocs()]
+
+#     # for displaying cross validation progress
+#     pmeter = Progress(q * length(path), "Cross validating...")
+#     channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
+#     @async while take!(channel)
+#         next!(pmeter)
+#     end
+
+#     # cross validation all (fold, k) combinations
+#     combinations = allocate_fold_and_k(q, path)
+#     mses = (parallel ? pmap : map)(combinations) do (fold, k)
+#         # assign train/test indices
+#         id = myid()
+#         test_idx[id]  .= folds .== fold
+#         train_idx[id] .= folds .!= fold
+#         v = V[id]
+
+#         # run IHT on training data with current (fold, k)
+#         v.k = k
+#         init_iht_indices!(v, init_beta, train_idx[id])
+#         fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
+
+#         # predict on validation data
+#         v.cv_wts[train_idx[id]] .= zero(T)
+#         v.cv_wts[test_idx[id]] .= one(T)
+#         mse = predict!(v)
+
+#         # update progres
+#         put!(channel, true)
+
+#         return mse
+#     end
+#     put!(channel, false)
+
+#     #weight mses for each fold by their size before averaging
+#     mse = meanloss(mses, q, folds)
+
+#     # find best model size and print cross validation result
+#     k = path[argmin(mse)] :: Int
+#     verbose && print_cv_results(mse, path, k)
+
+#     return mse
+# end
+
 function cv_iht(
     y        :: AbstractVecOrMat{T},
     x        :: AbstractMatrix{T},
@@ -70,23 +142,21 @@ function cv_iht(
     check_data_dim(y, x, z)
 
     # preallocated arrays for efficiency
-    test_idx  = [falses(length(folds)) for i in 1:nprocs()]
-    train_idx = [falses(length(folds)) for i in 1:nprocs()]
+    test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
+    train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, init_beta,
-        cv_train_idx=train_idx[i]) for i in 1:nprocs()]
+        cv_train_idx=train_idx[i]) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
-    channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
-    @async while take!(channel)
-        next!(pmeter)
-    end
 
-    # cross validation all (fold, k) combinations
     combinations = allocate_fold_and_k(q, path)
-    mses = (parallel ? pmap : map)(combinations) do (fold, k)
+    mses = zeros(length(combinations))
+    Threads.@threads for i in 1:length(combinations)
+        fold, k = combinations[i]
+
         # assign train/test indices
-        id = myid()
+        id = Threads.threadid()
         test_idx[id]  .= folds .== fold
         train_idx[id] .= folds .!= fold
         v = V[id]
@@ -99,14 +169,11 @@ function cv_iht(
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)
         v.cv_wts[test_idx[id]] .= one(T)
-        mse = predict!(v)
+        mses[i] = predict!(v)
 
         # update progres
-        put!(channel, true)
-
-        return mse
+        next!(pmeter)
     end
-    put!(channel, false)
 
     #weight mses for each fold by their size before averaging
     mse = meanloss(mses, q, folds)
