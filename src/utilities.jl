@@ -321,7 +321,6 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
         ybar += v.y[i] * v.cv_wts[i]
     end
     ybar /= count(!iszero, v.cv_wts)
-
     for iteration = 1:20 
         g1 = linkinv(v.l, v.c[1])
         g2 = mueta(v.l, v.c[1])

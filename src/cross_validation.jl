@@ -152,7 +152,7 @@ function cv_iht(
 
     combinations = allocate_fold_and_k(q, path)
     mses = zeros(length(combinations))
-    Threads.@threads for i in 1:length(combinations)
+    ThreadPools.@qthreads for i in 1:length(combinations)
         fold, k = combinations[i]
 
         # assign train/test indices
