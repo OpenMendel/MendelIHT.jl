@@ -200,19 +200,19 @@ function parse_covariates(filename::AbstractString, exclude_std_idx::AbstractVec
     z = readdlm(filename, ',', Float64)
 
     if eltype(exclude_std_idx) == Bool
-        mask = exclude_std_idx
+        std_idx = .!exclude_std_idx
     else
-        mask = falses(size(z, 2))
-        mask[exclude_std_idx] .= true
+        std_idx = trues(size(z, 2))
+        std_idx[exclude_std_idx] .= false
     end
 
     if all(x == 1 for x in @view(z[:, 1]))
-        length(mask) > 1 && (mask[1] = true) # don't standardize intercept
+        std_idx[1] = false # don't standardize intercept
     else
         @warn("Covariate file provided but did not detect an intercept. An intercept will NOT be included in IHT!")
     end
 
-    standardize && standardize!(@view(z[:, mask]))
+    standardize && standardize!(@view(z[:, std_idx]))
     return z
 end
 

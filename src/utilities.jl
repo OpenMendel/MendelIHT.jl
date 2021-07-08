@@ -309,6 +309,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
     fill!(v.zdf2, 0)
     fill!(v.μ, 0)
     fill!(v.cv_wts, 0)
+    fill!(v.full_b, 0)
     v.cv_wts[cv_idx] .= 1
 
     init_beta && !(typeof(d) <: Normal) && 
@@ -320,6 +321,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
         ybar += v.y[i] * v.cv_wts[i]
     end
     ybar /= count(!iszero, v.cv_wts)
+
     for iteration = 1:20 
         g1 = linkinv(v.l, v.c[1])
         g2 = mueta(v.l, v.c[1])

@@ -4,8 +4,10 @@
         max_iter=200, max_step=3, io=stdout)
 
 Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
-and non-genetic covariates `z` on a specific sparsity parameter `k`. If `k` is 
-a constant, then each group will have the same sparsity level. To run doubly 
+and non-genetic covariates `z` on a specific sparsity parameter `k`. Variables in 
+`x` and `z` will both be subject to sparsity constraint. 
+
+If `k` is a constant, then each group will have the same sparsity level. To run doubly 
 sparse IHT, construct `k` to be a vector where `k[i]` indicates the max number
 of predictors for group `i`. 
 
