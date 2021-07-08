@@ -37,12 +37,13 @@ minimum out-of-sample error.
 - `group`: vector storing group membership for each predictor
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
 - `folds`: Vector that separates the sample into `q` disjoint subsets
-- `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
 - `debias`: Boolean indicating whether we should debias at each IHT step
 - `verbose`: Whether we want IHT to print meaningful intermediate steps
 - `parallel`: Whether we want to run `cv_iht` using multiple CPUs (note one must
     call `using Distributed; addprocs(4)` and set `parallel=true` for this function
     to truely use 4 CPUs.)
+- `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 100 
+- `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
 """
@@ -58,11 +59,11 @@ minimum out-of-sample error.
 #     group    :: AbstractVector{Int} = Int[],
 #     weight   :: AbstractVector{T} = T[],
 #     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
-#     use_maf  :: Bool = false,
 #     debias   :: Bool = false,
 #     verbose  :: Bool = true,
 #     parallel :: Bool = true,
 #     max_iter :: Int = 100,
+#     min_iter :: Int = 5,
 #     init_beta :: Bool = false
 #     ) where T <: Float
 
@@ -94,7 +95,7 @@ minimum out-of-sample error.
 #         # run IHT on training data with current (fold, k)
 #         v.k = k
 #         init_iht_indices!(v, init_beta, train_idx[id])
-#         fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
+#         fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
 
 #         # predict on validation data
 #         v.cv_wts[train_idx[id]] .= zero(T)
@@ -130,11 +131,10 @@ function cv_iht(
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
-    use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
-    parallel :: Bool = true,
     max_iter :: Int = 100,
+    min_iter :: Int = 5,
     init_beta :: Bool = false
     ) where T <: Float
 
@@ -164,7 +164,7 @@ function cv_iht(
         # run IHT on training data with current (fold, k)
         v.k = k
         init_iht_indices!(v, init_beta, train_idx[id])
-        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
+        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
 
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)

@@ -41,6 +41,7 @@ of predictors for group `i`.
 + `verbose`: boolean indicating whether we want to print intermediate results
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
++ `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 + `max_step`: is the maximum number of backtracking per IHT iteration. Defaults 3
 + `io`: An `IO` object for displaying intermediate results. Default `stdout`.
 + `init_beta`: Whether to initialize beta values to univariate regression values. 
@@ -62,6 +63,7 @@ function fit_iht(
     verbose   :: Bool = true,          # print informative things to stdout
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
+    min_iter  :: Int = 5,              # minimum IHT iterations
     max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout,
     init_beta :: Bool = false
@@ -94,7 +96,7 @@ function fit_iht(
     end
 
     tot_time, best_logl, mm_iter = fit_iht!(v, debias=debias, verbose=verbose,
-        tol=tol, max_iter=max_iter, max_step=max_step, io=io)
+        tol=tol, max_iter=max_iter, min_iter=min_iter, max_step=max_step, io=io)
 
     # compute phenotype's proportion of variation explained
     σ2 = pve(v)
@@ -133,6 +135,7 @@ function fit_iht!(
     verbose   :: Bool = true,          # print informative things
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
+    min_iter  :: Int = 5,              # minimum IHT iterations
     max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout
     ) where {T <: Float, M}
@@ -178,7 +181,7 @@ function fit_iht!(
         progr = "Iteration $iter: loglikelihood = $next_logl, backtracks = $η_step, tol = $scaled_norm"
         verbose && println(io, progr)
         verbose && io != stdout && println(progr)
-        if iter ≥ 5 && scaled_norm < tol
+        if iter ≥ min_iter && scaled_norm < tol
             best_logl = save_prev!(v, next_logl, best_logl)
             save_best_model!(v)
             tot_time = time() - start_time
