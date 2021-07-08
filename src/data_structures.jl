@@ -114,7 +114,7 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k, cv_train_idx)
+        v = mIHTVariable(x, z, y, k)
     else
         v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
     end
@@ -169,8 +169,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
-    k::Int, init_beta::Bool, cv_train_idx::BitVector=trues(size(x, 2))
-    ) where {T <: Float, M <: AbstractMatrix}
+    k::Int) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 2) # number of samples 
     p = size(x, 1) # number of SNPs
@@ -181,36 +180,36 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
         throw(DimensionMismatch("number of samples in y, x, and z = $(size(y, 2)), $n, $(size(z, 2)) are not equal"))
     end
 
-    B      = init_beta ? initialize_beta(y, x, cv_train_idx) : zeros(T, r, p)
-    B0     = zeros(T, r, p)
-    best_B = zeros(T, r, p)
-    BX     = zeros(T, r, n)
-    Xk     = zeros(T, k - 1, n) # subtracting 1 because the intercept will likely be selected in the first iter
-    idx    = falses(p)
-    idx0   = falses(p)
-    idc    = falses(q)
-    idc0   = falses(q)
-    resid  = zeros(T, r, n)
-    df     = zeros(T, r, p)
-    df2    = zeros(T, r, q)
-    dfidx  = zeros(T, r, k - 1)
-    C      = zeros(T, r, q)
-    C0     = zeros(T, r, q)
-    best_C = zeros(T, r, q)
-    CZ     = zeros(T, r, n)
-    μ      = zeros(T, r, n)
+    B      = Matrix{T}(undef, r, p)
+    B0     = Matrix{T}(undef, r, p)
+    best_B = Matrix{T}(undef, r, p)
+    BX     = Matrix{T}(undef, r, n)
+    Xk     = Matrix{T}(undef, k - 1, n) # subtracting 1 because the intercept will likely be selected in the first iter
+    idx    = BitArray(undef, p)
+    idx0   = BitArray(undef, p)
+    idc    = BitArray(undef, q)
+    idc0   = BitArray(undef, q)
+    resid  = Matrix{T}(undef, r, n)
+    df     = Matrix{T}(undef, r, p)
+    df2    = Matrix{T}(undef, r, q)
+    dfidx  = Matrix{T}(undef, r, k - 1)
+    C      = Matrix{T}(undef, r, q)
+    C0     = Matrix{T}(undef, r, q)
+    best_C = Matrix{T}(undef, r, q)
+    CZ     = Matrix{T}(undef, r, n)
+    μ      = Matrix{T}(undef, r, n)
     Γ      = Matrix{T}(I, r, r)
     Γ0     = Matrix{T}(I, r, r)
-    cv_wts = ones(T, n); cv_wts[.!cv_train_idx] .= zero(T)
-    full_b = zeros(T, r * (p + q))
-    r_by_r1 = zeros(T, r, r)
-    r_by_r2 = zeros(T, r, r)
-    r_by_n1 = zeros(T, r, n)
-    r_by_n2 = zeros(T, r, n)
-    n_by_r = zeros(T, n, r)
-    p_by_r = zeros(T, p, r)
-    k_by_r = zeros(T, k, r)
-    k_by_k = zeros(T, k, k)
+    cv_wts = Vector{T}(undef, n)
+    full_b = Vector{T}(undef, r * (p + q))
+    r_by_r1 = Matrix{T}(undef, r, r)
+    r_by_r2 = Matrix{T}(undef, r, r)
+    r_by_n1 = Matrix{T}(undef, r, n)
+    r_by_n2 = Matrix{T}(undef, r, n)
+    n_by_r = Matrix{T}(undef, n, r)
+    p_by_r = Matrix{T}(undef, p, r)
+    k_by_r = Matrix{T}(undef, k, r)
+    k_by_k = Matrix{T}(undef, k, k)
 
     return mIHTVariable{T, M}(
         x, y, z, k,

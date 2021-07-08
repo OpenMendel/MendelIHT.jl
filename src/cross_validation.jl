@@ -5,12 +5,9 @@
         parallel=true, max_iter=100)
 
 For each model specified in `path`, performs `q`-fold cross validation and 
-returns the (averaged) deviance residuals. 
-
-The purpose of this function is to find the best sparsity level `k`, obtained
-from selecting the model with the minimum out-of-sample error. Different cross
-validation folds are cycled through sequentially different `paths` are fitted
-in parallel on different CPUs. 
+returns the (averaged) deviance residuals. The purpose of this function is to
+find the best sparsity level `k`, obtained from selecting the model with the
+minimum out-of-sample error. 
 
 # Arguments:
 + `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or
@@ -204,10 +201,10 @@ function predict!(v::IHTVariable{T, M}) where {T <: Float, M}
     return deviance(v)
 end
 
-function predict!(v::mIHTVariable{T, M}, result::mIHTResult) where {T <: Float, M}
+function predict!(v::mIHTVariable{T, M}) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta
-    mul!(v.BX, result.beta, v.X)
-    mul!(v.CZ, result.c, v.Z)
+    mul!(v.BX, v.best_B, v.X)
+    mul!(v.CZ, v.best_C, v.Z)
     update_μ!(v)
 
     # Compute MSE

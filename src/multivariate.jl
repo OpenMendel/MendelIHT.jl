@@ -327,7 +327,43 @@ When initializing the IHT algorithm, take `k` largest elements in magnitude of
 the score as nonzero components of `v.B`. This function set v.idx = 1 for
 those indices. `v.μ`, `v.df`, `v.df2`, and possibly `v.BX` are also initialized. 
 """
-function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
+function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
+    fill!(v.B, 0)
+    fill!(v.B0, 0)
+    fill!(v.best_B, 0)
+    fill!(v.BX, 0)
+    fill!(v.Xk, 0)
+    fill!(v.idx, false)
+    fill!(v.idx0, false)
+    fill!(v.idc, false)
+    fill!(v.idc0, false)
+    fill!(v.resid, 0)
+    fill!(v.df, 0)
+    fill!(v.df2, 0)
+    fill!(v.dfidx, 0)
+    fill!(v.C, 0)
+    fill!(v.C0, 0)
+    fill!(v.best_C, 0)
+    fill!(v.CZ, 0)
+    fill!(v.μ, 0)
+    fill!(v.Γ, 0)
+    fill!(v.Γ0, 0)
+    for i in 1:ntraits(v)
+        v.Γ[i, i] = 1
+        v.Γ0[i, i] = 1
+    end
+    fill!(v.cv_wts, 0)
+    v.cv_wts[cv_idx] .= 1
+    fill!(v.full_b, 0)
+    fill!(v.r_by_r1, 0)
+    fill!(v.r_by_r2, 0)
+    fill!(v.r_by_n1, 0)
+    fill!(v.r_by_n2, 0)
+    fill!(v.n_by_r, 0)
+    fill!(v.p_by_r, 0)
+    fill!(v.k_by_r, 0)
+    fill!(v.k_by_k, 0)
+
     # initialize intercept to mean of each trait
     nz_samples = count(!iszero, v.cv_wts) # for cross validation masking
     for i in 1:ntraits(v)
@@ -339,8 +375,8 @@ function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
     end
     mul!(v.CZ, v.C, v.Z)
 
-    # if beta have been initialized to univariate values, project it to sparsity
-    if initialized_beta
+    if init_beta
+        v.B = initialize_beta(v.Y, v.X, v.cv_wts)
         project_k!(v)
         update_xb!(v)
     end
@@ -349,7 +385,7 @@ function init_iht_indices!(v::mIHTVariable, initialized_beta::Bool)
     update_μ!(v)
     score!(v)
 
-    if !initialized_beta
+    if !init_beta
         # first `k` non-zero entries in each β are chosen based on largest gradient
         vectorize!(v.full_b, v.df, v.df2)
         project_k!(v.full_b, v.k)
