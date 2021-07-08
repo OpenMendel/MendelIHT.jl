@@ -63,7 +63,7 @@ function fit_iht(
     verbose   :: Bool = true,          # print informative things to stdout
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
-    min_iter  :: Int = 5,              # minimum IHT iterations
+    min_iter  :: Int = 20,              # minimum IHT iterations
     max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout,
     init_beta :: Bool = false

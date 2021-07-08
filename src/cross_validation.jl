@@ -63,7 +63,7 @@ minimum out-of-sample error.
 #     verbose  :: Bool = true,
 #     parallel :: Bool = true,
 #     max_iter :: Int = 100,
-#     min_iter :: Int = 5,
+#     min_iter :: Int = 20,
 #     init_beta :: Bool = false
 #     ) where T <: Float
 
@@ -134,7 +134,7 @@ function cv_iht(
     debias   :: Bool = false,
     verbose  :: Bool = true,
     max_iter :: Int = 100,
-    min_iter :: Int = 5,
+    min_iter :: Int = 20,
     init_beta :: Bool = false
     ) where T <: Float
 
