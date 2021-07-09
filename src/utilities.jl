@@ -821,7 +821,7 @@ function print_iht_signature(io::IO)
 end
 print_iht_signature() = print_iht_signature(stdout)
 
-function print_parameters(io::IO, k, d, l, use_maf, group, debias, tol, max_iter)
+function print_parameters(io::IO, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
     regression = typeof(d) <: Normal ? "linear" : typeof(d) <: Bernoulli ? 
         "logistic" : typeof(d) <: Poisson ? "Poisson" : 
         typeof(d) <: NegativeBinomial ? "NegativeBinomial" : 
@@ -834,11 +834,11 @@ function print_parameters(io::IO, k, d, l, use_maf, group, debias, tol, max_iter
     println(io, "Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
     println(io, "Debias = ", debias ? "on" : "off")
     println(io, "Max IHT iterations = $max_iter")
-    println(io, "Converging when tol < $tol:\n")
-    io != stdout && print_parameters(stdout, k, d, l, use_maf, group, debias, tol, max_iter)
+    println(io, "Converging when tol < $tol and iteration ≥ $min_iter:\n")
+    io != stdout && print_parameters(stdout, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
 end
-print_parameters(k, d, l, use_maf, group, debias, tol, max_iter) = 
-    print_parameters(stdout, k, d, l, use_maf, group, debias, tol, max_iter)
+print_parameters(k, d, l, use_maf, group, debias, tol, max_iter, min_iter) = 
+    print_parameters(stdout, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
 
 function check_convergence(v::IHTVariable)
     the_norm = max(chebyshev(v.b, v.b0), chebyshev(v.c, v.c0)) #max(abs(x - y))

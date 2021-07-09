@@ -92,7 +92,7 @@ function fit_iht(
     # print information
     if verbose
         print_iht_signature(io)
-        print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter)
+        print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
     end
 
     tot_time, best_logl, mm_iter = fit_iht!(v, debias=debias, verbose=verbose,
