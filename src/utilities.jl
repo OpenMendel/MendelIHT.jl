@@ -827,6 +827,7 @@ function print_parameters(io::IO, k, d, l, use_maf, group, debias, tol, max_iter
         typeof(d) <: NegativeBinomial ? "NegativeBinomial" : 
         typeof(d) <: MvNormal ? "Multivariate Gaussian" : "unknown"
     println(io, "Running sparse $regression regression")
+    println(io, "Number of threads = ", Threads.nthreads())
     println(io, "Link functin = $l")
     typeof(k) <: Int && println(io, "Sparsity parameter (k) = $k")
     typeof(k) <: Vector{Int} && println(io, "Sparsity parameter (k) = using group membership specified in k")
