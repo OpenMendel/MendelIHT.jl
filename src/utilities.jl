@@ -312,7 +312,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
     fill!(v.full_b, 0)
     v.cv_wts[cv_idx] .= 1
 
-    init_beta && !(typeof(d) <: Normal) && 
+    init_beta && !(typeof(v.d) <: Normal) && 
         throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
 
     # find the intercept by Newton's method
@@ -334,7 +334,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
     score!(v)
 
     if init_beta
-        v.b = initialize_beta(v.y, v.x, v.cv_wts)
+        v.b = initialize_beta(v.y, v.x, cv_idx)
         v.k > 0 && project_k!(v)
     else
         # first `k` non-zero entries are chosen based on largest gradient
