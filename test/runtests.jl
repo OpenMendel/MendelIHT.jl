@@ -1,17 +1,14 @@
-using Distributed
-addprocs(4)
-
-@everywhere using MendelIHT
-@everywhere using SnpArrays
-@everywhere using DataFrames
-@everywhere using Distributions
-@everywhere using StatsBase
-@everywhere using LinearAlgebra
-@everywhere using GLM
-@everywhere using Test
-@everywhere using Random
-@everywhere using BenchmarkTools
-@everywhere using DelimitedFiles
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using StatsBase
+using LinearAlgebra
+using GLM
+using Test
+using Random
+using BenchmarkTools
+using DelimitedFiles
 
 # write your own tests here
 include("utilities_test.jl")

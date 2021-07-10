@@ -41,14 +41,14 @@ mses = cross_validate("normal", Normal, path=[1, 5, 10, 15, 20]) # test k = 1, 5
 mses = cross_validate("normal", Normal, path=1:20, covariates="covariates.txt") # separately include covariates
 mses = cross_validate("normal", Normal, path=1:20, covariates="covariates.txt", phenotypes="phenotypes.txt") # if phenotypes are in separate file
 
-# other distributions
+# other distributions (no test data available)
 result = iht("plinkfile", 10, Bernoulli) # logistic regression with k = 10
 result = iht("plinkfile", 10, Poisson) # Poisson regression with k = 10
 result = iht("plinkfile", 10, NegativeBinomial, est_r=:Newton) # Negative Binomial regression + nuisnace parameter estimation
 
-# Multivariate regression (multiple quantitative phenotypes)
-result = iht("plinkfile", 10, MvNormal, phenotypes=[6, 7]) # phenotypes stored in 6th and 7th column of .fam file
-result = iht("plinkfile", 10, MvNormal, phenotypes="phenotypes.txt") # phenotypes stored separate file
+# Multivariate IHT for multiple quantitative phenotypes
+result = iht("multivariate", 10, MvNormal, phenotypes=[6, 7]) # phenotypes stored in 6th and 7th column of .fam file
+result = iht("multivariate", 10, MvNormal, phenotypes="multivariate.phen") # phenotypes stored separate file
 ```
 
 Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/latest/) for more detail. 
