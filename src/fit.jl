@@ -41,7 +41,7 @@ of predictors for group `i`.
 + `verbose`: boolean indicating whether we want to print intermediate results
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
-+ `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
++ `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 20.
 + `max_step`: is the maximum number of backtracking per IHT iteration. Defaults 3
 + `io`: An `IO` object for displaying intermediate results. Default `stdout`.
 + `init_beta`: Whether to initialize beta values to univariate regression values. 
@@ -63,7 +63,7 @@ function fit_iht(
     verbose   :: Bool = true,          # print informative things to stdout
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
-    min_iter  :: Int = 20,              # minimum IHT iterations
+    min_iter  :: Int = 20,             # minimum IHT iterations
     max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout,
     init_beta :: Bool = false
