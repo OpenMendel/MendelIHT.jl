@@ -15,8 +15,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env:
-          - JULIA_NUM_THREADS=4
         version:
           - "1.6"
         os:
@@ -25,6 +23,8 @@ jobs:
           - windows-latest
         arch:
           - x64
+        threads:
+          - '3' # GitHub runners have 2 cores, so `NUM_CORES+1` is 3
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
@@ -51,6 +51,8 @@ jobs:
       - uses: codecov/codecov-action@v1
         with:
           file: lcov.info
+        env:
+          JULIA_NUM_THREADS: ${{ matrix.threads }}
 
   slack:
     name: Notify Slack Failure
