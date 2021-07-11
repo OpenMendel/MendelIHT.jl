@@ -1,13 +1,15 @@
 """
     cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), est_r=:None,
         group=Int[], weight=Float64[], folds=rand(1:q, is_multivariate(y) ?
-        size(x, 2) : size(x, 1)), use_maf=false, debias=false, verbose=true,
-        parallel=true, max_iter=100)
+        size(x, 2) : size(x, 1)), debias=false, verbose=true,
+        max_iter=100, min_iter=20, init_beta=true)
 
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. The purpose of this function is to
 find the best sparsity level `k`, obtained from selecting the model with the
 minimum out-of-sample error. 
+
+To check if multithreading is enabled, check output of `Threads.nthreads()`.
 
 # Arguments:
 + `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or
@@ -37,12 +39,10 @@ minimum out-of-sample error.
 - `group`: vector storing group membership for each predictor
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
 - `folds`: Vector that separates the sample into `q` disjoint subsets
-- `use_maf`: Boolean indicating we should scale the projection step by a weight vector 
-- `debias`: Boolean indicating whether we should debias at each IHT step
-- `verbose`: Whether we want IHT to print meaningful intermediate steps
-- `parallel`: Whether we want to run `cv_iht` using multiple CPUs (note one must
-    call `using Distributed; addprocs(4)` and set `parallel=true` for this function
-    to truely use 4 CPUs.)
+- `debias`: Boolean indicating whether we should debias at each IHT step. Defaults `false`
+- `verbose`: Boolean indicating whether to print mean squared error for each `k` in `path`. Defaults `true`
+- `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 100 
+- `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
 """
@@ -58,57 +58,53 @@ function cv_iht(
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
-    use_maf  :: Bool = false,
     debias   :: Bool = false,
     verbose  :: Bool = true,
-    parallel :: Bool = true,
     max_iter :: Int = 100,
+    min_iter :: Int = 5,
     init_beta :: Bool = false
     ) where T <: Float
 
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
     check_data_dim(y, x, z)
+    verbose && print_iht_signature()
 
     # preallocated arrays for efficiency
-    test_idx  = [falses(length(folds)) for i in 1:nprocs()]
-    train_idx = [falses(length(folds)) for i in 1:nprocs()]
+    test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
+    train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, init_beta,
-        cv_train_idx=train_idx[i]) for i in 1:nprocs()]
+        cv_train_idx=train_idx[i]) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
-    channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
-    @async while take!(channel)
-        next!(pmeter)
-    end
 
-    # cross validation all (fold, k) combinations
+    # cross validate. TODO: wrap pmap with batch_size keyword to enable distributed CV
     combinations = allocate_fold_and_k(q, path)
-    mses = (parallel ? pmap : map)(combinations) do (fold, k)
+    mses = zeros(length(combinations))
+    ThreadPools.@qthreads for i in 1:length(combinations)
+        fold, sparsity = combinations[i]
+
         # assign train/test indices
-        id = myid()
+        id = Threads.threadid()
+        v = V[id]
         test_idx[id]  .= folds .== fold
         train_idx[id] .= folds .!= fold
-        v = V[id]
 
-        # run IHT on training data with current (fold, k)
-        v.k = k
+        # run IHT on training data with current (fold, sparsity)
+        v.k = sparsity
         init_iht_indices!(v, init_beta, train_idx[id])
-        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter)
+        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
 
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)
         v.cv_wts[test_idx[id]] .= one(T)
-        mse = predict!(v)
+        mses[i] = predict!(v)
 
         # update progres
-        put!(channel, true)
-
-        return mse
+        next!(pmeter)
     end
-    put!(channel, false)
 
-    #weight mses for each fold by their size before averaging
+    # weight mses for each fold by their size before averaging
     mse = meanloss(mses, q, folds)
 
     # find best model size and print cross validation result
@@ -117,6 +113,79 @@ function cv_iht(
 
     return mse
 end
+
+# Distributed memory cv_iht: (TODO merge pmap with multithreading)
+# function cv_iht(
+#     y        :: AbstractVecOrMat{T},
+#     x        :: AbstractMatrix{T},
+#     z        :: AbstractVecOrMat{T};
+#     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
+#     l        :: Link = IdentityLink(),
+#     path     :: AbstractVector{<:Integer} = 1:20,
+#     q        :: Int64 = 5,
+#     est_r    :: Symbol = :None,
+#     group    :: AbstractVector{Int} = Int[],
+#     weight   :: AbstractVector{T} = T[],
+#     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
+#     debias   :: Bool = false,
+#     verbose  :: Bool = true,
+#     parallel :: Bool = true,
+#     max_iter :: Int = 100,
+#     min_iter :: Int = 20,
+#     init_beta :: Bool = false
+#     ) where T <: Float
+
+#     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
+#     check_data_dim(y, x, z)
+
+#     # preallocated arrays for efficiency
+#     test_idx  = [falses(length(folds)) for i in 1:nprocs()]
+#     train_idx = [falses(length(folds)) for i in 1:nprocs()]
+#     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, init_beta,
+#         cv_train_idx=train_idx[i]) for i in 1:nprocs()]
+
+#     # for displaying cross validation progress
+#     pmeter = Progress(q * length(path), "Cross validating...")
+#     channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
+#     @async while take!(channel)
+#         next!(pmeter)
+#     end
+
+#     # cross validation all (fold, k) combinations
+#     combinations = allocate_fold_and_k(q, path)
+#     mses = (parallel ? pmap : map)(combinations) do (fold, k)
+#         # assign train/test indices
+#         id = myid()
+#         test_idx[id]  .= folds .== fold
+#         train_idx[id] .= folds .!= fold
+#         v = V[id]
+
+#         # run IHT on training data with current (fold, k)
+#         v.k = k
+#         init_iht_indices!(v, init_beta, train_idx[id])
+#         fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
+
+#         # predict on validation data
+#         v.cv_wts[train_idx[id]] .= zero(T)
+#         v.cv_wts[test_idx[id]] .= one(T)
+#         mse = predict!(v)
+
+#         # update progres
+#         put!(channel, true)
+
+#         return mse
+#     end
+#     put!(channel, false)
+
+#     #weight mses for each fold by their size before averaging
+#     mse = meanloss(mses, q, folds)
+
+#     # find best model size and print cross validation result
+#     k = path[argmin(mse)] :: Int
+#     verbose && print_cv_results(mse, path, k)
+
+#     return mse
+# end
 
 function cv_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs...) where T
     z = is_multivariate(y) ? ones(T, 1, size(y, 2)) : ones(T, length(y))
@@ -193,8 +262,7 @@ end
 
 function predict!(v::IHTVariable{T, M}) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta (cv weights are handled in deviance)
-    mul!(v.xb, v.x, v.best_b)
-    mul!(v.zc, v.z, v.best_c)
+    update_xb!(v)
     update_μ!(v)
 
     # Compute deviance residual (MSE for Gaussian response)
@@ -203,8 +271,7 @@ end
 
 function predict!(v::mIHTVariable{T, M}) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta
-    mul!(v.BX, v.best_B, v.X)
-    mul!(v.CZ, v.best_C, v.Z)
+    update_xb!(v)
     update_μ!(v)
 
     # Compute MSE

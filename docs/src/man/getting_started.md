@@ -15,24 +15,32 @@ pkg"add https://github.com/OpenMendel/MendelIHT.jl"
 
 ## Typical Workflow
 
-1. Run `cross_validate()` to determine best sparsity level (k).
-2. Run `iht` on optimal `k`.
+1. Run [cross_validate](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate) or [cv_iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht) to determine best sparsity level (k).
+2. Run [iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht) or [fit_iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht) on optimal `k` determined from cross validation. 
 
 We believe the best way to learn is through examples. Head over to the example section on the left to see these steps in action. 
 
 ## Parallel computing
 
-For large datasets, one can run cross validation in parallel. Assuming you have $N$ cores, one can load $N$ processors by
-```julia
-using Distributed
-addprocs(4) # 4 processors
-@everywhere begin
-    using MendelIHT
-    using LinearAlgebra
-    BLAS.set_num_threads(1)
-end
-```
-Note by default, BLAS runs with multiple threads, so the command `BLAS.set_num_threads(1)` sets the number of BLAS threads to 1, avoiding [oversubscription](https://ieeexplore.ieee.org/document/5470434)
+Assuming you have 4 cores, one can load 4 processors by
+
+!!! note
+    If you prefer to use the environment variable you can set it as follows in
+    Bash (Linux/macOS):
+    ```bash
+    export JULIA_NUM_THREADS=4
+    ```
+    C shell on Linux/macOS, CMD on Windows:
+    ```bash
+    set JULIA_NUM_THREADS=4
+    ```
+    Powershell on Windows:
+    ```powershell
+    $env:JULIA_NUM_THREADS=4
+    ```
+    Note that this must be done *before* starting Julia.
+
+Also, the command `BLAS.set_num_threads(1)` is generally recommended to set the number of BLAS threads to 1, avoiding [oversubscription](https://ieeexplore.ieee.org/document/5470434)
 
 ## Running from command line as script
 
@@ -40,9 +48,7 @@ If you don't want to run MendelIHT.jl in a Julia session (e.g. you want to run b
 
 ```julia
 # place these code in a file called iht.jl
-using Distributed
-addprocs(4) # use 4 cores
-@everywhere using MendelIHT
+using MendelIHT
 
 # setup code goes here
 plinkfile = ARGS[1]     # 1st command line argument (plink file location)

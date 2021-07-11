@@ -75,6 +75,8 @@ end
             phenotypes="univariate$d.phen", verbose=false, max_iter=5)
 
         @test all(result1 .≈ result2 .≈ result3)
+        # [result1 result2 result3]
+        # [argmin(result1) argmin(result2) argmin(result3)]
 
         try
             rm("univariate$d.bim", force=true)
@@ -153,12 +155,12 @@ end
     @test result1.iter == result2.iter == result3.iter
 
     Random.seed!(2020)
-    result1 = cross_validate("multivariate_$(r)traits", d, phenotypes=[6, 7], verbose=false)
+    result1 = cross_validate("multivariate_$(r)traits", d, phenotypes=[6, 7])
     Random.seed!(2020)
-    result2 = cross_validate("multivariate_$(r)traits", d, phenotypes=[6, 7], covariates="covariates.txt", verbose=false)
+    result2 = cross_validate("multivariate_$(r)traits", d, phenotypes=[6, 7], covariates="covariates.txt")
     Random.seed!(2020)
     result3 = cross_validate("multivariate_$(r)traits", d, phenotypes="multivariate_$(r)traits.phen", 
-        covariates="covariates.txt", verbose=false)
+        covariates="covariates.txt")
 
     @test all(result1 .≈ result2 .≈ result3)
 

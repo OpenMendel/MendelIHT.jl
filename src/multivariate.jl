@@ -296,8 +296,15 @@ function _choose!(v::mIHTVariable)
     excess = B_nz + C_nz - sparsity
     if excess > 0
         shuffle!(B_nz_idx)
+        shuffle!(C_nz_idx)
         for i in 1:excess
-            v.B[B_nz_idx[i]] = 0
+            if B_nz > 0
+                v.B[B_nz_idx[i]] = 0
+                B_nz -= 1
+            else
+                v.C[C_nz_idx[i]] = 0
+                C_nz -= 1
+            end
         end
     end
     empty!(B_nz_idx)
@@ -376,7 +383,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
     mul!(v.CZ, v.C, v.Z)
 
     if init_beta
-        v.B = initialize_beta(v.Y, v.X, v.cv_wts)
+        v.B = initialize_beta(v.Y, v.X, cv_idx)
         project_k!(v)
         update_xb!(v)
     end

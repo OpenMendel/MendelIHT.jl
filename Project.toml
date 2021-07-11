@@ -2,7 +2,7 @@ name = "MendelIHT"
 uuid = "921c7187-1484-5754-b919-5d3ed9ac03c4"
 keywords = ["GWAS", "Genome-wide association studies", "feature selection", "iterative hard thresholding"]
 authors = ["Benjamin Chu <benchu99@hotmail.com>", "Kevin Keys <kevin.keys@ucsf.edu>"]
-version = "1.4.0"
+version = "1.4.1"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -19,6 +19,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SnpArrays = "4e780e97-f5bf-4111-9dc4-b70aaf691b06"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
 
 [extras]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"

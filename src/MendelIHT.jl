@@ -17,6 +17,7 @@ module MendelIHT
     using DelimitedFiles
     using ProgressMeter
     using Reexport
+    using ThreadPools
 
     @reexport using Distributions
     @reexport using SnpArrays
