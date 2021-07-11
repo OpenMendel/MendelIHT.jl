@@ -78,27 +78,33 @@ function cv_iht(
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
 
+    m = Threads.ReentrantLock()
+
     # cross validate. TODO: wrap pmap with batch_size keyword to enable distributed CV
     combinations = allocate_fold_and_k(q, path)
     mses = zeros(length(combinations))
     ThreadPools.@qthreads for i in 1:length(combinations)
-        fold, k = combinations[i]
+        fold, sparsity = combinations[i]
 
         # assign train/test indices
+        # lock(m)
         id = Threads.threadid()
+        v = V[id]
         test_idx[id]  .= folds .== fold
         train_idx[id] .= folds .!= fold
-        v = V[id]
+        # unlock(m)
 
-        # run IHT on training data with current (fold, k)
-        v.k = k
+        # run IHT on training data with current (fold, sparsity)
+        v.k = sparsity
         init_iht_indices!(v, init_beta, train_idx[id])
         fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
 
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)
         v.cv_wts[test_idx[id]] .= one(T)
+        lock(m)
         mses[i] = predict!(v)
+        unlock(m)
 
         # update progres
         next!(pmeter)
