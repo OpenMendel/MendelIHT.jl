@@ -28,13 +28,13 @@
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, parallel=true);
+        folds=folds, verbose=true, debias=true);
     @test length(debias) == 20
     @test all(debias .> 0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false, parallel=true);
+        folds=folds, verbose=true, debias=false);
     @test length(nodebias) == 20
     @test all(nodebias .> 0)
 end
@@ -72,13 +72,13 @@ end
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, x, z, d=d(), l=l, path=path,
-        q=q, folds=folds, verbose=true, debias=true, parallel=true);
+        q=q, folds=folds, verbose=true, debias=true);
     @test length(debias) == 20
     @test all(debias .> 0.0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false, parallel=true);
+        folds=folds, verbose=true, debias=false);
     @test length(nodebias) == 20
     @test all(nodebias .> 0.0)
 end
@@ -109,13 +109,13 @@ end
 
 	# cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path,
-        q=q, folds=folds, verbose=true, debias=true, parallel=true);
+        q=q, folds=folds, verbose=true, debias=true);
     @test length(debias) == 20
     @test all(debias .> 0.0)
 
 	# cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false, parallel=true);
+        folds=folds, verbose=true, debias=false);
     @test length(nodebias) == 20
     @test all(nodebias .> 0)
 end
@@ -153,13 +153,13 @@ end
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, parallel=true);
+        folds=folds, verbose=true, debias=true);
     @test length(debias) == 20
     @test all(debias .> 0.0)
 
     # cross validation routine (without debias) 
     @time nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false, parallel=true);
+        folds=folds, verbose=true, debias=false);
     @test length(nodebias) == 20
     @test all(nodebias .> 0)
 end
@@ -190,13 +190,13 @@ end
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, parallel=true);
+        folds=folds, verbose=true, debias=true);
     @test length(debias) == 20
     @test all(debias .> 0.0)
 
     # cross validation routine (without debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false, parallel=true);
+        folds=folds, verbose=true, debias=false);
     @test length(nodebias) == 20
     @test all(nodebias .> 0)
 end
@@ -227,13 +227,13 @@ end
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, parallel=true);
+        folds=folds, verbose=true, debias=true);
     @test length(debias) == 20
     @test all(debias .> 0.0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false, parallel=true);
+        folds=folds, verbose=true, debias=false);
     @test length(nodebias) == 20
     @test all(nodebias .> 0)
 end
@@ -273,13 +273,13 @@ end
     # cross validation routine (with debias)
 	d = d(1, T(0.5)) # need Float32 for eltype of d
     @time debias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, parallel=true)
+        folds=folds, verbose=true, debias=true)
     @test length(debias) == 20
     @test all(debias .> 0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false, parallel=true);
+        folds=folds, verbose=true, debias=false);
     @test length(nodebias) == 20
     @test all(nodebias .> 0)
 end
