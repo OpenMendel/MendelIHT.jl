@@ -1,31 +1,28 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · MendelIHT</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">MendelIHT</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../getting_started/">Getting Started</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Using-MendelIHT.jl"><span>Using MendelIHT.jl</span></a></li><li><a class="tocitem" href="#Example-1:-GWAS-with-PLINK-files"><span>Example 1: GWAS with PLINK files</span></a></li><li><a class="tocitem" href="#Example-2:-How-to-simulate-data"><span>Example 2: How to simulate data</span></a></li><li><a class="tocitem" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS"><span>Example 3: Logistic/Poisson/Negative-binomial GWAS</span></a></li><li><a class="tocitem" href="#Example-4:-Running-IHT-on-general-matrices"><span>Example 4: Running IHT on general matrices</span></a></li><li><a class="tocitem" href="#Example-5:-Group-IHT"><span>Example 5: Group IHT</span></a></li><li><a class="tocitem" href="#Example-6:-Linear-Regression-with-prior-weights"><span>Example 6: Linear Regression with prior weights</span></a></li><li><a class="tocitem" href="#Other-examples-and-functionalities"><span>Other examples and functionalities</span></a></li></ul></li><li><a class="tocitem" href="../math/">Mathematical Details</a></li><li><a class="tocitem" href="../contributing/">Contributing</a></li><li><a class="tocitem" href="../FAQ/">FAQ</a></li><li><a class="tocitem" href="../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/docs/src/man/examples.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><p>Here we give numerous example analysis of GWAS data with <code>MendelIHT.jl</code>. </p><pre><code class="language-julia"># machine information for reproducibility
-versioninfo()</code></pre><pre><code class="nohighlight">Julia Version 1.5.0
-Commit 96786e22cc (2020-08-01 23:44 UTC)
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · MendelIHT</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">MendelIHT</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../getting_started/">Getting Started</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Using-MendelIHT.jl"><span>Using MendelIHT.jl</span></a></li><li><a class="tocitem" href="#Parallel-computing"><span>Parallel computing</span></a></li><li><a class="tocitem" href="#Example-1:-GWAS-with-PLINK-files"><span>Example 1: GWAS with PLINK files</span></a></li><li><a class="tocitem" href="#Example-2:-How-to-simulate-data"><span>Example 2: How to simulate data</span></a></li><li><a class="tocitem" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS"><span>Example 3: Logistic/Poisson/Negative-binomial GWAS</span></a></li><li><a class="tocitem" href="#Example-4:-Running-IHT-on-general-matrices"><span>Example 4: Running IHT on general matrices</span></a></li><li><a class="tocitem" href="#Example-5:-Group-IHT"><span>Example 5: Group IHT</span></a></li><li><a class="tocitem" href="#Example-6:-Linear-Regression-with-prior-weights"><span>Example 6: Linear Regression with prior weights</span></a></li><li><a class="tocitem" href="#Example-7:-Multivariate-IHT"><span>Example 7: Multivariate IHT</span></a></li><li><a class="tocitem" href="#Other-examples-and-functionalities"><span>Other examples and functionalities</span></a></li></ul></li><li><a class="tocitem" href="../math/">Mathematical Details</a></li><li><a class="tocitem" href="../contributing/">Contributing</a></li><li><a class="tocitem" href="../FAQ/">FAQ</a></li><li><a class="tocitem" href="../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/docs/src/man/examples.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><p>Here we give numerous example analysis of GWAS data with <code>MendelIHT.jl</code>. For exact function input/output descriptions, see the manuel&#39;s API.</p><pre><code class="language-julia"># machine information for reproducibility
+versioninfo()</code></pre><pre><code class="nohighlight">Julia Version 1.6.0
+Commit f9720dc2eb (2021-03-24 12:55 UTC)
 Platform Info:
-  OS: macOS (x86_64-apple-darwin18.7.0)
+  OS: macOS (x86_64-apple-darwin19.6.0)
   CPU: Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-9.0.1 (ORCJIT, skylake)</code></pre><pre><code class="language-julia"># add workers needed for parallel computing. Add only as many CPU cores available
-using Distributed
-addprocs(4)
+  LLVM: libLLVM-11.0.1 (ORCJIT, skylake)
+Environment:
+  JULIA_NUM_THREADS = 8</code></pre><pre><code class="language-julia"># load necessary packages for running all examples below
+using MendelIHT
+using SnpArrays
+using DataFrames
+using Distributions
+using Random
+using LinearAlgebra
+using GLM
+using DelimitedFiles
+using Statistics
+using BenchmarkTools
 
-#load necessary packages for running all examples below
-@everywhere begin
-    using Revise
-    using MendelIHT
-    using SnpArrays
-    using DataFrames
-    using Distributions
-    using Random
-    using LinearAlgebra
-    using GLM
-    using DelimitedFiles
-    using Statistics
-    using BenchmarkTools
-end</code></pre><pre><code class="nohighlight">┌ Info: Precompiling MendelIHT [921c7187-1484-5754-b919-5d3ed9ac03c4]
-└ @ Base loading.jl:1278</code></pre><h2 id="Using-MendelIHT.jl"><a class="docs-heading-anchor" href="#Using-MendelIHT.jl">Using MendelIHT.jl</a><a id="Using-MendelIHT.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Using-MendelIHT.jl" title="Permalink"></a></h2><p>Users are exposed to 2 levels of interface:</p><ul><li>Wrapper functions <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht">iht()</a> and <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate">cross_validate()</a>. These functions are simple scripts that import data, runs IHT, and writes result to output automatically. Since they are very simplistic, they might fail for whatever reason (please file an issue on GitHub). If so, please use:</li><li>Core functions <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht">fit_iht()</a> and <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht">cv_iht()</a>. Input arguments for these functions must be first imported into Julia by the user manually.</li></ul><h2 id="Example-1:-GWAS-with-PLINK-files"><a class="docs-heading-anchor" href="#Example-1:-GWAS-with-PLINK-files">Example 1: GWAS with PLINK files</a><a id="Example-1:-GWAS-with-PLINK-files-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-GWAS-with-PLINK-files" title="Permalink"></a></h2><p>In this example, our data are stored in binary PLINK files:</p><ul><li><code>normal.bed</code></li><li><code>normal.bim</code></li><li><code>normal.fam</code></li></ul><p>which contains simulated (Gaussian) phenotypes for <span>$n=1000$</span> samples and <span>$p=10,000$</span> SNPs. There are <span>$8$</span> causal variants and 2 causal non-genetic covariates (intercept and sex). </p><p>These data are present under <code>MendelIHT/data</code> directory.</p><pre><code class="language-julia"># change directory to where example data is located
+BLAS.set_num_threads(1) # prevent over subscription with multithreading &amp; BLAS
+Random.seed!(1111) # set seed for reproducibility</code></pre><pre><code class="nohighlight">MersenneTwister(1111)</code></pre><h2 id="Using-MendelIHT.jl"><a class="docs-heading-anchor" href="#Using-MendelIHT.jl">Using MendelIHT.jl</a><a id="Using-MendelIHT.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Using-MendelIHT.jl" title="Permalink"></a></h2><p>Users are exposed to 2 levels of interface:</p><ul><li>Wrapper functions <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht">iht()</a> and <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate">cross_validate()</a>. These functions are simple scripts that import data, runs IHT, and writes result to output automatically. Since they are very simplistic, they might fail for whatever reason (please file an issue on GitHub). If so, please use:</li><li>Core functions <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht">fit_iht()</a> and <a href="https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht">cv_iht()</a>. Input arguments for these functions must be first imported into Julia by the user manually.</li></ul><p>Below we use numerous examples to illustrate how to use these functions separately. </p><h2 id="Parallel-computing"><a class="docs-heading-anchor" href="#Parallel-computing">Parallel computing</a><a id="Parallel-computing-1"></a><a class="docs-heading-anchor-permalink" href="#Parallel-computing" title="Permalink"></a></h2><p>To exploit <code>MendelIHT.jl</code>&#39;s parallel processing, <a href="https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads">start Julia with multiple threads</a>. Two levels of shared-memory parallelism is supported.</p><ul><li>(genotype-matrix)-(vector or matrix) multiplication</li><li>cross validation</li></ul><p><strong>Note</strong>: If one is running IHT on <code>Matrix{Float64}</code>, BLAS should NOT run with multiple threads (execute <code>BLAS.set_num_threads(1)</code> before running IHT). This prevents <a href="https://ieeexplore.ieee.org/document/5470434">oversubscription</a>. </p><pre><code class="language-julia">Threads.nthreads() # show number of threads</code></pre><pre><code class="nohighlight">8</code></pre><h2 id="Example-1:-GWAS-with-PLINK-files"><a class="docs-heading-anchor" href="#Example-1:-GWAS-with-PLINK-files">Example 1: GWAS with PLINK files</a><a id="Example-1:-GWAS-with-PLINK-files-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-GWAS-with-PLINK-files" title="Permalink"></a></h2><p>In this example, our data are stored in binary PLINK files:</p><ul><li><code>normal.bed</code></li><li><code>normal.bim</code></li><li><code>normal.fam</code></li></ul><p>which contains simulated (Gaussian) phenotypes for <span>$n=1000$</span> samples and <span>$p=10,000$</span> SNPs. There are <span>$8$</span> causal variants and 2 causal non-genetic covariates (intercept and sex). </p><p>These data are present under <code>MendelIHT/data</code> directory.</p><pre><code class="language-julia"># change directory to where example data is located
 cd(normpath(MendelIHT.datadir()))
 
 # show working directory
@@ -38,51 +35,65 @@ readdir()</code></pre><pre><code class="nohighlight">pwd() = &quot;/Users/biona0
 
 
 
-12-element Array{String,1}:
+17-element Vector{String}:
  &quot;.DS_Store&quot;
  &quot;README.md&quot;
  &quot;covariates.txt&quot;
  &quot;cviht.summary.txt&quot;
  &quot;iht.beta.txt&quot;
+ &quot;iht.cov.txt&quot;
  &quot;iht.summary.txt&quot;
+ &quot;multivariate.bed&quot;
+ &quot;multivariate.bim&quot;
+ &quot;multivariate.fam&quot;
+ &quot;multivariate.phen&quot;
  &quot;normal.bed&quot;
  &quot;normal.bim&quot;
  &quot;normal.fam&quot;
  &quot;normal_true_beta.txt&quot;
  &quot;phenotypes.txt&quot;
- &quot;simulate.jl&quot;</code></pre><p>Here <code>covariates.txt</code> contains non-genetic covariates, <code>normal.bed/bim/fam</code> are the PLINK files storing genetic covariates, <code>phenotypes.txt</code> are phenotypes for each sample, <code>normal_true_beta.txt</code> is the true statistical model used to generate the phenotypes, and <code>simulate.jl</code> is the script used to generate all the files. </p><h3 id="Step-1:-Run-cross-validation-to-determine-best-model-size"><a class="docs-heading-anchor" href="#Step-1:-Run-cross-validation-to-determine-best-model-size">Step 1: Run cross validation to determine best model size</a><a id="Step-1:-Run-cross-validation-to-determine-best-model-size-1"></a><a class="docs-heading-anchor-permalink" href="#Step-1:-Run-cross-validation-to-determine-best-model-size" title="Permalink"></a></h3><p>Here phenotypes are stored in the 6th column of <code>.fam</code> file. Other covariates are stored separately (which includes a column of 1 as intercept). Here we cross validate <span>$k = 1,2,...20$</span>. </p><pre><code class="language-julia">mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6, path=1:20);
+ &quot;simulate.jl&quot;</code></pre><p>Here <code>covariates.txt</code> contains non-genetic covariates (intercept + sex), <code>normal.bed/bim/fam</code> are the PLINK files storing genetic covariates, <code>phenotypes.txt</code> are phenotypes for each sample, <code>normal_true_beta.txt</code> is the true statistical model used to generate the phenotypes, and <code>simulate.jl</code> is the script used to generate all the files. </p><h3 id="Step-1:-Run-cross-validation-to-determine-best-model-size"><a class="docs-heading-anchor" href="#Step-1:-Run-cross-validation-to-determine-best-model-size">Step 1: Run cross validation to determine best model size</a><a id="Step-1:-Run-cross-validation-to-determine-best-model-size-1"></a><a class="docs-heading-anchor-permalink" href="#Step-1:-Run-cross-validation-to-determine-best-model-size" title="Permalink"></a></h3><p>Here phenotypes are stored in the 6th column of <code>.fam</code> file. Other covariates are stored separately (which includes a column of 1 as intercept). Here we cross validate <span>$k = 1,2,...20$</span>. </p><p>Note the first run might take awhile because Julia needs to compile the code. </p><pre><code class="language-julia">mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6, path=1:20,);
 
 # Alternative syntax
 # mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6, path=[1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
-# mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=&quot;phenotypes.txt&quot;, path=1:20) # when phenotypes are stored separately</code></pre><pre><code class="nohighlight">[32mCross validating...100%|████████████████████████████████| Time: 0:00:41[39m
+# mses = cross_validate(&quot;normal&quot;, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=&quot;phenotypes.txt&quot;, path=1:20) # when phenotypes are stored separately</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+
+
+[32mCross validating...100%|████████████████████████████████| Time: 0:00:17[39m
 
 
 
 
 Crossvalidation Results:
 	k	MSE
-	1	1406.4552580959744
-	2	857.6790422237751
-	3	675.7053829929064
-	4	559.0287748247562
-	5	424.84955802133055
-	6	334.9624624153284
-	7	304.97292908540294
-	8	231.28136259326723
-	9	197.38097683148538
-	10	203.0158421015343
-	11	205.5234762375722
-	12	210.0832431714208
-	13	208.30403888253082
-	14	214.60823015711009
-	15	215.379771415479
-	16	229.2967482083606
-	17	229.69491766374526
-	18	234.89500599022892
-	19	240.76951401560154
-	20	242.39038987978827
+	1	1383.3887888333788
+	2	714.3108200438915
+	3	630.5562933019421
+	4	599.6952113619866
+	5	438.42328589185536
+	6	327.08547676403236
+	7	304.1177395732532
+	8	297.41346319671766
+	9	227.5681066123959
+	10	202.69232180491358
+	11	206.35218981854467
+	12	209.76930769385618
+	13	213.48278746710366
+	14	215.43361702847125
+	15	215.6684475575618
+	16	223.24291123616155
+	17	221.4060678342564
+	18	276.6464367814522
+	19	230.976587123502
+	20	268.32185480128885
 
-Best k = 9</code></pre><p>Do not be alarmed if you get slightly different numbers, because cross validation breaks data into training/testing randomly. Set a seed by <code>Random.seed!(1234)</code> if you want reproducibility.</p><h3 id="Step-2:-Run-IHT-on-best-k"><a class="docs-heading-anchor" href="#Step-2:-Run-IHT-on-best-k">Step 2: Run IHT on best k</a><a id="Step-2:-Run-IHT-on-best-k-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Run-IHT-on-best-k" title="Permalink"></a></h3><p>According to cross validation, <code>k = 9</code> achieves the minimum MSE. Thus we run IHT on the full dataset.</p><pre><code class="language-julia">result = iht(&quot;normal&quot;, 9, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6);</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.0                  ****
+Best k = 10</code></pre><p>Do not be alarmed if you get slightly different numbers, because cross validation breaks data into training/testing randomly. Set a seed by <code>Random.seed!(1234)</code> if you want reproducibility.</p><h3 id="Step-2:-Run-IHT-on-best-k"><a class="docs-heading-anchor" href="#Step-2:-Run-IHT-on-best-k">Step 2: Run IHT on best k</a><a id="Step-2:-Run-IHT-on-best-k-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Run-IHT-on-best-k" title="Permalink"></a></h3><p>According to cross validation, <code>k = 10</code> achieves the minimum MSE. Thus we run IHT on the full dataset.</p><pre><code class="language-julia">result = iht(&quot;normal&quot;, 10, Normal, covariates=&quot;covariates.txt&quot;, phenotypes=6);</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.1                  ****
 ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
 ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
 ****                                                            ****
@@ -90,67 +101,45 @@ Best k = 9</code></pre><p>Do not be alarmed if you get slightly different number
 ****         https://doi.org/10.1093/gigascience/giaa044        ****
 
 Running sparse linear regression
+Number of threads = 8
 Link functin = IdentityLink()
-Sparsity parameter (k) = 9
+Sparsity parameter (k) = 10
 Prior weight scaling = off
 Doubly sparse projection = off
 Debias = off
 Max IHT iterations = 200
-Converging when tol &lt; 0.0001:
+Converging when tol &lt; 0.0001 and iteration ≥ 5:
 
-Iteration 1: loglikelihood = -1407.0715526824579, backtracks = 0, tol = 0.7903070014734823
-Iteration 2: loglikelihood = -1397.916093195947, backtracks = 0, tol = 0.025737058258134597
-Iteration 3: loglikelihood = -1397.881115073396, backtracks = 0, tol = 0.0016722147159225114
-Iteration 4: loglikelihood = -1397.8807458850451, backtracks = 0, tol = 0.0001440850615835579
-Iteration 5: loglikelihood = -1397.8807416471927, backtracks = 0, tol = 1.674491317444967e-5
-result = 
-IHT estimated 7 nonzero SNP predictors and 2 non-genetic predictors.
-
-Compute time (sec):     0.7361938953399658
-Final loglikelihood:    -1397.8807416471927
-SNP PVE:                0.834374956294435
-Iterations:             5
-
-Selected genetic predictors:
-7×2 DataFrame
- Row │ Position  Estimated_β
-     │ Int64     Float64
-─────┼───────────────────────
-   1 │     3137     0.424377
-   2 │     4246     0.52343
-   3 │     4717     0.922857
-   4 │     6290    -0.677832
-   5 │     7755    -0.542981
-   6 │     8375    -0.792815
-   7 │     9415    -2.17998
-
-Selected nongenetic predictors:
-2×2 DataFrame
- Row │ Position  Estimated_β
-     │ Int64     Float64
-─────┼───────────────────────
-   1 │        1     1.65223
-   2 │        2     0.749866</code></pre><h3 id="Step-3:-Examine-results"><a class="docs-heading-anchor" href="#Step-3:-Examine-results">Step 3: Examine results</a><a id="Step-3:-Examine-results-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-Examine-results" title="Permalink"></a></h3><p>IHT picked 7 SNPs and 2 non-genetic predictors: intercept and sex. The <code>Position</code> argument corresponds to the order in which the SNP appeared in the PLINK file, and the <code>Estimated_β</code> argument is the estimated effect size for the selected SNPs. To extract more information (for instance to extract <code>rs</code> IDs), we can do</p><pre><code class="language-julia">snpdata = SnpData(&quot;normal&quot;)                   # import PLINK information
+Iteration 1: loglikelihood = -1457.8431531776794, backtracks = 0, tol = 0.7683976715709564
+Iteration 2: loglikelihood = -1391.9907038720667, backtracks = 0, tol = 0.11226800885813881
+Iteration 3: loglikelihood = -1390.7113887489165, backtracks = 0, tol = 0.011581483394882052
+Iteration 4: loglikelihood = -1390.6980736000305, backtracks = 0, tol = 0.0010566984279122389
+Iteration 5: loglikelihood = -1390.6978716629346, backtracks = 0, tol = 0.00010752965216198347
+Iteration 6: loglikelihood = -1390.4000085563305, backtracks = 0, tol = 0.03716090961691858
+Iteration 7: loglikelihood = -1390.3012534352063, backtracks = 0, tol = 0.0032563210092611864
+Iteration 8: loglikelihood = -1390.300372706346, backtracks = 0, tol = 0.0003148875004358726
+Iteration 9: loglikelihood = -1390.3003586111483, backtracks = 0, tol = 3.673233513687601e-5</code></pre><p>The convergence criteria can be tuned by keywords <code>tol</code> and <code>min_iter</code>. </p><h3 id="Step-3:-Examine-results"><a class="docs-heading-anchor" href="#Step-3:-Examine-results">Step 3: Examine results</a><a id="Step-3:-Examine-results-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-Examine-results" title="Permalink"></a></h3><p>IHT picked 8 SNPs and 2 non-genetic predictors: intercept and sex. The <code>Position</code> argument corresponds to the order in which the SNP appeared in the PLINK file, and the <code>Estimated_β</code> argument is the estimated effect size for the selected SNPs. To extract more information (for instance to extract <code>rs</code> IDs), we can do</p><pre><code class="language-julia">snpdata = SnpData(&quot;normal&quot;)                   # import PLINK information
 snps_idx = findall(!iszero, result.beta)      # indices of SNPs selected by IHT
 selected_snps = snpdata.snp_info[snps_idx, :] # see which SNPs are selected
-@show selected_snps;</code></pre><pre><code class="nohighlight">selected_snps = 7×6 DataFrame
+@show selected_snps;</code></pre><pre><code class="nohighlight">selected_snps = 8×6 DataFrame
  Row │ chromosome  snpid    genetic_distance  position  allele1  allele2
      │ String      String   Float64           Int64     String   String
 ─────┼───────────────────────────────────────────────────────────────────
-   1 │ 1           snp3137               0.0         1  1        2
-   2 │ 1           snp4246               0.0         1  1        2
-   3 │ 1           snp4717               0.0         1  1        2
-   4 │ 1           snp6290               0.0         1  1        2
-   5 │ 1           snp7755               0.0         1  1        2
-   6 │ 1           snp8375               0.0         1  1        2
-   7 │ 1           snp9415               0.0         1  1        2</code></pre><p>The table above displays the SNP information for the selected SNPs. </p><p>Since data is simulated, the fields <code>chromosome</code>, <code>snpid</code>, <code>genetic_distance</code>, <code>position</code>, <code>allele1</code>, and <code>allele2</code> are fake. </p><h2 id="Example-2:-How-to-simulate-data"><a class="docs-heading-anchor" href="#Example-2:-How-to-simulate-data">Example 2: How to simulate data</a><a id="Example-2:-How-to-simulate-data-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2:-How-to-simulate-data" title="Permalink"></a></h2><p>Here we demonstrate how to use <code>MendelIHT.jl</code> and <a href="https://github.com/OpenMendel/SnpArrays.jl">SnpArrays.jl</a> to simulate data, allowing you to design your own genetic studies. Note:</p><ul><li>For more complex simulation, please use the module <a href="https://github.com/OpenMendel/TraitSimulation.jl">TraitSimulations.jl</a>.  </li><li>All linear algebra routines involving PLINK files are handled by <a href="https://github.com/OpenMendel/SnpArrays.jl">SnpArrays.jl</a>. </li></ul><p>First we simulate an example PLINK trio (<code>.bim</code>, <code>.bed</code>, <code>.fam</code>) and non-genetic covariates, then we illustrate how to import them. For simplicity, let us simulated indepent SNPs with binary phenotypes. Explicitly, our model is:</p><p class="math-container">\[y_i \sim \rm Bernoulli(\mathbf{x}_i^T\boldsymbol\beta)\]</p><p class="math-container">\[x_{ij} \sim \rm Binomial(2, \rho_j)\]</p><p class="math-container">\[\rho_j \sim \rm Uniform(0, 0.5)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 1)\]</p><p class="math-container">\[\beta_{\rm intercept} = 1\]</p><p class="math-container">\[\beta_{\rm sex} = 1.5\]</p><pre><code class="language-julia">n = 1000            # number of samples
+   1 │ 1           snp3136               0.0         1  1        2
+   2 │ 1           snp3137               0.0         1  1        2
+   3 │ 1           snp4246               0.0         1  1        2
+   4 │ 1           snp4717               0.0         1  1        2
+   5 │ 1           snp6290               0.0         1  1        2
+   6 │ 1           snp7755               0.0         1  1        2
+   7 │ 1           snp8375               0.0         1  1        2
+   8 │ 1           snp9415               0.0         1  1        2</code></pre><p>The table above displays the SNP information for the selected SNPs. Because there&#39;s only 7 causal SNPs, we have 1 false positive. </p><p>Since data is simulated, the fields <code>chromosome</code>, <code>snpid</code>, <code>genetic_distance</code>, <code>position</code>, <code>allele1</code>, and <code>allele2</code> are fake. </p><h2 id="Example-2:-How-to-simulate-data"><a class="docs-heading-anchor" href="#Example-2:-How-to-simulate-data">Example 2: How to simulate data</a><a id="Example-2:-How-to-simulate-data-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2:-How-to-simulate-data" title="Permalink"></a></h2><p>Here we demonstrate how to use <code>MendelIHT.jl</code> and <a href="https://github.com/OpenMendel/SnpArrays.jl">SnpArrays.jl</a> to simulate data, allowing you to design your own genetic studies. Note:</p><ul><li>For more complex simulation, please use the module <a href="https://github.com/OpenMendel/TraitSimulation.jl">TraitSimulations.jl</a>.  </li><li>All linear algebra routines involving PLINK files are handled by <a href="https://github.com/OpenMendel/SnpArrays.jl">SnpArrays.jl</a>. </li></ul><p>First we simulate an example PLINK trio (<code>.bim</code>, <code>.bed</code>, <code>.fam</code>) and non-genetic covariates, then we illustrate how to import them. For simplicity, let us simulated indepent SNPs with binary phenotypes. Explicitly, our model is:</p><p class="math-container">\[y_i \sim \rm Bernoulli(\mathbf{x}_i^T\boldsymbol\beta)\]</p><p class="math-container">\[x_{ij} \sim \rm Binomial(2, \rho_j)\]</p><p class="math-container">\[\rho_j \sim \rm Uniform(0, 0.5)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 1)\]</p><p class="math-container">\[\beta_{\rm intercept} = 1\]</p><p class="math-container">\[\beta_{\rm sex} = 1.5\]</p><pre><code class="language-julia">n = 1000            # number of samples
 p = 10000           # number of SNPs
 k = 10              # 8 causal SNPs and 2 causal covariates (intercept + sex)
 d = Bernoulli       # Binary (continuous) phenotypes
 l = LogitLink()     # canonical link function
 
 # set random seed
-Random.seed!(1111)
+Random.seed!(0)
 
 # simulate `sim.bed` file with no missing data
 x = simulate_random_snparray(&quot;sim.bed&quot;, n, p)
@@ -182,7 +171,7 @@ make_bim_fam_files(x, y, &quot;sim&quot;)
 
 #save covariates and phenotypes (without header)
 writedlm(&quot;sim.covariates.txt&quot;, z, &#39;,&#39;)
-writedlm(&quot;sim.phenotypes.txt&quot;, y)</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Please <strong>standardize</strong> (or at least center) your non-genetic covariates. If you use our <code>iht()</code> or <code>cross_validation()</code> functions, standardization is automatic. For genotype matrix, <code>SnpLinAlg</code> efficiently achieves this standardization. For non-genetic covariates, please use the built-in function <code>standardize!</code>. </p></div></div><h2 id="Example-3:-Logistic/Poisson/Negative-binomial-GWAS"><a class="docs-heading-anchor" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS">Example 3: Logistic/Poisson/Negative-binomial GWAS</a><a id="Example-3:-Logistic/Poisson/Negative-binomial-GWAS-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS" title="Permalink"></a></h2><p>In Example 2, we simulated binary phenotypes, genotypes, non-genetic covariates, and we know true <span>$k = 10$</span>. Let&#39;s try running a logistic regression (i.e. phenotype follows the Bernoulli distribution) on this data. </p><pre><code class="language-julia">result = iht(&quot;sim&quot;, 10, Bernoulli, covariates=&quot;sim.covariates.txt&quot;);</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.0                  ****
+writedlm(&quot;sim.phenotypes.txt&quot;, y)</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Please <strong>standardize</strong> (or at least center) your non-genetic covariates. If you use our <code>iht()</code> or <code>cross_validation()</code> functions, standardization is automatic. For genotype matrix, <code>SnpLinAlg</code> efficiently achieves this standardization. For non-genetic covariates, please use the built-in function <code>standardize!</code>. </p></div></div><h2 id="Example-3:-Logistic/Poisson/Negative-binomial-GWAS"><a class="docs-heading-anchor" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS">Example 3: Logistic/Poisson/Negative-binomial GWAS</a><a id="Example-3:-Logistic/Poisson/Negative-binomial-GWAS-1"></a><a class="docs-heading-anchor-permalink" href="#Example-3:-Logistic/Poisson/Negative-binomial-GWAS" title="Permalink"></a></h2><p>In Example 2, we simulated binary phenotypes, genotypes, non-genetic covariates, and we know true <span>$k = 10$</span>. Let&#39;s try running a logistic regression (i.e. phenotype follows the Bernoulli distribution) on this data. </p><pre><code class="language-julia">result = iht(&quot;sim&quot;, 10, Bernoulli, covariates=&quot;sim.covariates.txt&quot;)</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.1                  ****
 ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
 ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
 ****                                                            ****
@@ -190,93 +179,83 @@ writedlm(&quot;sim.phenotypes.txt&quot;, y)</code></pre><div class="admonition i
 ****         https://doi.org/10.1093/gigascience/giaa044        ****
 
 Running sparse logistic regression
+Number of threads = 8
 Link functin = LogitLink()
 Sparsity parameter (k) = 10
 Prior weight scaling = off
 Doubly sparse projection = off
 Debias = off
 Max IHT iterations = 200
-Converging when tol &lt; 0.0001:
+Converging when tol &lt; 0.0001 and iteration ≥ 5:
 
-Iteration 1: loglikelihood = -403.91876912829684, backtracks = 0, tol = 0.5882274462947444
-Iteration 2: loglikelihood = -354.24157363893784, backtracks = 0, tol = 0.282513866845802
-Iteration 3: loglikelihood = -347.5483388154264, backtracks = 0, tol = 0.19289827584644761
-Iteration 4: loglikelihood = -335.9715247464944, backtracks = 0, tol = 0.1426996228393492
-Iteration 5: loglikelihood = -334.49756712078744, backtracks = 1, tol = 0.02283147714926763
-Iteration 6: loglikelihood = -333.543219571108, backtracks = 2, tol = 0.019792429262652955
-Iteration 7: loglikelihood = -332.8067268854347, backtracks = 2, tol = 0.019845664939460095
-Iteration 8: loglikelihood = -332.5588563458224, backtracks = 3, tol = 0.00765066824120313
-Iteration 9: loglikelihood = -332.3619297572997, backtracks = 3, tol = 0.006913691748350025
-Iteration 10: loglikelihood = -332.2064289061609, backtracks = 3, tol = 0.0061597575486623014
-Iteration 11: loglikelihood = -332.0840431892422, backtracks = 3, tol = 0.0054730856932040705
-Iteration 12: loglikelihood = -331.98800416752806, backtracks = 3, tol = 0.0048548461339783565
-Iteration 13: loglikelihood = -331.9128408595039, backtracks = 3, tol = 0.004300010671833966
-Iteration 14: loglikelihood = -331.85415737528945, backtracks = 3, tol = 0.0038033387186573
-Iteration 15: loglikelihood = -331.8084401845103, backtracks = 3, tol = 0.003359795402130408
-Iteration 16: loglikelihood = -331.77289417483837, backtracks = 3, tol = 0.0029645876127234955
-Iteration 17: loglikelihood = -331.74530513071767, backtracks = 3, tol = 0.0026131815201996976
-Iteration 18: loglikelihood = -331.72392566719304, backtracks = 3, tol = 0.002301318021364227
-Iteration 19: loglikelihood = -331.707381516887, backtracks = 3, tol = 0.002025024729429744
-Iteration 20: loglikelihood = -331.6945951739729, backtracks = 3, tol = 0.001780622915677454
-Iteration 21: loglikelihood = -331.6847241325898, backtracks = 3, tol = 0.0015647287330161268
-Iteration 22: loglikelihood = -331.6771112518333, backtracks = 3, tol = 0.0013742489121423226
-Iteration 23: loglikelihood = -331.671245094309, backtracks = 3, tol = 0.0012063716814260336
-Iteration 24: loglikelihood = -331.6667283950377, backtracks = 3, tol = 0.0010585539268262742
-Iteration 25: loglikelihood = -331.66325310683357, backtracks = 3, tol = 0.0009285056582307361
-Iteration 26: loglikelihood = -331.66058072924545, backtracks = 3, tol = 0.0008141727680124563
-Iteration 27: loglikelihood = -331.6585268570943, backtracks = 3, tol = 0.0007137189219975595
-Iteration 28: loglikelihood = -331.6569490812431, backtracks = 3, tol = 0.0006255072563945025
-Iteration 29: loglikelihood = -331.65573754039684, backtracks = 3, tol = 0.0005480823925167159
-Iteration 30: loglikelihood = -331.6548075608974, backtracks = 3, tol = 0.00048015313770763916
-Iteration 31: loglikelihood = -331.65409393532707, backtracks = 3, tol = 0.0004205761209236388
-Iteration 32: loglikelihood = -331.6535464833441, backtracks = 3, tol = 0.00036834051544793833
-Iteration 33: loglikelihood = -331.6531266130592, backtracks = 3, tol = 0.00032255392716466075
-Iteration 34: loglikelihood = -331.6528046612902, backtracks = 3, tol = 0.00028242947163362354
-Iteration 35: loglikelihood = -331.65255783889444, backtracks = 3, tol = 0.0002472740235281775
-Iteration 36: loglikelihood = -331.6523686452689, backtracks = 3, tol = 0.00021647759466681234
-Iteration 37: loglikelihood = -331.652223646102, backtracks = 3, tol = 0.00018950377910949886
-Iteration 38: loglikelihood = -331.6521125319518, backtracks = 3, tol = 0.00016588119325870545
-Iteration 39: loglikelihood = -331.6520273936599, backtracks = 3, tol = 0.00014519583372057257
-Iteration 40: loglikelihood = -331.65196216503995, backtracks = 3, tol = 0.0001270842743388486
-Iteration 41: loglikelihood = -331.65191219446064, backtracks = 3, tol = 0.00011122762514495094
-Iteration 42: loglikelihood = -331.6518739156732, backtracks = 3, tol = 9.734617909701182e-5
-result = 
+Iteration 1: loglikelihood = -388.8910083252736, backtracks = 0, tol = 0.6418034752978493
+Iteration 2: loglikelihood = -334.5278475827583, backtracks = 0, tol = 0.3170396015883161
+Iteration 3: loglikelihood = -327.9633012046245, backtracks = 0, tol = 0.2025866533020331
+Iteration 4: loglikelihood = -321.78128260006685, backtracks = 0, tol = 0.1860359951551827
+Iteration 5: loglikelihood = -320.82291695265127, backtracks = 1, tol = 0.019411649026600777
+Iteration 6: loglikelihood = -320.4507210246635, backtracks = 2, tol = 0.009984009889427738
+Iteration 7: loglikelihood = -317.5178129459779, backtracks = 2, tol = 0.10991749703912314
+Iteration 8: loglikelihood = -317.02211222442554, backtracks = 1, tol = 0.013593158611626565
+Iteration 9: loglikelihood = -316.84609828412295, backtracks = 2, tol = 0.007169021739514612
+Iteration 10: loglikelihood = -316.70442301799153, backtracks = 2, tol = 0.007932900581304757
+Iteration 11: loglikelihood = -316.6123017144071, backtracks = 2, tol = 0.006753634000554562
+Iteration 12: loglikelihood = -316.55859748055383, backtracks = 2, tol = 0.005166907901710646
+Iteration 13: loglikelihood = -316.5276537804478, backtracks = 2, tol = 0.00394060866454871
+Iteration 14: loglikelihood = -316.50992605296796, backtracks = 2, tol = 0.0029918249852994103
+Iteration 15: loglikelihood = -316.4998143291673, backtracks = 2, tol = 0.002265270160216051
+Iteration 16: loglikelihood = -316.49406613214404, backtracks = 2, tol = 0.0017110615239077592
+Iteration 17: loglikelihood = -316.49080687297084, backtracks = 2, tol = 0.0012902536156348425
+Iteration 18: loglikelihood = -316.4889624723853, backtracks = 2, tol = 0.0009716277317779244
+Iteration 19: loglikelihood = -316.4879202825298, backtracks = 2, tol = 0.0007309600514247552
+Iteration 20: loglikelihood = -316.48733204721407, backtracks = 2, tol = 0.000549484718269684
+Iteration 21: loglikelihood = -316.4870003149547, backtracks = 2, tol = 0.0004128291474231582
+Iteration 22: loglikelihood = -316.4868133555257, backtracks = 2, tol = 0.00031002536936769156
+Iteration 23: loglikelihood = -316.4867080384853, backtracks = 2, tol = 0.00023274674474752565
+Iteration 24: loglikelihood = -316.4866487332225, backtracks = 2, tol = 0.00017468833019519464
+Iteration 25: loglikelihood = -316.486615346784, backtracks = 2, tol = 0.0001310885323519644
+Iteration 26: loglikelihood = -316.48659655541053, backtracks = 2, tol = 9.835709203914658e-5
+
+
+
+
+
+
 IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
 
-Compute time (sec):     4.042757987976074
-Final loglikelihood:    -331.6518739156732
-SNP PVE:                0.4798854810844273
-Iterations:             42
+Compute time (sec):     0.5662021636962891
+Final loglikelihood:    -316.48659655541053
+SNP PVE:                0.5592583156030205
+Iterations:             26
 
 Selected genetic predictors:
-8×2 DataFrame
- Row │ Position  Estimated_β
-     │ Int64     Float64
+[1m8×2 DataFrame[0m
+[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+[1m     [0m│[90m Int64    [0m[90m Float64     [0m
 ─────┼───────────────────────
-   1 │     3137     0.503252
-   2 │     4246     0.590809
-   3 │     4248    -0.37987
-   4 │     4717     1.04006
-   5 │     6290    -0.741734
-   6 │     7755    -0.437585
-   7 │     8375    -0.942293
-   8 │     9415    -2.11206
+   1 │      714    -0.7238
+   2 │      777    -0.625216
+   3 │     1356     1.01887
+   4 │     2426     0.392727
+   5 │     5080     0.395473
+   6 │     5490    -0.720477
+   7 │     6299    -2.09706
+   8 │     7057     0.661431
 
 Selected nongenetic predictors:
-2×2 DataFrame
- Row │ Position  Estimated_β
-     │ Int64     Float64
+[1m2×2 DataFrame[0m
+[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+[1m     [0m│[90m Int64    [0m[90m Float64     [0m
 ─────┼───────────────────────
-   1 │        1      1.03892
-   2 │        2      1.5844</code></pre><p>Since data is simulated, we can compare IHT&#39;s estimated effect size with the truth. </p><pre><code class="language-julia">[true_b[correct_position] result.beta[correct_position]]</code></pre><pre><code class="nohighlight">8×2 Array{Float64,2}:
-  0.469278    0.503252
-  0.554408    0.590809
-  0.923213    1.04006
-  0.0369732   0.0
- -0.625634   -0.741734
- -0.526553   -0.437585
- -0.815561   -0.942293
- -2.18271    -2.11206</code></pre><p>The 1st column are the true beta values, and the 2nd column is the estimated values. IHT found 7/8 genetic predictors, and estimates are reasonably close to truth. IHT missed one SNP with very small effect size (<span>$\beta = 0.0369$</span>). The estimated non-genetic effect size is also very close to the truth (1.0 and 1.5). </p><pre><code class="language-julia"># remove simulated data once they are no longer needed
+   1 │        1     0.919708
+   2 │        2     1.48015</code></pre><p>Since data is simulated, we can compare IHT&#39;s estimated effect size with the truth. </p><pre><code class="language-julia">[true_b[correct_position] result.beta[correct_position]]</code></pre><pre><code class="nohighlight">8×2 Matrix{Float64}:
+ -0.787272  -0.7238
+ -0.456783  -0.625216
+  1.12735    1.01887
+  0.185925   0.0
+ -0.891023  -0.720477
+ -2.15515   -2.09706
+  0.166931   0.0
+  0.82265    0.661431</code></pre><p>The 1st column are the true beta values, and the 2nd column is the estimated values. IHT found 6/8 genetic predictors, and estimates are reasonably close to truth. IHT missed SNPs with small effect size. With increased sample size, these small effects can be detected. The estimated non-genetic effect size is also very close to the truth (1.0 and 1.5). </p><pre><code class="language-julia"># remove simulated data once they are no longer needed
 rm(&quot;sim.bed&quot;, force=true)
 rm(&quot;sim.bim&quot;, force=true)
 rm(&quot;sim.fam&quot;, force=true)
@@ -287,7 +266,7 @@ rm(&quot;iht.summary.txt&quot;, force=true)
 rm(&quot;cviht.summary.txt&quot;, force=true)</code></pre><h2 id="Example-4:-Running-IHT-on-general-matrices"><a class="docs-heading-anchor" href="#Example-4:-Running-IHT-on-general-matrices">Example 4: Running IHT on general matrices</a><a id="Example-4:-Running-IHT-on-general-matrices-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4:-Running-IHT-on-general-matrices" title="Permalink"></a></h2><p>To run IHT on genotypes in VCF files, or other general data, one must call <code>fit_iht</code> and <code>cv_iht</code> directly. These functions are designed to work on <code>AbstractArray{T, 2}</code> type where <code>T</code> is a <code>Float64</code> or <code>Float32</code>. Thus, one must first import the data, and then call <code>fit_iht</code> and <code>cv_iht</code> on it. Note the vector of 1s (intercept) shouldn&#39;t be included in the design matrix itself, as it will be automatically included.</p><div class="admonition is-success"><header class="admonition-header">Tip</header><div class="admonition-body"><p>Check out <a href="https://github.com/OpenMendel/VCFTools.jl">VCFTools.jl</a> to learn how to import VCF data.</p></div></div><p>First we simulate some count response using the model:</p><p class="math-container">\[y_i \sim \rm Poisson(\mathbf{x}_i^T \boldsymbol\beta)\]</p><p class="math-container">\[x_{ij} \sim \rm Normal(0, 1)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 0.3)\]</p><pre><code class="language-julia">n = 1000             # number of samples
 p = 10000            # number of SNPs
 k = 10               # 9 causal predictors + intercept
-d = Poisson          # Response follows Poisson distribution (count data)
+d = Poisson          # Response distribution (count data)
 l = LogLink()        # canonical link
 
 # set random seed for reproducibility
@@ -306,35 +285,44 @@ prob = GLM.linkinv.(l, intercept .+ x * true_b)
 clamp!(prob, -20, 20) # prevents overflow
 y = [rand(d(i)) for i in prob]
 y = Float64.(y); # convert phenotypes to double precision</code></pre><p>Now we have the response <span>$y$</span>, design matrix <span>$x$</span>. Let&#39;s run IHT and compare with truth.</p><pre><code class="language-julia"># first run cross validation 
-mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());</code></pre><pre><code class="nohighlight">[32mCross validating...100%|████████████████████████████████| Time: 0:00:13[39m
+mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+
+
+[32mCross validating...100%|████████████████████████████████| Time: 0:00:25[39m
 
 
 
 
 Crossvalidation Results:
 	k	MSE
-	1	1489.8188363695676
-	2	707.6175237350031
-	3	546.8867981545659
-	4	467.2192708681082
-	5	440.03761893872735
-	6	459.9446241516855
-	7	482.3184687223138
-	8	504.0229684333779
-	9	495.12633308066677
-	10	525.4353275609003
-	11	534.0267905856207
-	12	524.761614819788
-	13	558.2726852255062
-	14	561.6025100531801
-	15	561.3898895087017
-	16	555.5897051455378
-	17	618.3872529214121
-	18	655.395210924614
-	19	652.4915677346956
-	20	561.4237250226572
+	1	1294.4117918373186
+	2	669.4092214451908
+	3	543.3989940052342
+	4	473.50239409691363
+	5	449.5280013487634
+	6	469.726620661539
+	7	476.40540372697865
+	8	541.741342787916
+	9	539.3863798082896
+	10	523.5971500146672
+	11	517.4445374386203
+	12	558.3509823150954
+	13	600.125510865708
+	14	597.7008166652079
+	15	569.2744078914006
+	16	603.7206875133627
+	17	639.488936399919
+	18	643.1761683767324
+	19	646.566741795878
+	20	642.7739157309286
 
-Best k = 5</code></pre><p>Now run IHT on the full dataset using the best k (achieved at k = 5)</p><pre><code class="language-julia">result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.0                  ****
+Best k = 5</code></pre><p>Now run IHT on the full dataset using the best k (achieved at k = 5)</p><pre><code class="language-julia">result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.1                  ****
 ****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
 ****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
 ****                                                            ****
@@ -342,35 +330,36 @@ Best k = 5</code></pre><p>Now run IHT on the full dataset using the best k (achi
 ****         https://doi.org/10.1093/gigascience/giaa044        ****
 
 Running sparse Poisson regression
+Number of threads = 8
 Link functin = LogLink()
 Sparsity parameter (k) = 5
 Prior weight scaling = off
 Doubly sparse projection = off
 Debias = off
 Max IHT iterations = 200
-Converging when tol &lt; 0.0001:
+Converging when tol &lt; 0.0001 and iteration ≥ 5:
 
 Iteration 1: loglikelihood = -2847.082501924986, backtracks = 0, tol = 0.2928574304111579
-Iteration 2: loglikelihood = -2465.401434829009, backtracks = 0, tol = 0.05230999409875657
-Iteration 3: loglikelihood = -2376.6519599956155, backtracks = 0, tol = 0.07104164424891486
-Iteration 4: loglikelihood = -2351.5833133504116, backtracks = 0, tol = 0.026208176849564724
-Iteration 5: loglikelihood = -2343.11078282251, backtracks = 0, tol = 0.02023001613423483
-Iteration 6: loglikelihood = -2339.0692529047387, backtracks = 0, tol = 0.011080308351803736
-Iteration 7: loglikelihood = -2337.149479249759, backtracks = 0, tol = 0.00930914236578197
-Iteration 8: loglikelihood = -2336.1781402958745, backtracks = 0, tol = 0.00556416943618412
-Iteration 9: loglikelihood = -2335.6908426969235, backtracks = 0, tol = 0.004609772037770406
-Iteration 10: loglikelihood = -2335.440388139586, backtracks = 0, tol = 0.002861799512474864
+Iteration 2: loglikelihood = -2465.401434829008, backtracks = 0, tol = 0.052309994098756654
+Iteration 3: loglikelihood = -2376.6519599956146, backtracks = 0, tol = 0.07104164424891495
+Iteration 4: loglikelihood = -2351.583313350411, backtracks = 0, tol = 0.02620817684956463
+Iteration 5: loglikelihood = -2343.1107828225104, backtracks = 0, tol = 0.020230016134234835
+Iteration 6: loglikelihood = -2339.0692529047383, backtracks = 0, tol = 0.01108030835180364
+Iteration 7: loglikelihood = -2337.149479249759, backtracks = 0, tol = 0.009309142365782066
+Iteration 8: loglikelihood = -2336.178140295875, backtracks = 0, tol = 0.005564169436184072
+Iteration 9: loglikelihood = -2335.6908426969235, backtracks = 0, tol = 0.004609772037770407
+Iteration 10: loglikelihood = -2335.440388139586, backtracks = 0, tol = 0.0028617995124748164
 Iteration 11: loglikelihood = -2335.3124548737906, backtracks = 0, tol = 0.002340881298705853
-Iteration 12: loglikelihood = -2335.2463824561282, backtracks = 0, tol = 0.001479832987797599
+Iteration 12: loglikelihood = -2335.2463824561282, backtracks = 0, tol = 0.0014798329877975507
 Iteration 13: loglikelihood = -2335.2123851939327, backtracks = 0, tol = 0.0012011066579049358
-Iteration 14: loglikelihood = -2335.1947979604856, backtracks = 0, tol = 0.0007661746047595665
+Iteration 14: loglikelihood = -2335.1947979604856, backtracks = 0, tol = 0.0007661746047595179
 Iteration 15: loglikelihood = -2335.1857186752313, backtracks = 0, tol = 0.0006191995770663082
-Iteration 16: loglikelihood = -2335.1810189052294, backtracks = 0, tol = 0.00039678836835178535
-Iteration 17: loglikelihood = -2335.178588840017, backtracks = 0, tol = 0.00031993814923964465
-Iteration 18: loglikelihood = -2335.177330620363, backtracks = 0, tol = 0.00020549845888243352
-Iteration 19: loglikelihood = -2335.1766795324024, backtracks = 0, tol = 0.00016549800033345948
-Iteration 20: loglikelihood = -2335.176342377269, backtracks = 0, tol = 0.00010642830220001078
-Iteration 21: loglikelihood = -2335.176167840737, backtracks = 0, tol = 8.565816720868677e-5
+Iteration 16: loglikelihood = -2335.181018905229, backtracks = 0, tol = 0.00039678836835178535
+Iteration 17: loglikelihood = -2335.1785888400173, backtracks = 0, tol = 0.0003199381492395469
+Iteration 18: loglikelihood = -2335.1773306203627, backtracks = 0, tol = 0.00020549845888248242
+Iteration 19: loglikelihood = -2335.1766795324024, backtracks = 0, tol = 0.00016549800033336165
+Iteration 20: loglikelihood = -2335.176342377269, backtracks = 0, tol = 0.0001064283022001086
+Iteration 21: loglikelihood = -2335.176167840737, backtracks = 0, tol = 8.565816720858893e-5
 
 
 
@@ -379,9 +368,9 @@ Iteration 21: loglikelihood = -2335.176167840737, backtracks = 0, tol = 8.565816
 
 IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
 
-Compute time (sec):     0.12793207168579102
+Compute time (sec):     0.2328169345855713
 Final loglikelihood:    -2335.176167840737
-SNP PVE:                0.09113449276174615
+SNP PVE:                0.09113449276174614
 Iterations:             21
 
 Selected genetic predictors:
@@ -400,7 +389,7 @@ Selected nongenetic predictors:
 [1m     [0m│[90m Int64    [0m[90m Float64     [0m
 ─────┼───────────────────────
    1 │        1      1.26918</code></pre><pre><code class="language-julia"># compare IHT result with truth
-[true_b[correct_position] result.beta[correct_position]]</code></pre><pre><code class="nohighlight">10×2 Array{Float64,2}:
+[true_b[correct_position] result.beta[correct_position]]</code></pre><pre><code class="nohighlight">10×2 Matrix{Float64}:
  -1.303      -0.809284
   0.585809    0.378376
  -0.0700563   0.0
@@ -410,7 +399,7 @@ Selected nongenetic predictors:
   0.271429    0.169417
  -0.164888    0.0
  -0.0790484   0.0
-  0.0829054   0.0</code></pre><p>Since many of the true <span>$\beta$</span> are small, we were only able to find 5 true signals (4 predictors + intercept). </p><p><strong>Conclusion:</strong> In this example, we ran IHT on count response with a general <code>Array{T, 2}</code> design matrix. Since we used simulated data, we could compare IHT&#39;s estimates with the truth. </p><h2 id="Example-5:-Group-IHT"><a class="docs-heading-anchor" href="#Example-5:-Group-IHT">Example 5: Group IHT</a><a id="Example-5:-Group-IHT-1"></a><a class="docs-heading-anchor-permalink" href="#Example-5:-Group-IHT" title="Permalink"></a></h2><p>In this example, we show how to include group information to perform doubly sparse projections. Here the final model would contain at most <span>$J = 5$</span> groups where each group contains limited number of (prespecified) SNPs. For simplicity, we assume the sparsity parameter <span>$k$</span> is known. </p><h3 id="Data-simulation"><a class="docs-heading-anchor" href="#Data-simulation">Data simulation</a><a id="Data-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Data-simulation" title="Permalink"></a></h3><p>To illustrate the effect of group information and prior weights, we generated correlated genotype matrix according to the procedure outlined in <a href="https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf">our paper</a>. In this example, each SNP belongs to 1 of 500 disjoint groups containing 20 SNPs each; <span>$j = 5$</span> distinct groups are each assigned <span>$1,2,...,5$</span> causal SNPs with effect sizes randomly chosen from <span>$\{−0.2,0.2\}$</span>. In all there 15 causal SNPs.  For grouped-IHT, we assume perfect group information. That is, the selected groups containing 1∼5 causative SNPs are assigned maximum within-group sparsity <span>$\lambda_g = 1,2,...,5$</span>. The remaining groups are assigned <span>$\lambda_g = 1$</span> (i.e. only 1 active predictor are allowed).</p><pre><code class="language-julia"># define problem size
+  0.0829054   0.0</code></pre><p>Since many of the true <span>$\beta$</span> are small, we were only able to find 5 true signals (4 predictors + intercept). </p><p><strong>Conclusion:</strong> In this example, we ran IHT on count response with a general <code>Matrix{Float64}</code> design matrix. Since we used simulated data, we could compare IHT&#39;s estimates with the truth. </p><h2 id="Example-5:-Group-IHT"><a class="docs-heading-anchor" href="#Example-5:-Group-IHT">Example 5: Group IHT</a><a id="Example-5:-Group-IHT-1"></a><a class="docs-heading-anchor-permalink" href="#Example-5:-Group-IHT" title="Permalink"></a></h2><p>In this example, we show how to include group information to perform doubly sparse projections. Here the final model would contain at most <span>$J = 5$</span> groups where each group contains limited number of (prespecified) SNPs. For simplicity, we assume the sparsity parameter <span>$k$</span> is known. </p><h3 id="Data-simulation"><a class="docs-heading-anchor" href="#Data-simulation">Data simulation</a><a id="Data-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Data-simulation" title="Permalink"></a></h3><p>To illustrate the effect of group information and prior weights, we generated correlated genotype matrix according to the procedure outlined in <a href="https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf">our paper</a>. In this example, each SNP belongs to 1 of 500 disjoint groups containing 20 SNPs each; <span>$j = 5$</span> distinct groups are each assigned <span>$1,2,...,5$</span> causal SNPs with effect sizes randomly chosen from <span>$\{−0.2,0.2\}$</span>. In all there 15 causal SNPs.  For grouped-IHT, we assume perfect group information. That is, the selected groups containing 1∼5 causative SNPs are assigned maximum within-group sparsity <span>$\lambda_g = 1,2,...,5$</span>. The remaining groups are assigned <span>$\lambda_g = 1$</span> (i.e. only 1 active predictor are allowed).</p><pre><code class="language-julia"># define problem size
 d = NegativeBinomial
 l = LogLink()
 n = 1000
@@ -483,21 +472,21 @@ rm(&quot;tmp.bed&quot;, force=true)</code></pre><pre><code class="nohighlight">c
  Row │ position  correct_β  ungrouped_IHT_β  grouped_IHT_β
      │ Int64     Float64    Float64          Float64
 ─────┼─────────────────────────────────────────────────────
-   1 │      235       -0.2        -0.218172       0.0
-   2 │     2673       -0.2        -0.171002      -0.178483
-   3 │     2679       -0.2        -0.236793      -0.213098
-   4 │     6383       -0.2        -0.228555      -0.224309
-   5 │     6389       -0.2        -0.190352      -0.192022
-   6 │     6394        0.2         0.215984       0.198447
-   7 │     7862        0.2         0.229254       0.224207
-   8 │     7864       -0.2        -0.184551      -0.19331
-   9 │     7868       -0.2        -0.174773      -0.177359
-  10 │     7870       -0.2        -0.192932      -0.208592
-  11 │     9481       -0.2         0.0            0.0
-  12 │     9491        0.2         0.0            0.0
-  13 │     9493        0.2         0.183659       0.175211
-  14 │     9494        0.2         0.117548       0.112946
-  15 │     9499       -0.2         0.0            0.0</code></pre><p><strong>Conclusion:</strong> Ungroup IHT actually found 1 more SNPs than grouped IHT. </p><h2 id="Example-6:-Linear-Regression-with-prior-weights"><a class="docs-heading-anchor" href="#Example-6:-Linear-Regression-with-prior-weights">Example 6: Linear Regression with prior weights</a><a id="Example-6:-Linear-Regression-with-prior-weights-1"></a><a class="docs-heading-anchor-permalink" href="#Example-6:-Linear-Regression-with-prior-weights" title="Permalink"></a></h2><p>In this example, we show how to include (predetermined) prior weights for each SNP. You can check out <a href="https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf">our paper</a> for references of why/how to choose these weights. In this case, we mimic our paper and randomly set <span>$10\%$</span> of all SNPs to have a weight of <span>$2.0$</span>. Other predictors have weight of <span>$1.0$</span>. All causal SNPs have weights of <span>$2.0$</span>. Under this scenario, SNPs with weight <span>$2.0$</span> is twice as likely to enter the model identified by IHT. </p><p>Our model is simulated as:</p><p class="math-container">\[y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i\]</p><p class="math-container">\[x_{ij} \sim \rm Binomial(2, \rho_j)\]</p><p class="math-container">\[\rho_j \sim \rm Uniform(0, 0.5)\]</p><p class="math-container">\[\epsilon_i \sim \rm N(0, 1)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 0.25)\]</p><pre><code class="language-julia">d = Normal
+   1 │      963       -0.2        -0.21403        0.0
+   2 │     3485       -0.2         0.0           -0.13032
+   3 │     3487       -0.2        -0.323509      -0.225267
+   4 │     7405        0.2         0.254196       0.260726
+   5 │     7407       -0.2        -0.186084      -0.202747
+   6 │     7417       -0.2        -0.190491      -0.201521
+   7 │     9104       -0.2        -0.189195      -0.201113
+   8 │     9110        0.2         0.192222       0.177787
+   9 │     9118       -0.2        -0.196494      -0.189983
+  10 │     9120        0.2         0.253254       0.248832
+  11 │     9206       -0.2        -0.236861      -0.217945
+  12 │     9209       -0.2        -0.198633      -0.177085
+  13 │     9210       -0.2        -0.172682      -0.186602
+  14 │     9211       -0.2        -0.234481      -0.23977
+  15 │     9217        0.2         0.227397       0.217969</code></pre><p><strong>Conclusion:</strong> Ungroup and grouped IHT each found 1 SNP that the other didn&#39;t find.  </p><h2 id="Example-6:-Linear-Regression-with-prior-weights"><a class="docs-heading-anchor" href="#Example-6:-Linear-Regression-with-prior-weights">Example 6: Linear Regression with prior weights</a><a id="Example-6:-Linear-Regression-with-prior-weights-1"></a><a class="docs-heading-anchor-permalink" href="#Example-6:-Linear-Regression-with-prior-weights" title="Permalink"></a></h2><p>In this example, we show how to include (predetermined) prior weights for each SNP. You can check out <a href="https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf">our paper</a> for references of why/how to choose these weights. In this case, we mimic our paper and randomly set <span>$10\%$</span> of all SNPs to have a weight of <span>$2.0$</span>. Other predictors have weight of <span>$1.0$</span>. All causal SNPs have weights of <span>$2.0$</span>. Under this scenario, SNPs with weight <span>$2.0$</span> is twice as likely to enter the model identified by IHT. </p><p>Our model is simulated as:</p><p class="math-container">\[y_i \sim \mathbf{x}_i^T\mathbf{\beta} + \epsilon_i\]</p><p class="math-container">\[x_{ij} \sim \rm Binomial(2, \rho_j)\]</p><p class="math-container">\[\rho_j \sim \rm Uniform(0, 0.5)\]</p><p class="math-container">\[\epsilon_i \sim \rm N(0, 1)\]</p><p class="math-container">\[\beta_i \sim \rm N(0, 0.25)\]</p><pre><code class="language-julia">d = Normal
 l = IdentityLink()
 n = 1000
 p = 10000
@@ -546,13 +535,218 @@ rm(&quot;tmp.bed&quot;, force=true)</code></pre><pre><code class="nohighlight">c
  Row │ position  correct     unweighted  weighted
      │ Int64     Float64     Float64     Float64
 ─────┼─────────────────────────────────────────────
-   1 │     1264   0.252886     0.270233   0.264713
-   2 │     1506  -0.0939841    0.0       -0.125803
-   3 │     4866  -0.227394    -0.233703  -0.237007
-   4 │     5778  -0.510488    -0.507114  -0.494199
-   5 │     5833  -0.311969    -0.324309  -0.322663
+   1 │     1264   0.252886     0.270233   0.280652
+   2 │     1506  -0.0939841    0.0       -0.118611
+   3 │     4866  -0.227394    -0.233703  -0.232989
+   4 │     5778  -0.510488    -0.507114  -0.501733
+   5 │     5833  -0.311969    -0.324309  -0.319763
    6 │     5956  -0.0548168    0.0        0.0
    7 │     6378  -0.0155173    0.0        0.0
    8 │     7007  -0.123301     0.0        0.0
    9 │     7063   0.0183886    0.0        0.0
-  10 │     7995  -0.102122     0.0       -0.142201</code></pre><p><strong>Conclusion</strong>: weighted IHT found 2 extra predictor than non-weighted IHT.</p><h2 id="Other-examples-and-functionalities"><a class="docs-heading-anchor" href="#Other-examples-and-functionalities">Other examples and functionalities</a><a id="Other-examples-and-functionalities-1"></a><a class="docs-heading-anchor-permalink" href="#Other-examples-and-functionalities" title="Permalink"></a></h2><p>Additional features are available as optional parameters in the <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L37">fit_iht</a> function, but they should be treated as <strong>experimental</strong> features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting_started/">« Getting Started</a><a class="docs-footer-nextpage" href="../math/">Mathematical Details »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.3 on <span class="colophon-date" title="Thursday 8 July 2021 06:34">Thursday 8 July 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  10 │     7995  -0.102122     0.0       -0.134898</code></pre><p><strong>Conclusion</strong>: weighted IHT found 2 extra predictor than non-weighted IHT.</p><h2 id="Example-7:-Multivariate-IHT"><a class="docs-heading-anchor" href="#Example-7:-Multivariate-IHT">Example 7: Multivariate IHT</a><a id="Example-7:-Multivariate-IHT-1"></a><a class="docs-heading-anchor-permalink" href="#Example-7:-Multivariate-IHT" title="Permalink"></a></h2><p>When there is multiple quantitative traits, analyzing them jointly is known to be superior than conducting multiple univariate-GWAS (<a href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0095923">ref1</a>, <a href="https://www.nature.com/articles/srep38837">ref2</a>). When <code>MendelIHT.jl</code> performs a multivariate analysis, </p><ul><li>IHT estimates effect of every SNP (covariate) conditioned on every other SNP across traits</li><li>IHT outputs an estimated covariate matrix among traits</li><li>IHT estimates proportion of trait variance explained by the genetic predictors</li></ul><h3 id="First-simulate-data"><a class="docs-heading-anchor" href="#First-simulate-data">First simulate data</a><a id="First-simulate-data-1"></a><a class="docs-heading-anchor-permalink" href="#First-simulate-data" title="Permalink"></a></h3><p>With <span>$r$</span> traits, each sample&#39;s phenotype <span>$\mathbf{y}_{i} \in \mathbb{R}^{n \times 1}$</span> is simulated under</p><p class="math-container">\[\mathbf{y}_{i}^{r \times 1} \sim N(\mathbf{B}^{r \times p}\mathbf{x}_{i}^{p \times 1}, \ \ \Sigma_{r \times r})\]</p><p>This model assumes each sample is independent. The covariance among traits is specified by <span>$\Sigma$</span>.</p><pre><code class="language-julia">n = 1000  # number of samples
+p = 10000 # number of SNPs
+k = 10    # number of causal SNPs
+r = 2     # number of traits
+
+# set random seed for reproducibility
+Random.seed!(2021)
+
+# simulate `.bed` file with no missing data
+x = simulate_random_snparray(&quot;multivariate.bed&quot;, n, p)
+xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, impute=false, center=true, scale=true) 
+
+# intercept is the only nongenetic covariate
+z = ones(n, 1)
+intercepts = randn(r)&#39; # each trait have different intercept
+
+# simulate response y, true model b, and the correct non-0 positions of b
+Y, true_Σ, true_b, correct_position = simulate_random_response(xla, k, r, Zu=z*intercepts, overlap=0)
+writedlm(&quot;multivariate.trait.cov&quot;, true_Σ, &#39;,&#39;)
+
+# create `.bim` and `.bam` files using phenotype
+make_bim_fam_files(x, Y, &quot;multivariate&quot;)
+
+# also save phenotypes in separate file
+open(&quot;multivariate.phen&quot;, &quot;w&quot;) do io
+    for i in 1:n
+        println(io, Y[i, 1], &quot;,&quot;, Y[i, 2])
+    end
+end</code></pre><p>For multivariate IHT, one can store multiple phenotpyes as extra columns in the <code>.fam</code> file. The first 10 rows of such a file is visualized below:</p><pre><code class="language-julia">;head multivariate.fam</code></pre><pre><code class="nohighlight">1	1	0	0	1	-1.4101566028647934	-0.4675708866010868
+2	1	0	0	1	1.519406122085042	-0.1521105344879844
+3	1	0	0	1	-5.121683111513246	1.4417764126708223
+4	1	0	0	1	2.4188275607309677	2.5303163340220953
+5	1	0	0	1	2.6214639873372234	1.005904479060761
+6	1	0	0	1	1.0918272785956382	2.8773472639961106
+7	1	0	0	1	1.6444938174059964	-0.3561578100979898
+8	1	0	0	1	-1.3607927771748423	0.049522727283193846
+9	1	0	0	1	-3.9917926508357624	1.8333328019574022
+10	1	0	0	1	-2.494886509291137	2.518184222337186</code></pre><p>Phenotypes can also be stored in a separate file. In this case, we require each subject&#39;s phenotype to occupy a different row. The file should not include a header line. Each row should be listed in the same order as in the PLINK and (for multivariate analysis) be comma separated. For example, the first 10 rows of such a file looks like:</p><pre><code class="language-julia">;head multivariate.phen</code></pre><pre><code class="nohighlight">-1.4101566028647934,-0.4675708866010868
+1.519406122085042,-0.1521105344879844
+-5.121683111513246,1.4417764126708223
+2.4188275607309677,2.5303163340220953
+2.6214639873372234,1.005904479060761
+1.0918272785956382,2.8773472639961106
+1.6444938174059964,-0.3561578100979898
+-1.3607927771748423,0.049522727283193846
+-3.9917926508357624,1.8333328019574022
+-2.494886509291137,2.518184222337186</code></pre><h3 id="Run-multivariate-IHT"><a class="docs-heading-anchor" href="#Run-multivariate-IHT">Run multivariate IHT</a><a id="Run-multivariate-IHT-1"></a><a class="docs-heading-anchor-permalink" href="#Run-multivariate-IHT" title="Permalink"></a></h3><p>The values specified in <code>path</code> corresponds to the total number of non-zero <code>k</code> to be tested in cross validation. Since we simulated 10 true genetic predictors and 2 non-genetic predictors (an intercept term for each trait), <span>$k_{true} = 12$</span>. Because non-genetic covariates are not specified, an intercept with automatically be included. </p><pre><code class="language-julia"># genotypes stored in multivariate.bed and phenotypes in multivariate.phen
+mses = cross_validate(&quot;multivariate&quot;, MvNormal, phenotypes=&quot;multivariate.phen&quot;, path=1:20);
+
+# use columns 6 and 7 of .fam as phenotypes
+# mses = cross_validate(&quot;multivariate&quot;, MvNormal, phenotypes=[6, 7], path=1:20)
+
+# run directly with xla and Y (note: transpose is necessary to make samples into columns)
+# mses = cv_iht(Matrix(Y&#39;), Transpose(xla), path=1:20)</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+
+
+[32mCross validating...100%|████████████████████████████████| Time: 0:00:08[39m
+
+
+
+
+Crossvalidation Results:
+	k	MSE
+	1	2066.2949539850247
+	2	2065.448718184275
+	3	1028.1142776401573
+	4	891.2895081829226
+	5	761.9356018442186
+	6	615.9435020075197
+	7	548.8271710694912
+	8	538.4145437051037
+	9	526.7503996446849
+	10	528.2000153966353
+	11	528.4124971317248
+	12	523.3419138092179
+	13	538.1305969330168
+	14	527.5197299749807
+	15	527.7948630499403
+	16	531.8215074425368
+	17	533.44640197685
+	18	535.7714663457024
+	19	540.7820708871902
+	20	548.1997323593387
+
+Best k = 12</code></pre><p>The best MSE is achieved at <span>$k=12$</span>. Let&#39;s run IHT with this estimate of <span>$k$</span>. Similarly, there are multiple ways to do so:</p><pre><code class="language-julia"># genotypes stored in multivariate.bed and phenotypes in multivariate.phen
+result = iht(&quot;multivariate&quot;, 12, MvNormal, phenotypes=&quot;multivariate.phen&quot;)
+
+# genotypes stored in multivariate.bed use columns 6 and 7 of .fam as phenotypes
+# result = iht(&quot;multivariate&quot;, 12, MvNormal, phenotypes=[6, 7])
+
+# run cross validation directly with xla and Y (note: transpose is necessary to make samples into columns)
+# result = fit_iht(Matrix(Y&#39;), Transpose(xla), k=12)</code></pre><pre><code class="nohighlight">****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+Running sparse Multivariate Gaussian regression
+Number of threads = 8
+Link functin = IdentityLink()
+Sparsity parameter (k) = 12
+Prior weight scaling = off
+Doubly sparse projection = off
+Debias = off
+Max IHT iterations = 200
+Converging when tol &lt; 0.0001 and iteration ≥ 5:
+
+Iteration 1: loglikelihood = -2376.4820296189982, backtracks = 0, tol = 0.0
+Iteration 2: loglikelihood = -2376.479923292264, backtracks = 0, tol = 1.1257263586193733e-6
+Iteration 3: loglikelihood = -1957.3455984022858, backtracks = 0, tol = 0.34272673055481445
+Iteration 4: loglikelihood = -1492.3671161424047, backtracks = 0, tol = 0.25917873408698855
+Iteration 5: loglikelihood = -1182.1735594370286, backtracks = 0, tol = 0.23675182454701588
+Iteration 6: loglikelihood = -1173.136551480164, backtracks = 0, tol = 0.07796393235528722
+Iteration 7: loglikelihood = -1172.0113774449553, backtracks = 1, tol = 0.011552571250170897
+Iteration 8: loglikelihood = -1171.889593655075, backtracks = 1, tol = 0.00348271732377267
+Iteration 9: loglikelihood = -1171.8731432400346, backtracks = 1, tol = 0.0009816062764585914
+Iteration 10: loglikelihood = -1171.8696778652588, backtracks = 1, tol = 0.0004151796336081729
+Iteration 11: loglikelihood = -1171.868629414193, backtracks = 1, tol = 0.00023372232580958058
+Iteration 12: loglikelihood = -1171.868259797147, backtracks = 1, tol = 0.0001366081371933243
+Iteration 13: loglikelihood = -1171.8681230933576, backtracks = 1, tol = 8.144197684245368e-5
+
+
+
+
+
+
+Compute time (sec):     0.17782807350158691
+Final loglikelihood:    -1171.8681230933576
+Iterations:             13
+Trait 1&#39;s SNP PVE:      0.8882386104054829
+Trait 2&#39;s SNP PVE:      0.1797217149389984
+
+Estimated trait covariance:
+[1m2×2 DataFrame[0m
+[1m Row [0m│[1m trait1    [0m[1m trait2    [0m
+[1m     [0m│[90m Float64   [0m[90m Float64   [0m
+─────┼──────────────────────
+   1 │  0.907309  -0.131274
+   2 │ -0.131274   1.57327
+
+Trait 1: IHT estimated 6 nonzero SNP predictors
+[1m6×2 DataFrame[0m
+[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+[1m     [0m│[90m Int64    [0m[90m Float64     [0m
+─────┼───────────────────────
+   1 │      134    -0.412059
+   2 │      442    -1.22405
+   3 │      450    -1.5129
+   4 │     1891    -1.45489
+   5 │     2557     0.780163
+   6 │     3243    -0.833766
+
+Trait 1: IHT estimated 1 non-genetic predictors
+[1m1×2 DataFrame[0m
+[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+[1m     [0m│[90m Int64    [0m[90m Float64     [0m
+─────┼───────────────────────
+   1 │        1     -0.14915
+
+Trait 2: IHT estimated 4 nonzero SNP predictors
+[1m4×2 DataFrame[0m
+[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+[1m     [0m│[90m Int64    [0m[90m Float64     [0m
+─────┼───────────────────────
+   1 │     1014    -0.381763
+   2 │     1570     0.183475
+   3 │     5214     0.346505
+   4 │     9385    -0.18681
+
+Trait 2: IHT estimated 1 non-genetic predictors
+[1m1×2 DataFrame[0m
+[1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+[1m     [0m│[90m Int64    [0m[90m Float64     [0m
+─────┼───────────────────────
+   1 │        1     0.812977</code></pre><p>The convergence criteria can be tuned by keywords <code>tol</code> and <code>min_iter</code>. </p><h3 id="Check-answers"><a class="docs-heading-anchor" href="#Check-answers">Check answers</a><a id="Check-answers-1"></a><a class="docs-heading-anchor-permalink" href="#Check-answers" title="Permalink"></a></h3><pre><code class="language-julia"># estimated vs true first beta
+β1 = result.beta[1, :]
+true_b1_idx = findall(!iszero, true_b[:, 1])
+[β1[true_b1_idx] true_b[true_b1_idx, 1]]</code></pre><pre><code class="nohighlight">7×2 Matrix{Float64}:
+ -0.412059  -0.388067
+ -1.22405   -1.24972
+ -1.5129    -1.53835
+  0.0       -0.0034339
+ -1.45489   -1.47163
+  0.780163   0.758756
+ -0.833766  -0.847906</code></pre><pre><code class="language-julia"># estimated vs true second beta
+β2 = result.beta[2, :]
+true_b2_idx = findall(!iszero, true_b[:, 2])
+[β2[true_b2_idx] true_b[true_b2_idx, 2]]</code></pre><pre><code class="nohighlight">3×2 Matrix{Float64}:
+ -0.381763  -0.402269
+  0.346505   0.296183
+  0.0        0.125965</code></pre><pre><code class="language-julia"># estimated vs true non genetic covariates (intercept)
+[result.c intercepts&#39;]</code></pre><pre><code class="nohighlight">2×2 Matrix{Float64}:
+ -0.14915   -0.172668
+  0.812977   0.729135</code></pre><pre><code class="language-julia"># estimated vs true covariance matrix
+[vec(result.Σ) vec(true_Σ)]</code></pre><pre><code class="nohighlight">4×2 Matrix{Float64}:
+  0.907309   0.955563
+ -0.131274  -0.0884466
+ -0.131274  -0.0884466
+  1.57327    1.62573</code></pre><p><strong>Conclusion:</strong> </p><ul><li>IHT found 9 true positives: 6/7 causal SNPs for trait 1, 2/3 causal SNPs for trait 2, and 1/2 intercept</li><li>Because we ran IHT with <span>$k=12$</span>, there are 3 false positives. </li><li>Estimated trait covariance matrix closely match the true covariance</li><li>The proportion of phenotypic trait variances explained by genotypes are 0.88 and 0.15.</li></ul><h2 id="Other-examples-and-functionalities"><a class="docs-heading-anchor" href="#Other-examples-and-functionalities">Other examples and functionalities</a><a id="Other-examples-and-functionalities-1"></a><a class="docs-heading-anchor-permalink" href="#Other-examples-and-functionalities" title="Permalink"></a></h2><p>Additional features are available as optional parameters in the <a href="https://github.com/OpenMendel/MendelIHT.jl/blob/master/src/fit.jl#L37">fit_iht</a> function, but they should be treated as <strong>experimental</strong> features. Interested users are encouraged to explore them and please file issues on GitHub if you encounter a problem.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting_started/">« Getting Started</a><a class="docs-footer-nextpage" href="../math/">Mathematical Details »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.3 on <span class="colophon-date" title="Sunday 11 July 2021 18:32">Sunday 11 July 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
