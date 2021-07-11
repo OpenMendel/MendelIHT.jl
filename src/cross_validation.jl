@@ -78,8 +78,6 @@ function cv_iht(
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
 
-    m = Threads.ReentrantLock()
-
     # cross validate. TODO: wrap pmap with batch_size keyword to enable distributed CV
     combinations = allocate_fold_and_k(q, path)
     mses = zeros(length(combinations))
@@ -87,12 +85,10 @@ function cv_iht(
         fold, sparsity = combinations[i]
 
         # assign train/test indices
-        # lock(m)
         id = Threads.threadid()
         v = V[id]
         test_idx[id]  .= folds .== fold
         train_idx[id] .= folds .!= fold
-        # unlock(m)
 
         # run IHT on training data with current (fold, sparsity)
         v.k = sparsity
@@ -102,9 +98,7 @@ function cv_iht(
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)
         v.cv_wts[test_idx[id]] .= one(T)
-        lock(m)
         mses[i] = predict!(v)
-        unlock(m)
 
         # update progres
         next!(pmeter)
@@ -268,8 +262,7 @@ end
 
 function predict!(v::IHTVariable{T, M}) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta (cv weights are handled in deviance)
-    mul!(v.xb, v.x, v.best_b)
-    mul!(v.zc, v.z, v.best_c)
+    update_xb!(v)
     update_μ!(v)
 
     # Compute deviance residual (MSE for Gaussian response)
@@ -278,8 +271,7 @@ end
 
 function predict!(v::mIHTVariable{T, M}) where {T <: Float, M}
     # first update mean μ with estimated (trained) beta
-    mul!(v.BX, v.best_B, v.X)
-    mul!(v.CZ, v.best_C, v.Z)
+    update_xb!(v)
     update_μ!(v)
 
     # Compute MSE
