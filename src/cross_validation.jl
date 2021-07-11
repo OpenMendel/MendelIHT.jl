@@ -42,7 +42,7 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `debias`: Boolean indicating whether we should debias at each IHT step. Defaults `false`
 - `verbose`: Boolean indicating whether to print mean squared error for each `k` in `path`. Defaults `true`
 - `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 100 
-- `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 20.
+- `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
 """
@@ -61,7 +61,7 @@ function cv_iht(
     debias   :: Bool = false,
     verbose  :: Bool = true,
     max_iter :: Int = 100,
-    min_iter :: Int = 20,
+    min_iter :: Int = 5,
     init_beta :: Bool = false
     ) where T <: Float
 
