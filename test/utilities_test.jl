@@ -24,7 +24,7 @@ end
     y = [rand(Normal(μi, 1)) for μi in μ]
     v = make_IHTvar(d, μ, y) # create IHTVariable for testing
 
-    @test isapprox(MendelIHT.loglikelihood(v), sum(logpdf.(Normal.(μ, 1.0), y)), atol=1e-4)
+    @test isapprox(MendelIHT.loglikelihood(v), sum(logpdf.(Normal.(μ, 1.0), y)), atol=5e-4)
 
     d = Bernoulli()
     p = rand(10000)

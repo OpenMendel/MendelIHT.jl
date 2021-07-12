@@ -72,8 +72,7 @@ function cv_iht(
     # preallocated arrays for efficiency
     test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
     train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
-    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, init_beta,
-        cv_train_idx=train_idx[i]) for i in 1:Threads.nthreads()]
+    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")
