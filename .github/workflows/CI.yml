@@ -24,7 +24,7 @@ jobs:
         arch:
           - x64
         threads:
-          - '3' # GitHub runners have 2 cores, so `NUM_CORES+1` is 3
+          - '2'
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
@@ -69,6 +69,7 @@ jobs:
           color: danger
         env:
           SLACK_BOT_TOKEN: ${{ secrets.DEV_SLACK_BOT_TOKEN }}
+          JULIA_NUM_THREADS: ${{ matrix.threads }}
 
   docs:
     name: Documentation
