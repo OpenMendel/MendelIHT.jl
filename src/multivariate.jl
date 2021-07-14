@@ -466,23 +466,21 @@ function save_last_model!(v::mIHTVariable)
 end
 
 """
-    initialize_beta(y::AbstractMatrix, x::AbstractMatrix{T})
+    initialize_beta!(v, cv_wts)
 
 Initialze beta to univariate regression values. That is, `β[i, j]` is set to the estimated
 beta with `y[j, :]` as response, and `x[:, i]` with an intercept term as covariate.
 
 Note: this function assumes quantitative (Gaussian) phenotypes. 
 """
-function initialize_beta(
-    y::AbstractMatrix{T},
-    x::AbstractMatrix{T},
-    cv_wts::BitVector=trues(size(y, 2)) # cross validation weights; 1 = sample is present, 0 = not present
-    ) where T <: Float
-    p, n = size(x)
+function initialize_beta!(
+    v::mIHTVariable,
+    cv_wts::BitVector) # cross validation weights; 1 = sample is present, 0 = not present
+    y, x, B = v.Y, v.X, v.B
+    p = size(x, 1) # number of snps
     r = size(y, 1) # number of traits
-    xtx_store = zeros(T, 2, 2)
-    xty_store = zeros(T, 2)
-    B = zeros(r, p)
+    xtx_store = zeros(eltype(B), 2, 2)
+    xty_store = zeros(eltype(B), 2)
     for j in 1:r # loop over each y
         yj = @view(y[j, cv_wts])
         for i in 1:p
@@ -491,7 +489,7 @@ function initialize_beta(
         end
     end
     clamp!(B, -2, 2)
-    return B
+    copyto!(v.B0, v.B)
 end
 
 """

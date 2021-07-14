@@ -344,28 +344,5 @@ end
 end
 
 @testset "initialze beta" begin
-    # general matrices
-    Random.seed!(2021)
-    n = 10000
-    p = 10
-    x = randn(n, p)
-    βtrue = randn(p)
-    y = x * βtrue + 0.1randn(n)
-    βinit = initialize_beta(y, x)
-    @test all(βinit - βtrue .< 0.1)
 
-    # SnpLinAlg
-    n = 1000
-    p = 10000
-    k = 10
-    d = Normal
-    l = canonicallink(d())
-
-    Random.seed!(2020)
-    x = simulate_random_snparray(undef, n, p)
-    xla = SnpLinAlg{Float64}(x, center=true, scale=true)
-    y, βtrue, correct_position = simulate_random_response(xla, k, d, l);
-
-    βinit = initialize_beta(y, xla)
-    all(βinit[correct_position] - βtrue[correct_position] .< 0.1)
 end

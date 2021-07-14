@@ -334,7 +334,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
     score!(v)
 
     if init_beta
-        v.b = initialize_beta(v.y, v.x, cv_idx)
+        initialize_beta!(v, cv_idx)
         v.k > 0 && project_k!(v)
     else
         # first `k` non-zero entries are chosen based on largest gradient
@@ -679,27 +679,26 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
 end
 
 """
-    initialize_beta(y::AbstractVector, x::AbstractMatrix{T})
+    initialize_beta!(v, cv_wts)
 
 Initialze beta to univariate regression values. That is, `β[i]` is set to the estimated
 beta with `y` as response, and `x[:, i]` with an intercept term as covariate.
 
 TODO: this function assumes quantitative (Gaussian) phenotypes. Make it work for other distributions
 """
-function initialize_beta(
-    y::AbstractVector{T},
-    x::AbstractMatrix{T},
-    cv_wts::BitVector=trues(length(y)) # cross validation weights; 1 = sample is present, 0 = not present
-    ) where T <: Float
+function initialize_beta!(
+    v::IHTVariable,
+    cv_wts::BitVector # cross validation weights; 1 = sample is present, 0 = not present
+    )
+    y, x, β = v.y, v.x, v.b
     n, p = size(x)
-    xtx_store = zeros(T, 2, 2)
-    xty_store = zeros(T, 2)
-    β = zeros(p)
+    xtx_store = zeros(eltype(β), 2, 2)
+    xty_store = zeros(eltype(β), 2)
     @inbounds for i in 1:p
         linreg!(@view(x[cv_wts, i]), @view(y[cv_wts]), xtx_store, xty_store)
         β[i] = xty_store[2]
     end
-    return β
+    copyto!(v.b0, v.b)
 end
 
 """
