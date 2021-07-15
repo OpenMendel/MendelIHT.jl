@@ -309,3 +309,28 @@ end
 	@test mm.d.p == 0.5
 	@test mm.d.r ≥ 0
 end
+
+@testset "initialze beta" begin
+	#simulat data with k true predictors, from distribution d and with link l.
+	n = 1000
+	p = 10000
+	k = 10
+	d = Normal
+	l = canonicallink(d())
+
+	#set random seed
+	Random.seed!(1111)
+
+	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
+	x = simulate_random_snparray(undef, n, p)
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+	z = ones(n)
+
+	# simulate response, true model b, and the correct non-0 positions of b
+	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
+
+	#run with and without initializing beta
+	@time result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, init_beta=false)
+	@time result2 = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, init_beta=true)
+	@test all(findall(!iszero, result.beta) .== findall(!iszero, result2.beta))
+end

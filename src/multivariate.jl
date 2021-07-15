@@ -383,7 +383,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
     mul!(v.CZ, v.C, v.Z)
 
     if init_beta
-        v.B = initialize_beta(v.Y, v.X, cv_idx)
+        initialize_beta!(v, cv_idx)
         project_k!(v)
         update_xb!(v)
     end
@@ -476,16 +476,20 @@ Note: this function assumes quantitative (Gaussian) phenotypes.
 function initialize_beta!(
     v::mIHTVariable,
     cv_wts::BitVector) # cross validation weights; 1 = sample is present, 0 = not present
-    y, x, B = v.Y, v.X, v.B
+    y, x, B, T = v.Y, v.X, v.B, eltype(v.B)
     p = size(x, 1) # number of snps
     r = size(y, 1) # number of traits
-    xtx_store = zeros(eltype(B), 2, 2)
-    xty_store = zeros(eltype(B), 2)
-    for j in 1:r # loop over each y
-        yj = @view(y[j, cv_wts])
-        for i in 1:p
-            linreg!(@view(x[i, cv_wts]), yj, xtx_store, xty_store)
-            B[j, i] = xty_store[2]
+    xtx_store = [zeros(T, 2, 2) for _ in 1:Threads.nthreads()]
+    xty_store = [zeros(T, 2) for _ in 1:Threads.nthreads()]
+    xstore = [zeros(T, sum(cv_wts)) for _ in 1:Threads.nthreads()]
+    ystore = zeros(T, sum(cv_wts))
+    @inbounds for j in 1:r # loop over each y
+        copyto!(ystore, @view(y[j, cv_wts]))
+        Threads.@threads for i in 1:p
+            id = Threads.threadid()
+            copyto!(xstore[id], @view(x[i, cv_wts])) # this is quite slow
+            linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+            B[j, i] = xty_store[id][2]
         end
     end
     clamp!(B, -2, 2)

@@ -69,6 +69,8 @@ function fit_iht(
     init_beta :: Bool = false
     ) where T <: Float
 
+    verbose && print_iht_signature(io)
+
     # first handle errors
     @assert J ≥ 0        "Value of J (max number of groups) must be nonnegative!\n"
     @assert max_iter ≥ 0 "Value of max_iter must be nonnegative!\n"
@@ -87,13 +89,14 @@ function fit_iht(
     end
 
     # initialize IHT variable
+    if init_beta && verbose
+        println(io, "Initializing β to univariate regression values...\n")
+        io != stdout && println(stdout, "Initializing β to univariate regression values...")
+    end
     v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta)
 
     # print information
-    if verbose
-        print_iht_signature(io)
-        print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
-    end
+    verbose && print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
 
     tot_time, best_logl, mm_iter = fit_iht!(v, debias=debias, verbose=verbose,
         tol=tol, max_iter=max_iter, min_iter=min_iter, max_step=max_step, io=io)

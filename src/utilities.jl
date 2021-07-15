@@ -690,13 +690,17 @@ function initialize_beta!(
     v::IHTVariable,
     cv_wts::BitVector # cross validation weights; 1 = sample is present, 0 = not present
     )
-    y, x, β = v.y, v.x, v.b
+    y, x, β, T = v.y, v.x, v.b, eltype(v.b)
     n, p = size(x)
-    xtx_store = zeros(eltype(β), 2, 2)
-    xty_store = zeros(eltype(β), 2)
-    @inbounds for i in 1:p
-        linreg!(@view(x[cv_wts, i]), @view(y[cv_wts]), xtx_store, xty_store)
-        β[i] = xty_store[2]
+    xtx_store = [zeros(T, 2, 2) for _ in 1:Threads.nthreads()]
+    xty_store = [zeros(T, 2) for _ in 1:Threads.nthreads()]
+    xstore = [zeros(T, sum(cv_wts)) for _ in 1:Threads.nthreads()]
+    ystore = y[cv_wts]
+    Threads.@threads for i in 1:p
+        id = Threads.threadid()
+        copyto!(xstore[id], @view(x[cv_wts, i])) # this is quite slow
+        linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+        β[i] = xty_store[id][2]
     end
     copyto!(v.b0, v.b)
 end

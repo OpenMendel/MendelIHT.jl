@@ -80,10 +80,6 @@ end
     @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 50.047 μs (0 allocations: 0 bytes)
 end
 
-@testset "initialze beta" begin
-
-end
-
 @testset "multivariate fit_iht" begin
     n = 1000  # number of samples
     p = 10000 # number of SNPs
@@ -131,4 +127,44 @@ end
     @test all(result2.σg .> 0)
     # @test all(result2.beta[1, correct_snps] - true_b[correct_snps, 1] .< 0.15) # estimates are close to truth
     # @test all(result2.beta[2, correct_snps] - true_b[correct_snps, 2] .< 0.15) # estimates are close to truth
+end
+
+@testset "initialze beta" begin
+    n = 1000  # number of samples
+    p = 10000 # number of SNPs
+    k = 10    # number of causal SNPs
+    r = 2     # number of traits
+    
+    # set random seed for reproducibility
+    Random.seed!(2021)
+    
+    # simulate `.bed` file with no missing data
+    x = simulate_random_snparray(undef, n, p)
+    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+    
+    # intercept is the only nongenetic covariate
+    z = ones(n, 1)
+    intercepts = [10.0 1.0] # each trait have different intercept
+    
+    # simulate response y, true model b, and the correct non-0 positions of b
+    Y, true_Σ, true_b, correct_position = simulate_random_response(xla, k, r, Zu=z*intercepts, overlap=2)
+    correct_snps = [x[1] for x in correct_position] # causal snps
+    Yt = Matrix(Y'); # in MendelIHT, multivariate traits should be rows
+
+    # no init beta
+    @time result = fit_iht(Yt, Transpose(xla), k=12, init_beta=false)
+    @test size(result.beta) == (r, p)
+    @test result.k == 12
+    @test result.traits == 2
+    @test result.iter ≥ 5
+    @test all(result.σg .> 0)
+
+    # yes init beta
+    @time result2 = fit_iht(Yt, Transpose(xla), k=12, init_beta=true)
+    @test size(result.beta) == (r, p)
+    @test result.k == 12
+    @test result.traits == 2
+    @test result.iter ≥ 5
+    @test all(result.σg .> 0)
+    @test all(findall(!iszero, result.beta) .== findall(!iszero, result2.beta))
 end

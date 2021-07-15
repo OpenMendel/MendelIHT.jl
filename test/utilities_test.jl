@@ -342,7 +342,3 @@ end
 
     @test MendelIHT.iht_stepsize!(v) ≥ 0
 end
-
-@testset "initialze beta" begin
-
-end
