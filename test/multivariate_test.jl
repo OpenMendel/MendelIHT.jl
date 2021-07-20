@@ -151,20 +151,10 @@ end
     correct_snps = [x[1] for x in correct_position] # causal snps
     Yt = Matrix(Y'); # in MendelIHT, multivariate traits should be rows
 
-    # no init beta
-    @time result = fit_iht(Yt, Transpose(xla), k=12, init_beta=false)
+    @time result = fit_iht(Yt, Transpose(xla), k=12, init_beta=true)
     @test size(result.beta) == (r, p)
     @test result.k == 12
     @test result.traits == 2
     @test result.iter ≥ 5
     @test all(result.σg .> 0)
-
-    # yes init beta
-    @time result2 = fit_iht(Yt, Transpose(xla), k=12, init_beta=true)
-    @test size(result.beta) == (r, p)
-    @test result.k == 12
-    @test result.traits == 2
-    @test result.iter ≥ 5
-    @test all(result.σg .> 0)
-    @test all(findall(!iszero, result.beta) .== findall(!iszero, result2.beta))
 end
