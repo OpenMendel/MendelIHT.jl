@@ -317,12 +317,9 @@ Both issymmetric(random_covariance_matrix(n)) and isposdef(random_covariance_mat
 will always return true, and cond(random_covariance_matrix(n)) ≤ κ
 """
 function random_covariance_matrix(n::Int, κ=10)
+    d = Uniform(1, sqrt(κ))
     Q, _ = qr(randn(n, n))
-    σ = abs.(randn(n)) # simulated eigenvalues
-    while maximum(σ) / minimum(σ) ≥ sqrt(κ)
-        randn!(σ)
-        σ .= abs.(σ)
-    end
+    σ = rand(d, n)
     D = Diagonal(σ)
     A = Q * D * Q'
     return A' * A
