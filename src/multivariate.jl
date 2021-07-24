@@ -126,7 +126,7 @@ function project_k!(v::mIHTVariable)
 end
 
 """
-    vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+    vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix, Ckeep::BitVector)
 
 Without allocations, copies `vec(B)` into `a` and the copies `vec(C)` into
 remaining parts of `a`. 
@@ -160,7 +160,7 @@ function vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix, Cke
 end
 
 """
-    unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+    unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix, Ckeep::BitVector)
 
 Without allocations, copies the first `length(vec(B))` part of `a` into `B` 
 and the remaining parts of `a` into `C`.

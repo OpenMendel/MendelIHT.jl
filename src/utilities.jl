@@ -233,38 +233,18 @@ end
 This function computes the gradient step v.b = P_k(β + η∇f(β)) and updates idx and idc. 
 """
 function _iht_gradstep!(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
-    J = v.J
-    k = v.k == 0 ? v.ks : v.k
-    full_grad = v.full_b # use full_b as storage for complete beta = [v.b ; v.c]
-    lb = length(v.b)
-    lw = length(v.weight)
     lg = length(v.group)
-    lf = length(full_grad)
+    J = v.J
+    k = length(v.ks) > 0 ? v.ks : v.k
 
     # take gradient step: b = b + ηv, v = score
     BLAS.axpy!(η, v.df, v.b)  
     BLAS.axpy!(η, v.df2, v.c)
 
-    # scale model by weight vector, if supplied 
-    if lw == 0
-        copyto!(@view(full_grad[1:lb]), v.b)
-        copyto!(@view(full_grad[lb+1:lf]), v.c)
-    else
-        copyto!(@view(full_grad[1:lb]), v.b .* @view(v.weight[1:lb]))
-        copyto!(@view(full_grad[lb+1:lf]), v.c .* @view(v.weight[lb+1:lf]))
-    end
-
-    # project to sparsity
-    lg == 0 ? project_k!(full_grad, k) : project_group_sparse!(full_grad, v.group, J, k)
-
-    # unweight the model after projection
-    if lw == 0
-        copyto!(v.b, @view(full_grad[1:lb]))
-        copyto!(v.c, @view(full_grad[lb+1:lf]))
-    else
-        copyto!(v.b, @view(full_grad[1:lb]) ./ @view(v.weight[1:lb]))
-        copyto!(v.c, @view(full_grad[lb+1:lf]) ./ @view(v.weight[lb+1:lf]))
-    end
+    # project to sparsity, scaling model by weight vector, if supplied
+    vectorize!(v.full_b, v.b, v.c, v.weight, v.zkeep)
+    lg == 0 ? project_k!(v.full_b, k + v.zkeepn) : project_group_sparse!(full_grad, v.group, J, k)
+    unvectorize!(v.full_b, v.b, v.c, v.weight, v.zkeep)
 
     #recombute support
     v.idx .= v.b .!= 0
@@ -275,6 +255,80 @@ function _iht_gradstep!(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
 
     # make necessary resizing since grad step might include/exclude non-genetic covariates
     check_covariate_supp!(v) 
+end
+
+"""
+    vectorize!(a::AbstractVector, b::AbstractVector, c::AbstractVector, ckeep::BitVector)
+
+Without allocations, copies `b` into `a` and the copies `c` into
+remaining parts of `a`. 
+
+`ckeep` tracks entries of `c` that will not be projected. That is, entries of `a`
+corresponding to entries in `c[i]` will be filled with `Inf` if `ckeep[i] = true`.
+"""
+function vectorize!(a::AbstractVector, b::AbstractVector, c::AbstractVector,
+    weight::AbstractVector, ckeep::BitVector)
+    lb = length(b)
+    lw = length(weight)
+    la = length(a)
+
+    # scale model by weight vector, if supplied 
+    if lw == 0
+        copyto!(@view(a[1:lb]), b)
+        copyto!(@view(a[lb+1:la]), c)
+    else
+        @inbounds for i in 1:lb
+            a[i] = b[i] * weight[i]
+        end
+        ii = 1
+        @inbounds for i in lb+1:la
+            a[i] = c[ii] * weight[i]
+            ii += 1
+        end
+    end
+
+    # don't project certain non-genetic covariates
+    @view(a[lb+1:la][ckeep]) .= typemax(eltype(a))
+end
+
+
+"""
+    unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix, Ckeep::BitVector)
+
+Without allocations, copies the first `length(b)` part of `a` into `b` 
+and the remaining parts of `a` into `c`.
+
+`ckeep` tracks entries of `c` that will not be projected. That is, entries in `c[i]`
+will not be touched if `ckeep[i] = true`.
+"""
+function unvectorize!(a::AbstractVector, b::AbstractVector, c::AbstractVector,
+    weight::AbstractVector, ckeep::BitVector)
+    lb = length(b)
+    lw = length(weight)
+    la = length(a)
+
+    # scale model by weight vector, if supplied 
+    if lw == 0
+        copyto!(b, @view(a[1:lb]))
+        ii = 1
+        @inbounds for i in lb+1:la
+            if !ckeep[ii]
+                c[ii] = a[i] 
+            end
+            ii += 1
+        end
+    else
+        @inbounds for i in 1:lb
+            b[i] = a[i] / weight[i]
+        end
+        ii = 1
+        @inbounds for i in lb+1:la
+            if !ckeep[ii]
+                c[ii] = a[i] / weight[i]
+            end
+            ii += 1
+        end
+    end
 end
 
 """
@@ -297,8 +351,8 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
     fill!(v.xgk, 0)
     fill!(v.idx, false)
     fill!(v.idx0, false)
-    fill!(v.idc, false)
-    fill!(v.idc0, false)
+    copyto!(v.idc, v.zkeep)
+    copyto!(v.idc0, v.zkeep)
     fill!(v.r, 0)
     fill!(v.df, 0)
     fill!(v.df2, 0)
@@ -335,16 +389,15 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
 
     if init_beta
         initialize_beta!(v, cv_idx)
-        v.k > 0 && project_k!(v)
+        project_k!(v)
     else
         # first `k` non-zero entries are chosen based on largest gradient
-        ldf = length(v.df)
-        v.full_b[1:ldf] .= v.df
-        v.full_b[ldf+1:end] .= v.df2
+        vectorize!(v.full_b, v.df, v.df2, v.weight, v.zkeep)
         if length(v.ks) == 0 # no group projection
-            a = partialsort(v.full_b, v.k * v.J, by=abs, rev=true)
-            v.idx .= abs.(v.df) .>= abs(a)
-            v.idc .= abs.(v.df2) .>= abs(a)
+            project_k!(v.full_b, v.k + v.zkeepn) # project k + number of nongentic covariates to keep
+            unvectorize!(v.full_b, v.df, v.df2, v.weight, v.zkeep)
+            v.idx .= v.b .!= 0
+            v.idc .= v.c .!= 0
 
             # Choose randomly if more are selected
             _choose!(v) 
@@ -371,10 +424,10 @@ if more than J*k entries are selected after projection, randomly select top J*k 
 This can happen if entries of b are equal to each other.
 """
 function _choose!(v::IHTVariable{T}) where {T <: Float}
-    sparsity = v.k
+    sparsity = v.k + v.zkeepn
     groups = (v.J == 0 ? 1 : v.J)
 
-    nonzero = sum(v.idx) + sum(v.idc)
+    nonzero = sum(v.idx) + sum(v.idc) - v.zkeepn
     if nonzero > groups * sparsity
         z = zero(eltype(v.b))
         non_zero_idx = findall(!iszero, v.idx)
@@ -397,6 +450,9 @@ function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
     if nzidx != size(v.xk, 2)
         v.xk = zeros(T, size(v.xk, 1), nzidx)
         v.gk = zeros(T, nzidx)
+    end
+    @inbounds for i in eachindex(v.zkeep)
+        v.zkeep[i] && !v.idc[i] && error("A non-genetic covariate was accidentally set to 0! Shouldn't happen!")
     end
 end
 
@@ -477,6 +533,7 @@ julia> x
 - `k`: the number of components of `x` to preserve.
 """
 function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
+    k < 0 && throw(DomainError("Attempted to project to sparsity level $k"))
     a = abs(partialsort(x, k, by=abs, rev=true))
     @inbounds for i in eachindex(x)
         abs(x[i]) < a && (x[i] = zero(T))
@@ -484,17 +541,12 @@ function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
 end
 
 function project_k!(v::IHTVariable)
-    full_grad = v.full_b
-    lb = length(v.b)
-    lf = length(full_grad)
-    v.k ≤ 0 && throw(DomainError("Attempted to project to sparsity level $k"))
+    v.k < 0 && throw(DomainError("Attempted to project to sparsity level $(v.k)"))
 
     # copy genetic and non-genetic effects to full_grad, project, and copy back
-    copyto!(@view(full_grad[1:lb]), v.b)
-    copyto!(@view(full_grad[lb+1:lf]), v.c)
-    project_k!(full_grad, v.k)
-    copyto!(v.b, @view(full_grad[1:lb]))
-    copyto!(v.c, @view(full_grad[lb+1:lf]))
+    vectorize!(v.full_b, v.b, v.c, v.weight, v.zkeep)
+    project_k!(v.full_b, v.k + v.zkeepn)
+    unvectorize!(v.full_b, v.b, v.c, v.weight, v.zkeep)
 
     # update support
     v.idx .= v.b .!= 0

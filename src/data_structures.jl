@@ -36,6 +36,8 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     weight :: Vector{T}     # weights (typically minor allele freq) that will scale b prior to projection
     μ      :: Vector{T}     # mean of the current model: μ = l^{-1}(xb)
     cv_wts :: Vector{T}     # weights for cross validation. cv_wts[i] = 0 means sample i should not be included in fitting. 
+    zkeep  :: BitVector     # tracks index of non-genetic covariates not subject to projection. zkeep[i] = true means `i` will not be projected. 
+    zkeepn :: Int           # Total number of covariates that aren't subject to projection
     full_b :: Vector{T}     # storage for full beta and full gradient
 end
 
@@ -47,7 +49,7 @@ ntraits(v::IHTVariable) = 1
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    ) where {T <: Float, M <: AbstractMatrix}
+    zkeep::BitVector) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
     p = size(x, 2)
@@ -77,6 +79,10 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
         ks, k = k, 0
     end
 
+    if length(zkeep) != q
+        throw(DimensionMismatch("zkeep must have length $q but was $(length(zkeep))"))
+    end
+
     b      = Vector{T}(undef, p)
     b0     = Vector{T}(undef, p)
     best_b = Vector{T}(undef, p)
@@ -103,7 +109,7 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     return IHTVariable{T, M}(
         x, y, z, k, J, ks, d, l, est_r, 
         b, b0, best_b, xb, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2,
-        c, c0, best_c, zc, zdf2, group, weight, μ, cv_wts, storage)
+        c, c0, best_c, zc, zdf2, group, weight, μ, cv_wts, zkeep, sum(zkeep), storage)
 end
 
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
@@ -180,6 +186,10 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
 
     if !(n == size(y, 2) == size(z, 2))
         throw(DimensionMismatch("number of samples in y, x, and z = $(size(y, 2)), $n, $(size(z, 2)) are not equal"))
+    end
+
+    if length(zkeep) != q
+        throw(DimensionMismatch("zkeep must have length $q but was $(length(zkeep))"))
     end
 
     B      = Matrix{T}(undef, r, p)
