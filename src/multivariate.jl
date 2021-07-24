@@ -373,8 +373,8 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
     fill!(v.Xk, 0)
     fill!(v.idx, false)
     fill!(v.idx0, false)
-    fill!(v.idc, false)
-    fill!(v.idc0, false)
+    copyto!(v.idc, v.zkeep)
+    copyto!(v.idc0, v.zkeep)
     fill!(v.resid, 0)
     fill!(v.df, 0)
     fill!(v.df2, 0)
@@ -421,6 +421,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
 
     # update mean and compute score (gradient)
     update_μ!(v)
+    update_resid!(v)
     score!(v)
 
     if !init_beta
