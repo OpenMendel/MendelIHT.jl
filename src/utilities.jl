@@ -402,7 +402,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
             project_k!(v.full_b, v.k + v.zkeepn) # project k + number of nongentic covariates to keep
             unvectorize!(v.full_b, v.df, v.df2, v.weight, v.zkeep)
             v.idx .= v.df .!= 0
-            v.idc .= v.df2 .!= 0
+            v.idc .= v.zkeep
 
             # Choose randomly if more are selected
             _choose!(v) 

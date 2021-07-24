@@ -22,20 +22,18 @@
     y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
     #specify path and folds
-    path = 1:20
+    path = 0:20
     q = 3
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true);
-    @test length(debias) == 20
+        folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false);
-    @test length(nodebias) == 20
+        folds=folds, verbose=true, debias=false, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -66,20 +64,18 @@ end
     y = [rand(d(i)) for i in prob]
 
     #specify path and folds
-    path = 1:20
+    path = 0:20
     q = 3
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, x, z, d=d(), l=l, path=path,
-        q=q, folds=folds, verbose=true, debias=true);
-    @test length(debias) == 20
+        q=q, folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false);
-    @test length(nodebias) == 20
+        folds=folds, verbose=true, debias=false, max_iter=10);
     @test all(nodebias .> 0.0)
 end
 
@@ -103,20 +99,18 @@ end
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#specify path and folds
-    path = 1:20
+    path = 0:20
 	q = 3
 	folds = rand(1:q, size(x, 1))
 
 	# cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path,
-        q=q, folds=folds, verbose=true, debias=true);
-    @test length(debias) == 20
+        q=q, folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
 
 	# cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false);
-    @test length(nodebias) == 20
+        folds=folds, verbose=true, debias=false, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -147,20 +141,18 @@ end
     y = T.([rand(d(i)) for i in prob])
 
     #specify path and folds
-    path = 1:20
+    path = 0:20
     q = 3
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true);
-    @test length(debias) == 20
+        folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
 
     # cross validation routine (without debias) 
     @time nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false);
-    @test length(nodebias) == 20
+        folds=folds, verbose=true, debias=false, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -184,20 +176,18 @@ end
     y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
     #specify path and folds
-    path = 1:20
+    path = 0:20
     q = 3
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true);
-    @test length(debias) == 20
+        folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
 
     # cross validation routine (without debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false);
-    @test length(nodebias) == 20
+        folds=folds, verbose=true, debias=false, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -221,20 +211,18 @@ end
     y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
     #specify path and folds
-    path = 1:20
+    path = 0:20
     q = 3
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
         folds=folds, verbose=true, debias=true);
-    @test length(debias) == 20
     @test all(debias .> 0.0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
         folds=folds, verbose=true, debias=false);
-    @test length(nodebias) == 20
     @test all(nodebias .> 0)
 end
 
@@ -266,21 +254,19 @@ end
     y = T.(y)
 
     #specify path and folds
-    path = 1:20
+    path = 0:20
     q = 3
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias)
 	d = d(1, T(0.5)) # need Float32 for eltype of d
     @time debias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true)
-    @test length(debias) == 20
+        folds=folds, verbose=true, debias=true, max_iter=10)
     @test all(debias .> 0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false);
-    @test length(nodebias) == 20
+        folds=folds, verbose=true, debias=false, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -307,19 +293,16 @@ end
     correct_snps = [x[1] for x in correct_position] # causal snps
     Yt = Matrix(Y'); # in MendelIHT, multivariate traits should be rows
 
-
     @test_throws DimensionMismatch cv_iht(Yt, xla)
     @test_throws DimensionMismatch cv_iht(Y, Transpose(xla))
 
     # no debias
     Random.seed!(2021)
-    @time mses = cv_iht(Yt, Transpose(xla), debias=false)
-    @test length(mses) == 20
+    @time mses = cv_iht(Yt, Transpose(xla), debias=false, max_iter=10, path=0:20)
     @test all(mses .> 0)
 
     # yes debias
     Random.seed!(2021)
-    @time mses2 = cv_iht(Yt, Transpose(xla), debias=true)
-    @test length(mses) == 20
+    @time mses2 = cv_iht(Yt, Transpose(xla), debias=true, max_iter=10, path=0:20)
     @test all(mses2 .> 0)
 end

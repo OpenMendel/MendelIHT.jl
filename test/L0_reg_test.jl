@@ -26,9 +26,9 @@
 	@test length(result.beta) == 10000
 	@test count(!iszero, result.beta) == k
 	@test findall(!iszero, result.beta) == [2384;3352;3353;4093;5413;5609;7403;8753;9089;9132]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-1.2601335154934064, -0.26740665871958935, 
-		0.14117990315654064, 0.28997442760192266, 0.3667114534086605, -0.13719881241645873, -0.3082574702110094, 
-		0.3328995818048077, 0.9645955209824065, -0.5094675198978443])
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-1.2601406011046452, -0.2674202492177914,
+		0.1412081066471588, 0.289955803600036, 0.3666894767520663, -0.1371805027382694, -0.308254575616033,
+		0.33288147012004443, 0.9645980728400257, -0.5094607091364866])
 	@test result.c[1] ≈ -0.026283123286410772
 	@test result.k == 10
 	@test result.logl ≈ -1406.899627901812
@@ -60,13 +60,13 @@ end
 
 	@test length(result.beta) == 10000
 	@test count(!iszero, result.beta) == k
-	@test findall(!iszero, result.beta) == [1816, 2384, 2917, 5413, 7067, 8753, 8908, 9089, 9132, 9765]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.2927850181979294, -1.1371390185890102, 
-		-0.2735411947195354, 0.4777936460488939, -0.310486779584213, 0.41808467980710756, -0.3436991152303386,
-		0.8844652838423853, -0.5297482667320204, -0.34131839197378927])
-	@test result.c[1] ≈ 0.013569002607988524
+	@test findall(!iszero, result.beta) == [1733, 1816, 2384, 5413, 7067, 8753, 8908, 9089, 9132, 9765]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.2788091712310063, 0.31151387193421737, 
+	-1.1283186622644128, 0.4999869530547436, -0.32685079548465007, 0.4138519813525528, -0.32779271347276445,
+	 0.8644288162088136, -0.5064840683902377, -0.3284653237251541])
+	@test result.c[1] ≈ 0.016116760859127627
 	@test result.k == 10
-	@test result.logl ≈ -490.2010219408794
+	@test result.logl ≈ -489.8564887253825
 end
 
 @testset "fit Poisson" begin
@@ -94,13 +94,13 @@ end
 	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 	@test length(result.beta) == 10000
 	@test count(!iszero, result.beta) == k
-	@test findall(!iszero, result.beta) == [2384, 2631, 3157, 5891, 8753, 8755, 8931, 9089, 9132, 9884]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.3704728719867845, 0.09550968238347861, 
-		0.1012695640714917, 0.12454842375797137, 0.10750826591937211, 0.11630352461070562, 0.12423472147439997, 
-		0.2856470190801652, -0.12495713352581836, 0.08889994853065768])
-	@test result.c[1] ≈ -0.010771749331668815
+	@test findall(!iszero, result.beta) == [298, 2384, 3157, 5891, 7067, 8753, 8755, 8931, 9089, 9132]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.09820585763162126, -0.37392590916093194, 
+		0.08489568686444253, 0.11864310078500476, 0.09414834393479564, 0.10683788271304923, 0.12908044513140238, 
+		0.12019432114450958, 0.29296236678486925, -0.12813041278457823])
+	@test result.c[1] ≈ -0.011752998591789125
 	@test result.k == 10
-	@test result.logl ≈ -1294.747256187064
+	@test result.logl ≈ -1294.452369780194
 end
 
 @testset "fit NegativeBinomial" begin
@@ -129,13 +129,13 @@ end
 
 	@test length(result.beta) == 10000
 	@test count(!iszero, result.beta) == k
-	@test findall(!iszero, result.beta) == [1245; 1774; 1982; 2384; 5413; 5440; 5614; 7166; 9089; 9132;]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.13536960133758671, -0.17233491524789818, 
-		0.13127935664692003, -0.3142802598723658, 0.12254638737412701, 0.1277401870478348, 0.10421067139834642,
-		0.13187029926894303, 0.27527241210172276, -0.2019964741423514])
-	@test result.c[1] ≈ -0.04109496358855896
+	@test findall(!iszero, result.beta) == [597, 934, 1610, 1774, 2384, 5413, 5614, 8993, 9089, 9132]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.08224940823109043, 0.08341097787419621, 
+	0.1012409317334749, -0.15790186573300657, -0.2927019848104549, 0.10528516175659709, 0.09574395232655965, 
+	-0.08510453836644973, 0.25998023048548063, -0.1935947191261095])
+	@test result.c[1] ≈ -0.025855871894708525
 	@test result.k == 10
-	@test result.logl ≈ -1386.95309289023
+	@test result.logl ≈ -1393.5142690674227
 end
 
 @testset "fit with non-genetic covariates" begin
@@ -235,14 +235,13 @@ end
 
     # assign group membership
     membership = collect(1:num_blocks)
-    g = zeros(Int64, p + 1)
+    g = zeros(Int64, p)
     for i in 1:length(membership)
         for j in 1:block_size
             cur_row = block_size * (i - 1) + j
             g[block_size*(i - 1) + j] = membership[i]
         end
     end
-    g[end] = membership[end]
     
     #simulate correlated snparray
     x = simulate_correlated_snparray(undef, n, p)
@@ -282,7 +281,7 @@ end
     k = 15
     ungrouped = fit_iht(y, x_float, z, J=1, k=k, d=d(), l=l)
 
-    #run IHT with groups
+    #run IHT with 5 groups each with 3 predictor
     J = 5
     k = 3
     grouped = fit_iht(y, x_float, z, J=J, k=k, d=d(), l=l, group=g)
