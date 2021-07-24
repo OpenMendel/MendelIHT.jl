@@ -432,7 +432,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
 
         # compute support based on largest gradient
         update_support!(v.idx, v.df)
-        update_support!(v.idc, v.df2)
+        update_support!(v.idc, v.df2) # should we initialize v.idc to all trues?
     end
 
     # make necessary resizing when necessary
@@ -508,24 +508,32 @@ Note: this function assumes quantitative (Gaussian) phenotypes.
 function initialize_beta!(
     v::mIHTVariable,
     cv_wts::BitVector) # cross validation weights; 1 = sample is present, 0 = not present
-    y, x, B, T = v.Y, v.X, v.B, eltype(v.B)
-    p = size(x, 1) # number of snps
-    r = size(y, 1) # number of traits
+    y, x, z, B, C, T = v.Y, v.X, v.Z, v.B, v.C, eltype(v.B)
     xtx_store = [zeros(T, 2, 2) for _ in 1:Threads.nthreads()]
     xty_store = [zeros(T, 2) for _ in 1:Threads.nthreads()]
     xstore = [zeros(T, sum(cv_wts)) for _ in 1:Threads.nthreads()]
     ystore = zeros(T, sum(cv_wts))
-    @inbounds for j in 1:r # loop over each y
+    @inbounds for j in 1:ntraits(v) # loop over each y
         copyto!(ystore, @view(y[j, cv_wts]))
-        Threads.@threads for i in 1:p
+        # genetic covariates
+        Threads.@threads for i in 1:nsnps(v)
             id = Threads.threadid()
-            copyto!(xstore[id], @view(x[i, cv_wts])) # this is quite slow
+            copyto!(xstore[id], @view(x[i, cv_wts]))
             linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
             B[j, i] = xty_store[id][2]
         end
+        # non genetic covariates
+        Threads.@threads for i in 1:ncovariates(v)
+            id = Threads.threadid()
+            copyto!(xstore[id], @view(z[i, cv_wts]))
+            linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+            C[j, i] = xty_store[id][2]
+        end
     end
+    clamp!(C, -2, 2)
     clamp!(B, -2, 2)
     copyto!(v.B0, v.B)
+    copyto!(v.C0, v.C)
 end
 
 """
