@@ -105,14 +105,14 @@ function _iht_gradstep!(v::mIHTVariable, η::Float)
 end
 
 function project_k!(v::mIHTVariable)
-    # store complete beta [v.b v.c] in full_b 
-    vectorize!(v.full_b, v.B, v.C)
+    # store complete beta [v.b v.c] in full_b, potentially replacing v.C with Inf 
+    vectorize!(v.full_b, v.B, v.C, v.zkeep)
 
-    # project vectorized beta to sparsity
-    project_k!(v.full_b, v.k)
+    # project to sparsity: keeping k + number of nongentic covariates
+    project_k!(v.full_b, v.k + v.zkeepn)
 
     # save model after projection
-    unvectorize!(v.full_b, v.B, v.C)
+    unvectorize!(v.full_b, v.B, v.C, v.zkeep)
 
     # if more than k entries are selected per column, randomly choose k of them
     _choose!(v)
@@ -129,17 +129,32 @@ end
     vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
 
 Without allocations, copies `vec(B)` into `a` and the copies `vec(C)` into
-remaining parts of `a`.
+remaining parts of `a`. 
+
+`Ckeep` tracks entries of `C` that will not be projected. That is, entries of `a`
+corresponding to entries in `C[:, i]` will be filled with `Inf` if `Ckeep[i] = true`.
 """
-function vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+function vectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix, Ckeep::BitVector)
+    size(C, 2) == length(Ckeep) ||
+        error("size(C, 2) = $(size(C, 2)) and length(Ckeep) = $(length(Ckeep)) are different!")
     i = 1
     @inbounds @simd for j in eachindex(B)
         a[i] = B[j]
         i += 1
     end
-    @inbounds @simd for j in eachindex(C)
-        a[i] = C[j]
-        i += 1
+    m = typemax(eltype(a))
+    for j in 1:size(C, 2)
+        if Ckeep[j]
+            @inbounds @simd for l in 1:size(C, 1)
+                a[i] = m
+                i += 1
+            end
+        else
+            @inbounds @simd for l in 1:size(C, 1)
+                a[i] = C[l, j]
+                i += 1
+            end
+        end
     end
     return nothing
 end
@@ -149,16 +164,25 @@ end
 
 Without allocations, copies the first `length(vec(B))` part of `a` into `B` 
 and the remaining parts of `a` into `C`.
+
+`Ckeep` tracks entries of `C` that will not be projected. That is, entries in `C[i, :]`
+will not be touched if `Ckeep[i] = true`.
 """
-function unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix)
+function unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix, Ckeep::BitVector)
+    size(C, 2) == length(Ckeep) ||
+        error("size(C, 2) = $(size(C, 2)) and length(Ckeep) = $(length(Ckeep)) are different!")
     i = 1
     @inbounds @simd for j in eachindex(B)
         B[j] = a[i]
         i += 1
     end
-    @inbounds @simd for j in eachindex(C)
-        C[j] = a[i]
-        i += 1
+    @inbounds @simd for j in 1:size(C, 2)
+        if !Ckeep[j]
+            for l in 1:size(C, 1)
+                C[l, j] = a[i]
+                i += 1
+            end
+        end
     end
     return nothing
 end
@@ -262,6 +286,9 @@ function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
         v.Xk = zeros(T, nzidx, n)
         v.dfidx = zeros(T, r, nzidx) # TODO ElasticArrays.jl
     end
+    @inbounds for i in eachindex(v.zkeep)
+        v.zkeep[i] && !v.idc[i] && error("A non-genetic covariate was accidentally set to 0! Shouldn't happen!")
+    end
 end
 
 """
@@ -273,11 +300,11 @@ Note: It is possible to have `≥k` non-zero entries after projection due to
 numerical errors.
 """
 function _choose!(v::mIHTVariable)
-    sparsity = v.k
+    sparsity = v.k + v.zkeepn
     B_nz = 0
     C_nz = 0
     B_nz_idx = Int[]
-    C_nz_idx = Int[]
+    C_nz_idx = Tuple{Int, Int}[]
     # find position of non-zero beta
     for i in eachindex(v.B)
         if v.B[i] != 0
@@ -285,10 +312,13 @@ function _choose!(v::mIHTVariable)
             push!(B_nz_idx, i)
         end
     end
-    for i in eachindex(v.C)
-        if v.C[i] != 0
-            C_nz += 1
-            push!(C_nz_idx, i)
+    for j in 1:size(v.C, 2)
+        v.zkeep[j] && continue
+        for i in 1:size(v.C, 1)
+            if v.C[i, j] != 0
+                C_nz += 1
+                push!(C_nz_idx, (i, j))
+            end
         end
     end
 
@@ -302,7 +332,8 @@ function _choose!(v::mIHTVariable)
                 v.B[B_nz_idx[i]] = 0
                 B_nz -= 1
             else
-                v.C[C_nz_idx[i]] = 0
+                (ii, jj) = C_nz_idx[i]
+                v.C[ii, jj] = 0
                 C_nz -= 1
             end
         end
@@ -394,9 +425,9 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
 
     if !init_beta
         # first `k` non-zero entries in each β are chosen based on largest gradient
-        vectorize!(v.full_b, v.df, v.df2)
-        project_k!(v.full_b, v.k)
-        unvectorize!(v.full_b, v.df, v.df2)
+        vectorize!(v.full_b, v.df, v.df2, v.zkeep)
+        project_k!(v.full_b, v.k + v.zkeepn) # project k + number of nongentic covariates to keep
+        unvectorize!(v.full_b, v.df, v.df2, v.zkeep)
 
         # compute support based on largest gradient
         update_support!(v.idx, v.df)

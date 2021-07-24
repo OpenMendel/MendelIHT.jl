@@ -109,14 +109,14 @@ end
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     J::Int, k::Union{Int, Vector{Int}}, d::Distribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    initialize_beta::Bool;
+    initialize_beta::Bool, zkeep::BitVector;
     cv_train_idx=trues(is_multivariate(y) ? size(x, 2) : size(x, 1)),
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k)
+        v = mIHTVariable(x, z, y, k, zkeep)
     else
-        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r)
+        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, zkeep)
     end
 
     # initialize non-zero indices
@@ -156,6 +156,8 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     Γ      :: Matrix{T}     # estimated inverse covariance matrix (TODO: try StaticArrays.jl here)
     Γ0     :: Matrix{T}     # Γ in previous iterate (TODO: try StaticArrays here)
     cv_wts :: Vector{T}     # weights for cross validation. cv_wts[i] = 0 means sample i should not be included in fitting. 
+    zkeep  :: BitVector     # tracks index of non-genetic covariates not subject to projection. zkeep[i] = true means `i` will not be projected. 
+    zkeepn :: Int           # Total number of covariates that aren't subject to projection
     # storage variables
     full_b :: Vector{T}     # storage for vectorized form of full beta [vec(B); vec(Z)]
     r_by_r1 :: Matrix{T}    # an r × r storage (needed in loglikelihood)
@@ -169,7 +171,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
-    k::Int) where {T <: Float, M <: AbstractMatrix}
+    k::Int, zkeep::BitVector) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 2) # number of samples 
     p = size(x, 1) # number of SNPs
@@ -214,8 +216,8 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     return mIHTVariable{T, M}(
         x, y, z, k,
         B, B0, best_B, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C,
-        C0, best_C, CZ, μ, Γ, Γ0, cv_wts, full_b, r_by_r1, r_by_r2, r_by_n1,
-        r_by_n2, n_by_r, p_by_r, k_by_r, k_by_k)
+        C0, best_C, CZ, μ, Γ, Γ0, cv_wts, zkeep, r*sum(zkeep), full_b, r_by_r1,
+        r_by_r2, r_by_n1, r_by_n2, n_by_r, p_by_r, k_by_r, k_by_k)
 end
 
 nsamples(v::mIHTVariable) = count(!iszero, v.cv_wts)
@@ -290,6 +292,7 @@ function Base.show(io::IO, x::mIHTResult)
     end
     println(io, "\nEstimated trait covariance:")
     println(io, DataFrame(x.Σ, ["trait$i" for i in 1:x.traits]))
+
     for r in 1:x.traits
         β1 = @view(x.beta[r, :])
         C1 = @view(x.c[r, :])

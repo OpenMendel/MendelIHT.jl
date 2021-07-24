@@ -35,6 +35,9 @@ of predictors for group `i`.
     distribution, and `l=Loglink()` for NegativeBinomial distribution. 
 + `group`: vector storing (non-overlapping) group membership
 + `weight`: vector storing vector of weights containing prior knowledge on each SNP
++ `zkeep`: BitVector determining whether non-genetic covariates in `z` will be subject 
+    to sparsity constraint. `zkeep[i] = true` means covariate `i` will NOT be projected.
+    Note covariates forced in the model are not subject to sparsity constraint `k`. 
 + `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
 + `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)
 + `debias`: boolean indicating whether we debias at each iteration
@@ -57,6 +60,7 @@ function fit_iht(
     l         :: Link = IdentityLink(),
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
+    zkeep     :: BitVector = trues(size(z, 2) > 1 ? size(z, 1) : size(z, 2)),
     est_r     :: Symbol = :None,
     use_maf   :: Bool = false, 
     debias    :: Bool = false,
@@ -93,8 +97,11 @@ function fit_iht(
         println(io, "Initializing β to univariate regression values...")
         io != stdout && println(stdout, "Initializing β to univariate regression values...")
     end
-    t1 = @elapsed v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta)
-    init_beta && verbose && println("...completed in ", round(t1, digits=1), " seconds.\n")
+    t1 = @elapsed v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta, zkeep)
+    if init_beta && verbose
+        println(io, "...completed in ", round(t1, digits=1), " seconds.\n")
+        io != stdout && println(stdout, "...completed in ", round(t1, digits=1), " seconds.\n")
+    end
 
     # print information
     verbose && print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
