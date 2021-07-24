@@ -743,19 +743,29 @@ function initialize_beta!(
     v::IHTVariable,
     cv_wts::BitVector # cross validation weights; 1 = sample is present, 0 = not present
     )
-    y, x, β, T = v.y, v.x, v.b, eltype(v.b)
-    n, p = size(x)
+    y, x, z, β, c, T = v.y, v.x, v.z, v.b, v.c, eltype(v.b)
     xtx_store = [zeros(T, 2, 2) for _ in 1:Threads.nthreads()]
     xty_store = [zeros(T, 2) for _ in 1:Threads.nthreads()]
     xstore = [zeros(T, sum(cv_wts)) for _ in 1:Threads.nthreads()]
     ystore = y[cv_wts]
-    Threads.@threads for i in 1:p
+    # genetic covariates
+    Threads.@threads for i in 1:nsnps(v)
         id = Threads.threadid()
-        copyto!(xstore[id], @view(x[cv_wts, i])) # this is quite slow
+        copyto!(xstore[id], @view(x[cv_wts, i]))
         linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
         β[i] = xty_store[id][2]
     end
+    # non-genetic covariates
+    Threads.@threads for i in 1:ncovariates(v)
+        id = Threads.threadid()
+        copyto!(xstore[id], @view(z[cv_wts, i]))
+        linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+        c[i] = xty_store[id][2]
+    end
+    clamp!(v.b, -2, 2)
+    clamp!(v.c, -2, 2)
     copyto!(v.b0, v.b)
+    copyto!(v.c0, v.c)
 end
 
 """
