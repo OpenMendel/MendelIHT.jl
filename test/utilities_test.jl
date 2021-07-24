@@ -3,7 +3,7 @@ function test_data(d, l)
     xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
     z = ones(1000, 1)
     y = rand(1000)
-    v = IHTVariable(xla, z, y, 1, 10, d, l, Int[], Float64[], :none)
+    v = IHTVariable(xla, z, y, 1, 10, d, l, Int[], Float64[], :none, falses(1))
     MendelIHT.init_iht_indices!(v, false, trues(1000))
     return x, z, y, v
 end
@@ -11,7 +11,7 @@ end
 function make_IHTvar(d, μ, y)
     n = length(μ)
     v = IHTVariable(rand(n, 10), rand(n, 1), y, 1, 10, d, IdentityLink(),
-        Int[], Float64[], :none)
+        Int[], Float64[], :none, falses(1))
     MendelIHT.init_iht_indices!(v, false, trues(n))
     v.μ = μ
     return v
@@ -90,75 +90,6 @@ end
     @test all(isapprox(p, exp.(xb), atol=1e-8))
 end
 
-# @testset "update_xb! and check_covariate_supp!" begin
-#    	Random.seed!(1111)
-#     x, z, y, v = test_data(Normal(), IdentityLink())
-#     v.idx[1:10] .= trues(10)
-#     v.b .= rand(1000)
-#     tmp_x = convert(Matrix{Float64}, @view(x[:, v.idx]), center=true, scale=true)
-
-#     @test size(v.xk, 2) == 9 #IHTVariable is initialized to have k - 1 columns
-
-#     MendelIHT.check_covariate_supp!(v)
-
-#     @test size(v.xk, 2) == 10 
-
-#     MendelIHT.update_xb!(v)
-
-#     @test all(v.xb .≈ tmp_x * v.b[1:10])
-#     @test all(v.zc .== 0.0)
-#     @test all(abs.(v.b) .<= 30)
-# end
-
-# @testset "score!" begin
-#     # Not sure how to "really" test this function, so I'm throwing in a lot of input/outputs
-#     # as they are calculated right now, because the code seems to work well
-
-#     Random.seed!(1993)
-#     d = Normal()
-#     l = IdentityLink()
-#     (x, z, y, v) = test_data(d, l)
-#     score!(v)
-
-#     @test all(v.df[1:3] .≈ [8.057330896198419; -2.229495636684423; 9.948528223937274])
-#     @test v.df2[1] ≈ 500.8665816573597
-
-#     (x, z, y, v) = test_data(d, l)
-#     score!(v)
-
-#     @test all(v.df[1:3] .≈ [-12.569757729532215; 8.237144382138629; 9.625154193038197])
-#     @test v.df2[1] ≈ 503.8433996263735
-
-#     (x, z, y, v) = test_data(d, l)
-#     score!(v)
-
-#     @test all(v.df[1:3] .≈ [-2.2634046444623226; -5.266454260596382; -1.5449038662162529])
-#     @test v.df2[1] ≈ 507.55935638764254
-# end
-
-# @testset "_iht_gradstep!" begin
-#     Random.seed!(1111)
-
-#     x, z, y, v = test_data(Normal(), IdentityLink())
-#     v.b[1:3] .= [1; 2; 3]
-#     v.df[1:3] .= [1; 2; 3]
-#     b = copy(v.b)
-#     df = copy(v.df)
-#     J = 1
-#     k = 2
-#     η = 0.9
-#     v.k = k
-
-#     MendelIHT._iht_gradstep!(v, η) # this should keep 1 * 2 = 2 elements
-
-#     @test v.b[1] ≈ 0.0 # because first entry is smallest, it should be set to 0
-#     @test v.b[2] ≈ (b + η*df)[2]
-#     @test v.b[3] ≈ (b + η*df)[3]
-#     @test all(v.b[4:end] .≈ 0.0)
-#     @test all(v.c .≈ 0.0)
-#     @test all(v.df .≈ df)
-# end
-
 @testset "_choose!" begin
     J = 1
     k = 10
@@ -166,6 +97,7 @@ end
     Random.seed!(1111)
     x, z, y, v = test_data(Normal(), IdentityLink())
     fill!(v.idx, false)
+    fill!(v.idc, false)
     v.idx[1:10] .= trues(10)
     MendelIHT._choose!(v)
 
@@ -294,51 +226,4 @@ end
     @test all(1.0 .<= p .<= 2)
     @test p[1] ≈ 1 / (2.0sqrt(m[1] * (1 - m[1])))
     @test p[15] == 2.0
-end
-
-@testset "iht_stepsize!" begin
-    Random.seed!(1234)
-    d = Normal()
-    l = canonicallink(d)
-    x, z, y, v = test_data(d, l)
-    v.df .= rand(1000)
-    v.xk .= rand(size(v.xk, 1), size(v.xk, 2))
-    v.μ .= rand(1000)
-    fill!(v.idx, false)
-    v.idx[1:9] .= trues(9)
-
-    @test MendelIHT.iht_stepsize!(v) ≥ 0
-
-    d = Poisson()
-    l = canonicallink(d)
-    x, z, y, v = test_data(d, l)
-    v.df .= rand(1000)
-    v.xk .= rand(size(v.xk, 1), size(v.xk, 2))
-    v.μ .= rand(1000)
-    fill!(v.idx, false)
-    v.idx[1:9] .= trues(9)
-
-    @test MendelIHT.iht_stepsize!(v) ≥ 0
-
-    d = NegativeBinomial()
-    l = LogLink()
-    x, z, y, v = test_data(d, l)
-    v.df .= rand(1000)
-    v.xk .= rand(size(v.xk, 1), size(v.xk, 2))
-    v.μ .= rand(1000)
-    fill!(v.idx, false)
-    v.idx[1:9] .= trues(9)
-
-    @test MendelIHT.iht_stepsize!(v) ≥ 0
-
-    d = Bernoulli()
-    l = canonicallink(d)
-    x, z, y, v = test_data(d, l)
-    v.df .= rand(1000)
-    v.xk .= rand(size(v.xk, 1), size(v.xk, 2))
-    v.μ .= rand(1000)
-    fill!(v.idx, false)
-    v.idx[1:9] .= trues(9)
-
-    @test MendelIHT.iht_stepsize!(v) ≥ 0
 end
