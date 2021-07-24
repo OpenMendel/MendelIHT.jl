@@ -60,7 +60,7 @@ function fit_iht(
     l         :: Link = IdentityLink(),
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
-    zkeep     :: BitVector = trues(size(z, 2) > 1 ? size(z, 1) : size(z, 2)),
+    zkeep     :: BitVector = trues(size(y, 2) > 1 ? size(z, 1) : size(z, 2)),
     est_r     :: Symbol = :None,
     use_maf   :: Bool = false, 
     debias    :: Bool = false,

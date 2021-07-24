@@ -288,9 +288,9 @@ function vectorize!(a::AbstractVector, b::AbstractVector, c::AbstractVector,
     end
 
     # don't project certain non-genetic covariates
-    @view(a[lb+1:la][ckeep]) .= typemax(eltype(a))
+    a_view = @view(a[lb+1:la])
+    @view(a_view[ckeep]) .= typemax(eltype(a))
 end
-
 
 """
     unvectorize!(a::AbstractVector, B::AbstractMatrix, C::AbstractMatrix, Ckeep::BitVector)
@@ -396,8 +396,8 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
         if length(v.ks) == 0 # no group projection
             project_k!(v.full_b, v.k + v.zkeepn) # project k + number of nongentic covariates to keep
             unvectorize!(v.full_b, v.df, v.df2, v.weight, v.zkeep)
-            v.idx .= v.b .!= 0
-            v.idc .= v.c .!= 0
+            v.idx .= v.df .!= 0
+            v.idc .= v.df2 .!= 0
 
             # Choose randomly if more are selected
             _choose!(v) 

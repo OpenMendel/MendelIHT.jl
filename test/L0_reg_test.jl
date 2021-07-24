@@ -24,14 +24,14 @@
 	show(result)
 
 	@test length(result.beta) == 10000
+	@test count(!iszero, result.beta) == k
 	@test findall(!iszero, result.beta) == [2384;3352;3353;4093;5413;5609;7403;8753;9089;9132]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-1.2601406011046452;
-	 				-0.2674202492177914; 0.14120810664715883; 0.289955803600036;
-	  				0.3666894767520663; -0.1371805027382694; -0.3082545756160329;
-	  				0.3328814701200445; 0.9645980728400257; -0.5094607091364866])
-	@test result.c[1] == 0.0
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-1.2601335154934064, -0.26740665871958935, 
+		0.14117990315654064, 0.28997442760192266, 0.3667114534086605, -0.13719881241645873, -0.3082574702110094, 
+		0.3328995818048077, 0.9645955209824065, -0.5094675198978443])
+	@test result.c[1] ≈ -0.026283123286410772
 	@test result.k == 10
-	@test result.logl ≈ -1407.2533232402275
+	@test result.logl ≈ -1406.899627901812
 end
 
 @testset "fit Bernoulli" begin
@@ -59,14 +59,14 @@ end
 	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 
 	@test length(result.beta) == 10000
-	@test findall(!iszero, result.beta) == [1733;1816;2384;5413;7067;8753;8908;9089;9132;9765]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.2787326116508012;
-					  0.3113511410050774;-1.1292096054341005;0.5001816459301949;
-					 -0.32694130827328116;0.4134742776599116;-0.3275424847038566;
-					  0.8619785898062307;-0.5068258295825918;-0.32972421733995294])
-	@test result.c[1] == 0.0
+	@test count(!iszero, result.beta) == k
+	@test findall(!iszero, result.beta) == [1816, 2384, 2917, 5413, 7067, 8753, 8908, 9089, 9132, 9765]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.2927850181979294, -1.1371390185890102, 
+		-0.2735411947195354, 0.4777936460488939, -0.310486779584213, 0.41808467980710756, -0.3436991152303386,
+		0.8844652838423853, -0.5297482667320204, -0.34131839197378927])
+	@test result.c[1] ≈ 0.013569002607988524
 	@test result.k == 10
-	@test result.logl ≈ -489.8770526620568
+	@test result.logl ≈ -490.2010219408794
 end
 
 @testset "fit Poisson" begin
@@ -93,15 +93,14 @@ end
 	#run result
 	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 	@test length(result.beta) == 10000
-	@test findall(!iszero, result.beta) == [298; 606; 2384; 5891; 7067; 8753; 8755; 8931; 9089; 9132]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [0.10999211487301704;
-		-0.09628969787009399; -0.3660582504298778;  0.11767397809862554;  
-		0.09686501699067837;  0.11419451741236888;  0.12373749347128933;  
-		0.11916107757737655;  0.2904980599350941; -0.12920302008477738])
-	@test result.c[1] == 0.0
+	@test count(!iszero, result.beta) == k
+	@test findall(!iszero, result.beta) == [2384, 2631, 3157, 5891, 8753, 8755, 8931, 9089, 9132, 9884]
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.3704728719867845, 0.09550968238347861, 
+		0.1012695640714917, 0.12454842375797137, 0.10750826591937211, 0.11630352461070562, 0.12423472147439997, 
+		0.2856470190801652, -0.12495713352581836, 0.08889994853065768])
+	@test result.c[1] ≈ -0.010771749331668815
 	@test result.k == 10
-	@test result.logl ≈ -1293.4456256102478
-	@test result.iter == 14
+	@test result.logl ≈ -1294.747256187064
 end
 
 @testset "fit NegativeBinomial" begin
@@ -129,15 +128,14 @@ end
 	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l)
 
 	@test length(result.beta) == 10000
+	@test count(!iszero, result.beta) == k
 	@test findall(!iszero, result.beta) == [1245; 1774; 1982; 2384; 5413; 5440; 5614; 7166; 9089; 9132;]
-	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.13251205076442696;
-		-0.16906821875893546;  0.12865324984770152; -0.30791709019019947;  
-		0.1202449253579259; 0.12545318690748591;  0.10252799982767402;  
-		0.12937785947321034;  0.27113364351607033;-0.19797373419860373])
-	@test result.c[1] == 0.0
+	@test all(result.beta[findall(!iszero, result.beta)] .≈ [-0.13536960133758671, -0.17233491524789818, 
+		0.13127935664692003, -0.3142802598723658, 0.12254638737412701, 0.1277401870478348, 0.10421067139834642,
+		0.13187029926894303, 0.27527241210172276, -0.2019964741423514])
+	@test result.c[1] ≈ -0.04109496358855896
 	@test result.k == 10
-	@test result.logl ≈ -1387.341396480908
-	@test result.iter == 9
+	@test result.logl ≈ -1386.95309289023
 end
 
 @testset "fit with non-genetic covariates" begin
@@ -175,8 +173,49 @@ end
 
 	@test length(result.beta) == 10000
 	@test length(result.c) == 2
-	@test length(findall(!iszero, result.beta)) == 8
+	@test length(findall(!iszero, result.beta)) == 10
 	@test findall(!iszero, result.c) == [1;2]
+	@test result.k == 10
+end
+
+@testset "model selection on non-genetic covariates" begin
+	# Since my code seems to work, putting in some output as they can be verified by comparing with simulation
+
+	#simulat data with k true predictors, from distribution d and with link l.
+	n = 1000
+	p = 10000
+	k = 10
+	d = Normal
+	l = canonicallink(d())
+
+	#set random seed
+	Random.seed!(1111)
+
+	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
+	x = simulate_random_snparray(undef, n, p)
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+	z = ones(n, 2) # 1st column intercept
+	z[:, 2] .= randn(n)
+
+	# define true_b and true_c
+	true_b = zeros(p)
+	true_b[1:k-2] = randn(k-2)
+	shuffle!(true_b)
+	correct_position = findall(!iszero, true_b)
+	true_c = [3.0; 0]
+
+	# simulate phenotype
+	prob = GLM.linkinv.(l, xla * true_b .+ z * true_c)
+	y = [rand(d(i)) for i in prob]
+
+	#run result, keeping only intercept
+	zkeep = convert(BitVector, [true, false])
+	result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, zkeep = zkeep)
+
+	@test length(result.beta) == 10000
+	@test length(result.c) == 2
+	@test length(findall(!iszero, result.beta)) == 10
+	@test count(!iszero, result.c) == 1 # the 2nd covariate should be excluded
 	@test result.k == 10
 end
 
