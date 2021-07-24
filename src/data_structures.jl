@@ -63,12 +63,12 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
         throw(DimensionMismatch("row dimension of y, x, and z ($ly, $n, $m) are not equal"))
     end
 
-    if lg != (p + q) && lg != 0
-        throw(DimensionMismatch("group must have length " * string(p + q) * " but was $lg"))
+    if lg != p && lg != 0
+        throw(DimensionMismatch("group must have length $p but was $lg"))
     end 
 
-    if lw != (p + q) && lw != 0
-        throw(DimensionMismatch("weight must have length " * string(p + q) * " but was $lw"))
+    if lw != p && lw != 0
+        throw(DimensionMismatch("weight must have length $p but was $lw"))
     end
 
     if typeof(k) == Int64

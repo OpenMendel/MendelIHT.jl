@@ -242,9 +242,14 @@ function _iht_gradstep!(v::IHTVariable{T, M}, η::T) where {T <: Float, M}
     BLAS.axpy!(η, v.df2, v.c)
 
     # project to sparsity, scaling model by weight vector, if supplied
-    vectorize!(v.full_b, v.b, v.c, v.weight, v.zkeep)
-    lg == 0 ? project_k!(v.full_b, k + v.zkeepn) : project_group_sparse!(full_grad, v.group, J, k)
-    unvectorize!(v.full_b, v.b, v.c, v.weight, v.zkeep)
+    if lg == 0
+        vectorize!(v.full_b, v.b, v.c, v.weight, v.zkeep)
+        project_k!(v.full_b, k + v.zkeepn)
+        unvectorize!(v.full_b, v.b, v.c, v.weight, v.zkeep)
+    else
+        # TODO: enable model selection for non-genetic covariates on group projection
+        project_group_sparse!(v.b, v.group, J, k)
+    end
 
     #recombute support
     v.idx .= v.b .!= 0
@@ -402,13 +407,9 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
             # Choose randomly if more are selected
             _choose!(v) 
         else 
-            project_group_sparse!(v.full_b, v.group, v.J, v.ks)
-            @inbounds for i in 1:ldf
-                v.full_b[i] != 0 && (v.idx[i] = true)
-            end
-            @inbounds for i in 1:length(v.idc)
-                v.full_b[ldf+i] != 0 && (v.idc[i] = true)
-            end
+            project_group_sparse!(v.df, v.group, v.J, v.ks)
+            v.idx .= v.b .!= 0
+            fill!(v.idc, true)
         end
     end
 
