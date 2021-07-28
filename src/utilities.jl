@@ -899,7 +899,7 @@ function print_parameters(io::IO, k, d, l, use_maf, group, debias, tol, max_iter
     typeof(k) <: Vector{Int} && println(io, "Sparsity parameter (k) = using group membership specified in k")
     println(io, "Prior weight scaling = ", use_maf ? "on" : "off")
     println(io, "Doubly sparse projection = ", length(group) > 0 ? "on" : "off")
-    println(io, "Debias = ", debias ? "on" : "off")
+    println(io, "Debiasing after $debias iterations")
     println(io, "Max IHT iterations = $max_iter")
     println(io, "Converging when tol < $tol and iteration ≥ $min_iter:\n")
     io != stdout && print_parameters(stdout, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)

@@ -1,7 +1,7 @@
 """
     cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), est_r=:None,
         group=Int[], weight=Float64[], folds=rand(1:q, is_multivariate(y) ?
-        size(x, 2) : size(x, 1)), debias=false, verbose=true,
+        size(x, 2) : size(x, 1)), debias=100, verbose=true,
         max_iter=100, min_iter=20, init_beta=true)
 
 For each model specified in `path`, performs `q`-fold cross validation and 
@@ -42,7 +42,7 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `group`: vector storing group membership for each predictor
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
 - `folds`: Vector that separates the sample into `q` disjoint subsets
-- `debias`: Boolean indicating whether we should debias at each IHT step. Defaults `false`
++ `debias`: An `Int`. If support remains unchanged after `debias` iterations, we run debiasing (default 100)
 - `verbose`: Boolean indicating whether to print mean squared error for each `k` in `path`. Defaults `true`
 - `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 100 
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
@@ -62,7 +62,7 @@ function cv_iht(
     weight   :: AbstractVector{T} = T[],
     zkeep    :: BitVector = trues(size(y, 2) > 1 ? size(z, 1) : size(z, 2)),
     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
-    debias   :: Bool = false,
+    debias   :: Int = 100,
     verbose  :: Bool = true,
     max_iter :: Int = 100,
     min_iter :: Int = 5,

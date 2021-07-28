@@ -26,14 +26,14 @@
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine (with debias) 
+    # cross validation routine (debias after 5) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, max_iter=10);
+        folds=folds, verbose=true, debias=5, max_iter=10);
     @test all(debias .> 0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false, max_iter=10);
+        folds=folds, verbose=true, debias=100, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -68,14 +68,14 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine (with debias) 
+    # cross validation routine (debias after 5) 
     @time debias = cv_iht(y, x, z, d=d(), l=l, path=path,
-        q=q, folds=folds, verbose=true, debias=true, max_iter=10);
+        q=q, folds=folds, verbose=true, debias=5, max_iter=10);
     @test all(debias .> 0.0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false, max_iter=10);
+        folds=folds, verbose=true, debias=100, max_iter=10);
     @test all(nodebias .> 0.0)
 end
 
@@ -103,14 +103,14 @@ end
 	q = 3
 	folds = rand(1:q, size(x, 1))
 
-	# cross validation routine (with debias) 
+    # cross validation routine (debias after 5) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path,
-        q=q, folds=folds, verbose=true, debias=true, max_iter=10);
+        q=q, folds=folds, verbose=true, debias=5, max_iter=10);
     @test all(debias .> 0.0)
 
-	# cross validation routine (no debias) 
+    # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false, max_iter=10);
+        folds=folds, verbose=true, debias=100, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -145,14 +145,14 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine (with debias) 
+    # cross validation routine (debias after 5) 
     @time debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, max_iter=10);
+        folds=folds, verbose=true, debias=5, max_iter=10);
     @test all(debias .> 0.0)
 
-    # cross validation routine (without debias) 
+    # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false, max_iter=10);
+        folds=folds, verbose=true, debias=100, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -180,14 +180,14 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine (with debias) 
+    # cross validation routine (debias after 5) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, max_iter=10);
+        folds=folds, verbose=true, debias=5, max_iter=10);
     @test all(debias .> 0.0)
 
-    # cross validation routine (without debias) 
+    # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q, 
-        folds=folds, verbose=true, debias=false, max_iter=10);
+        folds=folds, verbose=true, debias=100, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -215,14 +215,14 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine (with debias) 
+    # cross validation routine (debias after 5) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true);
+        folds=folds, verbose=true, debias=5);
     @test all(debias .> 0.0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false);
+        folds=folds, verbose=true, debias=100);
     @test all(nodebias .> 0)
 end
 
@@ -258,15 +258,15 @@ end
     q = 3
     folds = rand(1:q, size(x, 1))
 
-    # cross validation routine (with debias)
+    # cross validation routine (debias after 5) 
 	d = d(1, T(0.5)) # need Float32 for eltype of d
     @time debias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=true, max_iter=10)
+        folds=folds, verbose=true, debias=5, max_iter=10)
     @test all(debias .> 0)
 
     # cross validation routine (no debias) 
     @time nodebias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
-        folds=folds, verbose=true, debias=false, max_iter=10);
+        folds=folds, verbose=true, debias=100, max_iter=10);
     @test all(nodebias .> 0)
 end
 
@@ -296,13 +296,13 @@ end
     @test_throws DimensionMismatch cv_iht(Yt, xla)
     @test_throws DimensionMismatch cv_iht(Y, Transpose(xla))
 
-    # no debias
+    # cross validation routine (debias after 5) 
     Random.seed!(2021)
-    @time mses = cv_iht(Yt, Transpose(xla), debias=false, max_iter=10, path=0:20)
+    @time mses = cv_iht(Yt, Transpose(xla), debias=5, max_iter=10, path=0:20)
     @test all(mses .> 0)
 
-    # yes debias
+    # cross validation routine (no debias) 
     Random.seed!(2021)
-    @time mses2 = cv_iht(Yt, Transpose(xla), debias=true, max_iter=10, path=0:20)
+    @time mses2 = cv_iht(Yt, Transpose(xla), debias=100, max_iter=10, path=0:20)
     @test all(mses2 .> 0)
 end

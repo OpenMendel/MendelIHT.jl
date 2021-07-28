@@ -553,7 +553,7 @@ function debias!(v::mIHTVariable{T, M}) where {T <: Float, M}
         v.k_by_k = Matrix{T}(undef, supp_size, supp_size)
     end
 
-    # try debiasing: B̂ = inv(XX')XY'. Do nothing if it fals
+    # try debiasing: B̂ = inv(XX')XY'. Do nothing if it fails
     mul!(v.k_by_r, v.Xk, Transpose(v.Y))
     mul!(v.k_by_k, v.Xk, Transpose(v.Xk))
     try

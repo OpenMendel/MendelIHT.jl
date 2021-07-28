@@ -109,8 +109,8 @@ end
     @test_throws DimensionMismatch fit_iht(Yt, xla, k=12)
     @test_throws DimensionMismatch fit_iht(Y, Transpose(xla), k=12)
 
-    # no debias
-    @time result = fit_iht(Yt, Transpose(xla), k=12, debias=false)
+    # debias after 100 iter
+    @time result = fit_iht(Yt, Transpose(xla), k=12)
     @test size(result.beta) == (r, p)
     @test result.k == 12
     @test result.traits == 2
@@ -119,8 +119,8 @@ end
     # @test all(result.beta[1, correct_snps] - true_b[correct_snps, 1] .< 0.15) # estimates are close to truth
     # @test all(result.beta[2, correct_snps] - true_b[correct_snps, 2] .< 0.15) # estimates are close to truth
 
-    # yes debias
-    @time result2 = fit_iht(Yt, Transpose(xla), k=12, debias=true)
+    # debias after 5
+    @time result2 = fit_iht(Yt, Transpose(xla), k=12, debias=5)
     @test size(result2.beta) == (r, p)
     @test result2.k == 12
     @test result2.traits == 2
