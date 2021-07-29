@@ -1,5 +1,5 @@
 """
-    cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), est_r=:None,
+    cv_iht(y, x, z; path=0:20, q=5, d=Normal(), l=IdentityLink(), est_r=:None,
         group=Int[], weight=Float64[], folds=rand(1:q, is_multivariate(y) ?
         size(x, 2) : size(x, 1)), debias=100, verbose=true,
         max_iter=100, min_iter=20, init_beta=true)
@@ -26,7 +26,7 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 
 # Optional Arguments: 
 - `path`: Different values of `k` that should be tested. One can input a vector of 
-    `Int` (e.g. `path=[5, 10, 15, 20]`) or a range (default `path=1:20`).
+    `Int` (e.g. `path=[5, 10, 15, 20]`) or a range (default `path=0:20`).
 - `q`: Number of cross validation folds. Larger means more accurate and more computationally
     intensive. Should be larger 2 and smaller than 10. Default `q=5`.
 - `d`: Distribution of phenotypes. Specify `Normal()` for quantitative traits,
@@ -48,6 +48,9 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
+
+# Output
+- `mse`: A vector of mean-squared error for each `k` specified in `path`. 
 """
 function cv_iht(
     y        :: AbstractVecOrMat{T},
@@ -55,7 +58,7 @@ function cv_iht(
     z        :: AbstractVecOrMat{T};
     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
-    path     :: AbstractVector{<:Integer} = 1:20,
+    path     :: AbstractVector{<:Integer} = 0:20,
     q        :: Int64 = 5,
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
@@ -124,7 +127,7 @@ end
 #     z        :: AbstractVecOrMat{T};
 #     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
 #     l        :: Link = IdentityLink(),
-#     path     :: AbstractVector{<:Integer} = 1:20,
+#     path     :: AbstractVector{<:Integer} = 0:20,
 #     q        :: Int64 = 5,
 #     est_r    :: Symbol = :None,
 #     group    :: AbstractVector{Int} = Int[],
@@ -222,7 +225,7 @@ function iht_run_many_models(
     z        :: AbstractVecOrMat{T};
     d        :: Distribution = Normal(),
     l        :: Link = canonicallink(d),
-    path     :: AbstractVector{Int} = 1:20,
+    path     :: AbstractVector{Int} = 0:20,
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = Float64[],

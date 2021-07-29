@@ -49,6 +49,9 @@ of predictors for group `i`.
 + `io`: An `IO` object for displaying intermediate results. Default `stdout`.
 + `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
+
+# Output 
++ An `IHTResult` (for single-trait analysis) or `mIHTResult` (for multivariate analysis).
 """
 function fit_iht(
     y         :: AbstractVecOrMat{T},

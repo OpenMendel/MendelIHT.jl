@@ -107,6 +107,7 @@ Calculates the score (gradient) `X^T * W * (y - g(x^T b))` for different GLMs.
 W is a diagonal matrix where `w[i, i] = dμ/dη / var(μ)` (see documentation)
 """
 function score!(v::IHTVariable{T, M}) where {T <: Float, M}
+    # TODO: consider putting v.r updates to a function update_resid! and call it in update_μ!
     d, l, x, z, y, cv_wts = v.d, v.l, v.x, v.z, v.y, v.cv_wts
     @inbounds for i in eachindex(y)
         η = v.xb[i] + v.zc[i]

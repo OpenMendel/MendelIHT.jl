@@ -221,7 +221,7 @@ function phenotype_is_missing(s::AbstractString)
 end
 
 """
-    cross_validate(plinkfile, d, path=1:20, phenotypes=6, covariates="", 
+    cross_validate(plinkfile, d, path=0:20, phenotypes=6, covariates="", 
         cv_summaryfile="cviht.summary.txt", q=5, kwargs...)
 
 Runs cross-validation to determinal optimal sparsity level `k`. Different
@@ -235,7 +235,7 @@ sparsity levels are specified in `path`.
 
 # Optional Arguments
 - `path`: Different values of `k` that should be tested. One can input a vector of 
-    `Int` (e.g. `path=[5, 10, 15, 20]`) or a range (default `path=1:20`).
+    `Int` (e.g. `path=[5, 10, 15, 20]`) or a range (default `path=0:20`).
 - `phenotypes`: Phenotype file name (`String`), an integer, or vector of integer. Integer(s)
     coresponds to the column(s) of `.fam` file that stores phenotypes (default 6). 
     We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
@@ -260,7 +260,7 @@ sparsity levels are specified in `path`.
 function cross_validate(
     plinkfile::AbstractString,
     d::UnionAll;
-    path::AbstractVector{<:Integer} = 1:20,
+    path::AbstractVector{<:Integer} = 0:20,
     phenotypes::Union{AbstractString, Int, AbstractVector{Int}} = 6,
     covariates::AbstractString = "",
     cv_summaryfile::AbstractString = "cviht.summary.txt",
