@@ -19,8 +19,14 @@ function pve(
     return _pve(y, μ)
 end
 
-function _pve(y::AbstractVecOrMat, μ::AbstractVecOrMat)
+function _pve(y::AbstractVector, μ::AbstractVector)
     return var(μ) / var(y)
+end
+
+# each column is a trait
+function _pve(Y::AbstractMatrix, μ::AbstractMatrix)
+    size(Y, 2) == size(μ, 2) || error("Number of columns not equal in Y and μ!")
+    return [_pve(@view(Y[i, :]), @view(μ[i, :])) for i in 1:size(Y, 2)]
 end
 
 function pve(v::IHTVariable)

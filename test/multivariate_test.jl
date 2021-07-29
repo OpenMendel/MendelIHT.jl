@@ -19,7 +19,7 @@ function make_mIHTvar(r) # r = number of traits
     # everything is transposed for multivariate analysis!
     Yt = Matrix(Y')
     Zt = Matrix(z')
-    v = MendelIHT.mIHTVariable(Transpose(xla), Zt, Yt, k)
+    v = MendelIHT.mIHTVariable(Transpose(xla), Zt, Yt, k, trues(1))
 
     return v, Transpose(xla), Yt, Zt, k
 end
@@ -53,6 +53,7 @@ end
 
     # r = 2 traits
     v, xla, Yt, Zt, k = make_mIHTvar(2)
+    zkeep = trues(1)
     MendelIHT.init_iht_indices!(v, false, trues(size(xla, 2)))
     @btime MendelIHT.score!($v)           # 9.304 ms (45 allocations: 2.33 KiB)
     @btime MendelIHT.loglikelihood($v)    # 3.377 μs (2 allocations: 208 bytes)
@@ -61,8 +62,8 @@ end
     @btime MendelIHT._choose!($v)         # 16.698 μs (3 allocations: 208 bytes)
     @btime MendelIHT.solve_Σ!($v)         # 2.889 μs (2 allocations: 48 bytes)
     # @btime MendelIHT.iht_stepsize(v) # cannot be done because BenchmarkTools require multiple evaluations of the same function call, which makes Γ not pd
-    @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C)) # 10.299 μs (0 allocations: 0 bytes)
-    @btime MendelIHT.unvectorize!($(v.full_b), $(v.B), $(v.C)) # 10.548 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C), $zkeep) # 10.299 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.unvectorize!($(v.full_b), $(v.B), $(v.C), $zkeep) # 10.548 μs (0 allocations: 0 bytes)
     @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 23.204 μs (0 allocations: 0 bytes)
 
     # r = 10 traits
@@ -75,8 +76,8 @@ end
     @btime MendelIHT._choose!($v)         # 68.161 μs (5 allocations: 432 bytes)
     @btime MendelIHT.solve_Σ!($v)         # 12.623 μs (2 allocations: 48 bytes)
     # @btime MendelIHT.iht_stepsize(v) # cannot be done because BenchmarkTools require multiple evaluations of the same function call, which makes Γ not pd
-    @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C)) # 23.712 μs (0 allocations: 0 bytes)
-    @btime MendelIHT.unvectorize!($(v.full_b), $(v.B), $(v.C)) # 23.761 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.vectorize!($(v.full_b), $(v.B), $(v.C), $zkeep) # 23.712 μs (0 allocations: 0 bytes)
+    @btime MendelIHT.unvectorize!($(v.full_b), $(v.B), $(v.C), $zkeep) # 23.761 μs (0 allocations: 0 bytes)
     @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 50.047 μs (0 allocations: 0 bytes)
 end
 

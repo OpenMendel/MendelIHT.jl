@@ -35,6 +35,9 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `l`: A link function. The recommended link functions are `l=IdentityLink()` for
     quantitative traits, `l=LogitLink()` for binary traits, `l=LogLink()` for Poisson
     distribution, and `l=Loglink()` for NegativeBinomial distribution. 
+- `zkeep`: BitVector determining whether non-genetic covariates in `z` will be subject 
+    to sparsity constraint. `zkeep[i] = true` means covariate `i` will NOT be projected.
+    Note covariates forced in the model are not subject to sparsity constraints in `path`. 
 - `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
 - `group`: vector storing group membership for each predictor
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
@@ -57,6 +60,7 @@ function cv_iht(
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
     weight   :: AbstractVector{T} = T[],
+    zkeep    :: BitVector = trues(size(y, 2) > 1 ? size(z, 1) : size(z, 2)),
     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
     debias   :: Bool = false,
     verbose  :: Bool = true,
@@ -72,7 +76,7 @@ function cv_iht(
     # preallocated arrays for efficiency
     test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
     train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
-    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false) for i in 1:Threads.nthreads()]
+    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = Progress(q * length(path), "Cross validating...")

@@ -36,7 +36,7 @@ using Statistics
 using BenchmarkTools
 
 BLAS.set_num_threads(1) # prevent over subscription with multithreading & BLAS
-Random.seed!(1111) # set seed for reproducibility
+Random.seed!(1111)      # set seed for reproducibility
 ```
 
 
@@ -105,7 +105,7 @@ readdir()
 
 
 
-    17-element Vector{String}:
+    23-element Vector{String}:
      ".DS_Store"
      "README.md"
      "covariates.txt"
@@ -117,11 +117,17 @@ readdir()
      "multivariate.bim"
      "multivariate.fam"
      "multivariate.phen"
+     "multivariate.trait.cov"
      "normal.bed"
      "normal.bim"
      "normal.fam"
      "normal_true_beta.txt"
      "phenotypes.txt"
+     "sim.bed"
+     "sim.bim"
+     "sim.covariates.txt"
+     "sim.fam"
+     "sim.phenotypes.txt"
      "simulate.jl"
 
 
@@ -130,7 +136,10 @@ Here `covariates.txt` contains non-genetic covariates (intercept + sex), `normal
 
 ### Step 1: Run cross validation to determine best model size
 
-Here phenotypes are stored in the 6th column of `.fam` file. Other covariates are stored separately (which includes a column of 1 as intercept). Here we cross validate $k = 1,2,...20$. 
+See the [cross_validate](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate) function API. Here, 
++ We run 5 fold cross validation (default `q`) across k = 1, 2, ..., 20.
++ Phenotypes are stored in the 6th column of `.fam` file
++ Other covariates are stored separately (which includes a column of 1 as intercept). Here we cross validate $k = 1,2,...20$. 
 
 Note the first run might take awhile because Julia needs to compile the code. 
 
@@ -152,35 +161,35 @@ mses = cross_validate("normal", Normal, covariates="covariates.txt", phenotypes=
     
 
 
-    [32mCross validating...100%|████████████████████████████████| Time: 0:00:17[39m
+    [32mCross validating...100%|████████████████████████████████| Time: 0:00:03[39m
 
 
     
     
     Crossvalidation Results:
     	k	MSE
-    	1	1383.3887888333788
-    	2	714.3108200438915
-    	3	630.5562933019421
-    	4	599.6952113619866
-    	5	438.42328589185536
-    	6	327.08547676403236
-    	7	304.1177395732532
-    	8	297.41346319671766
-    	9	227.5681066123959
-    	10	202.69232180491358
-    	11	206.35218981854467
-    	12	209.76930769385618
-    	13	213.48278746710366
-    	14	215.43361702847125
-    	15	215.6684475575618
-    	16	223.24291123616155
-    	17	221.4060678342564
-    	18	276.6464367814522
-    	19	230.976587123502
-    	20	268.32185480128885
+    	1	743.1703938637883
+    	2	550.1707865831861
+    	3	426.4937801368892
+    	4	336.20365731861745
+    	5	296.0672451743466
+    	6	233.02850102286234
+    	7	197.94215895091278
+    	8	199.6451087657394
+    	9	201.54148479914127
+    	10	207.96968107938025
+    	11	212.9172082563968
+    	12	215.32570044375092
+    	13	220.99781565117684
+    	14	220.78097392409862
+    	15	224.33931887771
+    	16	220.7001228820031
+    	17	226.6527593460433
+    	18	227.36164871842863
+    	19	237.23200258515894
+    	20	238.24759588500916
     
-    Best k = 10
+    Best k = 7
     
 
 
@@ -188,11 +197,13 @@ Do not be alarmed if you get slightly different numbers, because cross validatio
 
 ### Step 2: Run IHT on best k
 
-According to cross validation, `k = 10` achieves the minimum MSE. Thus we run IHT on the full dataset.
+See the [iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht) function API.
+
+According to cross validation, `k = 7` achieves the minimum MSE. Thus we run IHT on the full dataset.
 
 
 ```julia
-result = iht("normal", 10, Normal, covariates="covariates.txt", phenotypes=6);
+result = iht("normal", 7, Normal, covariates="covariates.txt", phenotypes=6)
 ```
 
     ****                   MendelIHT Version 1.4.1                  ****
@@ -205,29 +216,59 @@ result = iht("normal", 10, Normal, covariates="covariates.txt", phenotypes=6);
     Running sparse linear regression
     Number of threads = 8
     Link functin = IdentityLink()
-    Sparsity parameter (k) = 10
+    Sparsity parameter (k) = 7
     Prior weight scaling = off
     Doubly sparse projection = off
     Debias = off
     Max IHT iterations = 200
     Converging when tol < 0.0001 and iteration ≥ 5:
     
-    Iteration 1: loglikelihood = -1457.8431531776794, backtracks = 0, tol = 0.7683976715709564
-    Iteration 2: loglikelihood = -1391.9907038720667, backtracks = 0, tol = 0.11226800885813881
-    Iteration 3: loglikelihood = -1390.7113887489165, backtracks = 0, tol = 0.011581483394882052
-    Iteration 4: loglikelihood = -1390.6980736000305, backtracks = 0, tol = 0.0010566984279122389
-    Iteration 5: loglikelihood = -1390.6978716629346, backtracks = 0, tol = 0.00010752965216198347
-    Iteration 6: loglikelihood = -1390.4000085563305, backtracks = 0, tol = 0.03716090961691858
-    Iteration 7: loglikelihood = -1390.3012534352063, backtracks = 0, tol = 0.0032563210092611864
-    Iteration 8: loglikelihood = -1390.300372706346, backtracks = 0, tol = 0.0003148875004358726
-    Iteration 9: loglikelihood = -1390.3003586111483, backtracks = 0, tol = 3.673233513687601e-5
+    Iteration 1: loglikelihood = -1403.6085154464329, backtracks = 0, tol = 0.8141937613701785
+    Iteration 2: loglikelihood = -1397.922430744325, backtracks = 0, tol = 0.017959863148623176
+    Iteration 3: loglikelihood = -1397.8812223841496, backtracks = 0, tol = 0.001989846075839033
+    Iteration 4: loglikelihood = -1397.8807476657355, backtracks = 0, tol = 0.00016446741159857614
+    Iteration 5: loglikelihood = -1397.8807416751808, backtracks = 0, tol = 2.0482155566893502e-5
+
+
+
+
+
+    
+    IHT estimated 7 nonzero SNP predictors and 2 non-genetic predictors.
+    
+    Compute time (sec):     0.028419017791748047
+    Final loglikelihood:    -1397.8807416751808
+    SNP PVE:                0.8343751445053728
+    Iterations:             5
+    
+    Selected genetic predictors:
+    [1m7×2 DataFrame[0m
+    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
+    ─────┼───────────────────────
+       1 │     3137     0.424376
+       2 │     4246     0.52343
+       3 │     4717     0.922857
+       4 │     6290    -0.677832
+       5 │     7755    -0.542983
+       6 │     8375    -0.792813
+       7 │     9415    -2.17998
+    
+    Selected nongenetic predictors:
+    [1m2×2 DataFrame[0m
+    [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
+    [1m     [0m│[90m Int64    [0m[90m Float64     [0m
+    ─────┼───────────────────────
+       1 │        1     1.65223
+       2 │        2     0.749865
+
 
 
 The convergence criteria can be tuned by keywords `tol` and `min_iter`. 
 
 ### Step 3: Examine results
 
-IHT picked 8 SNPs and 2 non-genetic predictors: intercept and sex. The `Position` argument corresponds to the order in which the SNP appeared in the PLINK file, and the `Estimated_β` argument is the estimated effect size for the selected SNPs. To extract more information (for instance to extract `rs` IDs), we can do
+IHT picked 7 SNPs. The `Position` argument corresponds to the order in which the SNP appeared in the PLINK file, and the `Estimated_β` argument is the estimated effect size for the selected SNPs. To extract more information (for instance to extract `rs` IDs), we can do
 
 
 ```julia
@@ -237,23 +278,20 @@ selected_snps = snpdata.snp_info[snps_idx, :] # see which SNPs are selected
 @show selected_snps;
 ```
 
-    selected_snps = 8×6 DataFrame
+    selected_snps = 7×6 DataFrame
      Row │ chromosome  snpid    genetic_distance  position  allele1  allele2
          │ String      String   Float64           Int64     String   String
     ─────┼───────────────────────────────────────────────────────────────────
-       1 │ 1           snp3136               0.0         1  1        2
-       2 │ 1           snp3137               0.0         1  1        2
-       3 │ 1           snp4246               0.0         1  1        2
-       4 │ 1           snp4717               0.0         1  1        2
-       5 │ 1           snp6290               0.0         1  1        2
-       6 │ 1           snp7755               0.0         1  1        2
-       7 │ 1           snp8375               0.0         1  1        2
-       8 │ 1           snp9415               0.0         1  1        2
+       1 │ 1           snp3137               0.0         1  1        2
+       2 │ 1           snp4246               0.0         1  1        2
+       3 │ 1           snp4717               0.0         1  1        2
+       4 │ 1           snp6290               0.0         1  1        2
+       5 │ 1           snp7755               0.0         1  1        2
+       6 │ 1           snp8375               0.0         1  1        2
+       7 │ 1           snp9415               0.0         1  1        2
 
 
-The table above displays the SNP information for the selected SNPs. Because there's only 7 causal SNPs, we have 1 false positive. 
-
-Since data is simulated, the fields `chromosome`, `snpid`, `genetic_distance`, `position`, `allele1`, and `allele2` are fake. 
+The table above displays the SNP information for the selected SNPs. Because there's only 7 causal SNPs, we found all of them. The 2 non-genetic covariates represented intercept and sex, with true effect size 1.5 and 1.0. Since data is simulated, the fields `chromosome`, `snpid`, `genetic_distance`, `position`, `allele1`, and `allele2` are fake. 
 
 ## Example 2: How to simulate data
 
@@ -274,7 +312,7 @@ $$\beta_{\rm sex} = 1.5$$
 ```julia
 n = 1000            # number of samples
 p = 10000           # number of SNPs
-k = 10              # 8 causal SNPs and 2 causal covariates (intercept + sex)
+k = 10              # 10 causal SNPs
 d = Bernoulli       # Binary (continuous) phenotypes
 l = LogitLink()     # canonical link function
 
@@ -285,14 +323,14 @@ Random.seed!(0)
 x = simulate_random_snparray("sim.bed", n, p)
 xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true, impute=true) 
 
-# nongenetic covariate: first column is the intercept, second column is sex: 0 = male 1 = female
+# 2 nongenetic covariate: first column is the intercept, second column is sex: 0 = male 1 = female
 z = ones(n, 2) 
 z[:, 2] .= rand(0:1, n)
 standardize!(@view(z[:, 2:end])) 
 
 # randomly set genetic predictors where causal βᵢ ~ N(0, 1)
 true_b = zeros(p) 
-true_b[1:k-2] = randn(k-2)
+true_b[1:k] = randn(k)
 shuffle!(true_b)
 
 # find correct position of genetic predictors
@@ -344,66 +382,84 @@ result = iht("sim", 10, Bernoulli, covariates="sim.covariates.txt")
     Max IHT iterations = 200
     Converging when tol < 0.0001 and iteration ≥ 5:
     
-    Iteration 1: loglikelihood = -388.8910083252736, backtracks = 0, tol = 0.6418034752978493
-    Iteration 2: loglikelihood = -334.5278475827583, backtracks = 0, tol = 0.3170396015883161
-    Iteration 3: loglikelihood = -327.9633012046245, backtracks = 0, tol = 0.2025866533020331
-    Iteration 4: loglikelihood = -321.78128260006685, backtracks = 0, tol = 0.1860359951551827
-    Iteration 5: loglikelihood = -320.82291695265127, backtracks = 1, tol = 0.019411649026600777
-    Iteration 6: loglikelihood = -320.4507210246635, backtracks = 2, tol = 0.009984009889427738
-    Iteration 7: loglikelihood = -317.5178129459779, backtracks = 2, tol = 0.10991749703912314
-    Iteration 8: loglikelihood = -317.02211222442554, backtracks = 1, tol = 0.013593158611626565
-    Iteration 9: loglikelihood = -316.84609828412295, backtracks = 2, tol = 0.007169021739514612
-    Iteration 10: loglikelihood = -316.70442301799153, backtracks = 2, tol = 0.007932900581304757
-    Iteration 11: loglikelihood = -316.6123017144071, backtracks = 2, tol = 0.006753634000554562
-    Iteration 12: loglikelihood = -316.55859748055383, backtracks = 2, tol = 0.005166907901710646
-    Iteration 13: loglikelihood = -316.5276537804478, backtracks = 2, tol = 0.00394060866454871
-    Iteration 14: loglikelihood = -316.50992605296796, backtracks = 2, tol = 0.0029918249852994103
-    Iteration 15: loglikelihood = -316.4998143291673, backtracks = 2, tol = 0.002265270160216051
-    Iteration 16: loglikelihood = -316.49406613214404, backtracks = 2, tol = 0.0017110615239077592
-    Iteration 17: loglikelihood = -316.49080687297084, backtracks = 2, tol = 0.0012902536156348425
-    Iteration 18: loglikelihood = -316.4889624723853, backtracks = 2, tol = 0.0009716277317779244
-    Iteration 19: loglikelihood = -316.4879202825298, backtracks = 2, tol = 0.0007309600514247552
-    Iteration 20: loglikelihood = -316.48733204721407, backtracks = 2, tol = 0.000549484718269684
-    Iteration 21: loglikelihood = -316.4870003149547, backtracks = 2, tol = 0.0004128291474231582
-    Iteration 22: loglikelihood = -316.4868133555257, backtracks = 2, tol = 0.00031002536936769156
-    Iteration 23: loglikelihood = -316.4867080384853, backtracks = 2, tol = 0.00023274674474752565
-    Iteration 24: loglikelihood = -316.4866487332225, backtracks = 2, tol = 0.00017468833019519464
-    Iteration 25: loglikelihood = -316.486615346784, backtracks = 2, tol = 0.0001310885323519644
-    Iteration 26: loglikelihood = -316.48659655541053, backtracks = 2, tol = 9.835709203914658e-5
+    Iteration 1: loglikelihood = -410.3429870797691, backtracks = 0, tol = 0.634130944297718
+    Iteration 2: loglikelihood = -355.96269238167594, backtracks = 0, tol = 0.23373909459507045
+    Iteration 3: loglikelihood = -335.19699443343046, backtracks = 0, tol = 0.1883878956755205
+    Iteration 4: loglikelihood = -326.72483097632033, backtracks = 1, tol = 0.11662243126023769
+    Iteration 5: loglikelihood = -323.42465587337426, backtracks = 1, tol = 0.1420748329251797
+    Iteration 6: loglikelihood = -321.93583078185304, backtracks = 1, tol = 0.026234221625522528
+    Iteration 7: loglikelihood = -321.14096662573917, backtracks = 2, tol = 0.01403839948881654
+    Iteration 8: loglikelihood = -320.42084987563976, backtracks = 2, tol = 0.13238847469548456
+    Iteration 9: loglikelihood = -319.96246645074956, backtracks = 1, tol = 0.011420657379532422
+    Iteration 10: loglikelihood = -319.70632025148103, backtracks = 2, tol = 0.00906035620905566
+    Iteration 11: loglikelihood = -319.5850116168617, backtracks = 3, tol = 0.00526542665002791
+    Iteration 12: loglikelihood = -319.48907690537277, backtracks = 3, tol = 0.004636845354902531
+    Iteration 13: loglikelihood = -319.4139596352546, backtracks = 3, tol = 0.00408655714336715
+    Iteration 14: loglikelihood = -319.35538714433477, backtracks = 3, tol = 0.003602878389767637
+    Iteration 15: loglikelihood = -319.3098337852715, backtracks = 3, tol = 0.0031763270937268033
+    Iteration 16: loglikelihood = -319.2744765345821, backtracks = 3, tol = 0.0027994055509261194
+    Iteration 17: loglikelihood = -319.2470792984031, backtracks = 3, tol = 0.002466034977718209
+    Iteration 18: loglikelihood = -319.22588090965274, backtracks = 3, tol = 0.002171162642890488
+    Iteration 19: loglikelihood = -319.2094997186901, backtracks = 3, tol = 0.001910458491633558
+    Iteration 20: loglikelihood = -319.196855221667, backtracks = 3, tol = 0.0016801251066566392
+    Iteration 21: loglikelihood = -319.1871046680043, backtracks = 3, tol = 0.0014767880705742493
+    Iteration 22: loglikelihood = -319.1795922518739, backtracks = 3, tol = 0.0012974307079079153
+    Iteration 23: loglikelihood = -319.17380866099757, backtracks = 3, tol = 0.0011393509372972647
+    Iteration 24: loglikelihood = -319.16935904315795, backtracks = 3, tol = 0.0010001288849418076
+    Iteration 25: loglikelihood = -319.1659377513872, backtracks = 3, tol = 0.0008775999638190499
+    Iteration 26: loglikelihood = -319.16330850846356, backtracks = 3, tol = 0.0007698310622097819
+    Iteration 27: loglikelihood = -319.16128887828387, backtracks = 3, tol = 0.0006750988244862079
+    Iteration 28: loglikelihood = -319.1597381430372, backtracks = 3, tol = 0.0005918695947373657
+    Iteration 29: loglikelihood = -319.1585478622643, backtracks = 3, tol = 0.0005187808423979859
+    Iteration 30: loglikelihood = -319.1576345361046, backtracks = 3, tol = 0.0004546239877395596
+    Iteration 31: loglikelihood = -319.15693391434667, backtracks = 3, tol = 0.0003983285784910115
+    Iteration 32: loglikelihood = -319.1563965892339, backtracks = 3, tol = 0.000348947774612114
+    Iteration 33: loglikelihood = -319.15598458731, backtracks = 3, tol = 0.00030564509321785363
+    Iteration 34: loglikelihood = -319.15566873708605, backtracks = 3, tol = 0.0002676823575045028
+    Iteration 35: loglikelihood = -319.15542663816296, backtracks = 3, tol = 0.00023440878567259604
+    Iteration 36: loglikelihood = -319.15524109586636, backtracks = 3, tol = 0.00020525114972271962
+    Iteration 37: loglikelihood = -319.1550989157, backtracks = 3, tol = 0.00017970493004996346
+    Iteration 38: loglikelihood = -319.15498997558825, backtracks = 3, tol = 0.00015732638998333223
+    Iteration 39: loglikelihood = -319.1549065123602, backtracks = 3, tol = 0.00013772549451164306
+    Iteration 40: loglikelihood = -319.1548425732977, backtracks = 3, tol = 0.00012055959910162006
+    Iteration 41: loglikelihood = -319.15479359478843, backtracks = 3, tol = 0.00010552783734578194
+    Iteration 42: loglikelihood = -319.154756078745, backtracks = 3, tol = 9.236613986923397e-5
 
 
 
 
 
     
-    IHT estimated 8 nonzero SNP predictors and 2 non-genetic predictors.
+    IHT estimated 10 nonzero SNP predictors and 2 non-genetic predictors.
     
-    Compute time (sec):     0.5662021636962891
-    Final loglikelihood:    -316.48659655541053
-    SNP PVE:                0.5592583156030205
-    Iterations:             26
+    Compute time (sec):     0.41863417625427246
+    Final loglikelihood:    -319.154756078745
+    SNP PVE:                0.5719420735919515
+    Iterations:             42
     
     Selected genetic predictors:
-    [1m8×2 DataFrame[0m
+    [1m10×2 DataFrame[0m
     [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
     [1m     [0m│[90m Int64    [0m[90m Float64     [0m
     ─────┼───────────────────────
-       1 │      714    -0.7238
-       2 │      777    -0.625216
-       3 │     1356     1.01887
-       4 │     2426     0.392727
-       5 │     5080     0.395473
-       6 │     5490    -0.720477
-       7 │     6299    -2.09706
-       8 │     7057     0.661431
+       1 │      520     0.400331
+       2 │      715    -0.663321
+       3 │      778    -0.497369
+       4 │     1357     1.25802
+       5 │     3266    -0.543574
+       6 │     5492    -0.879088
+       7 │     5800     0.595109
+       8 │     6049    -0.488677
+       9 │     6301    -2.22547
+      10 │     7059     0.797472
     
     Selected nongenetic predictors:
     [1m2×2 DataFrame[0m
     [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
     [1m     [0m│[90m Int64    [0m[90m Float64     [0m
     ─────┼───────────────────────
-       1 │        1     0.919708
-       2 │        2     1.48015
+       1 │        1      1.06077
+       2 │        2      1.41398
 
 
 
@@ -417,19 +473,25 @@ Since data is simulated, we can compare IHT's estimated effect size with the tru
 
 
 
-    8×2 Matrix{Float64}:
-     -0.787272  -0.7238
-     -0.456783  -0.625216
-      1.12735    1.01887
+    10×2 Matrix{Float64}:
+     -0.787272  -0.663321
+     -0.456783  -0.497369
+      1.12735    1.25802
+     -0.276592  -0.543574
       0.185925   0.0
-     -0.891023  -0.720477
-     -2.15515   -2.09706
+     -0.891023  -0.879088
+      0.498309   0.595109
+     -2.15515   -2.22547
       0.166931   0.0
-      0.82265    0.661431
+      0.82265    0.797472
 
 
 
-The 1st column are the true beta values, and the 2nd column is the estimated values. IHT found 6/8 genetic predictors, and estimates are reasonably close to truth. IHT missed SNPs with small effect size. With increased sample size, these small effects can be detected. The estimated non-genetic effect size is also very close to the truth (1.0 and 1.5). 
+**Conclusions:**
++ The 1st column are the true beta values, and the 2nd column is the estimated values. 
++ IHT found 8/10 genetic predictors, and estimates are reasonably close to truth. 
++ IHT missed SNPs with small effect size. With increased sample size, these small effects can be detected.
++ The estimated non-genetic effect size is also very close to the truth (1.0 and 1.5). 
 
 
 ```julia
@@ -446,7 +508,9 @@ rm("cviht.summary.txt", force=true)
 
 ## Example 4: Running IHT on general matrices
 
-To run IHT on genotypes in VCF files, or other general data, one must call `fit_iht` and `cv_iht` directly. These functions are designed to work on `AbstractArray{T, 2}` type where `T` is a `Float64` or `Float32`. Thus, one must first import the data, and then call `fit_iht` and `cv_iht` on it. Note the vector of 1s (intercept) shouldn't be included in the design matrix itself, as it will be automatically included.
+To run IHT on genotypes in VCF files, or other general data, one must call [fit_iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht) and [cv_iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht) directly. These functions are designed to work on `AbstractArray{T, 2}` type where `T` is a `Float64` or `Float32`. 
+
+Note the vector of 1s (intercept) shouldn't be included in the design matrix itself, as it will be automatically included.
 
 !!! tip
 
@@ -501,39 +565,39 @@ mses = cv_iht(y, x, path=1:20, d=Poisson(), l=LogLink());
     
 
 
-    [32mCross validating...100%|████████████████████████████████| Time: 0:00:25[39m
+    [32mCross validating...100%|████████████████████████████████| Time: 0:00:04[39m
 
 
     
     
     Crossvalidation Results:
     	k	MSE
-    	1	1294.4117918373186
-    	2	669.4092214451908
-    	3	543.3989940052342
-    	4	473.50239409691363
-    	5	449.5280013487634
-    	6	469.726620661539
-    	7	476.40540372697865
-    	8	541.741342787916
-    	9	539.3863798082896
-    	10	523.5971500146672
-    	11	517.4445374386203
-    	12	558.3509823150954
-    	13	600.125510865708
-    	14	597.7008166652079
-    	15	569.2744078914006
-    	16	603.7206875133627
-    	17	639.488936399919
-    	18	643.1761683767324
-    	19	646.566741795878
-    	20	642.7739157309286
+    	1	706.7023831995504
+    	2	563.0550969636545
+    	3	475.3126336967697
+    	4	448.33305489844025
+    	5	473.3927061149886
+    	6	475.9412876637349
+    	7	511.93220168171354
+    	8	536.4191695297267
+    	9	543.6710949911146
+    	10	546.9984660275643
+    	11	566.3240592279342
+    	12	582.0306543995698
+    	13	572.2797797481932
+    	14	555.79078283183
+    	15	604.8674191407598
+    	16	596.6516289181405
+    	17	620.9209742466778
+    	18	617.8251652635175
+    	19	668.4065630346416
+    	20	620.4559701381145
     
-    Best k = 5
+    Best k = 4
     
 
 
-Now run IHT on the full dataset using the best k (achieved at k = 5)
+Now run IHT on the full dataset using the best k (achieved at k = 4)
 
 
 ```julia
@@ -550,34 +614,33 @@ result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
     Running sparse Poisson regression
     Number of threads = 8
     Link functin = LogLink()
-    Sparsity parameter (k) = 5
+    Sparsity parameter (k) = 4
     Prior weight scaling = off
     Doubly sparse projection = off
     Debias = off
     Max IHT iterations = 200
     Converging when tol < 0.0001 and iteration ≥ 5:
     
-    Iteration 1: loglikelihood = -2847.082501924986, backtracks = 0, tol = 0.2928574304111579
-    Iteration 2: loglikelihood = -2465.401434829008, backtracks = 0, tol = 0.052309994098756654
-    Iteration 3: loglikelihood = -2376.6519599956146, backtracks = 0, tol = 0.07104164424891495
-    Iteration 4: loglikelihood = -2351.583313350411, backtracks = 0, tol = 0.02620817684956463
-    Iteration 5: loglikelihood = -2343.1107828225104, backtracks = 0, tol = 0.020230016134234835
-    Iteration 6: loglikelihood = -2339.0692529047383, backtracks = 0, tol = 0.01108030835180364
-    Iteration 7: loglikelihood = -2337.149479249759, backtracks = 0, tol = 0.009309142365782066
-    Iteration 8: loglikelihood = -2336.178140295875, backtracks = 0, tol = 0.005564169436184072
-    Iteration 9: loglikelihood = -2335.6908426969235, backtracks = 0, tol = 0.004609772037770407
-    Iteration 10: loglikelihood = -2335.440388139586, backtracks = 0, tol = 0.0028617995124748164
-    Iteration 11: loglikelihood = -2335.3124548737906, backtracks = 0, tol = 0.002340881298705853
-    Iteration 12: loglikelihood = -2335.2463824561282, backtracks = 0, tol = 0.0014798329877975507
-    Iteration 13: loglikelihood = -2335.2123851939327, backtracks = 0, tol = 0.0012011066579049358
-    Iteration 14: loglikelihood = -2335.1947979604856, backtracks = 0, tol = 0.0007661746047595179
-    Iteration 15: loglikelihood = -2335.1857186752313, backtracks = 0, tol = 0.0006191995770663082
-    Iteration 16: loglikelihood = -2335.181018905229, backtracks = 0, tol = 0.00039678836835178535
-    Iteration 17: loglikelihood = -2335.1785888400173, backtracks = 0, tol = 0.0003199381492395469
-    Iteration 18: loglikelihood = -2335.1773306203627, backtracks = 0, tol = 0.00020549845888248242
-    Iteration 19: loglikelihood = -2335.1766795324024, backtracks = 0, tol = 0.00016549800033336165
-    Iteration 20: loglikelihood = -2335.176342377269, backtracks = 0, tol = 0.0001064283022001086
-    Iteration 21: loglikelihood = -2335.176167840737, backtracks = 0, tol = 8.565816720858893e-5
+    Iteration 1: loglikelihood = -2931.927168207526, backtracks = 0, tol = 0.3028304004126476
+    Iteration 2: loglikelihood = -2463.976586409181, backtracks = 0, tol = 0.05258775986537314
+    Iteration 3: loglikelihood = -2390.0609910861317, backtracks = 0, tol = 0.05578942533348056
+    Iteration 4: loglikelihood = -2360.2573652460405, backtracks = 0, tol = 0.030501089537329825
+    Iteration 5: loglikelihood = -2347.564682228364, backtracks = 0, tol = 0.021241566894705643
+    Iteration 6: loglikelihood = -2341.213319235788, backtracks = 0, tol = 0.014911500576741359
+    Iteration 7: loglikelihood = -2338.1595979203516, backtracks = 0, tol = 0.009977646130123972
+    Iteration 8: loglikelihood = -2336.62260487827, backtracks = 0, tol = 0.007575531231741733
+    Iteration 9: loglikelihood = -2335.880219053057, backtracks = 0, tol = 0.004805807684709317
+    Iteration 10: loglikelihood = -2335.5141435762675, backtracks = 0, tol = 0.0037615233194204824
+    Iteration 11: loglikelihood = -2335.3385905823416, backtracks = 0, tol = 0.002308369328965646
+    Iteration 12: loglikelihood = -2335.253553769631, backtracks = 0, tol = 0.0018289326626755682
+    Iteration 13: loglikelihood = -2335.213007797983, backtracks = 0, tol = 0.0011024772411982043
+    Iteration 14: loglikelihood = -2335.193580900639, backtracks = 0, tol = 0.0008779579192619493
+    Iteration 15: loglikelihood = -2335.1843486179923, backtracks = 0, tol = 0.0005244723959117778
+    Iteration 16: loglikelihood = -2335.1799508662666, backtracks = 0, tol = 0.00041859562583677315
+    Iteration 17: loglikelihood = -2335.177864471046, backtracks = 0, tol = 0.0002489580169555706
+    Iteration 18: loglikelihood = -2335.1768735313717, backtracks = 0, tol = 0.0001989010930461795
+    Iteration 19: loglikelihood = -2335.1764038008278, backtracks = 0, tol = 0.00011804464492615356
+    Iteration 20: loglikelihood = -2335.176181018449, backtracks = 0, tol = 9.43540926080076e-5
 
 
 
@@ -586,27 +649,27 @@ result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
     
     IHT estimated 4 nonzero SNP predictors and 1 non-genetic predictors.
     
-    Compute time (sec):     0.2328169345855713
-    Final loglikelihood:    -2335.176167840737
-    SNP PVE:                0.09113449276174614
-    Iterations:             21
+    Compute time (sec):     0.11140608787536621
+    Final loglikelihood:    -2335.176181018449
+    SNP PVE:                0.09120222939725625
+    Iterations:             20
     
     Selected genetic predictors:
     [1m4×2 DataFrame[0m
     [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
     [1m     [0m│[90m Int64    [0m[90m Float64     [0m
     ─────┼───────────────────────
-       1 │       83    -0.809284
-       2 │      989     0.378376
-       3 │     4294    -0.274544
-       4 │     4459     0.169417
+       1 │       83    -0.809399
+       2 │      989     0.378437
+       3 │     4294    -0.274581
+       4 │     4459     0.16944
     
     Selected nongenetic predictors:
     [1m1×2 DataFrame[0m
     [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
     [1m     [0m│[90m Int64    [0m[90m Float64     [0m
     ─────┼───────────────────────
-       1 │        1      1.26918
+       1 │        1      1.26924
 
 
 
@@ -620,20 +683,20 @@ result = fit_iht(y, x, k=argmin(mses), d=Poisson(), l=LogLink())
 
 
     10×2 Matrix{Float64}:
-     -1.303      -0.809284
-      0.585809    0.378376
+     -1.303      -0.809399
+      0.585809    0.378437
      -0.0700563   0.0
      -0.0901341   0.0
      -0.0620201   0.0
-     -0.441452   -0.274544
-      0.271429    0.169417
+     -0.441452   -0.274581
+      0.271429    0.16944
      -0.164888    0.0
      -0.0790484   0.0
       0.0829054   0.0
 
 
 
-Since many of the true $\beta$ are small, we were only able to find 5 true signals (4 predictors + intercept). 
+Since many of the true $\beta$ are small, we were only able to find 4 true signals (+ intercept). 
 
 **Conclusion:** In this example, we ran IHT on count response with a general `Matrix{Float64}` design matrix. Since we used simulated data, we could compare IHT's estimates with the truth. 
 
@@ -642,7 +705,7 @@ Since many of the true $\beta$ are small, we were only able to find 5 true signa
 In this example, we show how to include group information to perform doubly sparse projections. Here the final model would contain at most $J = 5$ groups where each group contains limited number of (prespecified) SNPs. For simplicity, we assume the sparsity parameter $k$ is known. 
 
 ### Data simulation
-To illustrate the effect of group information and prior weights, we generated correlated genotype matrix according to the procedure outlined in [our paper](https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf). In this example, each SNP belongs to 1 of 500 disjoint groups containing 20 SNPs each; $j = 5$ distinct groups are each assigned $1,2,...,5$ causal SNPs with effect sizes randomly chosen from $\{−0.2,0.2\}$. In all there 15 causal SNPs.  For grouped-IHT, we assume perfect group information. That is, the selected groups containing 1∼5 causative SNPs are assigned maximum within-group sparsity $\lambda_g = 1,2,...,5$. The remaining groups are assigned $\lambda_g = 1$ (i.e. only 1 active predictor are allowed).
+To illustrate the effect of group IHT, we generated correlated genotype matrix according to the procedure outlined in [our paper](https://www.biorxiv.org/content/biorxiv/early/2019/11/19/697755.full.pdf). In this example, each SNP belongs to 1 of 500 disjoint groups containing 20 SNPs each; $j = 5$ distinct groups are each assigned $1,2,...,5$ causal SNPs with effect sizes randomly chosen from $\{−0.2,0.2\}$. In all there 15 causal SNPs.  For grouped-IHT, we assume perfect group information. That is, the selected groups containing 1∼5 causative SNPs are assigned maximum within-group sparsity $\lambda_g = 1,2,...,5$. The remaining groups are assigned $\lambda_g = 1$ (i.e. only 1 active predictor are allowed).
 
 
 ```julia
@@ -655,18 +718,17 @@ block_size = 20                  #simulation parameter
 num_blocks = Int(p / block_size) #simulation parameter
 
 # set seed
-Random.seed!(2019)
+Random.seed!(1234)
 
 # assign group membership
 membership = collect(1:num_blocks)
-g = zeros(Int64, p + 1)
+g = zeros(Int64, p)
 for i in 1:length(membership)
     for j in 1:block_size
         cur_row = block_size * (i - 1) + j
         g[block_size*(i - 1) + j] = membership[i]
     end
 end
-g[end] = membership[end]
 
 #simulate correlated snparray
 x = simulate_correlated_snparray("tmp.bed", n, p)
@@ -732,26 +794,26 @@ rm("tmp.bed", force=true)
      Row │ position  correct_β  ungrouped_IHT_β  grouped_IHT_β
          │ Int64     Float64    Float64          Float64
     ─────┼─────────────────────────────────────────────────────
-       1 │      963       -0.2        -0.21403        0.0
-       2 │     3485       -0.2         0.0           -0.13032
-       3 │     3487       -0.2        -0.323509      -0.225267
-       4 │     7405        0.2         0.254196       0.260726
-       5 │     7407       -0.2        -0.186084      -0.202747
-       6 │     7417       -0.2        -0.190491      -0.201521
-       7 │     9104       -0.2        -0.189195      -0.201113
-       8 │     9110        0.2         0.192222       0.177787
-       9 │     9118       -0.2        -0.196494      -0.189983
-      10 │     9120        0.2         0.253254       0.248832
-      11 │     9206       -0.2        -0.236861      -0.217945
-      12 │     9209       -0.2        -0.198633      -0.177085
-      13 │     9210       -0.2        -0.172682      -0.186602
-      14 │     9211       -0.2        -0.234481      -0.23977
-      15 │     9217        0.2         0.227397       0.217969
+       1 │      126        0.2         0.193695       0.179699
+       2 │     5999       -0.2        -0.238721      -0.221097
+       3 │     6000       -0.2        -0.139758      -0.145219
+       4 │     6344       -0.2        -0.210029      -0.204669
+       5 │     6359        0.2         0.212363       0.220925
+       6 │     6360       -0.2        -0.182878      -0.186936
+       7 │     7050       -0.2        -0.203551      -0.109019
+       8 │     7051       -0.2        -0.286369      -0.270932
+       9 │     7058       -0.2        -0.216709       0.0
+      10 │     7059        0.2         0.185836       0.0
+      11 │     7188        0.2         0.0            0.136334
+      12 │     7190       -0.2         0.0           -0.147534
+      13 │     7192        0.2         0.173384       0.173011
+      14 │     7195       -0.2        -0.233133      -0.225417
+      15 │     7198        0.2         0.0            0.131244
     
     
 
 
-**Conclusion:** Ungroup and grouped IHT each found 1 SNP that the other didn't find.  
+**Conclusion:** Grouped IHT found 1 extra SNP, but ungrouped IHT also recovered 2 SNPs that grouped IHT didn't find. 
 
 ## Example 6: Linear Regression with prior weights
 
@@ -794,7 +856,7 @@ y = [rand(d(i)) for i in prob]
 y = Float64.(y);
 
 # construct weight vector
-w = ones(p + 1)
+w = ones(p)
 w[correct_position] .= 2.0
 one_tenth = round(Int, p/10)
 idx = rand(1:p, one_tenth)
@@ -824,21 +886,21 @@ rm("tmp.bed", force=true)
      Row │ position  correct     unweighted  weighted
          │ Int64     Float64     Float64     Float64
     ─────┼─────────────────────────────────────────────
-       1 │     1264   0.252886     0.270233   0.280652
-       2 │     1506  -0.0939841    0.0       -0.118611
-       3 │     4866  -0.227394    -0.233703  -0.232989
-       4 │     5778  -0.510488    -0.507114  -0.501733
-       5 │     5833  -0.311969    -0.324309  -0.319763
+       1 │     1264   0.252886     0.272761   0.282661
+       2 │     1506  -0.0939841    0.0       -0.119236
+       3 │     4866  -0.227394    -0.242687  -0.232847
+       4 │     5778  -0.510488    -0.512337  -0.501374
+       5 │     5833  -0.311969    -0.327575  -0.322659
        6 │     5956  -0.0548168    0.0        0.0
        7 │     6378  -0.0155173    0.0        0.0
        8 │     7007  -0.123301     0.0        0.0
        9 │     7063   0.0183886    0.0        0.0
-      10 │     7995  -0.102122     0.0       -0.134898
+      10 │     7995  -0.102122    -0.118633  -0.132814
     
     
 
 
-**Conclusion**: weighted IHT found 2 extra predictor than non-weighted IHT.
+**Conclusion**: weighted IHT found 1 extra predictor than non-weighted IHT.
 
 ## Example 7: Multivariate IHT
 
@@ -897,16 +959,16 @@ For multivariate IHT, one can store multiple phenotpyes as extra columns in the 
 ;head multivariate.fam
 ```
 
-    1	1	0	0	1	-1.4101566028647934	-0.4675708866010868
-    2	1	0	0	1	1.519406122085042	-0.1521105344879844
-    3	1	0	0	1	-5.121683111513246	1.4417764126708223
-    4	1	0	0	1	2.4188275607309677	2.5303163340220953
-    5	1	0	0	1	2.6214639873372234	1.005904479060761
-    6	1	0	0	1	1.0918272785956382	2.8773472639961106
-    7	1	0	0	1	1.6444938174059964	-0.3561578100979898
-    8	1	0	0	1	-1.3607927771748423	0.049522727283193846
-    9	1	0	0	1	-3.9917926508357624	1.8333328019574022
-    10	1	0	0	1	-2.494886509291137	2.518184222337186
+    1	1	0	0	1	0.11302744016863553	-0.7554260335256895
+    2	1	0	0	1	1.9891964726499531	-0.45289178000961794
+    3	1	0	0	1	-3.439363162809635	1.842833018537565
+    4	1	0	0	1	4.04029968770823	3.4869907320499474
+    5	1	0	0	1	2.6565963705920983	0.8105429321467232
+    6	1	0	0	1	-0.16399924513126818	3.7682978263463855
+    7	1	0	0	1	2.274455154523604	-0.3711839247250286
+    8	1	0	0	1	-2.0092329751410896	-0.5206796904236644
+    9	1	0	0	1	-3.204538512643233	2.6179242790617323
+    10	1	0	0	1	-3.8119298244977333	3.212156674633338
 
 
 Phenotypes can also be stored in a separate file. In this case, we require each subject's phenotype to occupy a different row. The file should not include a header line. Each row should be listed in the same order as in the PLINK and (for multivariate analysis) be comma separated. For example, the first 10 rows of such a file looks like:
@@ -916,21 +978,21 @@ Phenotypes can also be stored in a separate file. In this case, we require each 
 ;head multivariate.phen
 ```
 
-    -1.4101566028647934,-0.4675708866010868
-    1.519406122085042,-0.1521105344879844
-    -5.121683111513246,1.4417764126708223
-    2.4188275607309677,2.5303163340220953
-    2.6214639873372234,1.005904479060761
-    1.0918272785956382,2.8773472639961106
-    1.6444938174059964,-0.3561578100979898
-    -1.3607927771748423,0.049522727283193846
-    -3.9917926508357624,1.8333328019574022
-    -2.494886509291137,2.518184222337186
+    0.11302744016863553,-0.7554260335256895
+    1.9891964726499531,-0.45289178000961794
+    -3.439363162809635,1.842833018537565
+    4.04029968770823,3.4869907320499474
+    2.6565963705920983,0.8105429321467232
+    -0.16399924513126818,3.7682978263463855
+    2.274455154523604,-0.3711839247250286
+    -2.0092329751410896,-0.5206796904236644
+    -3.204538512643233,2.6179242790617323
+    -3.8119298244977333,3.212156674633338
 
 
 ### Run multivariate IHT
 
-The values specified in `path` corresponds to the total number of non-zero `k` to be tested in cross validation. Since we simulated 10 true genetic predictors and 2 non-genetic predictors (an intercept term for each trait), $k_{true} = 12$. Because non-genetic covariates are not specified, an intercept with automatically be included. 
+The values specified in `path` corresponds to the total number of non-zero `k` to be tested in cross validation. Since we simulated 10 true genetic predictors, $k_{true} = 10$. Because non-genetic covariates are not specified, an intercept with automatically be included. 
 
 
 ```julia
@@ -953,50 +1015,50 @@ mses = cross_validate("multivariate", MvNormal, phenotypes="multivariate.phen", 
     
 
 
-    [32mCross validating...100%|████████████████████████████████| Time: 0:00:08[39m
+    [32mCross validating...100%|████████████████████████████████| Time: 0:00:03[39m
 
 
     
     
     Crossvalidation Results:
     	k	MSE
-    	1	2066.2949539850247
-    	2	2065.448718184275
-    	3	1028.1142776401573
-    	4	891.2895081829226
-    	5	761.9356018442186
-    	6	615.9435020075197
-    	7	548.8271710694912
-    	8	538.4145437051037
-    	9	526.7503996446849
-    	10	528.2000153966353
-    	11	528.4124971317248
-    	12	523.3419138092179
-    	13	538.1305969330168
-    	14	527.5197299749807
-    	15	527.7948630499403
-    	16	531.8215074425368
-    	17	533.44640197685
-    	18	535.7714663457024
-    	19	540.7820708871902
-    	20	548.1997323593387
+    	1	2894.951542220578
+    	2	2404.2611566806236
+    	3	2118.3458041809804
+    	4	2003.0321765449573
+    	5	1836.0954694153666
+    	6	1810.8565487650512
+    	7	1778.2006202357584
+    	8	1739.5526656101028
+    	9	1756.8768982533495
+    	10	1749.0196878126512
+    	11	1758.6127874414663
+    	12	1780.6413839078918
+    	13	1769.9360596010902
+    	14	1802.66488874727
+    	15	1802.0456455884719
+    	16	1805.1748761415956
+    	17	1834.8654353415632
+    	18	1811.30688836247
+    	19	1809.0070993669078
+    	20	1813.2736422827502
     
-    Best k = 12
+    Best k = 8
     
 
 
-The best MSE is achieved at $k=12$. Let's run IHT with this estimate of $k$. Similarly, there are multiple ways to do so:
+The best MSE is achieved at $k=8$. Let's run IHT with this estimate of $k$. Similarly, there are multiple ways to do so:
 
 
 ```julia
 # genotypes stored in multivariate.bed and phenotypes in multivariate.phen
-result = iht("multivariate", 12, MvNormal, phenotypes="multivariate.phen")
+result = iht("multivariate", 8, MvNormal, phenotypes="multivariate.phen")
 
 # genotypes stored in multivariate.bed use columns 6 and 7 of .fam as phenotypes
-# result = iht("multivariate", 12, MvNormal, phenotypes=[6, 7])
+# result = iht("multivariate", 8, MvNormal, phenotypes=[6, 7])
 
 # run cross validation directly with xla and Y (note: transpose is necessary to make samples into columns)
-# result = fit_iht(Matrix(Y'), Transpose(xla), k=12)
+# result = fit_iht(Matrix(Y'), Transpose(xla), k=8)
 ```
 
     ****                   MendelIHT Version 1.4.1                  ****
@@ -1009,81 +1071,73 @@ result = iht("multivariate", 12, MvNormal, phenotypes="multivariate.phen")
     Running sparse Multivariate Gaussian regression
     Number of threads = 8
     Link functin = IdentityLink()
-    Sparsity parameter (k) = 12
+    Sparsity parameter (k) = 8
     Prior weight scaling = off
     Doubly sparse projection = off
     Debias = off
     Max IHT iterations = 200
     Converging when tol < 0.0001 and iteration ≥ 5:
     
-    Iteration 1: loglikelihood = -2376.4820296189982, backtracks = 0, tol = 0.0
-    Iteration 2: loglikelihood = -2376.479923292264, backtracks = 0, tol = 1.1257263586193733e-6
-    Iteration 3: loglikelihood = -1957.3455984022858, backtracks = 0, tol = 0.34272673055481445
-    Iteration 4: loglikelihood = -1492.3671161424047, backtracks = 0, tol = 0.25917873408698855
-    Iteration 5: loglikelihood = -1182.1735594370286, backtracks = 0, tol = 0.23675182454701588
-    Iteration 6: loglikelihood = -1173.136551480164, backtracks = 0, tol = 0.07796393235528722
-    Iteration 7: loglikelihood = -1172.0113774449553, backtracks = 1, tol = 0.011552571250170897
-    Iteration 8: loglikelihood = -1171.889593655075, backtracks = 1, tol = 0.00348271732377267
-    Iteration 9: loglikelihood = -1171.8731432400346, backtracks = 1, tol = 0.0009816062764585914
-    Iteration 10: loglikelihood = -1171.8696778652588, backtracks = 1, tol = 0.0004151796336081729
-    Iteration 11: loglikelihood = -1171.868629414193, backtracks = 1, tol = 0.00023372232580958058
-    Iteration 12: loglikelihood = -1171.868259797147, backtracks = 1, tol = 0.0001366081371933243
-    Iteration 13: loglikelihood = -1171.8681230933576, backtracks = 1, tol = 8.144197684245368e-5
+    Iteration 1: loglikelihood = -2488.6435040107954, backtracks = 0, tol = 0.7246072304337687
+    Iteration 2: loglikelihood = -2434.7808475264533, backtracks = 0, tol = 0.17873069127511898
+    Iteration 3: loglikelihood = -2433.091980726226, backtracks = 0, tol = 0.029208315165883344
+    Iteration 4: loglikelihood = -2433.0687518437962, backtracks = 0, tol = 0.0034098472530974555
+    Iteration 5: loglikelihood = -2433.067802424958, backtracks = 0, tol = 0.0009427567101978172
+    Iteration 6: loglikelihood = -2433.0677416028657, backtracks = 0, tol = 0.00025792112221606603
+    Iteration 7: loglikelihood = -2433.067737220254, backtracks = 0, tol = 7.04657718794652e-5
 
 
 
 
 
     
-    Compute time (sec):     0.17782807350158691
-    Final loglikelihood:    -1171.8681230933576
-    Iterations:             13
-    Trait 1's SNP PVE:      0.8882386104054829
-    Trait 2's SNP PVE:      0.1797217149389984
+    Compute time (sec):     0.11915302276611328
+    Final loglikelihood:    -2433.067737220254
+    Iterations:             7
+    Trait 1's SNP PVE:      0.6029987163717704
+    Trait 2's SNP PVE:      0.07348235785776043
     
     Estimated trait covariance:
     [1m2×2 DataFrame[0m
     [1m Row [0m│[1m trait1    [0m[1m trait2    [0m
     [1m     [0m│[90m Float64   [0m[90m Float64   [0m
     ─────┼──────────────────────
-       1 │  0.907309  -0.131274
-       2 │ -0.131274   1.57327
+       1 │ 4.7186     0.0303161
+       2 │ 0.0303161  3.72355
     
     Trait 1: IHT estimated 6 nonzero SNP predictors
     [1m6×2 DataFrame[0m
     [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
     [1m     [0m│[90m Int64    [0m[90m Float64     [0m
     ─────┼───────────────────────
-       1 │      134    -0.412059
-       2 │      442    -1.22405
-       3 │      450    -1.5129
-       4 │     1891    -1.45489
-       5 │     2557     0.780163
-       6 │     3243    -0.833766
+       1 │      134    -0.442256
+       2 │      442    -1.17973
+       3 │      450    -1.48389
+       4 │     1891    -1.44399
+       5 │     2557     0.828121
+       6 │     3243    -0.803224
     
     Trait 1: IHT estimated 1 non-genetic predictors
     [1m1×2 DataFrame[0m
     [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
     [1m     [0m│[90m Int64    [0m[90m Float64     [0m
     ─────┼───────────────────────
-       1 │        1     -0.14915
+       1 │        1    -0.119153
     
-    Trait 2: IHT estimated 4 nonzero SNP predictors
-    [1m4×2 DataFrame[0m
+    Trait 2: IHT estimated 2 nonzero SNP predictors
+    [1m2×2 DataFrame[0m
     [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
     [1m     [0m│[90m Int64    [0m[90m Float64     [0m
     ─────┼───────────────────────
-       1 │     1014    -0.381763
-       2 │     1570     0.183475
-       3 │     5214     0.346505
-       4 │     9385    -0.18681
+       1 │     1014    -0.391318
+       2 │     5214     0.376128
     
     Trait 2: IHT estimated 1 non-genetic predictors
     [1m1×2 DataFrame[0m
     [1m Row [0m│[1m Position [0m[1m Estimated_β [0m
     [1m     [0m│[90m Int64    [0m[90m Float64     [0m
     ─────┼───────────────────────
-       1 │        1     0.812977
+       1 │        1     0.862081
 
 
 
@@ -1104,13 +1158,13 @@ true_b1_idx = findall(!iszero, true_b[:, 1])
 
 
     7×2 Matrix{Float64}:
-     -0.412059  -0.388067
-     -1.22405   -1.24972
-     -1.5129    -1.53835
+     -0.442256  -0.388067
+     -1.17973   -1.24972
+     -1.48389   -1.53835
       0.0       -0.0034339
-     -1.45489   -1.47163
-      0.780163   0.758756
-     -0.833766  -0.847906
+     -1.44399   -1.47163
+      0.828121   0.758756
+     -0.803224  -0.847906
 
 
 
@@ -1126,8 +1180,8 @@ true_b2_idx = findall(!iszero, true_b[:, 2])
 
 
     3×2 Matrix{Float64}:
-     -0.381763  -0.402269
-      0.346505   0.296183
+     -0.391318  -0.402269
+      0.376128   0.296183
       0.0        0.125965
 
 
@@ -1142,8 +1196,8 @@ true_b2_idx = findall(!iszero, true_b[:, 2])
 
 
     2×2 Matrix{Float64}:
-     -0.14915   -0.172668
-      0.812977   0.729135
+     -0.119153  -0.172668
+      0.862081   0.729135
 
 
 
@@ -1157,18 +1211,18 @@ true_b2_idx = findall(!iszero, true_b[:, 2])
 
 
     4×2 Matrix{Float64}:
-      0.907309   0.955563
-     -0.131274  -0.0884466
-     -0.131274  -0.0884466
-      1.57327    1.62573
+     4.7186     4.96944
+     0.0303161  0.162057
+     0.0303161  0.162057
+     3.72355    3.74153
 
 
 
 **Conclusion:** 
-+ IHT found 9 true positives: 6/7 causal SNPs for trait 1, 2/3 causal SNPs for trait 2, and 1/2 intercept
-+ Because we ran IHT with $k=12$, there are 3 false positives. 
++ IHT found 9 true positives: 6/7 causal SNPs for trait 1 and 2/3 causal SNPs for trait 2
++ Estimates for non-genetic covariates are close to the true values. 
 + Estimated trait covariance matrix closely match the true covariance
-+ The proportion of phenotypic trait variances explained by genotypes are 0.88 and 0.15.
++ The proportion of phenotypic trait variances explained by genotypes are 0.6 and 0.07.
 
 ## Other examples and functionalities
 
