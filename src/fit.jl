@@ -1,6 +1,6 @@
 """
     fit_iht(y, x, z; k=10, J=1, d = Normal(), l=IdentityLink(), group=Int[], 
-        weight=Float64[], est_r=:None, debias=false, verbose=true, tol=1e-4,
+        weight=Float64[], est_r=:None, debias=100, verbose=true, tol=1e-4,
         max_iter=200, max_step=3, io=stdout)
 
 Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
@@ -35,9 +35,12 @@ of predictors for group `i`.
     distribution, and `l=Loglink()` for NegativeBinomial distribution. 
 + `group`: vector storing (non-overlapping) group membership
 + `weight`: vector storing vector of weights containing prior knowledge on each SNP
++ `zkeep`: BitVector determining whether non-genetic covariates in `z` will be subject 
+    to sparsity constraint. `zkeep[i] = true` means covariate `i` will NOT be projected.
+    Note covariates forced in the model are not subject to sparsity constraint `k`. 
 + `est_r`: Symbol (`:MM`, `:Newton` or `:None`) to estimate nuisance parameters for negative binomial regression
 + `use_maf`: boolean indicating whether we want to scale projection with minor allele frequencies (see paper)
-+ `debias`: boolean indicating whether we debias at each iteration
++ `debias`: An `Int`. If support remains unchanged after `debias` iterations, we run debiasing (default 100)
 + `verbose`: boolean indicating whether we want to print intermediate results
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
@@ -57,9 +60,10 @@ function fit_iht(
     l         :: Link = IdentityLink(),
     group     :: AbstractVector{Int} = Int[],
     weight    :: AbstractVector{T} = T[],
+    zkeep     :: BitVector = trues(size(y, 2) > 1 ? size(z, 1) : size(z, 2)),
     est_r     :: Symbol = :None,
     use_maf   :: Bool = false, 
-    debias    :: Bool = false,
+    debias    :: Int = 100,
     verbose   :: Bool = true,          # print informative things to stdout
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
@@ -93,8 +97,11 @@ function fit_iht(
         println(io, "Initializing β to univariate regression values...")
         io != stdout && println(stdout, "Initializing β to univariate regression values...")
     end
-    t1 = @elapsed v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta)
-    init_beta && verbose && println("...completed in ", round(t1, digits=1), " seconds.\n")
+    t1 = @elapsed v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta, zkeep)
+    if init_beta && verbose
+        println(io, "...completed in ", round(t1, digits=1), " seconds.\n")
+        io != stdout && println(stdout, "...completed in ", round(t1, digits=1), " seconds.\n")
+    end
 
     # print information
     verbose && print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
@@ -126,7 +133,7 @@ Fits a IHT variable `v`.
 + `v`: A properly initialized `mIHTVariable` or `IHTVariable`. Users should run [`fit_iht`](@ref)
 
 # Optional Arguments:
-+ `debias`: boolean indicating whether we debias at each iteration
++ `debias`: An `Int`. If support remains unchanged after `debias` iterations, we run debiasing (default 100)
 + `verbose`: boolean indicating whether we want to print results if model does not converge.
 + `tol`: used to track convergence
 + `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 200, or 100 for cross validation
@@ -135,7 +142,7 @@ Fits a IHT variable `v`.
 """
 function fit_iht!(
     v         :: Union{mIHTVariable{T, M}, IHTVariable{T, M}};
-    debias    :: Bool = false,
+    debias    :: Int = 100,
     verbose   :: Bool = true,          # print informative things
     tol       :: T = convert(T, 1e-4), # tolerance for tracking convergence
     max_iter  :: Int = 200,            # maximum IHT iterations
@@ -153,6 +160,7 @@ function fit_iht!(
     next_logl   = typemin(T)        # loglikelihood
     best_logl   = typemin(T)        # best loglikelihood achieved
     η_step      = 0                 # counts number of backtracking steps for η
+    supp_const  = 0                 # counts number of iteration with unchanged support
 
     # Begin 'iterative' hard thresholding algorithm
     for iter in 1:max_iter
@@ -175,8 +183,9 @@ function fit_iht!(
         # take one IHT step in positive score direction
         (η, η_step, next_logl) = iht_one_step!(v, next_logl, max_step)
 
-        # perform debiasing if support didn't change
-        debias && iter ≥ 5 && v.idx == v.idx0 && debias!(v)
+        # perform debiasing once if support didn't change for long enough
+        v.idx == v.idx0 ? (supp_const += 1) : (supp_const = 0)
+        supp_const ≥ debias && debias!(v)
 
         # track convergence
         # Note: estimated beta in first few iterations can be very small, so scaled_norm is very small
