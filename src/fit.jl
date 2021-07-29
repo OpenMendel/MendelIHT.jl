@@ -217,16 +217,6 @@ function iht_one_step!(
     update_xb!(v)
     update_μ!(v)
 
-    # for multivariate IHT, also update precision matrix Γ = 1/n * (Y-BX)(Y-BX)' 
-    if typeof(v) <: mIHTVariable
-        solve_Σ!(v)
-    end
-
-    # update r (nuisance parameter for negative binomial)
-    if typeof(v) <: IHTVariable && v.est_r != :None
-        v.d = mle_for_r(v)
-    end
-
     # calculate current loglikelihood with the new computed xb and zc
     new_logl = loglikelihood(v)
 
@@ -241,6 +231,16 @@ function iht_one_step!(
 
         # increment the counter
         η_step += 1
+    end
+
+    # for multivariate IHT, also update precision matrix Γ = 1/n * (Y-BX)(Y-BX)' 
+    if typeof(v) <: mIHTVariable
+        solve_Σ!(v)
+    end
+
+    # update r (nuisance parameter for negative binomial)
+    if typeof(v) <: IHTVariable && v.est_r != :None
+        v.d = mle_for_r(v)
     end
 
     # compute score with the new mean
