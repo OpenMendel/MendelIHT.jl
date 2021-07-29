@@ -27,13 +27,14 @@ end
 """
     update_μ!(v::mIHTVariable)
 
-Update the mean `μ` with the linear predictors `BX` and `CZ`. Here `BX` is the 
-genetic contribution and `CZ` is the non-genetic contribution
+Update the mean `μ` and residuals `r` with the linear predictors `BX` and `CZ`.
+Here `BX` is the genetic contribution and `CZ` is the non-genetic contribution
 """
 function update_μ!(v::mIHTVariable)
     @inbounds @simd for i in eachindex(v.μ)
         v.μ[i] = v.BX[i] + v.CZ[i]
     end
+    update_resid!(v) # v.resid = Y - BX
 end
 
 """
@@ -242,7 +243,6 @@ end
 Solve for `Σ = 1/n(Y-BX)(Y-BX)'` exactly rather than projecting
 """
 function solve_Σ!(v::mIHTVariable)
-    update_resid!(v) # v.resid = Y - BX
     mul!(v.r_by_r1, v.resid, Transpose(v.resid)) # r_by_r1 = (Y-BX)(Y-BX)'
     v.r_by_r1 ./= nsamples(v)
     LinearAlgebra.inv!(cholesky!(Symmetric(v.r_by_r1, :U))) # r_by_r1 = (1/n(Y-BX)(Y-BX)')^{-1}
@@ -420,13 +420,11 @@ function backtrack!(v::mIHTVariable, η::Float)
     # recompute gradient step with the new (halved) step size η 
     copyto!(v.B, v.B0)
     copyto!(v.C, v.C0)
-    copyto!(v.Γ, v.Γ0)
     _iht_gradstep!(v, η)
 
     # recompute BX and ZC, μ (includes genetic + nongenetic component), and Γ
     update_xb!(v)
     update_μ!(v)
-    solve_Σ!(v)
 
     return loglikelihood(v)
 end
