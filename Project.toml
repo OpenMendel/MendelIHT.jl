@@ -5,6 +5,7 @@ authors = ["Benjamin Chu <benchu99@hotmail.com>", "Kevin Keys <kevin.keys@ucsf.e
 version = "1.4.1"
 
 [deps]
+BGEN = "6db4b851-9beb-4b83-9d64-eb1cfb37721d"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
@@ -20,6 +21,7 @@ SnpArrays = "4e780e97-f5bf-4111-9dc4-b70aaf691b06"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
+VCFTools = "a620830f-fdd7-5ebc-8d26-3621ab35fbfe"
 
 [compat]
 DataFrames = "0.22 - 1"
@@ -31,7 +33,8 @@ Reexport = "1"
 SpecialFunctions = "1"
 StatsBase = "0.33"
 ThreadPools = "2"
-julia = "1.5"
+VCFTools = "0.2.2"
+BGEN = "0.1.3"
 
 [extras]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
