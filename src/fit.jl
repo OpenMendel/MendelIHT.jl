@@ -4,12 +4,8 @@
         max_iter=200, max_step=3, io=stdout)
 
 Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
-and non-genetic covariates `z` on a specific sparsity parameter `k`. Variables in 
-`x` and `z` will both be subject to sparsity constraint. 
-
-If `k` is a constant, then each group will have the same sparsity level. To run doubly 
-sparse IHT, construct `k` to be a vector where `k[i]` indicates the max number
-of predictors for group `i`. 
+and non-genetic covariates `z` on a specific sparsity parameter `k`. Only predictors in 
+`x` will be subject to sparsity constraint, unless `zkeep` keyword is specified. 
 
 # Arguments:
 + `y`: Phenotype vector or matrix. Should be an `Array{T, 1}` (single traits) or
@@ -49,6 +45,14 @@ of predictors for group `i`.
 + `io`: An `IO` object for displaying intermediate results. Default `stdout`.
 + `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
+
+# Output 
++ An `IHTResult` (for single-trait analysis) or `mIHTResult` (for multivariate analysis).
+
+# Group IHT
+If `k` is a constant, then each group will have the same sparsity level. To run doubly 
+sparse IHT with varying group sparsities, construct `k` to be a vector where `k[i]`
+indicates the max number of predictors for group `i`. 
 """
 function fit_iht(
     y         :: AbstractVecOrMat{T},
