@@ -38,6 +38,8 @@ Runs IHT with sparsity level `k`.
     matrix for multivariate analysis. Default `covariancefile="iht.cov.txt"`. 
 - `exclude_std_idx`: Indices of non-genetic covariates that should be excluded from
     standardization. 
+- `dosage`: Currently only guaranteed to work for VCF files. If `true`, will read
+    genotypes dosages (i.e. `X[i, j] ∈ [0, 2]` before standardizing)
 - All optional arguments available in [`fit_iht`](@ref)
 """
 function iht(
@@ -50,15 +52,20 @@ function iht(
     betafile::AbstractString = "iht.beta.txt",
     covariancefile::AbstractString = "iht.cov.txt",
     exclude_std_idx::AbstractVector{<:Integer} = Int[],
+    dosage::Bool = false,
     kwargs...
     )
     # read genotypes
-    snpdata = SnpArrays.SnpData(plinkfile)
-    xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
-        center=true, scale=true, impute=true)
+    X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = parse_genotypes(plinkfile, dosage)
+    if typeof(X) <: SnpData
+        xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
+            center=true, scale=true, impute=true)
+    else
+        xla = X # numeric matrix from VCF or BGEN files
+    end
 
     # read phenotypes
-    y = parse_phenotypes(snpdata, phenotypes, d())
+    y = parse_phenotypes(X, phenotypes, d())
 
     # read and standardize covariates 
     z = covariates == "" ? ones(size(xla, 1)) : 
@@ -177,7 +184,7 @@ function parse_phenotypes(x::SnpData, col::Int, ::UnivariateDistribution)
     return y
 end
 
-function parse_phenotypes(::SnpData, pheno_filename::AbstractString, d)
+function parse_phenotypes(::Any, pheno_filename::AbstractString, d)
     y = readdlm(pheno_filename, ',', Float64)
     if is_multivariate(y)
         y = convert(Matrix{Float64}, Transpose(y))
@@ -269,12 +276,18 @@ function cross_validate(
     kwargs...
     )
     start_time = time()
-    snpdata = SnpArrays.SnpData(plinkfile)
-    x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, center=true,
-        scale=true, impute=true)
+
+    # read genotypes
+    X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = parse_genotypes(plinkfile, dosage)
+    if typeof(X) <: SnpData
+        x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
+            center=true, scale=true, impute=true)
+    else
+        x = X # numeric matrix from VCF or BGEN files
+    end
 
     # read phenotypes
-    y = parse_phenotypes(snpdata, phenotypes, d())
+    y = parse_phenotypes(X, phenotypes, d())
 
     # read and standardize covariates
     z = covariates == "" ? ones(size(x, 1)) : 
@@ -393,8 +406,8 @@ will be stored in single precision matrices (32 bit per entry).
     genotypes dosages (i.e. `X[i, j] ∈ [0, 2]` before standardizing)
 
 # Output
-- `X`: a `n × p` genotype matrix of type `Float32` (VCF or BGEN) or `SnpLinAlg`
-    (binary PLINK)
+- `X`: a `n × p` genotype matrix of type `Float32` (VCF or BGEN inputs) or `SnpData`
+    (binary PLINK inputs)
 - `Gchr`: Vector of `String`s holding chromosome number for each variant
 - `Gpos`: Vector of `Int` holding each variant's position
 - `GsnpID`: Vector of `String`s holding variant ID for each variant
@@ -421,17 +434,14 @@ function parse_genotypes(tgtfile::AbstractString, dosage=false)
         X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.convert_gt(Float32, bgen)
     elseif isplink(tgtfile)
         dosage && error("PLINK files detected but dosage = true!")
-        # convert SnpArray data to SnpLinAlg
-        X_snpdata = SnpArrays.SnpData(tgtfile)
-        X = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
-            center=true, scale=true, impute=true)
+        X = SnpArrays.SnpData(tgtfile)
         # get other relevant information
-        X_sampleID = X_snpdata.person_info[!, :iid]
-        X_chr = X_snpdata.snp_info[!, :chromosome]
-        X_pos = X_snpdata.snp_info[!, :position]
-        X_ids = X_snpdata.snp_info[!, :snpid]
-        X_ref = X_snpdata.snp_info[!, :allele1]
-        X_alt = X_snpdata.snp_info[!, :allele2]
+        X_sampleID = X.person_info[!, :iid]
+        X_chr = X.snp_info[!, :chromosome]
+        X_pos = X.snp_info[!, :position]
+        X_ids = X.snp_info[!, :snpid]
+        X_ref = X.snp_info[!, :allele1]
+        X_alt = X.snp_info[!, :allele2]
     else
         error("Unrecognized target file format: target file can only be VCF" *
             " files (ends in .vcf or .vcf.gz), BGEN (ends in .bgen) or PLINK" *
