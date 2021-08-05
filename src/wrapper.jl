@@ -299,3 +299,66 @@ function cross_validate(
 
     return mse
 end
+
+"""
+    convert_gt(t::Type{T}, b::Bgen, trans::Bool)
+
+Imports BGEN genotypes and chr/sampleID/pos/snpID/ref/alt into numeric arrays.
+Genotypes are centered and scaled to mean 0 variance 1. Missing genotypes will
+be replaced with the mean. Assumes every variant is biallelic (ie only 1 alt allele). 
+
+# Input
+- `b`: a `Bgen` object
+- `T`: Type for genotype array
+- `trans`: a `Bool`. If `trans==true`, output `G` will be `p × n`, otherwise `G` will be `n × p`.
+
+# Output
+- `G`: matrix of genotypes with type `T`. 
+"""
+function convert_gt(t::Type{T}, b::Bgen, trans::Bool) where T <: Real
+    n = n_samples(b)
+    p = n_variants(b)
+
+    # return arrays
+    G = trans ? Matrix{t}(undef, p, n) : Matrix{t}(undef, n, p)
+    Gchr = Vector{String}(undef, p)
+    Gpos = Vector{Int}(undef, p)
+    GsnpID = [String[] for _ in 1:p] # each variant can have >1 rsid, although we don't presently allow this
+    Gref = Vector{String}(undef, p)
+    Galt = [String[] for _ in 1:p] # each variant can have >1 alt allele, although we don't presently allow this
+
+    # import each variant
+    i = 1
+    for v in iterator(b; from_bgen_start=true)
+        dose = ref_allele_dosage!(b, v; T=t) # this reads REF allele as 1
+        BGEN.alt_dosage!(dose, v.genotypes.preamble) # switch 2 and 0 (ie treat ALT as 1)
+        copyto!(trans ? @view(G[i, :]) : @view(G[:, i]), dose)
+        # store chr/pos/snpID/ref/alt info
+        Gchr[i], Gpos[i] = chrom(v), pos(v)
+        push!(GsnpID[i], rsid(v))
+        ref_alt_alleles = alleles(v)
+        length(ref_alt_alleles) > 2 && error("Marker $i of BGEN is not biallelic!")
+        Gref[i] = ref_alt_alleles[1]
+        push!(Galt[i], ref_alt_alleles[2])
+        i += 1
+        clear!(v)
+    end
+
+    # center, scale, impute
+    @inbounds for snp in (trans ? eachrow(G) : eachcol(G))
+        μi, mi = zero(t), 0
+        @simd for i in eachindex(snp)
+            μi += isnan(snp[i]) ? zero(t) : snp[i]
+            mi += isnan(snp[i]) ? 0 : 1
+        end
+        μi /= mi
+        σi = sqrt(μi * (1 - μi / 2))
+        @simd for i in eachindex(snp)
+            isnan(snp[i]) && (snp[i] = μi) # impute
+            snp[i] -= μi # center
+            σi > 0 && (snp[i] /= σi) # scale
+        end
+    end
+
+    return G, b.samples, Gchr, Gpos, GsnpID, Gref, Galt
+end
