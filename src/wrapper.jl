@@ -315,12 +315,12 @@ be replaced with the mean. Assumes every variant is biallelic (ie only 1 alt all
 # Output
 - `G`: matrix of genotypes with type `T`. 
 """
-function convert_gt(t::Type{T}, b::Bgen, trans::Bool) where T <: Real
+function convert_gt(t::Type{T}, b::Bgen) where T <: Real
     n = n_samples(b)
     p = n_variants(b)
 
     # return arrays
-    G = trans ? Matrix{t}(undef, p, n) : Matrix{t}(undef, n, p)
+    G = Matrix{t}(undef, n, p)
     Gchr = Vector{String}(undef, p)
     Gpos = Vector{Int}(undef, p)
     GsnpID = [String[] for _ in 1:p] # each variant can have >1 rsid, although we don't presently allow this
@@ -332,7 +332,7 @@ function convert_gt(t::Type{T}, b::Bgen, trans::Bool) where T <: Real
     for v in iterator(b; from_bgen_start=true)
         dose = ref_allele_dosage!(b, v; T=t) # this reads REF allele as 1
         BGEN.alt_dosage!(dose, v.genotypes.preamble) # switch 2 and 0 (ie treat ALT as 1)
-        copyto!(trans ? @view(G[i, :]) : @view(G[:, i]), dose)
+        copyto!(@view(G[:, i]), dose)
         # store chr/pos/snpID/ref/alt info
         Gchr[i], Gpos[i] = chrom(v), pos(v)
         push!(GsnpID[i], rsid(v))
@@ -344,9 +344,22 @@ function convert_gt(t::Type{T}, b::Bgen, trans::Bool) where T <: Real
         clear!(v)
     end
 
-    # center, scale, impute
-    @inbounds for snp in (trans ? eachrow(G) : eachcol(G))
-        μi, mi = zero(t), 0
+    # center/scale/impute
+    standardize_genotypes!(G)
+
+    return G, b.samples, Gchr, Gpos, GsnpID, Gref, Galt
+end
+
+"""
+    standardize_genotypes(G::AbstractMatrix)
+
+Centers and scales each column (SNP) of `G` to mean 0 variance 1. Also each 
+missing entry will be imputed as mean. 
+"""
+function standardize_genotypes!(G::AbstractMatrix)
+    T = eltype(G)
+    @inbounds for snp in eachcol(G)
+        μi, mi = zero(T), 0
         @simd for i in eachindex(snp)
             μi += isnan(snp[i]) ? zero(t) : snp[i]
             mi += isnan(snp[i]) ? 0 : 1
@@ -359,6 +372,70 @@ function convert_gt(t::Type{T}, b::Bgen, trans::Bool) where T <: Real
             σi > 0 && (snp[i] /= σi) # scale
         end
     end
+    return nothing
+end
 
-    return G, b.samples, Gchr, Gpos, GsnpID, Gref, Galt
+"""
+    parse_genotypes(tgtfile::AbstractString, dosage=false)
+
+Imports genotype data from `tgtfile`. If binary PLINK files are supplied, genotypes
+will not be decompressed to numeric matrices (~2 bit per entry). VCF or BGEN genotypes
+will be stored in single precision matrices (32 bit per entry). 
+
+# Inputs 
+- `tgtfile`: VCF, binary PLINK, or BGEN file. VCF files should end in `.vcf` or
+    `.vcf.gz`. Binary PLINK files should exclude `.bim/.bed/.fam` trailings but
+    the trio must all be present in the same directory. BGEN files should end in
+    `.bgen`
+
+# Optional Inputs
+- `dosage`: Currently only guaranteed to work for VCF files. If `true`, will read
+    genotypes dosages (i.e. `X[i, j] ∈ [0, 2]` before standardizing)
+
+# Output
+- `X`: a `n × p` genotype matrix of type `Float32` (VCF or BGEN) or `SnpLinAlg`
+    (binary PLINK)
+- `Gchr`: Vector of `String`s holding chromosome number for each variant
+- `Gpos`: Vector of `Int` holding each variant's position
+- `GsnpID`: Vector of `String`s holding variant ID for each variant
+- `Gref`: Vector of `String`s holding reference allele for each variant
+- `Galt`: Vector of `String`s holding alterante allele for each variant
+"""
+function parse_genotypes(tgtfile::AbstractString, dosage=false)
+    if (endswith(tgtfile, ".vcf") || endswith(tgtfile, ".vcf.gz"))
+        f = dosage ? VCFTools.convert_ds : VCFTools.convert_gt
+        X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = 
+            f(Float32, tgtfile, trans=false, 
+            save_snp_info=true, msg = "Importing from VCF file...")
+        # convert missing to NaN
+        replace!(X, missing => NaN32)
+        X = convert(Matrix{Float32}, X) # drop Missing from Matrix type
+        # center/scale/impute
+        standardize_genotypes!(X)
+    elseif endswith(tgtfile, ".bgen")
+        # dosage && error("Currently don't support reading dosage data from BGEN files")
+        samplefile = isfile(tgtfile[1:end-5] * ".sample") ? 
+            tgtfile[1:end-5] * ".sample" : nothing
+        indexfile = isfile(tgtfile * ".bgi") ? tgtfile * ".bgi" : nothing
+        bgen = Bgen(tgtfile; sample_path=samplefile, idx_path=indexfile)
+        X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.convert_gt(Float32, bgen)
+    elseif isplink(tgtfile)
+        dosage && error("PLINK files detected but dosage = true!")
+        # convert SnpArray data to SnpLinAlg
+        X_snpdata = SnpArrays.SnpData(tgtfile)
+        X = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
+            center=true, scale=true, impute=true)
+        # get other relevant information
+        X_sampleID = X_snpdata.person_info[!, :iid]
+        X_chr = X_snpdata.snp_info[!, :chromosome]
+        X_pos = X_snpdata.snp_info[!, :position]
+        X_ids = X_snpdata.snp_info[!, :snpid]
+        X_ref = X_snpdata.snp_info[!, :allele1]
+        X_alt = X_snpdata.snp_info[!, :allele2]
+    else
+        error("Unrecognized target file format: target file can only be VCF" *
+            " files (ends in .vcf or .vcf.gz), BGEN (ends in .bgen) or PLINK" *
+            " (do not include.bim/bed/fam) and all trio must exist in 1 directory)")
+    end
+    return X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt
 end
