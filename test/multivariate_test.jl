@@ -81,7 +81,7 @@ end
     @btime MendelIHT.update_support!($(v.idx), $(v.B)) # 50.047 μs (0 allocations: 0 bytes)
 end
 
-@testset "multivariate fit_iht" begin
+@testset "multivariate fit_iht SnpLinAlg" begin
     n = 1000  # number of samples
     p = 10000 # number of SNPs
     k = 10    # number of causal SNPs
