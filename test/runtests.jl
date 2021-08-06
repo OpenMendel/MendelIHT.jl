@@ -9,6 +9,8 @@ using Test
 using Random
 using BenchmarkTools
 using DelimitedFiles
+using BGEN
+using VCFTools
 
 # write your own tests here
 include("utilities_test.jl")
