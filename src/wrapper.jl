@@ -58,7 +58,7 @@ function iht(
     # read genotypes
     X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = parse_genotypes(plinkfile, dosage)
     if typeof(X) <: SnpData
-        xla = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
+        xla = SnpLinAlg{Float64}(X.snparray, model=ADDITIVE_MODEL, 
             center=true, scale=true, impute=true)
     else
         xla = X # numeric matrix from VCF or BGEN files
@@ -262,6 +262,8 @@ sparsity levels are specified in `path`.
     Default `cv_summaryfile="cviht.summary.txt"`.
 - `q`: Number of cross validation folds. Larger means more accurate and more computationally
     intensive. Should be larger 2 and smaller than 10. Default `q=5`. 
+- `dosage`: Currently only guaranteed to work for VCF files. If `true`, will read
+    genotypes dosages (i.e. `X[i, j] ∈ [0, 2]` before standardizing)
 - All optional arguments available in [`cv_iht`](@ref)
 """
 function cross_validate(
@@ -273,6 +275,7 @@ function cross_validate(
     cv_summaryfile::AbstractString = "cviht.summary.txt",
     q::Int = 5,
     exclude_std_idx::AbstractVector{<:Integer} = Int[],
+    dosage::Bool = false,
     kwargs...
     )
     start_time = time()
@@ -280,7 +283,7 @@ function cross_validate(
     # read genotypes
     X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = parse_genotypes(plinkfile, dosage)
     if typeof(X) <: SnpData
-        x = SnpLinAlg{Float64}(snpdata.snparray, model=ADDITIVE_MODEL, 
+        x = SnpLinAlg{Float64}(X.snparray, model=ADDITIVE_MODEL, 
             center=true, scale=true, impute=true)
     else
         x = X # numeric matrix from VCF or BGEN files
@@ -449,3 +452,7 @@ function parse_genotypes(tgtfile::AbstractString, dosage=false)
     end
     return X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt
 end
+
+isplink(tgtfile::AbstractString) = isfile(tgtfile * ".bed") && 
+                                   isfile(tgtfile * ".fam") && 
+                                   isfile(tgtfile * ".bim")

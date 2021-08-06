@@ -673,7 +673,7 @@ Here `p` is the minor allele frequency computed by `maf()` in SnpArrays.
 - `max_weight`: Maximum weight for any predictor. Defaults to `Inf`. 
 """
 function maf_weights(x::SnpArray; max_weight::T = Inf) where {T <: Float}
-    p = maf(x)
+    p = SnpArrays.maf(x)
     p .= 1 ./ (2 .* sqrt.(p .* (1 .- p)))
     clamp!(p, 1.0, max_weight)
     return p

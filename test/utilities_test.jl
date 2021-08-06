@@ -214,7 +214,7 @@ end
 @testset "maf_weights" begin
     Random.seed!(33)
     x = simulate_random_snparray(undef, 1000, 10000)
-    m = maf(x)
+    m = SnpArrays.maf(x)
     p = maf_weights(x)
 
     @test eltype(p) <: AbstractFloat
