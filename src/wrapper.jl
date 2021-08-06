@@ -1,13 +1,16 @@
 # TODO: VCF and BGEN read
 
 """
-    iht(plinkfile, k, d, phenotypes=6, covariates="", summaryfile="iht.summary.txt",
+    iht(filename, k, d, phenotypes=6, covariates="", summaryfile="iht.summary.txt",
         betafile="iht.beta.txt", kwargs...)
 
 Runs IHT with sparsity level `k`. 
 
 # Arguments
-- `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
+- `filename`: A `String` for VCF, binary PLINK, or BGEN file. VCF files should end
+    in `.vcf` or `.vcf.gz`. Binary PLINK files should exclude `.bim/.bed/.fam`
+    trailings but the trio must all be present in the same directory. BGEN files
+    should end in `.bgen`.
 - `k`: An `Int` for sparsity parameter = number of none-zero coefficients
 - `d`: Distribution of phenotypes. Specify `Normal` for quantitative traits,
     `Bernoulli` for binary traits, `Poisson` or `NegativeBinomial` for
@@ -15,7 +18,7 @@ Runs IHT with sparsity level `k`.
 
 # Optional Arguments
 - `phenotypes`: Phenotype file name (`String`), an integer, or vector of integer. Integer(s)
-    coresponds to the column(s) of `.fam` file that stores phenotypes (default `phenotypes=6`). 
+    coresponds to the column(s) of PLINK's `.fam` file that stores phenotypes (default `phenotypes=6`). 
     Enter multiple integers for multivariate analysis (e.g. `phenotypes=[6, 7]`).
     We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
     (univariate or multivariate), missing phenotypes are imputed with the mean. Binary
@@ -43,7 +46,7 @@ Runs IHT with sparsity level `k`.
 - All optional arguments available in [`fit_iht`](@ref)
 """
 function iht(
-    plinkfile::AbstractString,
+    filename::AbstractString,
     k::Int,
     d::UnionAll;
     phenotypes::Union{AbstractString, Int, AbstractVector{Int}} = 6,
@@ -56,7 +59,7 @@ function iht(
     kwargs...
     )
     # read genotypes
-    X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = parse_genotypes(plinkfile, dosage)
+    X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = parse_genotypes(filename, dosage)
     if typeof(X) <: SnpData
         xla = SnpLinAlg{Float64}(X.snparray, model=ADDITIVE_MODEL, 
             center=true, scale=true, impute=true)
@@ -228,14 +231,14 @@ function phenotype_is_missing(s::AbstractString)
 end
 
 """
-    cross_validate(plinkfile, d, path=1:20, phenotypes=6, covariates="", 
+    cross_validate(filename, d, path=1:20, phenotypes=6, covariates="", 
         cv_summaryfile="cviht.summary.txt", q=5, kwargs...)
 
 Runs cross-validation to determinal optimal sparsity level `k`. Different
 sparsity levels are specified in `path`. 
 
 # Arguments
-- `plinkfile`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
+- `filename`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
 - `d`: Distribution of phenotypes. Specify `Normal` for quantitative traits,
     `Bernoulli` for binary traits, `Poisson` or `NegativeBinomial` for
     count traits, and `MvNormal` for multiple quantitative traits. 
@@ -267,7 +270,7 @@ sparsity levels are specified in `path`.
 - All optional arguments available in [`cv_iht`](@ref)
 """
 function cross_validate(
-    plinkfile::AbstractString,
+    filename::AbstractString,
     d::UnionAll;
     path::AbstractVector{<:Integer} = 1:20,
     phenotypes::Union{AbstractString, Int, AbstractVector{Int}} = 6,
@@ -281,7 +284,7 @@ function cross_validate(
     start_time = time()
 
     # read genotypes
-    X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = parse_genotypes(plinkfile, dosage)
+    X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = parse_genotypes(filename, dosage)
     if typeof(X) <: SnpData
         x = SnpLinAlg{Float64}(X.snparray, model=ADDITIVE_MODEL, 
             center=true, scale=true, impute=true)
@@ -409,7 +412,7 @@ will be stored in single precision matrices (32 bit per entry).
     genotypes dosages (i.e. `X[i, j] ∈ [0, 2]` before standardizing)
 
 # Output
-- `X`: a `n × p` genotype matrix of type `Float32` (VCF or BGEN inputs) or `SnpData`
+- `X`: a `n × p` genotype matrix of type `Float64` (VCF or BGEN inputs) or `SnpData`
     (binary PLINK inputs)
 - `Gchr`: Vector of `String`s holding chromosome number for each variant
 - `Gpos`: Vector of `Int` holding each variant's position
@@ -421,11 +424,11 @@ function parse_genotypes(tgtfile::AbstractString, dosage=false)
     if (endswith(tgtfile, ".vcf") || endswith(tgtfile, ".vcf.gz"))
         f = dosage ? VCFTools.convert_ds : VCFTools.convert_gt
         X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = 
-            f(Float32, tgtfile, trans=false, 
+            f(Float64, tgtfile, trans=false, 
             save_snp_info=true, msg = "Importing from VCF file...")
         # convert missing to NaN
         replace!(X, missing => NaN32)
-        X = convert(Matrix{Float32}, X) # drop Missing from Matrix type
+        X = convert(Matrix{Float64}, X) # drop Missing from Matrix type
         # center/scale/impute
         standardize_genotypes!(X)
     elseif endswith(tgtfile, ".bgen")
@@ -434,7 +437,7 @@ function parse_genotypes(tgtfile::AbstractString, dosage=false)
             tgtfile[1:end-5] * ".sample" : nothing
         indexfile = isfile(tgtfile * ".bgi") ? tgtfile * ".bgi" : nothing
         bgen = Bgen(tgtfile; sample_path=samplefile, idx_path=indexfile)
-        X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.convert_gt(Float32, bgen)
+        X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.convert_gt(Float64, bgen)
     elseif isplink(tgtfile)
         dosage && error("PLINK files detected but dosage = true!")
         X = SnpArrays.SnpData(tgtfile)

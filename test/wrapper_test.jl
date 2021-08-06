@@ -120,7 +120,7 @@ end
     Σ = random_covariance_matrix(r)
 
     # between sample covariance is identity + GRM (2 times because in SnpArrays grm is halved)
-    Φ = 2grm(x)
+    Φ = 2 .* SnpArrays.grm(x)
     σg = 0.6
     σe = 0.4
     V = σg * Φ + σe * I
@@ -178,4 +178,28 @@ end
             " unit tests! Windows users can remove these files manually " * 
             "located at " * normpath(pathof(MendelIHT) * "../../../test"))
     end
+end
+
+@testset "read BGEN and VCF" begin
+    cd(normpath(MendelIHT.datadir()))
+    xtrue = convert(Matrix{Float64}, SnpArray("normal.bed"), center=true, scale=true, impute=true)
+    @time xbgen, _ = MendelIHT.convert_gt(Float64, Bgen("normal.bgen"))
+    @test all(xbgen .≈ xtrue)
+    # BGEN wrapper
+    @time xbgen, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.parse_genotypes("normal.bgen")
+    @test all(xbgen .≈ xtrue)
+    # VCF wrapper
+    @time xbgen, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.parse_genotypes("normal.vcf.gz")
+    @test all(xbgen .≈ xtrue)
+    # Run IHT on wrapper
+    result_plink = iht("normal", 10, Normal, phenotypes="phenotypes.txt", verbose=true)
+    result_vcf = iht("normal.vcf.gz", 10, Normal, phenotypes="phenotypes.txt", verbose=true)
+    result_bgen = iht("normal.bgen", 10, Normal, phenotypes="phenotypes.txt", verbose=true)
+    @test all(result_plink.beta .≈ result_vcf.beta .≈ result_bgen.beta)
+    @test result_plink.logl ≈ result_vcf.logl ≈ result_bgen.logl
+    @test result_plink.iter == result_vcf.iter == result_bgen.iter
+    @test result_plink.σg ≈ result_vcf.σg ≈ result_bgen.σg
+    # clean up
+    rm("iht.summary.txt", force=true)
+    rm("iht.beta.txt", force=true)
 end
