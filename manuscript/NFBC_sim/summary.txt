@@ -1,0 +1,36 @@
+set 1 summary (successful run = 100):
+mIHT time = 164.6 ± 69.3, plei TP = 0.92 ± 0.16, indep TP = 0.76 ± 0.2, FP = 3.7 ± 6.4
+uIHT time = 114.9 ± 48.6, plei TP = 0.93 ± 0.16, indep TP = 0.72 ± 0.2, FP = 1.4 ± 3.7
+mvPLINK time = 152.6 ± 57.3, plei TP = 0.96 ± 0.14, indep TP = 0.78 ± 0.2, FP = 77.8 ± 40.6
+gemma time = 307.7 ± 121.4, plei TP = 0.95 ± 0.15, indep TP = 0.76 ± 0.2, FP = 42.8 ± 18.5 
+
+set 2 summary (successful run = 99):
+mIHT time = 214.4 ± 100.1, plei TP = 0.91 ± 0.12, indep TP = 0.75 ± 0.14, FP = 5.7 ± 6.0
+uIHT time = 169.6 ± 81.9, plei TP = 0.86 ± 0.16, indep TP = 0.72 ± 0.16, FP = 2.4 ± 2.5
+mvPLINK time = 226.8 ± 101.9, plei TP = 0.95 ± 0.09, indep TP = 0.79 ± 0.15, FP = 125.3 ± 55.3
+gemma time = 449.9 ± 221.7, plei TP = 0.93 ± 0.1, indep TP = 0.75 ± 0.16, FP = 66.1 ± 22.8 
+
+set 3 summary (successful run = 86):
+mIHT time = 227.9 ± 41.1, plei TP = 0.93 ± 0.09, indep TP = 0.73 ± 0.12, FP = 5.9 ± 4.6
+uIHT time = 213.8 ± 45.7, plei TP = 0.9 ± 0.11, indep TP = 0.69 ± 0.12, FP = 3.2 ± 3.8
+mvPLINK time = 371.5 ± 34.0, plei TP = 0.96 ± 0.07, indep TP = 0.75 ± 0.11, FP = 173.2 ± 54.9
+gemma time = 1135.3 ± 125.5, plei TP = 0.94 ± 0.09, indep TP = 0.71 ± 0.11, FP = 93.6 ± 22.7 
+
+set 4 summary (successful run = 36):
+mIHT time = 278.8 ± 53.0, plei TP = 0.97 ± 0.09, indep TP = 0.74 ± 0.2, FP = 2.2 ± 2.0
+uIHT time = 245.8 ± 34.8, plei TP = 0.96 ± 0.11, indep TP = 0.7 ± 0.23, FP = 3.1 ± 6.4
+mvPLINK time = 985.1 ± 97.5, plei TP = 0.99 ± 0.06, indep TP = 0.78 ± 0.2, FP = 64.6 ± 30.5
+gemma time = 8067.4 ± 3900.8, plei TP = 0.99 ± 0.06, indep TP = 0.74 ± 0.18, FP = 41.8 ± 16.4 
+
+set 5 summary (successful run = 0):
+mIHT time = 1892.2 ± 419.0, plei TP = 0.93 ± 0.12, indep TP = 0.75 ± 0.14, FP = 2.9 ± 2.5
+uIHT time = 1336.9 ± 310.2, plei TP = 0.92 ± 0.11, indep TP = 0.72 ± 0.12, FP = 7.6 ± 5.9
+mvPLINK time = NaN ± NaN, plei TP = NaN ± NaN, indep TP = NaN ± NaN, FP = NaN ± NaN
+gemma time = NaN ± NaN, plei TP = NaN ± NaN, indep TP = NaN ± NaN, FP = NaN ± NaN 
+
+set 6 summary (successful run = 0):
+mIHT time = 3699.3 ± 410.4, plei TP = 0.91 ± 0.11, indep TP = 0.71 ± 0.11, FP = 2.8 ± 2.1
+uIHT time = 2353.8 ± 212.3, plei TP = 0.92 ± 0.11, indep TP = 0.7 ± 0.1, FP = 10.7 ± 4.3
+mvPLINK time = NaN ± NaN, plei TP = NaN ± NaN, indep TP = NaN ± NaN, FP = NaN ± NaN
+gemma time = NaN ± NaN, plei TP = NaN ± NaN, indep TP = NaN ± NaN, FP = NaN ± NaN 
+

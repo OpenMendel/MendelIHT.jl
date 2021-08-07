@@ -1,0 +1,1811 @@
+****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+Initializing β to univariate regression values...
+...completed in 206.2 seconds.
+
+Running sparse Multivariate Gaussian regression
+Number of threads = 36
+Link functin = GLM.IdentityLink()
+Sparsity parameter (k) = 197
+Prior weight scaling = off
+Doubly sparse projection = off
+Debias = off
+Max IHT iterations = 1500
+Converging when tol < 0.0001 and iteration ≥ 10:
+
+Iteration 1: loglikelihood = -206376.4155937056, backtracks = 0, tol = 0.03692237778321655
+Iteration 2: loglikelihood = -193498.60500138422, backtracks = 0, tol = 0.02677067045125389
+Iteration 3: loglikelihood = -192683.28865301996, backtracks = 0, tol = 0.013468874595395634
+Iteration 4: loglikelihood = -191788.80016352976, backtracks = 0, tol = 0.007664163908028142
+Iteration 5: loglikelihood = -185640.65918023608, backtracks = 1, tol = 0.00676628855440449
+Iteration 6: loglikelihood = -185243.58293450606, backtracks = 0, tol = 0.005297229459651891
+Iteration 7: loglikelihood = -184903.67425294028, backtracks = 0, tol = 0.005431069391257621
+Iteration 8: loglikelihood = -183269.1828197132, backtracks = 1, tol = 0.003342458336702695
+Iteration 9: loglikelihood = -182440.68903999688, backtracks = 0, tol = 0.006000976056942639
+Iteration 10: loglikelihood = -181933.29505734018, backtracks = 1, tol = 0.00271784773569684
+Iteration 11: loglikelihood = -180763.81301060808, backtracks = 0, tol = 0.008379749310539983
+Iteration 12: loglikelihood = -180388.7734297434, backtracks = 1, tol = 0.003991869406878666
+Iteration 13: loglikelihood = -180037.27988074603, backtracks = 0, tol = 0.004176593625710834
+Iteration 14: loglikelihood = -179982.11296259618, backtracks = 1, tol = 0.0033210935666936913
+Iteration 15: loglikelihood = -179767.22984824463, backtracks = 1, tol = 0.0012320889428044646
+Iteration 16: loglikelihood = -179594.57713086193, backtracks = 0, tol = 0.0027281009572441735
+Iteration 17: loglikelihood = -179584.32841174334, backtracks = 1, tol = 0.003172623465483298
+Iteration 18: loglikelihood = -179495.18520097138, backtracks = 0, tol = 0.0031788979923669937
+Iteration 19: loglikelihood = -179280.0795805746, backtracks = 2, tol = 0.001986627116129571
+Iteration 20: loglikelihood = -178999.6135290292, backtracks = 0, tol = 0.003912636742794764
+Iteration 21: loglikelihood = -178946.81724173995, backtracks = 2, tol = 0.0012023894862540838
+Iteration 22: loglikelihood = -178905.79958411586, backtracks = 2, tol = 0.0011123258187353416
+Iteration 23: loglikelihood = -178872.59045376146, backtracks = 2, tol = 0.0010367408225128508
+Iteration 24: loglikelihood = -178844.91191915463, backtracks = 2, tol = 0.0009734500452300247
+Iteration 25: loglikelihood = -178821.35856808285, backtracks = 2, tol = 0.0009195974128173454
+Iteration 26: loglikelihood = -178801.00584213197, backtracks = 2, tol = 0.0008728399792958763
+Iteration 27: loglikelihood = -178783.21227017965, backtracks = 2, tol = 0.0008312158960146368
+Iteration 28: loglikelihood = -178767.51305000816, backtracks = 2, tol = 0.00079392626039003
+Iteration 29: loglikelihood = -178753.55926505843, backtracks = 2, tol = 0.0007601110076352558
+Iteration 30: loglikelihood = -178741.08129300506, backtracks = 2, tol = 0.0007291464654515442
+Iteration 31: loglikelihood = -178729.8657525314, backtracks = 2, tol = 0.0007005717801328171
+Iteration 32: loglikelihood = -178719.74039686366, backtracks = 2, tol = 0.0006740394305854164
+Iteration 33: loglikelihood = -178710.56387040875, backtracks = 2, tol = 0.0006492819309610879
+Iteration 34: loglikelihood = -178702.21855174308, backtracks = 2, tol = 0.0006260892296859266
+Iteration 35: loglikelihood = -178694.60541899363, backtracks = 2, tol = 0.0006042931773450317
+Iteration 36: loglikelihood = -178687.6402785599, backtracks = 2, tol = 0.0005837567022975204
+Iteration 37: loglikelihood = -178681.25093654654, backtracks = 2, tol = 0.0005643661568659037
+Iteration 38: loglikelihood = -178675.37503710744, backtracks = 2, tol = 0.0005460258263756842
+Iteration 39: loglikelihood = -178669.9583825515, backtracks = 2, tol = 0.0005286539336107323
+Iteration 40: loglikelihood = -178664.95360806846, backtracks = 2, tol = 0.0005121796913705654
+Iteration 41: loglikelihood = -178660.31912209158, backtracks = 2, tol = 0.0004965410995367879
+Iteration 42: loglikelihood = -178656.01824878796, backtracks = 2, tol = 0.0004816832779312827
+Iteration 43: loglikelihood = -178652.01852660207, backtracks = 2, tol = 0.00046755718961082553
+Iteration 44: loglikelihood = -178648.29112888203, backtracks = 2, tol = 0.0004541186520781832
+Iteration 45: loglikelihood = -178644.8103811759, backtracks = 2, tol = 0.0004413275632041141
+Iteration 46: loglikelihood = -178641.55335589958, backtracks = 2, tol = 0.00042914728896062187
+Iteration 47: loglikelihood = -178638.49952958862, backtracks = 2, tol = 0.00041754417430807047
+Iteration 48: loglikelihood = -178635.6304911842, backtracks = 2, tol = 0.00040648714867942275
+Iteration 49: loglikelihood = -178632.92969234104, backtracks = 2, tol = 0.0003959474047584775
+Iteration 50: loglikelihood = -178630.38223255123, backtracks = 2, tol = 0.0003858981345083225
+Iteration 51: loglikelihood = -178627.97467333605, backtracks = 2, tol = 0.00037631431026533197
+Iteration 52: loglikelihood = -178625.69487687142, backtracks = 2, tol = 0.0003671725015699387
+Iteration 53: loglikelihood = -178623.53186525227, backtracks = 2, tol = 0.0003584507205391431
+Iteration 54: loglikelihood = -178605.0555652883, backtracks = 2, tol = 0.0016122060765281785
+Iteration 55: loglikelihood = -178573.89449937694, backtracks = 2, tol = 0.001668535514141037
+Iteration 56: loglikelihood = -178554.61951391824, backtracks = 2, tol = 0.00126257782054373
+Iteration 57: loglikelihood = -178513.62150871058, backtracks = 1, tol = 0.00215077806874151
+Iteration 58: loglikelihood = -178211.26342306047, backtracks = 0, tol = 0.0037976518285034616
+Iteration 59: loglikelihood = -178062.68799152866, backtracks = 0, tol = 0.005013616240536734
+Iteration 60: loglikelihood = -177810.40363947453, backtracks = 2, tol = 0.001595282701524846
+Iteration 61: loglikelihood = -177649.11773895362, backtracks = 1, tol = 0.0032260827550025187
+Iteration 62: loglikelihood = -177556.49719005724, backtracks = 2, tol = 0.002576282051124599
+Iteration 63: loglikelihood = -177515.16584677418, backtracks = 2, tol = 0.0011609460883018692
+Iteration 64: loglikelihood = -177489.17264072975, backtracks = 2, tol = 0.0009944179802254167
+Iteration 65: loglikelihood = -177462.28029940557, backtracks = 2, tol = 0.0017758253075888242
+Iteration 66: loglikelihood = -177441.89800578926, backtracks = 2, tol = 0.0014556507643080278
+Iteration 67: loglikelihood = -177428.149584694, backtracks = 2, tol = 0.0011885722227798691
+Iteration 68: loglikelihood = -177418.2453453747, backtracks = 2, tol = 0.0009737908542482228
+Iteration 69: loglikelihood = -177410.90815692165, backtracks = 2, tol = 0.0008025155170905857
+Iteration 70: loglikelihood = -177405.3150989324, backtracks = 2, tol = 0.0006641321415397138
+Iteration 71: loglikelihood = -177400.92286203738, backtracks = 2, tol = 0.0005512485591125144
+Iteration 72: loglikelihood = -177397.36662951647, backtracks = 2, tol = 0.0004585117053217243
+Iteration 73: loglikelihood = -177394.39824963157, backtracks = 2, tol = 0.0003819334363744961
+Iteration 74: loglikelihood = -177391.84719502134, backtracks = 2, tol = 0.0003649447598089596
+Iteration 75: loglikelihood = -177389.59529332185, backtracks = 2, tol = 0.00036080476639858955
+Iteration 76: loglikelihood = -177387.5600554343, backtracks = 2, tol = 0.00035708384562344096
+Iteration 77: loglikelihood = -177385.6835134356, backtracks = 2, tol = 0.00035371885704844875
+Iteration 78: loglikelihood = -177383.92466286142, backtracks = 2, tol = 0.00035066071355356425
+Iteration 79: loglikelihood = -177382.2543011312, backtracks = 2, tol = 0.0003478704523588577
+Iteration 80: loglikelihood = -177380.65147862065, backtracks = 2, tol = 0.0003453165015021087
+Iteration 81: loglikelihood = -177379.10104536012, backtracks = 2, tol = 0.0003429727706894999
+Iteration 82: loglikelihood = -177377.59194743677, backtracks = 2, tol = 0.0003408173091406508
+Iteration 83: loglikelihood = -177376.11603926477, backtracks = 2, tol = 0.00033883135369026625
+Iteration 84: loglikelihood = -177374.66725240072, backtracks = 2, tol = 0.00033699864625684944
+Iteration 85: loglikelihood = -177366.36438598332, backtracks = 2, tol = 0.0014948351579365377
+Iteration 86: loglikelihood = -177329.52400059748, backtracks = 0, tol = 0.005791710484697122
+Iteration 87: loglikelihood = -177109.3750093743, backtracks = 1, tol = 0.005788376889117994
+Iteration 88: loglikelihood = -176999.32410776787, backtracks = 2, tol = 0.0031833119037035953
+Iteration 89: loglikelihood = -176974.6733763112, backtracks = 2, tol = 0.0010574570243955996
+Iteration 90: loglikelihood = -176958.68548529773, backtracks = 2, tol = 0.0009461972582984958
+Iteration 91: loglikelihood = -176947.50094137288, backtracks = 2, tol = 0.000843868099047712
+Iteration 92: loglikelihood = -176939.21226310887, backtracks = 2, tol = 0.0007568316718532274
+Iteration 93: loglikelihood = -176932.80056854943, backtracks = 2, tol = 0.0006813885470733957
+Iteration 94: loglikelihood = -176912.85896129534, backtracks = 1, tol = 0.0037580247179251043
+Iteration 95: loglikelihood = -176869.43889745476, backtracks = 1, tol = 0.003755936127810078
+Iteration 96: loglikelihood = -176864.53455151257, backtracks = 1, tol = 0.003541476046072045
+Iteration 97: loglikelihood = -176836.61523060827, backtracks = 1, tol = 0.0035398815331861445
+Iteration 98: loglikelihood = -176814.09492775862, backtracks = 2, tol = 0.0024720565590870803
+Iteration 99: loglikelihood = -176782.68842556697, backtracks = 1, tol = 0.003664163407165666
+Iteration 100: loglikelihood = -176774.907396455, backtracks = 1, tol = 0.0036620398631006597
+Iteration 101: loglikelihood = -176759.76602538902, backtracks = 1, tol = 0.0035373335490111214
+Iteration 102: loglikelihood = -176757.08901022447, backtracks = 2, tol = 0.00037790736132031934
+Iteration 103: loglikelihood = -176754.86438953638, backtracks = 2, tol = 0.00037351200754683685
+Iteration 104: loglikelihood = -176752.9012623186, backtracks = 2, tol = 0.00037147149119688813
+Iteration 105: loglikelihood = -176751.10858691827, backtracks = 2, tol = 0.0003702491967858037
+Iteration 106: loglikelihood = -176749.4328748039, backtracks = 2, tol = 0.00036946718102137454
+Iteration 107: loglikelihood = -176747.83950642328, backtracks = 2, tol = 0.00036882070483605227
+Iteration 108: loglikelihood = -176746.30515009767, backtracks = 2, tol = 0.00036823858553883547
+Iteration 109: loglikelihood = -176744.8137757872, backtracks = 2, tol = 0.0003677061831445063
+Iteration 110: loglikelihood = -176734.09825812627, backtracks = 1, tol = 0.0033039095269695317
+Iteration 111: loglikelihood = -176632.70242181892, backtracks = 0, tol = 0.006269581621001827
+Iteration 112: loglikelihood = -176584.69039301685, backtracks = 2, tol = 0.0019562485705963144
+Iteration 113: loglikelihood = -176540.7784232711, backtracks = 1, tol = 0.00450585511263767
+Iteration 114: loglikelihood = -176517.8126318949, backtracks = 1, tol = 0.003591136890418087
+Iteration 115: loglikelihood = -176503.044130262, backtracks = 1, tol = 0.002109725432522348
+Iteration 116: loglikelihood = -176495.86195244043, backtracks = 1, tol = 0.0012287127025147303
+Iteration 117: loglikelihood = -176491.05985797182, backtracks = 1, tol = 0.0007361812064835306
+Iteration 118: loglikelihood = -176487.2693492441, backtracks = 1, tol = 0.0007343659354030611
+Iteration 119: loglikelihood = -176483.97170440853, backtracks = 1, tol = 0.0007323499920993956
+Iteration 120: loglikelihood = -176480.94050283672, backtracks = 1, tol = 0.0007313080474684672
+Iteration 121: loglikelihood = -176478.06611718587, backtracks = 1, tol = 0.0007301683061528836
+Iteration 122: loglikelihood = -176464.71091458516, backtracks = 1, tol = 0.003430338306506925
+Iteration 123: loglikelihood = -176455.0828440332, backtracks = 1, tol = 0.0019582655658348033
+Iteration 124: loglikelihood = -176450.20940350788, backtracks = 1, tol = 0.0011174308770316975
+Iteration 125: loglikelihood = -176446.87718216682, backtracks = 1, tol = 0.0007291646475479339
+Iteration 126: loglikelihood = -176444.04794257449, backtracks = 1, tol = 0.0007285591683990593
+Iteration 127: loglikelihood = -176441.38539501466, backtracks = 1, tol = 0.0007275106052606761
+Iteration 128: loglikelihood = -176438.7814831838, backtracks = 1, tol = 0.0007271417683035392
+Iteration 129: loglikelihood = -176436.20186880918, backtracks = 1, tol = 0.0007259979191059967
+Iteration 130: loglikelihood = -176433.6357773299, backtracks = 1, tol = 0.0007249165118477586
+Iteration 131: loglikelihood = -176431.07986552245, backtracks = 1, tol = 0.0007236188387028165
+Iteration 132: loglikelihood = -176428.53309502598, backtracks = 1, tol = 0.0007223075159481917
+Iteration 133: loglikelihood = -176425.99512650954, backtracks = 1, tol = 0.0007209319880208137
+Iteration 134: loglikelihood = -176423.46582794673, backtracks = 1, tol = 0.0007195431484673603
+Iteration 135: loglikelihood = -176420.9451283074, backtracks = 1, tol = 0.0007181337453444582
+Iteration 136: loglikelihood = -176418.43297590004, backtracks = 1, tol = 0.000716717554177663
+Iteration 137: loglikelihood = -176415.92932686716, backtracks = 1, tol = 0.0007152946875542506
+Iteration 138: loglikelihood = -176413.43414190397, backtracks = 1, tol = 0.0007138693993144581
+Iteration 139: loglikelihood = -176410.9473849571, backtracks = 1, tol = 0.0007124425895625417
+Iteration 140: loglikelihood = -176408.46902239625, backtracks = 1, tol = 0.0007110158537505442
+Iteration 141: loglikelihood = -176405.99902232934, backtracks = 1, tol = 0.0007095898896165077
+Iteration 142: loglikelihood = -176403.53735405538, backtracks = 1, tol = 0.0007081654375153473
+Iteration 143: loglikelihood = -176401.08398763544, backtracks = 1, tol = 0.0007067429558671284
+Iteration 144: loglikelihood = -176398.63889359104, backtracks = 1, tol = 0.0007053228493974791
+Iteration 145: loglikelihood = -176396.20204269834, backtracks = 1, tol = 0.0007039054111897955
+Iteration 146: loglikelihood = -176393.7734058607, backtracks = 1, tol = 0.0007024908836649917
+Iteration 147: loglikelihood = -176391.352954034, backtracks = 1, tol = 0.0007010794535355542
+Iteration 148: loglikelihood = -176388.94065819198, backtracks = 1, tol = 0.0006996712713831233
+Iteration 149: loglikelihood = -176386.53648931585, backtracks = 1, tol = 0.0006982664552902183
+Iteration 150: loglikelihood = -176384.14041839493, backtracks = 1, tol = 0.0006968650989734629
+Iteration 151: loglikelihood = -176381.75241643994, backtracks = 1, tol = 0.0006954672756356024
+Iteration 152: loglikelihood = -176379.3724544951, backtracks = 1, tol = 0.0006940730422368143
+Iteration 153: loglikelihood = -176377.00050365756, backtracks = 1, tol = 0.0006926824423552946
+Iteration 154: loglikelihood = -176374.63653508946, backtracks = 1, tol = 0.0006912955087706999
+Iteration 155: loglikelihood = -176372.28052003315, backtracks = 1, tol = 0.0006899174543264443
+Iteration 156: loglikelihood = -176369.9324298241, backtracks = 1, tol = 0.0006885434133724823
+Iteration 157: loglikelihood = -176367.5922358983, backtracks = 1, tol = 0.0006871725286884938
+Iteration 158: loglikelihood = -176365.2599098017, backtracks = 1, tol = 0.0006858048615690359
+Iteration 159: loglikelihood = -176362.93542319874, backtracks = 1, tol = 0.0006844404640117678
+Iteration 160: loglikelihood = -176360.61874787346, backtracks = 1, tol = 0.0006830793800343062
+Iteration 161: loglikelihood = -176358.30985573595, backtracks = 1, tol = 0.0006817216467835432
+Iteration 162: loglikelihood = -176356.0087188254, backtracks = 1, tol = 0.0006803672954709262
+Iteration 163: loglikelihood = -176353.71530930867, backtracks = 1, tol = 0.0006790163521654385
+Iteration 164: loglikelihood = -176351.42959948408, backtracks = 1, tol = 0.0006776688384672698
+Iteration 165: loglikelihood = -176349.15156178147, backtracks = 1, tol = 0.0006763247720825415
+Iteration 166: loglikelihood = -176346.88116876193, backtracks = 1, tol = 0.0006749841673155594
+Iteration 167: loglikelihood = -176344.6183931157, backtracks = 1, tol = 0.0006736470354914441
+Iteration 168: loglikelihood = -176342.36320766472, backtracks = 1, tol = 0.0006723133853206051
+Iteration 169: loglikelihood = -176340.11558535945, backtracks = 1, tol = 0.0006709832232135809
+Iteration 170: loglikelihood = -176337.87549927708, backtracks = 1, tol = 0.0006696565535547127
+Iteration 171: loglikelihood = -176335.64292262343, backtracks = 1, tol = 0.0006683333789397935
+Iteration 172: loglikelihood = -176333.41782872798, backtracks = 1, tol = 0.0006670137003837671
+Iteration 173: loglikelihood = -176331.20019104469, backtracks = 1, tol = 0.0006656975175023299
+Iteration 174: loglikelihood = -176328.98998315207, backtracks = 1, tol = 0.0006643848286713581
+Iteration 175: loglikelihood = -176326.7871787462, backtracks = 1, tol = 0.000663075631167231
+Iteration 176: loglikelihood = -176324.59175164602, backtracks = 1, tol = 0.0006617699212902967
+Iteration 177: loglikelihood = -176322.40367578686, backtracks = 1, tol = 0.000660467694474205
+Iteration 178: loglikelihood = -176320.22292522207, backtracks = 1, tol = 0.0006591689453827311
+Iteration 179: loglikelihood = -176318.04947412066, backtracks = 1, tol = 0.0006578736679953099
+Iteration 180: loglikelihood = -176315.88329676562, backtracks = 1, tol = 0.000656581855683651
+Iteration 181: loglikelihood = -176313.7243675525, backtracks = 1, tol = 0.000655293501279194
+Iteration 182: loglikelihood = -176311.5726609885, backtracks = 1, tol = 0.0006540085971338456
+Iteration 183: loglikelihood = -176309.42815169186, backtracks = 1, tol = 0.0006527271351738179
+Iteration 184: loglikelihood = -176307.29081438924, backtracks = 1, tol = 0.0006514491069480756
+Iteration 185: loglikelihood = -176305.1606239157, backtracks = 1, tol = 0.0006501745036709975
+Iteration 186: loglikelihood = -176303.0375552123, backtracks = 1, tol = 0.0006489033162615899
+Iteration 187: loglikelihood = -176300.92158332685, backtracks = 1, tol = 0.000647635535377612
+Iteration 188: loglikelihood = -176298.8126834109, backtracks = 1, tol = 0.0006463711514470324
+Iteration 189: loglikelihood = -176296.71083071927, backtracks = 1, tol = 0.0006451101546953772
+Iteration 190: loglikelihood = -176294.6160006103, backtracks = 1, tol = 0.0006438525351713629
+Iteration 191: loglikelihood = -176292.52816854283, backtracks = 1, tol = 0.0006425982827687979
+Iteration 192: loglikelihood = -176290.44731007563, backtracks = 1, tol = 0.0006413473872472699
+Iteration 193: loglikelihood = -176288.37340086902, backtracks = 1, tol = 0.0006400998382498785
+Iteration 194: loglikelihood = -176286.30641668, backtracks = 1, tol = 0.0006388556253200817
+Iteration 195: loglikelihood = -176284.2463333637, backtracks = 1, tol = 0.0006376147379159241
+Iteration 196: loglikelihood = -176282.1931268733, backtracks = 1, tol = 0.0006363771654235129
+Iteration 197: loglikelihood = -176280.14677325598, backtracks = 1, tol = 0.0006351428971690049
+Iteration 198: loglikelihood = -176278.10724865532, backtracks = 1, tol = 0.0006339119224291557
+Iteration 199: loglikelihood = -176276.0745293087, backtracks = 1, tol = 0.0006326842304410373
+Iteration 200: loglikelihood = -176274.04859154706, backtracks = 1, tol = 0.0006314598104108718
+Iteration 201: loglikelihood = -176272.02941179657, backtracks = 1, tol = 0.0006302386515216034
+Iteration 202: loglikelihood = -176270.01696657133, backtracks = 1, tol = 0.0006290207429400962
+Iteration 203: loglikelihood = -176268.01123247977, backtracks = 1, tol = 0.0006278060738233868
+Iteration 204: loglikelihood = -176266.0121862202, backtracks = 1, tol = 0.0006265946333246116
+Iteration 205: loglikelihood = -176264.0198045803, backtracks = 1, tol = 0.0006253864105977816
+Iteration 206: loglikelihood = -176262.03406443834, backtracks = 1, tol = 0.0006241813948025704
+Iteration 207: loglikelihood = -176260.05494275992, backtracks = 1, tol = 0.0006229795751085206
+Iteration 208: loglikelihood = -176258.08241659898, backtracks = 1, tol = 0.0006217809406986087
+Iteration 209: loglikelihood = -176256.1164630988, backtracks = 1, tol = 0.0006205854807726114
+Iteration 210: loglikelihood = -176254.15705948643, backtracks = 1, tol = 0.0006193931845501535
+Iteration 211: loglikelihood = -176252.2041830768, backtracks = 1, tol = 0.000618204041273449
+Iteration 212: loglikelihood = -176250.25781127077, backtracks = 1, tol = 0.0006170180402093262
+Iteration 213: loglikelihood = -176248.3179215541, backtracks = 1, tol = 0.0006158351706518912
+Iteration 214: loglikelihood = -176246.38449149518, backtracks = 1, tol = 0.0006146554219240439
+Iteration 215: loglikelihood = -176244.4574987499, backtracks = 1, tol = 0.0006134787833793679
+Iteration 216: loglikelihood = -176242.53692105415, backtracks = 1, tol = 0.0006123052444035074
+Iteration 217: loglikelihood = -176240.62273622933, backtracks = 1, tol = 0.0006111347944156839
+Iteration 218: loglikelihood = -176238.7149221777, backtracks = 1, tol = 0.000609967422869681
+Iteration 219: loglikelihood = -176236.81345688435, backtracks = 1, tol = 0.0006088031192550915
+Iteration 220: loglikelihood = -176234.91831841448, backtracks = 1, tol = 0.0006076418730981424
+Iteration 221: loglikelihood = -176233.02948491575, backtracks = 1, tol = 0.0006064836739624427
+Iteration 222: loglikelihood = -176231.14693461583, backtracks = 1, tol = 0.0006053285114499487
+Iteration 223: loglikelihood = -176229.27064582187, backtracks = 1, tol = 0.0006041763752011912
+Iteration 224: loglikelihood = -176227.40059692232, backtracks = 1, tol = 0.0006030272548961183
+Iteration 225: loglikelihood = -176225.53676638159, backtracks = 1, tol = 0.0006018811402544865
+Iteration 226: loglikelihood = -176223.67913274548, backtracks = 1, tol = 0.0006007380210362293
+Iteration 227: loglikelihood = -176221.82767463796, backtracks = 1, tol = 0.0005995978870417481
+Iteration 228: loglikelihood = -176219.98237075837, backtracks = 1, tol = 0.0005984607281122047
+Iteration 229: loglikelihood = -176218.1431998865, backtracks = 1, tol = 0.0005973265341298343
+Iteration 230: loglikelihood = -176216.3101408765, backtracks = 1, tol = 0.0005961952950179741
+Iteration 231: loglikelihood = -176214.4831726626, backtracks = 1, tol = 0.0005950670007414
+Iteration 232: loglikelihood = -176212.66227425088, backtracks = 1, tol = 0.0005939416413062016
+Iteration 233: loglikelihood = -176210.84742472612, backtracks = 1, tol = 0.0005928192067600326
+Iteration 234: loglikelihood = -176209.03860324784, backtracks = 1, tol = 0.0005916996871920204
+Iteration 235: loglikelihood = -176207.23578905087, backtracks = 1, tol = 0.000590583072732974
+Iteration 236: loglikelihood = -176205.4389614434, backtracks = 1, tol = 0.000589469353555109
+Iteration 237: loglikelihood = -176203.64809980989, backtracks = 1, tol = 0.0005883585198722787
+Iteration 238: loglikelihood = -176201.86318360706, backtracks = 1, tol = 0.0005872505619396135
+Iteration 239: loglikelihood = -176200.0841923661, backtracks = 1, tol = 0.0005861454700539088
+Iteration 240: loglikelihood = -176198.3111056923, backtracks = 1, tol = 0.000585043234553002
+Iteration 241: loglikelihood = -176196.5439032619, backtracks = 1, tol = 0.0005839438458161408
+Iteration 242: loglikelihood = -176194.78256482334, backtracks = 1, tol = 0.0005828472942636051
+Iteration 243: loglikelihood = -176193.02707020094, backtracks = 1, tol = 0.0005817535703566156
+Iteration 244: loglikelihood = -176191.27739928605, backtracks = 1, tol = 0.0005806626645973536
+Iteration 245: loglikelihood = -176189.53353204502, backtracks = 1, tol = 0.000579574567528675
+Iteration 246: loglikelihood = -176174.865522519, backtracks = 1, tol = 0.003270142839186106
+Iteration 247: loglikelihood = -176166.85315747658, backtracks = 1, tol = 0.002007013180374221
+Iteration 248: loglikelihood = -176163.2190472568, backtracks = 1, tol = 0.0010661528479233389
+Iteration 249: loglikelihood = -176160.83843653847, backtracks = 1, tol = 0.0006315056592414199
+Iteration 250: loglikelihood = -176158.81503065056, backtracks = 1, tol = 0.0006317582979561312
+Iteration 251: loglikelihood = -176156.89556506864, backtracks = 1, tol = 0.000630922961737216
+Iteration 252: loglikelihood = -176155.00943313143, backtracks = 1, tol = 0.0006303382943415601
+Iteration 253: loglikelihood = -176153.13722408726, backtracks = 1, tol = 0.000629104262627612
+Iteration 254: loglikelihood = -176151.2736920144, backtracks = 1, tol = 0.0006280089802331383
+Iteration 255: loglikelihood = -176149.41744486394, backtracks = 1, tol = 0.0006266906294743567
+Iteration 256: loglikelihood = -176147.5681110035, backtracks = 1, tol = 0.0006254450819660829
+Iteration 257: loglikelihood = -176145.7255779649, backtracks = 1, tol = 0.0006241262974312633
+Iteration 258: loglikelihood = -176143.88979479007, backtracks = 1, tol = 0.0006228454284527586
+Iteration 259: loglikelihood = -176142.06072449475, backtracks = 1, tol = 0.0006215434447719323
+Iteration 260: loglikelihood = -176140.2383337926, backtracks = 1, tol = 0.0006202619879718843
+Iteration 261: loglikelihood = -176138.42259147536, backtracks = 1, tol = 0.000618977109134687
+Iteration 262: loglikelihood = -176136.61346811018, backtracks = 1, tol = 0.0006177042872930553
+Iteration 263: loglikelihood = -176134.8109358577, backtracks = 1, tol = 0.0006164337261774517
+Iteration 264: loglikelihood = -176133.01496815094, backtracks = 1, tol = 0.0006151710868531171
+Iteration 265: loglikelihood = -176131.22553938752, backtracks = 1, tol = 0.0006139123020458065
+Iteration 266: loglikelihood = -176129.44262463885, backtracks = 1, tol = 0.00061265937613376
+Iteration 267: loglikelihood = -176127.6661994359, backtracks = 1, tol = 0.0006114105788499391
+Iteration 268: loglikelihood = -176125.89623960492, backtracks = 1, tol = 0.0006101665731122479
+Iteration 269: loglikelihood = -176124.13272116182, backtracks = 1, tol = 0.0006089265950385612
+Iteration 270: loglikelihood = -176122.37562023936, backtracks = 1, tol = 0.0006076908294883296
+Iteration 271: loglikelihood = -176120.6249130479, backtracks = 1, tol = 0.0006064589208348562
+Iteration 272: loglikelihood = -176118.88057584895, backtracks = 1, tol = 0.0006052308930662547
+Iteration 273: loglikelihood = -176117.14258494804, backtracks = 1, tol = 0.0006040065684572754
+Iteration 274: loglikelihood = -176115.41091668798, backtracks = 1, tol = 0.0006027859233904784
+Iteration 275: loglikelihood = -176113.6855474541, backtracks = 1, tol = 0.000601568860959192
+Iteration 276: loglikelihood = -176111.96645367623, backtracks = 1, tol = 0.0006003553482084715
+Iteration 277: loglikelihood = -176110.25361183524, backtracks = 1, tol = 0.0005991453268890031
+Iteration 278: loglikelihood = -176108.54699846773, backtracks = 1, tol = 0.0005979387661581428
+Iteration 279: loglikelihood = -176106.84659017128, backtracks = 1, tol = 0.0005967356273692343
+Iteration 280: loglikelihood = -176105.15236360944, backtracks = 1, tol = 0.0005955358841596758
+Iteration 281: loglikelihood = -176103.46429551495, backtracks = 1, tol = 0.0005943395084432267
+Iteration 282: loglikelihood = -176101.78236269596, backtracks = 1, tol = 0.000593146477970871
+Iteration 283: loglikelihood = -176086.8324244126, backtracks = 1, tol = 0.003508508374508581
+Iteration 284: loglikelihood = -176080.2345954927, backtracks = 1, tol = 0.0018386158226049456
+Iteration 285: loglikelihood = -176076.97028776346, backtracks = 1, tol = 0.0009543207829999069
+Iteration 286: loglikelihood = -176074.70583306337, backtracks = 1, tol = 0.000596090212129662
+Iteration 287: loglikelihood = -176072.77523252094, backtracks = 1, tol = 0.0005959857497626781
+Iteration 288: loglikelihood = -176070.9758527092, backtracks = 1, tol = 0.000595477091512017
+Iteration 289: loglikelihood = -176069.23879515022, backtracks = 1, tol = 0.0005947557195960857
+Iteration 290: loglikelihood = -176067.53668072977, backtracks = 1, tol = 0.0005938693227747816
+Iteration 291: loglikelihood = -176065.85671426455, backtracks = 1, tol = 0.0005929000645424886
+Iteration 292: loglikelihood = -176064.19213108096, backtracks = 1, tol = 0.0005918632643808013
+Iteration 293: loglikelihood = -176062.539083282, backtracks = 1, tol = 0.0005907910132218427
+Iteration 294: loglikelihood = -176060.8953015353, backtracks = 1, tol = 0.0005896884145626352
+Iteration 295: loglikelihood = -176059.25942639547, backtracks = 1, tol = 0.0005885688346329416
+Iteration 296: loglikelihood = -176057.63063885318, backtracks = 1, tol = 0.0005874346273225359
+Iteration 297: loglikelihood = -176056.00844459818, backtracks = 1, tol = 0.0005862919135315269
+Iteration 298: loglikelihood = -176054.3925448239, backtracks = 1, tol = 0.0005851421627324575
+Iteration 299: loglikelihood = -176052.78275805415, backtracks = 1, tol = 0.0005839884421571042
+Iteration 300: loglikelihood = -176051.1789727523, backtracks = 1, tol = 0.0005828317768666121
+Iteration 301: loglikelihood = -176049.58111862768, backtracks = 1, tol = 0.0005816738177540281
+Iteration 302: loglikelihood = -176037.1706497208, backtracks = 1, tol = 0.003534055424717153
+Iteration 303: loglikelihood = -176027.42426992272, backtracks = 1, tol = 0.0019394687131456553
+Iteration 304: loglikelihood = -176023.72351904536, backtracks = 1, tol = 0.001012663123841641
+Iteration 305: loglikelihood = -176021.59157124546, backtracks = 1, tol = 0.0005843049608698695
+Iteration 306: loglikelihood = -176019.87874135215, backtracks = 1, tol = 0.0005797911534946719
+Iteration 307: loglikelihood = -176018.27929997363, backtracks = 1, tol = 0.0005791548716469729
+Iteration 308: loglikelihood = -176016.71189888488, backtracks = 1, tol = 0.0005767446858470055
+Iteration 309: loglikelihood = -176015.15560822294, backtracks = 1, tol = 0.0005759098043174671
+Iteration 310: loglikelihood = -176013.60548903517, backtracks = 1, tol = 0.0005742340300585225
+Iteration 311: loglikelihood = -176012.0606541445, backtracks = 1, tol = 0.0005732329738361334
+Iteration 312: loglikelihood = -176010.52111602915, backtracks = 1, tol = 0.0005718536697957743
+Iteration 313: loglikelihood = -176008.98701377527, backtracks = 1, tol = 0.0005707699759686859
+Iteration 314: loglikelihood = -176007.45845131314, backtracks = 1, tol = 0.0005695203303138108
+Iteration 315: loglikelihood = -176005.93548511123, backtracks = 1, tol = 0.0005684026309383674
+Iteration 316: loglikelihood = -176004.41813735105, backtracks = 1, tol = 0.0005672139706745981
+Iteration 317: loglikelihood = -176002.90640970872, backtracks = 1, tol = 0.0005660856787656701
+Iteration 318: loglikelihood = -176001.40029210833, backtracks = 1, tol = 0.0005649283715166741
+Iteration 319: loglikelihood = -175999.8997682251, backtracks = 1, tol = 0.0005637998332392924
+Iteration 320: loglikelihood = -175998.40481840598, backtracks = 1, tol = 0.0005626606165183694
+Iteration 321: loglikelihood = -175996.9154213952, backtracks = 1, tol = 0.0005615378816524537
+Iteration 322: loglikelihood = -175995.4315551786, backtracks = 1, tol = 0.0005604240170401464
+Iteration 323: loglikelihood = -175993.9531974817, backtracks = 1, tol = 0.0005593078434614964
+Iteration 324: loglikelihood = -175992.4803259889, backtracks = 1, tol = 0.0005581970656385306
+Iteration 325: loglikelihood = -175991.012918473, backtracks = 1, tol = 0.0005570867918226538
+Iteration 326: loglikelihood = -175989.55095284095, backtracks = 1, tol = 0.0005559804407519718
+Iteration 327: loglikelihood = -175988.0944071585, backtracks = 1, tol = 0.0005548758755058848
+Iteration 328: loglikelihood = -175986.64325964916, backtracks = 1, tol = 0.0005537746157750136
+Iteration 329: loglikelihood = -175985.1974886958, backtracks = 1, tol = 0.000552675729746402
+Iteration 330: loglikelihood = -175983.75707282723, backtracks = 1, tol = 0.0005515798937803685
+Iteration 331: loglikelihood = -175982.32199071813, backtracks = 1, tol = 0.0005504867017430459
+Iteration 332: loglikelihood = -175980.89222117537, backtracks = 1, tol = 0.0005493964542728856
+Iteration 333: loglikelihood = -175979.4677431352, backtracks = 1, tol = 0.0005483089735535371
+Iteration 334: loglikelihood = -175978.04853565362, backtracks = 1, tol = 0.0005472243920488394
+Iteration 335: loglikelihood = -175976.63457790506, backtracks = 1, tol = 0.0005461426304503995
+Iteration 336: loglikelihood = -175975.22584917658, backtracks = 1, tol = 0.0005450637454377774
+Iteration 337: loglikelihood = -175973.82232886238, backtracks = 1, tol = 0.0005439876997614355
+Iteration 338: loglikelihood = -175972.42399646237, backtracks = 1, tol = 0.0005429145156169032
+Iteration 339: loglikelihood = -175971.0308315794, backtracks = 1, tol = 0.0005418441734087899
+Iteration 340: loglikelihood = -175969.6428139147, backtracks = 1, tol = 0.0005407766794209489
+Iteration 341: loglikelihood = -175968.25992327096, backtracks = 1, tol = 0.0005397120212566852
+Iteration 342: loglikelihood = -175966.8821395421, backtracks = 1, tol = 0.0005386501977122344
+Iteration 343: loglikelihood = -175965.5094427197, backtracks = 1, tol = 0.0005375911991749071
+Iteration 344: loglikelihood = -175964.1418128863, backtracks = 1, tol = 0.0005365350208221804
+Iteration 345: loglikelihood = -175962.77923021693, backtracks = 1, tol = 0.0005354816540067681
+Iteration 346: loglikelihood = -175961.4216749756, backtracks = 1, tol = 0.000534431092096098
+Iteration 347: loglikelihood = -175960.06912751583, backtracks = 1, tol = 0.000533383326692029
+Iteration 348: loglikelihood = -175958.72156827978, backtracks = 1, tol = 0.0005323383502193283
+Iteration 349: loglikelihood = -175957.37897779435, backtracks = 1, tol = 0.0005312961542714424
+Iteration 350: loglikelihood = -175956.041336674, backtracks = 1, tol = 0.0005302567307614441
+Iteration 351: loglikelihood = -175954.70862561776, backtracks = 1, tol = 0.0005292200712012598
+Iteration 352: loglikelihood = -175953.38082540853, backtracks = 1, tol = 0.0005281861672165202
+Iteration 353: loglikelihood = -175952.05791691356, backtracks = 1, tol = 0.000527155010234524
+Iteration 354: loglikelihood = -175950.73988108098, backtracks = 1, tol = 0.0005261265917166897
+Iteration 355: loglikelihood = -175949.42669894267, backtracks = 1, tol = 0.0005251009030252538
+Iteration 356: loglikelihood = -175948.11835160956, backtracks = 1, tol = 0.0005240779355298714
+Iteration 357: loglikelihood = -175946.81482027474, backtracks = 1, tol = 0.0005230576805517784
+Iteration 358: loglikelihood = -175945.51608620945, backtracks = 1, tol = 0.0005220401294139982
+Iteration 359: loglikelihood = -175944.22213076625, backtracks = 1, tol = 0.000521025273419081
+Iteration 360: loglikelihood = -175942.9329353729, backtracks = 1, tol = 0.0005200131038734473
+Iteration 361: loglikelihood = -175941.64848153904, backtracks = 1, tol = 0.0005190036120794758
+Iteration 362: loglikelihood = -175940.3687508489, backtracks = 1, tol = 0.0005179967893478201
+Iteration 363: loglikelihood = -175939.0937249633, backtracks = 1, tol = 0.0005169926269955006
+Iteration 364: loglikelihood = -175937.82338562037, backtracks = 1, tol = 0.0005159911163525954
+Iteration 365: loglikelihood = -175936.55771463353, backtracks = 1, tol = 0.0005149922487623764
+Iteration 366: loglikelihood = -175935.2966938906, backtracks = 1, tol = 0.0005139960155853757
+Iteration 367: loglikelihood = -175934.04030535545, backtracks = 1, tol = 0.0005130024082003737
+Iteration 368: loglikelihood = -175932.7885310644, backtracks = 1, tol = 0.0005120114180068272
+Iteration 369: loglikelihood = -175931.54135312833, backtracks = 1, tol = 0.0005110230364259371
+Iteration 370: loglikelihood = -175930.29875373028, backtracks = 1, tol = 0.0005100372549023832
+Iteration 371: loglikelihood = -175929.06071512692, backtracks = 1, tol = 0.0005090540649054717
+Iteration 372: loglikelihood = -175927.8272196462, backtracks = 1, tol = 0.0005080734579299691
+Iteration 373: loglikelihood = -175926.59824968848, backtracks = 1, tol = 0.0005070954254972473
+Iteration 374: loglikelihood = -175925.37378772488, backtracks = 1, tol = 0.0005061199591560957
+Iteration 375: loglikelihood = -175924.15381629753, backtracks = 1, tol = 0.0005051470504832593
+Iteration 376: loglikelihood = -175922.9383180191, backtracks = 1, tol = 0.0005041766910841033
+Iteration 377: loglikelihood = -175921.72727557225, backtracks = 1, tol = 0.0005032088725933604
+Iteration 378: loglikelihood = -175920.52067170883, backtracks = 1, tol = 0.0005022435866752106
+Iteration 379: loglikelihood = -175919.31848924927, backtracks = 1, tol = 0.0005012808250239652
+Iteration 380: loglikelihood = -175918.1207110847, backtracks = 1, tol = 0.0005003205793642731
+Iteration 381: loglikelihood = -175916.92732017336, backtracks = 1, tol = 0.0004993628414515338
+Iteration 382: loglikelihood = -175915.73829954182, backtracks = 1, tol = 0.0004984076030718546
+Iteration 383: loglikelihood = -175914.55363228428, backtracks = 1, tol = 0.0004974548560425885
+Iteration 384: loglikelihood = -175913.3733015612, backtracks = 1, tol = 0.0004965045922122304
+Iteration 385: loglikelihood = -175912.1972906018, backtracks = 1, tol = 0.0004955568034607688
+Iteration 386: loglikelihood = -175911.02558270187, backtracks = 1, tol = 0.0004946114816995829
+Iteration 387: loglikelihood = -175909.85816122097, backtracks = 1, tol = 0.0004936686188715254
+Iteration 388: loglikelihood = -175908.6950095878, backtracks = 1, tol = 0.0004927282069511942
+Iteration 389: loglikelihood = -175907.5361112947, backtracks = 1, tol = 0.0004917902379446649
+Iteration 390: loglikelihood = -175906.38144989888, backtracks = 1, tol = 0.0004908547038898041
+Iteration 391: loglikelihood = -175905.23100902376, backtracks = 1, tol = 0.0004899215968559202
+Iteration 392: loglikelihood = -175904.08477235684, backtracks = 1, tol = 0.000488990908943955
+Iteration 393: loglikelihood = -175902.94272365002, backtracks = 1, tol = 0.0004880626322865085
+Iteration 394: loglikelihood = -175901.8048467188, backtracks = 1, tol = 0.00048713675904761756
+Iteration 395: loglikelihood = -175900.67112544336, backtracks = 1, tol = 0.0004862132814227615
+Iteration 396: loglikelihood = -175899.54154376613, backtracks = 1, tol = 0.0004852921916388498
+Iteration 397: loglikelihood = -175898.41608569276, backtracks = 1, tol = 0.0004843734819540225
+Iteration 398: loglikelihood = -175897.29473529247, backtracks = 1, tol = 0.0004834571446577216
+Iteration 399: loglikelihood = -175896.1774766962, backtracks = 1, tol = 0.00048254317207039086
+Iteration 400: loglikelihood = -175895.06429409716, backtracks = 1, tol = 0.0004816315565436929
+Iteration 401: loglikelihood = -175893.95517175103, backtracks = 1, tol = 0.0004807222904600249
+Iteration 402: loglikelihood = -175892.85009397494, backtracks = 1, tol = 0.00047981536623273747
+Iteration 403: loglikelihood = -175891.7490451462, backtracks = 1, tol = 0.0004789107763057968
+Iteration 404: loglikelihood = -175890.652009706, backtracks = 1, tol = 0.0004780085131538192
+Iteration 405: loglikelihood = -175889.55897215323, backtracks = 1, tol = 0.00047710856928183886
+Iteration 406: loglikelihood = -175888.46991704896, backtracks = 1, tol = 0.00047621093722532287
+Iteration 407: loglikelihood = -175887.38482901428, backtracks = 1, tol = 0.00047531560954989957
+Iteration 408: loglikelihood = -175886.30369273084, backtracks = 1, tol = 0.00047442257885131395
+Iteration 409: loglikelihood = -175885.22649293905, backtracks = 1, tol = 0.0004735318377553222
+Iteration 410: loglikelihood = -175884.15321443952, backtracks = 1, tol = 0.00047264337891734034
+Iteration 411: loglikelihood = -175883.0838420919, backtracks = 1, tol = 0.00047175719502283474
+Iteration 412: loglikelihood = -175882.0183608143, backtracks = 1, tol = 0.00047087327878651884
+Iteration 413: loglikelihood = -175880.95675558533, backtracks = 1, tol = 0.0004699916229527872
+Iteration 414: loglikelihood = -175879.89901143935, backtracks = 1, tol = 0.00046911222029520253
+Iteration 415: loglikelihood = -175878.8451134714, backtracks = 1, tol = 0.00046823506361651907
+Iteration 416: loglikelihood = -175877.79504683416, backtracks = 1, tol = 0.00046736014574866596
+Iteration 417: loglikelihood = -175876.74879673618, backtracks = 1, tol = 0.0004664874595522368
+Iteration 418: loglikelihood = -175875.70634844643, backtracks = 1, tol = 0.00046561699791696875
+Iteration 419: loglikelihood = -175874.66768728883, backtracks = 1, tol = 0.00046474875376078167
+Iteration 420: loglikelihood = -175873.632798644, backtracks = 1, tol = 0.0004638827200305461
+Iteration 421: loglikelihood = -175872.60166795301, backtracks = 1, tol = 0.000463018889701125
+Iteration 422: loglikelihood = -175871.57428070944, backtracks = 1, tol = 0.00046215725577585464
+Iteration 423: loglikelihood = -175870.55062246538, backtracks = 1, tol = 0.00046129781128604106
+Iteration 424: loglikelihood = -175869.530678828, backtracks = 1, tol = 0.0004604405492910727
+Iteration 425: loglikelihood = -175868.5144354611, backtracks = 1, tol = 0.00045958546287799997
+Iteration 426: loglikelihood = -175867.5018780835, backtracks = 1, tol = 0.00045873254516165014
+Iteration 427: loglikelihood = -175866.4929924713, backtracks = 1, tol = 0.0004578817892844552
+Iteration 428: loglikelihood = -175865.487764453, backtracks = 1, tol = 0.0004570331884161983
+Iteration 429: loglikelihood = -175864.48617991398, backtracks = 1, tol = 0.00045618673575400777
+Iteration 430: loglikelihood = -175863.48822479273, backtracks = 1, tol = 0.00045534242452206406
+Iteration 431: loglikelihood = -175862.49388508528, backtracks = 1, tol = 0.00045450024797175927
+Iteration 432: loglikelihood = -175861.503146839, backtracks = 1, tol = 0.00045366019938116033
+Iteration 433: loglikelihood = -175860.51599615632, backtracks = 1, tol = 0.0004528222720552515
+Iteration 434: loglikelihood = -175859.532419195, backtracks = 1, tol = 0.0004519864593256039
+Iteration 435: loglikelihood = -175858.55240216426, backtracks = 1, tol = 0.0004511527545502103
+Iteration 436: loglikelihood = -175857.57593132782, backtracks = 1, tol = 0.00045032115111368884
+Iteration 437: loglikelihood = -175856.6029930032, backtracks = 1, tol = 0.0004494916424265047
+Iteration 438: loglikelihood = -175855.63357355964, backtracks = 1, tol = 0.0004486642219256256
+Iteration 439: loglikelihood = -175854.66765942064, backtracks = 1, tol = 0.0004478388830737048
+Iteration 440: loglikelihood = -175853.705237061, backtracks = 1, tol = 0.00044701561935949196
+Iteration 441: loglikelihood = -175852.74629300903, backtracks = 1, tol = 0.0004461944242973448
+Iteration 442: loglikelihood = -175851.79081384517, backtracks = 1, tol = 0.0004453752914271515
+Iteration 443: loglikelihood = -175850.83878620065, backtracks = 1, tol = 0.0004445582143145791
+Iteration 444: loglikelihood = -175849.89019676036, backtracks = 1, tol = 0.00044374318655022093
+Iteration 445: loglikelihood = -175848.945032259, backtracks = 1, tol = 0.00044293020175033694
+Iteration 446: loglikelihood = -175848.00327948458, backtracks = 1, tol = 0.0004421192535560434
+Iteration 447: loglikelihood = -175847.0649252738, backtracks = 1, tol = 0.00044131033563340116
+Iteration 448: loglikelihood = -175846.12995651638, backtracks = 1, tol = 0.00044050344167362765
+Iteration 449: loglikelihood = -175845.19836015272, backtracks = 1, tol = 0.00043969856539232956
+Iteration 450: loglikelihood = -175844.2701231726, backtracks = 1, tol = 0.0004388957005300421
+Iteration 451: loglikelihood = -175843.34523261755, backtracks = 1, tol = 0.00043809484085162686
+Iteration 452: loglikelihood = -175842.42367557838, backtracks = 1, tol = 0.00043729598014636385
+Iteration 453: loglikelihood = -175841.5054391967, backtracks = 1, tol = 0.0004364991122278395
+Iteration 454: loglikelihood = -175840.59051066282, backtracks = 1, tol = 0.0004357042309337553
+Iteration 455: loglikelihood = -175839.6788772178, backtracks = 1, tol = 0.00043491133012598006
+Iteration 456: loglikelihood = -175838.77052615164, backtracks = 1, tol = 0.0004341204036900744
+Iteration 457: loglikelihood = -175837.86544480332, backtracks = 1, tol = 0.0004333314455355078
+Iteration 458: loglikelihood = -175836.9636205606, backtracks = 1, tol = 0.00043254444959550973
+Iteration 459: loglikelihood = -175836.06504086233, backtracks = 1, tol = 0.0004317594098267185
+Iteration 460: loglikelihood = -175835.16969319276, backtracks = 1, tol = 0.0004309763202094405
+Iteration 461: loglikelihood = -175834.27756508708, backtracks = 1, tol = 0.0004301951747472187
+Iteration 462: loglikelihood = -175833.38864412747, backtracks = 1, tol = 0.0004294159674666871
+Iteration 463: loglikelihood = -175832.50291794422, backtracks = 1, tol = 0.0004286386924179128
+Iteration 464: loglikelihood = -175831.620374217, backtracks = 1, tol = 0.0004278633436736013
+Iteration 465: loglikelihood = -175830.7410006718, backtracks = 1, tol = 0.00042708991532980535
+Iteration 466: loglikelihood = -175829.86478508147, backtracks = 1, tol = 0.00042631840150480707
+Iteration 467: loglikelihood = -175828.99171526864, backtracks = 1, tol = 0.00042554879634023403
+Iteration 468: loglikelihood = -175828.12177910178, backtracks = 1, tol = 0.0004247810939995769
+Iteration 469: loglikelihood = -175827.25496449566, backtracks = 1, tol = 0.0004240152886694691
+Iteration 470: loglikelihood = -175826.39125941182, backtracks = 1, tol = 0.0004232513745582878
+Iteration 471: loglikelihood = -175825.53065186096, backtracks = 1, tol = 0.0004224893458971495
+Iteration 472: loglikelihood = -175824.6731298968, backtracks = 1, tol = 0.00042172919693895936
+Iteration 473: loglikelihood = -175823.81868162216, backtracks = 1, tol = 0.00042097092195892094
+Iteration 474: loglikelihood = -175822.96729518345, backtracks = 1, tol = 0.0004202145152539517
+Iteration 475: loglikelihood = -175822.11895877577, backtracks = 1, tol = 0.0004194599711429914
+Iteration 476: loglikelihood = -175821.27366063767, backtracks = 1, tol = 0.0004187072839665808
+Iteration 477: loglikelihood = -175820.4313890543, backtracks = 1, tol = 0.00041795644808680657
+Iteration 478: loglikelihood = -175819.59213235608, backtracks = 1, tol = 0.00041720745788756977
+Iteration 479: loglikelihood = -175818.7558789183, backtracks = 1, tol = 0.00041646030777388386
+Iteration 480: loglikelihood = -175817.92261716234, backtracks = 1, tol = 0.00041571499217214487
+Iteration 481: loglikelihood = -175817.09233555204, backtracks = 1, tol = 0.00041497150553007763
+Iteration 482: loglikelihood = -175816.26502259946, backtracks = 1, tol = 0.0004142298423164001
+Iteration 483: loglikelihood = -175815.44066685796, backtracks = 1, tol = 0.00041348999702089245
+Iteration 484: loglikelihood = -175814.61925692728, backtracks = 1, tol = 0.00041275196415426467
+Iteration 485: loglikelihood = -175813.80078145035, backtracks = 1, tol = 0.0004120157382479434
+Iteration 486: loglikelihood = -175812.98522911489, backtracks = 1, tol = 0.0004112813138542642
+Iteration 487: loglikelihood = -175812.17258865072, backtracks = 1, tol = 0.0004105486855459365
+Iteration 488: loglikelihood = -175811.36284883367, backtracks = 1, tol = 0.0004098178479163983
+Iteration 489: loglikelihood = -175810.55599848164, backtracks = 1, tol = 0.00040908879557940335
+Iteration 490: loglikelihood = -175809.7520264563, backtracks = 1, tol = 0.00040836152316901336
+Iteration 491: loglikelihood = -175808.95092166302, backtracks = 1, tol = 0.00040763602533967135
+Iteration 492: loglikelihood = -175808.1526730479, backtracks = 1, tol = 0.00040691229676579043
+Iteration 493: loglikelihood = -175807.35726960332, backtracks = 1, tol = 0.0004061903321419498
+Iteration 494: loglikelihood = -175806.56470036219, backtracks = 1, tol = 0.00040547012618256554
+Iteration 495: loglikelihood = -175805.7749543992, backtracks = 1, tol = 0.0004047516736220062
+Iteration 496: loglikelihood = -175804.98802083358, backtracks = 1, tol = 0.00040403496921434604
+Iteration 497: loglikelihood = -175804.20388882584, backtracks = 1, tol = 0.0004033200077334407
+Iteration 498: loglikelihood = -175803.42254757643, backtracks = 1, tol = 0.0004026067839724805
+Iteration 499: loglikelihood = -175802.64398633188, backtracks = 1, tol = 0.0004018952927445101
+Iteration 500: loglikelihood = -175801.8681943774, backtracks = 1, tol = 0.00040118552888161995
+Iteration 501: loglikelihood = -175801.09516103944, backtracks = 1, tol = 0.0004004774872353871
+Iteration 502: loglikelihood = -175800.32487568777, backtracks = 1, tol = 0.00039977116267667133
+Iteration 503: loglikelihood = -175799.55732773224, backtracks = 1, tol = 0.0003990665500952514
+Iteration 504: loglikelihood = -175798.79250662343, backtracks = 1, tol = 0.0003983636444001861
+Iteration 505: loglikelihood = -175798.0304018546, backtracks = 1, tol = 0.00039766244051921
+Iteration 506: loglikelihood = -175797.27100295702, backtracks = 1, tol = 0.0003969629333992563
+Iteration 507: loglikelihood = -175796.5142995047, backtracks = 1, tol = 0.0003962651180057331
+Iteration 508: loglikelihood = -175795.7602811117, backtracks = 1, tol = 0.0003955689893229662
+Iteration 509: loglikelihood = -175795.00893743156, backtracks = 1, tol = 0.00039487454235371817
+Iteration 510: loglikelihood = -175794.26025815855, backtracks = 1, tol = 0.00039418177211935046
+Iteration 511: loglikelihood = -175793.514233027, backtracks = 1, tol = 0.00039349067365974537
+Iteration 512: loglikelihood = -175792.7708518103, backtracks = 1, tol = 0.0003928012420328662
+Iteration 513: loglikelihood = -175792.03010432248, backtracks = 1, tol = 0.00039211347231528316
+Iteration 514: loglikelihood = -175791.29198041736, backtracks = 1, tol = 0.000391427359601493
+Iteration 515: loglikelihood = -175790.55646998592, backtracks = 1, tol = 0.0003907428990042047
+Iteration 516: loglikelihood = -175789.8235629613, backtracks = 1, tol = 0.0003900600856540627
+Iteration 517: loglikelihood = -175789.0932493133, backtracks = 1, tol = 0.00038937891469977156
+Iteration 518: loglikelihood = -175788.36551905144, backtracks = 1, tol = 0.0003886993813077802
+Iteration 519: loglikelihood = -175787.64036222541, backtracks = 1, tol = 0.00038802148066228813
+Iteration 520: loglikelihood = -175786.91776892007, backtracks = 1, tol = 0.00038734520796537077
+Iteration 521: loglikelihood = -175786.19772926279, backtracks = 1, tol = 0.00038667055843638484
+Iteration 522: loglikelihood = -175785.4802334167, backtracks = 1, tol = 0.0003859975273125366
+Iteration 523: loglikelihood = -175784.7652715838, backtracks = 1, tol = 0.00038532610984824754
+Iteration 524: loglikelihood = -175784.052834003, backtracks = 1, tol = 0.0003846563013154826
+Iteration 525: loglikelihood = -175783.34291095345, backtracks = 1, tol = 0.0003839880970033577
+Iteration 526: loglikelihood = -175782.6354927509, backtracks = 1, tol = 0.00038332149221830827
+Iteration 527: loglikelihood = -175781.93056974682, backtracks = 1, tol = 0.00038265648228377785
+Iteration 528: loglikelihood = -175781.22813233323, backtracks = 1, tol = 0.0003819930625403876
+Iteration 529: loglikelihood = -175780.52817093703, backtracks = 1, tol = 0.00038133122834566535
+Iteration 530: loglikelihood = -175779.83067602388, backtracks = 1, tol = 0.0003806709750740562
+Iteration 531: loglikelihood = -175779.13563809532, backtracks = 1, tol = 0.00038001229811681237
+Iteration 532: loglikelihood = -175778.44304769, backtracks = 1, tol = 0.0003793551928820047
+Iteration 533: loglikelihood = -175777.7528953841, backtracks = 1, tol = 0.000378699654794253
+Iteration 534: loglikelihood = -175777.06517178973, backtracks = 1, tol = 0.00037804567929493863
+Iteration 535: loglikelihood = -175776.3798675555, backtracks = 1, tol = 0.00037739326184173575
+Iteration 536: loglikelihood = -175775.69697336457, backtracks = 1, tol = 0.00037674239790906416
+Iteration 537: loglikelihood = -175775.01647994094, backtracks = 1, tol = 0.00037609308298738214
+Iteration 538: loglikelihood = -175774.338378039, backtracks = 1, tol = 0.00037544531258375946
+Iteration 539: loglikelihood = -175773.6626584527, backtracks = 1, tol = 0.0003747990822212912
+Iteration 540: loglikelihood = -175772.98931201128, backtracks = 1, tol = 0.00037415438743935135
+Iteration 541: loglikelihood = -175772.31832957815, backtracks = 1, tol = 0.000373511223793248
+Iteration 542: loglikelihood = -175771.64970205334, backtracks = 1, tol = 0.00037286958685443724
+Iteration 543: loglikelihood = -175770.9834203713, backtracks = 1, tol = 0.00037222947221029855
+Iteration 544: loglikelihood = -175770.3194755039, backtracks = 1, tol = 0.0003715908754639509
+Iteration 545: loglikelihood = -175769.65785845442, backtracks = 1, tol = 0.00037095379223454737
+Iteration 546: loglikelihood = -175768.99856026476, backtracks = 1, tol = 0.00037031821815669314
+Iteration 547: loglikelihood = -175768.3415720088, backtracks = 1, tol = 0.0003696841488809004
+Iteration 548: loglikelihood = -175767.68688479636, backtracks = 1, tol = 0.00036905158007296694
+Iteration 549: loglikelihood = -175767.03448977304, backtracks = 1, tol = 0.0003684205074146717
+Iteration 550: loglikelihood = -175766.38437811568, backtracks = 1, tol = 0.0003677909266026748
+Iteration 551: loglikelihood = -175765.73654103678, backtracks = 1, tol = 0.00036716283334949334
+Iteration 552: loglikelihood = -175765.09096978512, backtracks = 1, tol = 0.00036653622338268154
+Iteration 553: loglikelihood = -175764.44765564002, backtracks = 1, tol = 0.0003659110924451684
+Iteration 554: loglikelihood = -175763.80658991792, backtracks = 1, tol = 0.0003652874362949978
+Iteration 555: loglikelihood = -175763.16776396584, backtracks = 1, tol = 0.00036466525070534724
+Iteration 556: loglikelihood = -175762.5311691665, backtracks = 1, tol = 0.00036404453146438856
+Iteration 557: loglikelihood = -175761.89679693518, backtracks = 1, tol = 0.000363425274375347
+Iteration 558: loglikelihood = -175761.264638722, backtracks = 1, tol = 0.0003628074752563227
+Iteration 559: loglikelihood = -175760.63468600728, backtracks = 1, tol = 0.00036219112994027137
+Iteration 560: loglikelihood = -175760.0069303076, backtracks = 1, tol = 0.0003615762342748655
+Iteration 561: loglikelihood = -175759.3813631705, backtracks = 1, tol = 0.0003609627841225956
+Iteration 562: loglikelihood = -175758.75797617802, backtracks = 1, tol = 0.0003603507753605524
+Iteration 563: loglikelihood = -175758.13676094235, backtracks = 1, tol = 0.00035974020388032993
+Iteration 564: loglikelihood = -175757.5177091113, backtracks = 1, tol = 0.0003591310655882458
+Iteration 565: loglikelihood = -175756.90081236162, backtracks = 1, tol = 0.0003585233564048073
+Iteration 566: loglikelihood = -175756.28606240667, backtracks = 1, tol = 0.0003579170722651713
+Iteration 567: loglikelihood = -175755.67345098843, backtracks = 1, tol = 0.0003573122091187303
+Iteration 568: loglikelihood = -175755.06296988257, backtracks = 1, tol = 0.0003567087629290158
+Iteration 569: loglikelihood = -175754.45461089665, backtracks = 1, tol = 0.0003561067296740012
+Iteration 570: loglikelihood = -175753.84836586885, backtracks = 1, tol = 0.00035550610534556843
+Iteration 571: loglikelihood = -175753.24422667216, backtracks = 1, tol = 0.00035490688594989043
+Iteration 572: loglikelihood = -175752.64218520693, backtracks = 1, tol = 0.00035430906750701845
+Iteration 573: loglikelihood = -175752.04223340808, backtracks = 1, tol = 0.00035371264605106595
+Iteration 574: loglikelihood = -175751.44436323992, backtracks = 1, tol = 0.0003531176176299557
+Iteration 575: loglikelihood = -175750.84856669905, backtracks = 1, tol = 0.000352523978305485
+Iteration 576: loglikelihood = -175750.25483581453, backtracks = 1, tol = 0.00035193172415319253
+Iteration 577: loglikelihood = -175749.6631626436, backtracks = 1, tol = 0.00035134085126254326
+Iteration 578: loglikelihood = -175749.0735392759, backtracks = 1, tol = 0.00035075135573628006
+Iteration 579: loglikelihood = -175748.48595783208, backtracks = 1, tol = 0.00035016323369120415
+Iteration 580: loglikelihood = -175747.90041046246, backtracks = 1, tol = 0.0003495764812571313
+Iteration 581: loglikelihood = -175747.31688934832, backtracks = 1, tol = 0.00034899109457798926
+Iteration 582: loglikelihood = -175746.7353867009, backtracks = 1, tol = 0.0003484070698104974
+Iteration 583: loglikelihood = -175746.15589476307, backtracks = 1, tol = 0.000347824403125146
+Iteration 584: loglikelihood = -175745.57840580662, backtracks = 1, tol = 0.0003472430907057086
+Iteration 585: loglikelihood = -175745.00291213294, backtracks = 1, tol = 0.00034666312874903285
+Iteration 586: loglikelihood = -175744.42940607519, backtracks = 1, tol = 0.0003460845134652671
+Iteration 587: loglikelihood = -175743.85787999444, backtracks = 1, tol = 0.0003455072410777702
+Iteration 588: loglikelihood = -175743.28832628333, backtracks = 1, tol = 0.00034493130782274476
+Iteration 589: loglikelihood = -175742.72073736176, backtracks = 1, tol = 0.0003443567099498209
+Iteration 590: loglikelihood = -175742.15510568058, backtracks = 1, tol = 0.00034378344372113537
+Iteration 591: loglikelihood = -175741.59142372012, backtracks = 1, tol = 0.00034321150541207445
+Iteration 592: loglikelihood = -175741.0296839893, backtracks = 1, tol = 0.0003426408913107495
+Iteration 593: loglikelihood = -175740.46987902623, backtracks = 1, tol = 0.0003420715977181464
+Iteration 594: loglikelihood = -175739.91200139973, backtracks = 1, tol = 0.0003415036209478795
+Iteration 595: loglikelihood = -175739.3560437032, backtracks = 1, tol = 0.00034093695732638013
+Iteration 596: loglikelihood = -175738.80199856404, backtracks = 1, tol = 0.0003403716031926912
+Iteration 597: loglikelihood = -175738.24985863446, backtracks = 1, tol = 0.0003398075548984584
+Iteration 598: loglikelihood = -175737.69961659773, backtracks = 1, tol = 0.0003392448088077255
+Iteration 599: loglikelihood = -175737.1512651638, backtracks = 1, tol = 0.0003386833612972027
+Iteration 600: loglikelihood = -175736.60479707184, backtracks = 1, tol = 0.0003381232087559832
+Iteration 601: loglikelihood = -175736.06020508893, backtracks = 1, tol = 0.00033756434758541726
+Iteration 602: loglikelihood = -175735.51748201135, backtracks = 1, tol = 0.0003370067741993426
+Iteration 603: loglikelihood = -175734.97662066168, backtracks = 1, tol = 0.00033645048502376173
+Iteration 604: loglikelihood = -175734.43761389214, backtracks = 1, tol = 0.00033589547649691485
+Iteration 605: loglikelihood = -175733.9004545797, backtracks = 1, tol = 0.00033534174506927344
+Iteration 606: loglikelihood = -175733.3651356338, backtracks = 1, tol = 0.0003347892872032583
+Iteration 607: loglikelihood = -175732.83164998714, backtracks = 1, tol = 0.0003342380993735893
+Iteration 608: loglikelihood = -175732.2999906012, backtracks = 1, tol = 0.0003336881780668457
+Iteration 609: loglikelihood = -175731.77015046758, backtracks = 1, tol = 0.00033313951978154017
+Iteration 610: loglikelihood = -175731.24212259945, backtracks = 1, tol = 0.0003325921210281929
+Iteration 611: loglikelihood = -175730.71590004396, backtracks = 1, tol = 0.0003320459783291689
+Iteration 612: loglikelihood = -175730.19147586924, backtracks = 1, tol = 0.00033150108821863454
+Iteration 613: loglikelihood = -175729.66884317365, backtracks = 1, tol = 0.00033095744724251374
+Iteration 614: loglikelihood = -175729.14799508255, backtracks = 1, tol = 0.0003304150519584056
+Iteration 615: loglikelihood = -175728.62892474636, backtracks = 1, tol = 0.0003298738989356589
+Iteration 616: loglikelihood = -175728.11162534263, backtracks = 1, tol = 0.0003293339847552118
+Iteration 617: loglikelihood = -175727.59609007667, backtracks = 1, tol = 0.00032879530600946977
+Iteration 618: loglikelihood = -175727.08231217857, backtracks = 1, tol = 0.0003282578593025002
+Iteration 619: loglikelihood = -175726.5702849065, backtracks = 1, tol = 0.00032772164124975333
+Iteration 620: loglikelihood = -175726.06000154285, backtracks = 1, tol = 0.0003271866484781784
+Iteration 621: loglikelihood = -175725.55145539858, backtracks = 1, tol = 0.000326652877625906
+Iteration 622: loglikelihood = -175725.04463980778, backtracks = 1, tol = 0.00032612032534275794
+Iteration 623: loglikelihood = -175724.53954813193, backtracks = 1, tol = 0.00032558898828937934
+Iteration 624: loglikelihood = -175724.03617375944, backtracks = 1, tol = 0.0003250588631381031
+Iteration 625: loglikelihood = -175723.53451010265, backtracks = 1, tol = 0.000324529946572043
+Iteration 626: loglikelihood = -175723.03455060127, backtracks = 1, tol = 0.00032400223528576184
+Iteration 627: loglikelihood = -175722.53628871823, backtracks = 1, tol = 0.0003234757259847193
+Iteration 628: loglikelihood = -175722.03971794387, backtracks = 1, tol = 0.0003229504153856255
+Iteration 629: loglikelihood = -175721.54483179277, backtracks = 1, tol = 0.00032242630021585023
+Iteration 630: loglikelihood = -175721.05162380572, backtracks = 1, tol = 0.00032190337721417034
+Iteration 631: loglikelihood = -175720.56008754732, backtracks = 1, tol = 0.00032138164312990386
+Iteration 632: loglikelihood = -175720.07021660882, backtracks = 1, tol = 0.0003208610947233431
+Iteration 633: loglikelihood = -175719.58200460474, backtracks = 1, tol = 0.00032034172876571545
+Iteration 634: loglikelihood = -175719.09544517566, backtracks = 1, tol = 0.0003198235420389481
+Iteration 635: loglikelihood = -175718.61053198684, backtracks = 1, tol = 0.00031930653133559027
+Iteration 636: loglikelihood = -175718.12725872692, backtracks = 1, tol = 0.00031879069345908893
+Iteration 637: loglikelihood = -175717.64561911067, backtracks = 1, tol = 0.0003182760252233582
+Iteration 638: loglikelihood = -175717.16560687666, backtracks = 1, tol = 0.00031776252345297657
+Iteration 639: loglikelihood = -175716.6872157874, backtracks = 1, tol = 0.0003172501849831889
+Iteration 640: loglikelihood = -175716.21043963026, backtracks = 1, tol = 0.000316739006659476
+Iteration 641: loglikelihood = -175715.7352722176, backtracks = 1, tol = 0.00031622898533814554
+Iteration 642: loglikelihood = -175715.2617073834, backtracks = 1, tol = 0.0003157201178856275
+Iteration 643: loglikelihood = -175714.7897389888, backtracks = 1, tol = 0.0003152124011789084
+Iteration 644: loglikelihood = -175714.31936091612, backtracks = 1, tol = 0.00031470583210521983
+Iteration 645: loglikelihood = -175713.85056707205, backtracks = 1, tol = 0.00031420040756223726
+Iteration 646: loglikelihood = -175713.38335138792, backtracks = 1, tol = 0.00031368045131238145
+Iteration 647: loglikelihood = -175712.9177078192, backtracks = 1, tol = 0.00031312445285544256
+Iteration 648: loglikelihood = -175712.45363034267, backtracks = 1, tol = 0.0003125698020237498
+Iteration 649: loglikelihood = -175711.99111296108, backtracks = 1, tol = 0.0003120164948689029
+Iteration 650: loglikelihood = -175711.53014969744, backtracks = 1, tol = 0.00031146452745654444
+Iteration 651: loglikelihood = -175711.07073460158, backtracks = 1, tol = 0.0003109138958664596
+Iteration 652: loglikelihood = -175710.61286174358, backtracks = 1, tol = 0.00031036459619251917
+Iteration 653: loglikelihood = -175710.15652521927, backtracks = 1, tol = 0.00030981662454258424
+Iteration 654: loglikelihood = -175709.70171914453, backtracks = 1, tol = 0.000309269977038528
+Iteration 655: loglikelihood = -175709.24843765981, backtracks = 1, tol = 0.00030872464981586704
+Iteration 656: loglikelihood = -175708.7966749285, backtracks = 1, tol = 0.0003081806390242539
+Iteration 657: loglikelihood = -175708.3464251367, backtracks = 1, tol = 0.00030763794082671735
+Iteration 658: loglikelihood = -175707.89768249227, backtracks = 1, tol = 0.00030709655140039
+Iteration 659: loglikelihood = -175707.4504412263, backtracks = 1, tol = 0.00030655646693567175
+Iteration 660: loglikelihood = -175707.00469559146, backtracks = 1, tol = 0.00030601768363676163
+Iteration 661: loglikelihood = -175706.56043986435, backtracks = 1, tol = 0.0003054801977212526
+Iteration 662: loglikelihood = -175706.11766834377, backtracks = 1, tol = 0.00030494400542027287
+Iteration 663: loglikelihood = -175705.6763753486, backtracks = 1, tol = 0.0003044091029782376
+Iteration 664: loglikelihood = -175705.23655522152, backtracks = 1, tol = 0.00030387548665306897
+Iteration 665: loglikelihood = -175704.79820232722, backtracks = 1, tol = 0.00030334315271575326
+Iteration 666: loglikelihood = -175704.3613110523, backtracks = 1, tol = 0.0003028120974507174
+Iteration 667: loglikelihood = -175703.92587580413, backtracks = 1, tol = 0.00030228231715530936
+Iteration 668: loglikelihood = -175703.4918910131, backtracks = 1, tol = 0.0003017538081401356
+Iteration 669: loglikelihood = -175703.05935113123, backtracks = 1, tol = 0.00030122656672889285
+Iteration 670: loglikelihood = -175702.6282506314, backtracks = 1, tol = 0.00030070058925808313
+Iteration 671: loglikelihood = -175702.19858400832, backtracks = 1, tol = 0.0003001758720773911
+Iteration 672: loglikelihood = -175701.77034577797, backtracks = 1, tol = 0.00029965241154904937
+Iteration 673: loglikelihood = -175701.34353047883, backtracks = 1, tol = 0.00029913020404848887
+Iteration 674: loglikelihood = -175700.918132669, backtracks = 1, tol = 0.0002986092459635492
+Iteration 675: loglikelihood = -175700.49414692825, backtracks = 1, tol = 0.0002980895336951678
+Iteration 676: loglikelihood = -175700.07156785854, backtracks = 1, tol = 0.0002975710636563976
+Iteration 677: loglikelihood = -175699.65039008152, backtracks = 1, tol = 0.00029705383227356233
+Iteration 678: loglikelihood = -175699.23060824018, backtracks = 1, tol = 0.0002965378359849252
+Iteration 679: loglikelihood = -175698.8122169986, backtracks = 1, tol = 0.00029602307124161164
+Iteration 680: loglikelihood = -175698.39521104173, backtracks = 1, tol = 0.0002955095345070556
+Iteration 681: loglikelihood = -175697.9795850747, backtracks = 1, tol = 0.00029499722225706797
+Iteration 682: loglikelihood = -175697.56533382388, backtracks = 1, tol = 0.00029448613097986655
+Iteration 683: loglikelihood = -175697.1524520352, backtracks = 1, tol = 0.00029397625717583395
+Iteration 684: loglikelihood = -175696.74093447631, backtracks = 1, tol = 0.00029346759735766426
+Iteration 685: loglikelihood = -175696.3307759344, backtracks = 1, tol = 0.00029296014805019996
+Iteration 686: loglikelihood = -175695.92197121715, backtracks = 1, tol = 0.0002924539057903845
+Iteration 687: loglikelihood = -175695.5145151528, backtracks = 1, tol = 0.0002919488671272937
+Iteration 688: loglikelihood = -175695.1084025892, backtracks = 1, tol = 0.0002914450286219338
+Iteration 689: loglikelihood = -175694.70362839437, backtracks = 1, tol = 0.00029094238684727354
+Iteration 690: loglikelihood = -175694.30018745668, backtracks = 1, tol = 0.0002904409383884303
+Iteration 691: loglikelihood = -175693.89807468472, backtracks = 1, tol = 0.0002899406798419276
+Iteration 692: loglikelihood = -175693.4972850054, backtracks = 1, tol = 0.00028944160781661744
+Iteration 693: loglikelihood = -175693.0978133661, backtracks = 1, tol = 0.00028894371893262947
+Iteration 694: loglikelihood = -175692.69965473516, backtracks = 1, tol = 0.00028844700982229255
+Iteration 695: loglikelihood = -175692.30280409963, backtracks = 1, tol = 0.00028795147712916283
+Iteration 696: loglikelihood = -175691.90725646494, backtracks = 1, tol = 0.00028745711750863615
+Iteration 697: loglikelihood = -175691.51300685684, backtracks = 1, tol = 0.0002869639276276721
+Iteration 698: loglikelihood = -175691.120050322, backtracks = 1, tol = 0.0002864719041647117
+Iteration 699: loglikelihood = -175690.72838192387, backtracks = 1, tol = 0.000285981043809595
+Iteration 700: loglikelihood = -175690.33799674615, backtracks = 1, tol = 0.0002854913432636722
+Iteration 701: loglikelihood = -175689.94888989336, backtracks = 1, tol = 0.0002850027992396062
+Iteration 702: loglikelihood = -175689.56105648575, backtracks = 1, tol = 0.00028451540846144544
+Iteration 703: loglikelihood = -175689.17449166416, backtracks = 1, tol = 0.0002840291676643882
+Iteration 704: loglikelihood = -175688.78919059015, backtracks = 1, tol = 0.000283544073595049
+Iteration 705: loglikelihood = -175688.40514844103, backtracks = 1, tol = 0.00028306012301103036
+Iteration 706: loglikelihood = -175688.0223604152, backtracks = 1, tol = 0.00028257731268115116
+Iteration 707: loglikelihood = -175687.6408217284, backtracks = 1, tol = 0.00028209563938532783
+Iteration 708: loglikelihood = -175687.26052761605, backtracks = 1, tol = 0.00028161509991449365
+Iteration 709: loglikelihood = -175686.88147333165, backtracks = 1, tol = 0.0002811356910705583
+Iteration 710: loglikelihood = -175686.50365414645, backtracks = 1, tol = 0.0002806574096664049
+Iteration 711: loglikelihood = -175686.1270653519, backtracks = 1, tol = 0.00028018025252577215
+Iteration 712: loglikelihood = -175685.7517022557, backtracks = 1, tol = 0.0002797042164833292
+Iteration 713: loglikelihood = -175685.3775601852, backtracks = 1, tol = 0.0002792292983844432
+Iteration 714: loglikelihood = -175685.00463448616, backtracks = 1, tol = 0.00027875549508536956
+Iteration 715: loglikelihood = -175684.63292052128, backtracks = 1, tol = 0.00027828280345294293
+Iteration 716: loglikelihood = -175684.2624136721, backtracks = 1, tol = 0.000277811220364845
+Iteration 717: loglikelihood = -175683.89310933772, backtracks = 1, tol = 0.00027734074270914234
+Iteration 718: loglikelihood = -175683.52500293686, backtracks = 1, tol = 0.00027687136738478496
+Iteration 719: loglikelihood = -175683.15808990237, backtracks = 1, tol = 0.00027640309130099074
+Iteration 720: loglikelihood = -175682.7923656896, backtracks = 1, tol = 0.00027593591137762977
+Iteration 721: loglikelihood = -175682.42782576775, backtracks = 1, tol = 0.00027546982454495426
+Iteration 722: loglikelihood = -175682.06446562568, backtracks = 1, tol = 0.0002750048277437146
+Iteration 723: loglikelihood = -175681.70228076848, backtracks = 1, tol = 0.0002745409179248902
+Iteration 724: loglikelihood = -175681.34126672085, backtracks = 1, tol = 0.0002740780920498821
+Iteration 725: loglikelihood = -175680.98141902284, backtracks = 1, tol = 0.00027361634709035967
+Iteration 726: loglikelihood = -175680.62273323222, backtracks = 1, tol = 0.0002731556800281849
+Iteration 727: loglikelihood = -175680.26520492567, backtracks = 1, tol = 0.0002726960878554516
+Iteration 728: loglikelihood = -175679.90882969587, backtracks = 1, tol = 0.0002722375675744482
+Iteration 729: loglikelihood = -175679.55360315123, backtracks = 1, tol = 0.00027178011619742896
+Iteration 730: loglikelihood = -175679.1995209204, backtracks = 1, tol = 0.00027132373074692225
+Iteration 731: loglikelihood = -175678.8465786469, backtracks = 1, tol = 0.00027086840825523404
+Iteration 732: loglikelihood = -175678.4947719915, backtracks = 1, tol = 0.00027041414576490933
+Iteration 733: loglikelihood = -175678.14409663255, backtracks = 1, tol = 0.0002699609403282749
+Iteration 734: loglikelihood = -175677.79454826476, backtracks = 1, tol = 0.00026950878900759473
+Iteration 735: loglikelihood = -175677.44612260017, backtracks = 1, tol = 0.00026905768887507196
+Iteration 736: loglikelihood = -175677.09881536535, backtracks = 1, tol = 0.0002686076370125462
+Iteration 737: loglikelihood = -175676.75262230675, backtracks = 1, tol = 0.00026815863051187806
+Iteration 738: loglikelihood = -175676.40753918682, backtracks = 1, tol = 0.00026771066647453186
+Iteration 739: loglikelihood = -175676.06356178108, backtracks = 1, tol = 0.0002672637420116172
+Iteration 740: loglikelihood = -175675.72068588552, backtracks = 1, tol = 0.00026681785424412095
+Iteration 741: loglikelihood = -175675.37890731066, backtracks = 1, tol = 0.00026637300030237675
+Iteration 742: loglikelihood = -175675.03822188324, backtracks = 1, tol = 0.0002659291773265262
+Iteration 743: loglikelihood = -175674.6986254484, backtracks = 1, tol = 0.0002654863824661033
+Iteration 744: loglikelihood = -175674.3601138633, backtracks = 1, tol = 0.00026504461288034335
+Iteration 745: loglikelihood = -175674.0226830057, backtracks = 1, tol = 0.0002646038657376152
+Iteration 746: loglikelihood = -175673.68632876605, backtracks = 1, tol = 0.00026416413821615006
+Iteration 747: loglikelihood = -175673.35104705318, backtracks = 1, tol = 0.00026372542750309296
+Iteration 748: loglikelihood = -175673.01683379014, backtracks = 1, tol = 0.0002632877307954602
+Iteration 749: loglikelihood = -175672.6836849173, backtracks = 1, tol = 0.0002628510452990012
+Iteration 750: loglikelihood = -175672.3515963903, backtracks = 1, tol = 0.00026241536822930805
+Iteration 751: loglikelihood = -175672.0205641794, backtracks = 1, tol = 0.00026198069681079275
+Iteration 752: loglikelihood = -175671.6905842715, backtracks = 1, tol = 0.0002615470282773013
+Iteration 753: loglikelihood = -175671.36165267054, backtracks = 1, tol = 0.000261114359871701
+Iteration 754: loglikelihood = -175671.03376539372, backtracks = 1, tol = 0.0002606826888461141
+Iteration 755: loglikelihood = -175670.7069184747, backtracks = 1, tol = 0.00026025201246161945
+Iteration 756: loglikelihood = -175670.38110796333, backtracks = 1, tol = 0.0002598223279884867
+Iteration 757: loglikelihood = -175670.05632992322, backtracks = 1, tol = 0.000259393632705878
+Iteration 758: loglikelihood = -175669.73258043482, backtracks = 1, tol = 0.0002589659239020449
+Iteration 759: loglikelihood = -175669.4098555933, backtracks = 1, tol = 0.0002585391988739924
+Iteration 760: loglikelihood = -175669.08815150792, backtracks = 1, tol = 0.00025811345492794154
+Iteration 761: loglikelihood = -175668.7674643058, backtracks = 1, tol = 0.00025768868937869064
+Iteration 762: loglikelihood = -175668.4477901269, backtracks = 1, tol = 0.00025726489955003987
+Iteration 763: loglikelihood = -175668.1291251264, backtracks = 1, tol = 0.0002568420827744946
+Iteration 764: loglikelihood = -175667.81146547588, backtracks = 1, tol = 0.00025642023639342435
+Iteration 765: loglikelihood = -175667.49480736014, backtracks = 1, tol = 0.00025599935775684295
+Iteration 766: loglikelihood = -175667.1791469804, backtracks = 1, tol = 0.0002555794442235672
+Iteration 767: loglikelihood = -175666.86448055017, backtracks = 1, tol = 0.00025516049316080813
+Iteration 768: loglikelihood = -175666.55080430105, backtracks = 1, tol = 0.00025474250194486064
+Iteration 769: loglikelihood = -175666.23811447836, backtracks = 1, tol = 0.0002543254679601264
+Iteration 770: loglikelihood = -175665.92640733908, backtracks = 1, tol = 0.00025390938859987973
+Iteration 771: loglikelihood = -175665.61567915877, backtracks = 1, tol = 0.0002534942612657835
+Iteration 772: loglikelihood = -175665.3059262251, backtracks = 1, tol = 0.000253080083368049
+Iteration 773: loglikelihood = -175664.99714484118, backtracks = 1, tol = 0.00025266685232525516
+Iteration 774: loglikelihood = -175664.68933132477, backtracks = 1, tol = 0.0002522545655645844
+Iteration 775: loglikelihood = -175664.3824820071, backtracks = 1, tol = 0.0002518432205213775
+Iteration 776: loglikelihood = -175664.0765932342, backtracks = 1, tol = 0.00025143281463944515
+Iteration 777: loglikelihood = -175663.77166136488, backtracks = 1, tol = 0.0002510233453709637
+Iteration 778: loglikelihood = -175663.46768277595, backtracks = 1, tol = 0.00025061481017633316
+Iteration 779: loglikelihood = -175663.16465385404, backtracks = 1, tol = 0.0002502072065241489
+Iteration 780: loglikelihood = -175662.8625710019, backtracks = 1, tol = 0.0002498005318914378
+Iteration 781: loglikelihood = -175662.56143063703, backtracks = 1, tol = 0.0002493947837631392
+Iteration 782: loglikelihood = -175662.26122918917, backtracks = 1, tol = 0.000248989959632568
+Iteration 783: loglikelihood = -175661.9619631037, backtracks = 1, tol = 0.00024858605700104665
+Iteration 784: loglikelihood = -175661.66362883698, backtracks = 1, tol = 0.000248183073378067
+Iteration 785: loglikelihood = -175661.3662228628, backtracks = 1, tol = 0.00024778100628111097
+Iteration 786: loglikelihood = -175661.06974166678, backtracks = 1, tol = 0.0002473798532357371
+Iteration 787: loglikelihood = -175660.77418174807, backtracks = 1, tol = 0.00024697961177551516
+Iteration 788: loglikelihood = -175660.47953962, backtracks = 1, tol = 0.0002465802794418862
+Iteration 789: loglikelihood = -175660.1858118095, backtracks = 1, tol = 0.00024618185378436167
+Iteration 790: loglikelihood = -175659.89299485608, backtracks = 1, tol = 0.000245784332360233
+Iteration 791: loglikelihood = -175659.60108531552, backtracks = 1, tol = 0.00024538771273480847
+Iteration 792: loglikelihood = -175659.31007975247, backtracks = 1, tol = 0.0002449919924810477
+Iteration 793: loglikelihood = -175659.01997474884, backtracks = 1, tol = 0.0002445971691798745
+Iteration 794: loglikelihood = -175658.73076689924, backtracks = 1, tol = 0.0002442032404199244
+Iteration 795: loglikelihood = -175658.44245280992, backtracks = 1, tol = 0.00024381020379763148
+Iteration 796: loglikelihood = -175658.15502910042, backtracks = 1, tol = 0.0002434180569171273
+Iteration 797: loglikelihood = -175657.86849240633, backtracks = 1, tol = 0.00024302679739013997
+Iteration 798: loglikelihood = -175657.58283937367, backtracks = 1, tol = 0.0002426364228362312
+Iteration 799: loglikelihood = -175657.29806666082, backtracks = 1, tol = 0.00024224693088247052
+Iteration 800: loglikelihood = -175657.01417094257, backtracks = 1, tol = 0.0002418583191635973
+Iteration 801: loglikelihood = -175656.73114890332, backtracks = 1, tol = 0.0002414705853217703
+Iteration 802: loglikelihood = -175656.44899724275, backtracks = 1, tol = 0.00024108372700691816
+Iteration 803: loglikelihood = -175656.16771267157, backtracks = 1, tol = 0.00024069774187633852
+Iteration 804: loglikelihood = -175655.88729191478, backtracks = 1, tol = 0.0002403126275947859
+Iteration 805: loglikelihood = -175655.60773170833, backtracks = 1, tol = 0.00023992838183459732
+Iteration 806: loglikelihood = -175655.32902880383, backtracks = 1, tol = 0.00023954500227540436
+Iteration 807: loglikelihood = -175655.05117996217, backtracks = 1, tol = 0.00023916248660429677
+Iteration 808: loglikelihood = -175654.77418195977, backtracks = 1, tol = 0.00023878083251576026
+Iteration 809: loglikelihood = -175654.49803158292, backtracks = 1, tol = 0.0002384000377115023
+Iteration 810: loglikelihood = -175654.222725633, backtracks = 1, tol = 0.00023802009990069034
+Iteration 811: loglikelihood = -175653.94826092216, backtracks = 1, tol = 0.00023764101679966555
+Iteration 812: loglikelihood = -175653.67463427543, backtracks = 1, tol = 0.00023726278613203118
+Iteration 813: loglikelihood = -175653.40184253122, backtracks = 1, tol = 0.00023688540562874117
+Iteration 814: loglikelihood = -175653.12988253753, backtracks = 1, tol = 0.00023650887302770194
+Iteration 815: loglikelihood = -175652.8587511584, backtracks = 1, tol = 0.00023613318607427328
+Iteration 816: loglikelihood = -175652.58844526633, backtracks = 1, tol = 0.0002357583425207579
+Iteration 817: loglikelihood = -175652.31896174897, backtracks = 1, tol = 0.00023538434012664042
+Iteration 818: loglikelihood = -175652.0502975044, backtracks = 1, tol = 0.00023501117665845165
+Iteration 819: loglikelihood = -175651.78244944266, backtracks = 1, tol = 0.00023463884988997045
+Iteration 820: loglikelihood = -175651.51541448868, backtracks = 1, tol = 0.00023426735760163897
+Iteration 821: loglikelihood = -175651.24918957552, backtracks = 1, tol = 0.00023389669758128862
+Iteration 822: loglikelihood = -175650.98377164977, backtracks = 1, tol = 0.00023352686762351845
+Iteration 823: loglikelihood = -175650.71915767042, backtracks = 1, tol = 0.00023315786552989713
+Iteration 824: loglikelihood = -175650.45534460788, backtracks = 1, tol = 0.00023278968910901522
+Iteration 825: loglikelihood = -175650.19232944452, backtracks = 1, tol = 0.0002324223361762011
+Iteration 826: loglikelihood = -175649.93010917382, backtracks = 1, tol = 0.00023205580455390988
+Iteration 827: loglikelihood = -175649.66868080187, backtracks = 1, tol = 0.0002316900920711033
+Iteration 828: loglikelihood = -175649.40804134536, backtracks = 1, tol = 0.00023132519656393754
+Iteration 829: loglikelihood = -175649.14818783474, backtracks = 1, tol = 0.00023096111587499443
+Iteration 830: loglikelihood = -175648.8891173093, backtracks = 1, tol = 0.000230597847853969
+Iteration 831: loglikelihood = -175648.63082682094, backtracks = 1, tol = 0.00023023539035697571
+Iteration 832: loglikelihood = -175648.3733134343, backtracks = 1, tol = 0.00022987374124716162
+Iteration 833: loglikelihood = -175648.11657422406, backtracks = 1, tol = 0.0002295128983940876
+Iteration 834: loglikelihood = -175647.8606062762, backtracks = 1, tol = 0.00022915285967422953
+Iteration 835: loglikelihood = -175647.6054066894, backtracks = 1, tol = 0.0002287936229703973
+Iteration 836: loglikelihood = -175647.35097257094, backtracks = 1, tol = 0.00022843518617242234
+Iteration 837: loglikelihood = -175647.09730104305, backtracks = 1, tol = 0.0002280775471763163
+Iteration 838: loglikelihood = -175646.844389237, backtracks = 1, tol = 0.00022772070388499556
+Iteration 839: loglikelihood = -175646.59223429422, backtracks = 1, tol = 0.00022736465420762695
+Iteration 840: loglikelihood = -175646.3408333703, backtracks = 1, tol = 0.00022700939606016597
+Iteration 841: loglikelihood = -175646.09018362878, backtracks = 1, tol = 0.00022665492736485157
+Iteration 842: loglikelihood = -175645.84028224618, backtracks = 1, tol = 0.00022630124605048398
+Iteration 843: loglikelihood = -175645.59112640965, backtracks = 1, tol = 0.0002259483500522924
+Iteration 844: loglikelihood = -175645.342713318, backtracks = 1, tol = 0.00022559623731195183
+Iteration 845: loglikelihood = -175645.0950401783, backtracks = 1, tol = 0.00022524490577745135
+Iteration 846: loglikelihood = -175644.84810421226, backtracks = 1, tol = 0.00022489435340326
+Iteration 847: loglikelihood = -175644.60190264834, backtracks = 1, tol = 0.00022454457815012074
+Iteration 848: loglikelihood = -175644.35643272992, backtracks = 1, tol = 0.00022419557798510493
+Iteration 849: loglikelihood = -175644.11169170815, backtracks = 1, tol = 0.0002238473508815927
+Iteration 850: loglikelihood = -175643.86767684517, backtracks = 1, tol = 0.00022349989481925284
+Iteration 851: loglikelihood = -175643.62438541674, backtracks = 1, tol = 0.00022315320778398646
+Iteration 852: loglikelihood = -175643.38181470503, backtracks = 1, tol = 0.00022280728776794437
+Iteration 853: loglikelihood = -175643.13996200525, backtracks = 1, tol = 0.0002224621327694706
+Iteration 854: loglikelihood = -175642.89882462297, backtracks = 1, tol = 0.00022211774079308296
+Iteration 855: loglikelihood = -175642.6583998734, backtracks = 1, tol = 0.00022177410984949123
+Iteration 856: loglikelihood = -175642.41868508258, backtracks = 1, tol = 0.00022143123795546635
+Iteration 857: loglikelihood = -175642.1796775884, backtracks = 1, tol = 0.00022108912313400725
+Iteration 858: loglikelihood = -175641.94137473736, backtracks = 1, tol = 0.00022074776341409892
+Iteration 859: loglikelihood = -175641.7037738859, backtracks = 1, tol = 0.0002204071568308424
+Iteration 860: loglikelihood = -175641.4668724025, backtracks = 1, tol = 0.0002200673014253986
+Iteration 861: loglikelihood = -175641.23066766525, backtracks = 1, tol = 0.00021972819524493264
+Iteration 862: loglikelihood = -175640.9951570609, backtracks = 1, tol = 0.0002193898363425213
+Iteration 863: loglikelihood = -175640.7603379893, backtracks = 1, tol = 0.00021905222277743088
+Iteration 864: loglikelihood = -175640.52620785817, backtracks = 1, tol = 0.00021871535261465424
+Iteration 865: loglikelihood = -175640.29276408593, backtracks = 1, tol = 0.00021837922392530003
+Iteration 866: loglikelihood = -175640.0600041018, backtracks = 1, tol = 0.0002180438347862412
+Iteration 867: loglikelihood = -175639.8279253429, backtracks = 1, tol = 0.00021770918328042996
+Iteration 868: loglikelihood = -175639.5965252596, backtracks = 1, tol = 0.0002173752674963988
+Iteration 869: loglikelihood = -175639.3658013093, backtracks = 1, tol = 0.00021704208552879745
+Iteration 870: loglikelihood = -175639.13575096114, backtracks = 1, tol = 0.00021670963547800527
+Iteration 871: loglikelihood = -175638.9063716929, backtracks = 1, tol = 0.00021637791545011336
+Iteration 872: loglikelihood = -175638.67766099263, backtracks = 1, tol = 0.00021604692355720276
+Iteration 873: loglikelihood = -175638.44961635763, backtracks = 1, tol = 0.0002157166579168832
+Iteration 874: loglikelihood = -175638.2222352968, backtracks = 1, tol = 0.00021538711665271932
+Iteration 875: loglikelihood = -175637.99551532674, backtracks = 1, tol = 0.0002150582978937696
+Iteration 876: loglikelihood = -175637.76945397476, backtracks = 1, tol = 0.00021473019977497556
+Iteration 877: loglikelihood = -175637.5440487775, backtracks = 1, tol = 0.00021440282043692303
+Iteration 878: loglikelihood = -175637.31929727976, backtracks = 1, tol = 0.000214076158025677
+Iteration 879: loglikelihood = -175637.0951970396, backtracks = 1, tol = 0.00021375021069324485
+Iteration 880: loglikelihood = -175636.87174562144, backtracks = 1, tol = 0.00021342497659696856
+Iteration 881: loglikelihood = -175636.64894059993, backtracks = 1, tol = 0.00021310045389995072
+Iteration 882: loglikelihood = -175636.42677955894, backtracks = 1, tol = 0.00021277664077081642
+Iteration 883: loglikelihood = -175636.2052600925, backtracks = 1, tol = 0.0002124535353836595
+Iteration 884: loglikelihood = -175635.98437980376, backtracks = 1, tol = 0.000212131135918358
+Iteration 885: loglikelihood = -175635.7641363046, backtracks = 1, tol = 0.00021180944055993064
+Iteration 886: loglikelihood = -175635.5445272178, backtracks = 1, tol = 0.00021148844749922078
+Iteration 887: loglikelihood = -175635.32555017294, backtracks = 1, tol = 0.00021116815493232732
+Iteration 888: loglikelihood = -175635.10720281122, backtracks = 1, tol = 0.00021084856106095664
+Iteration 889: loglikelihood = -175634.88948278123, backtracks = 1, tol = 0.0002105296640921855
+Iteration 890: loglikelihood = -175634.6723877414, backtracks = 1, tol = 0.0002102114622384447
+Iteration 891: loglikelihood = -175634.45591535993, backtracks = 1, tol = 0.00020989395371757692
+Iteration 892: loglikelihood = -175634.24006331357, backtracks = 1, tol = 0.00020957713675293096
+Iteration 893: loglikelihood = -175634.02482928726, backtracks = 1, tol = 0.00020926100957301458
+Iteration 894: loglikelihood = -175633.81021097687, backtracks = 1, tol = 0.00020894557041180995
+Iteration 895: loglikelihood = -175633.59620608587, backtracks = 1, tol = 0.0002086308175085738
+Iteration 896: loglikelihood = -175633.38281232544, backtracks = 1, tol = 0.0002083167491078217
+Iteration 897: loglikelihood = -175633.17002741888, backtracks = 1, tol = 0.0002080033634593863
+Iteration 898: loglikelihood = -175632.95784909598, backtracks = 1, tol = 0.00020769065881832792
+Iteration 899: loglikelihood = -175632.74627509603, backtracks = 1, tol = 0.0002073786334450295
+Iteration 900: loglikelihood = -175632.5353031676, backtracks = 1, tol = 0.0002070672856049608
+Iteration 901: loglikelihood = -175632.32493106776, backtracks = 1, tol = 0.00020675661356888325
+Iteration 902: loglikelihood = -175632.11515656067, backtracks = 1, tol = 0.00020644661561272502
+Iteration 903: loglikelihood = -175631.9059774218, backtracks = 1, tol = 0.00020613729001760198
+Iteration 904: loglikelihood = -175631.6973914337, backtracks = 1, tol = 0.0002058286350696562
+Iteration 905: loglikelihood = -175631.48939638853, backtracks = 1, tol = 0.00020552064906033447
+Iteration 906: loglikelihood = -175631.28199008672, backtracks = 1, tol = 0.00020521333028600635
+Iteration 907: loglikelihood = -175631.0751703349, backtracks = 1, tol = 0.00020490667704831618
+Iteration 908: loglikelihood = -175630.86893495283, backtracks = 1, tol = 0.0002046006876538381
+Iteration 909: loglikelihood = -175630.66328176518, backtracks = 1, tol = 0.00020429536041420825
+Iteration 910: loglikelihood = -175630.45820860713, backtracks = 1, tol = 0.00020399069364625654
+Iteration 911: loglikelihood = -175630.25371332013, backtracks = 1, tol = 0.00020368668567158888
+Iteration 912: loglikelihood = -175630.0497937561, backtracks = 1, tol = 0.00020338333481704924
+Iteration 913: loglikelihood = -175629.84644777369, backtracks = 1, tol = 0.00020308063941419205
+Iteration 914: loglikelihood = -175629.64367324166, backtracks = 1, tol = 0.0002027785977998542
+Iteration 915: loglikelihood = -175629.44146803592, backtracks = 1, tol = 0.0002024772083155178
+Iteration 916: loglikelihood = -175629.23983004052, backtracks = 1, tol = 0.00020217646930780888
+Iteration 917: loglikelihood = -175629.0387571482, backtracks = 1, tol = 0.00020187637912811698
+Iteration 918: loglikelihood = -175628.8382472603, backtracks = 1, tol = 0.00020157693613283734
+Iteration 919: loglikelihood = -175628.63829828458, backtracks = 1, tol = 0.0002012781386832104
+Iteration 920: loglikelihood = -175628.438908139, backtracks = 1, tol = 0.0002009799851452347
+Iteration 921: loglikelihood = -175628.24007474855, backtracks = 1, tol = 0.00020068247388990913
+Iteration 922: loglikelihood = -175628.04179604672, backtracks = 1, tol = 0.00020038560329292655
+Iteration 923: loglikelihood = -175627.8440699753, backtracks = 1, tol = 0.00020008937173491572
+Iteration 924: loglikelihood = -175627.6468944826, backtracks = 1, tol = 0.0001997937776010623
+Iteration 925: loglikelihood = -175627.45026752667, backtracks = 1, tol = 0.0001994988192816435
+Iteration 926: loglikelihood = -175627.25418707303, backtracks = 1, tol = 0.00019920449517139304
+Iteration 927: loglikelihood = -175627.05865109465, backtracks = 1, tol = 0.0001989108036699995
+Iteration 928: loglikelihood = -175626.86365757207, backtracks = 1, tol = 0.00019861774318176374
+Iteration 929: loglikelihood = -175626.66920449559, backtracks = 1, tol = 0.00019832531211569539
+Iteration 930: loglikelihood = -175626.4752898605, backtracks = 1, tol = 0.00019803350888557256
+Iteration 931: loglikelihood = -175626.2819116725, backtracks = 1, tol = 0.00019774233190970934
+Iteration 932: loglikelihood = -175626.08906794357, backtracks = 1, tol = 0.00019745177961123496
+Iteration 933: loglikelihood = -175625.89675669334, backtracks = 1, tol = 0.00019716185041775188
+Iteration 934: loglikelihood = -175625.70497595065, backtracks = 1, tol = 0.00019687254276157845
+Iteration 935: loglikelihood = -175625.5137237502, backtracks = 1, tol = 0.00019658385507973587
+Iteration 936: loglikelihood = -175625.32299813547, backtracks = 1, tol = 0.00019629578581353374
+Iteration 937: loglikelihood = -175625.13279715687, backtracks = 1, tol = 0.0001960083334092872
+Iteration 938: loglikelihood = -175624.94311887346, backtracks = 1, tol = 0.00019572149631739177
+Iteration 939: loglikelihood = -175624.75396135013, backtracks = 1, tol = 0.00019543527299325928
+Iteration 940: loglikelihood = -175624.5653226606, backtracks = 1, tol = 0.00019514966189635675
+Iteration 941: loglikelihood = -175624.37720088632, backtracks = 1, tol = 0.00019486466149106917
+Iteration 942: loglikelihood = -175624.18959411577, backtracks = 1, tol = 0.00019458027024599396
+Iteration 943: loglikelihood = -175624.00250044407, backtracks = 1, tol = 0.00019429648663443901
+Iteration 944: loglikelihood = -175623.81591797434, backtracks = 1, tol = 0.0001940133091339363
+Iteration 945: loglikelihood = -175623.6298448181, backtracks = 1, tol = 0.0001937307362266305
+Iteration 946: loglikelihood = -175623.4442790926, backtracks = 1, tol = 0.00019344876639901156
+Iteration 947: loglikelihood = -175623.25921892351, backtracks = 1, tol = 0.00019316739814208462
+Iteration 948: loglikelihood = -175623.07466244284, backtracks = 1, tol = 0.00019288662995113924
+Iteration 949: loglikelihood = -175622.8906077916, backtracks = 1, tol = 0.00019260646032595572
+Iteration 950: loglikelihood = -175622.7070531156, backtracks = 1, tol = 0.0001923268877705383
+Iteration 951: loglikelihood = -175622.5239965695, backtracks = 1, tol = 0.00019204791079346703
+Iteration 952: loglikelihood = -175622.34143631614, backtracks = 1, tol = 0.0001917695279074127
+Iteration 953: loglikelihood = -175622.15937052155, backtracks = 1, tol = 0.000191491737629598
+Iteration 954: loglikelihood = -175621.97779736365, backtracks = 1, tol = 0.000191214538481349
+Iteration 955: loglikelihood = -175621.79671502445, backtracks = 1, tol = 0.00019093792898844728
+Iteration 956: loglikelihood = -175621.6161216938, backtracks = 1, tol = 0.0001906619076808999
+Iteration 957: loglikelihood = -175621.43601556926, backtracks = 1, tol = 0.00019038647309296386
+Iteration 958: loglikelihood = -175621.25639485448, backtracks = 1, tol = 0.00019011162376309857
+Iteration 959: loglikelihood = -175621.07725775984, backtracks = 1, tol = 0.00018983735823417184
+Iteration 960: loglikelihood = -175620.89860250428, backtracks = 1, tol = 0.00018956367505301272
+Iteration 961: loglikelihood = -175620.72042731248, backtracks = 1, tol = 0.00018929057277090847
+Iteration 962: loglikelihood = -175620.54273041518, backtracks = 1, tol = 0.00018901804994319357
+Iteration 963: loglikelihood = -175620.36551005254, backtracks = 1, tol = 0.00018874610512934745
+Iteration 964: loglikelihood = -175620.18876446833, backtracks = 1, tol = 0.00018847473689323718
+Iteration 965: loglikelihood = -175620.0124919168, backtracks = 1, tol = 0.00018820394380252543
+Iteration 966: loglikelihood = -175619.83669065527, backtracks = 1, tol = 0.0001879337244293854
+Iteration 967: loglikelihood = -175619.66135895153, backtracks = 1, tol = 0.00018766407734983605
+Iteration 968: loglikelihood = -175619.486495077, backtracks = 1, tol = 0.00018739500114402173
+Iteration 969: loglikelihood = -175619.31209731053, backtracks = 1, tol = 0.0001871264943963822
+Iteration 970: loglikelihood = -175619.13816393918, backtracks = 1, tol = 0.0001868585556952428
+Iteration 971: loglikelihood = -175618.96469325546, backtracks = 1, tol = 0.00018659118363305739
+Iteration 972: loglikelihood = -175618.79168355884, backtracks = 1, tol = 0.00018632437680632475
+Iteration 973: loglikelihood = -175618.61913315486, backtracks = 1, tol = 0.0001860581338155419
+Iteration 974: loglikelihood = -175618.44704035594, backtracks = 1, tol = 0.0001857924532653378
+Iteration 975: loglikelihood = -175618.2754034819, backtracks = 1, tol = 0.00018552733376417315
+Iteration 976: loglikelihood = -175618.1042208578, backtracks = 1, tol = 0.00018526277392469172
+Iteration 977: loglikelihood = -175617.93349081665, backtracks = 1, tol = 0.0001849987723634201
+Iteration 978: loglikelihood = -175617.76321169594, backtracks = 1, tol = 0.00018473532770079318
+Iteration 979: loglikelihood = -175617.5933818419, backtracks = 1, tol = 0.00018447243856136122
+Iteration 980: loglikelihood = -175617.42399960506, backtracks = 1, tol = 0.000184210103573453
+Iteration 981: loglikelihood = -175617.2550633441, backtracks = 1, tol = 0.00018394832136938306
+Iteration 982: loglikelihood = -175617.0865714228, backtracks = 1, tol = 0.0001836870905854773
+Iteration 983: loglikelihood = -175616.9185222131, backtracks = 1, tol = 0.00018342640986173693
+Iteration 984: loglikelihood = -175616.75091409043, backtracks = 1, tol = 0.00018316627784229863
+Iteration 985: loglikelihood = -175616.5837454386, backtracks = 1, tol = 0.00018290669317499016
+Iteration 986: loglikelihood = -175616.41701464832, backtracks = 1, tol = 0.0001826476545116819
+Iteration 987: loglikelihood = -175616.25072011445, backtracks = 1, tol = 0.0001823891605077703
+Iteration 988: loglikelihood = -175616.08486023865, backtracks = 1, tol = 0.00018213120982281899
+Iteration 989: loglikelihood = -175615.91943343123, backtracks = 1, tol = 0.00018187380112011427
+Iteration 990: loglikelihood = -175615.75443810425, backtracks = 1, tol = 0.00018161693306665576
+Iteration 991: loglikelihood = -175615.58987268008, backtracks = 1, tol = 0.0001813606043333629
+Iteration 992: loglikelihood = -175615.4257355855, backtracks = 1, tol = 0.00018110481359477612
+Iteration 993: loglikelihood = -175615.26202525254, backtracks = 1, tol = 0.0001808495595294082
+Iteration 994: loglikelihood = -175615.0987401213, backtracks = 1, tol = 0.0001805948408193732
+Iteration 995: loglikelihood = -175614.9358786359, backtracks = 1, tol = 0.00018034065615059357
+Iteration 996: loglikelihood = -175614.7734392478, backtracks = 1, tol = 0.00018008700421264583
+Iteration 997: loglikelihood = -175614.6114204143, backtracks = 1, tol = 0.0001798338836990396
+Iteration 998: loglikelihood = -175614.44982059923, backtracks = 1, tol = 0.00017958129330670298
+Iteration 999: loglikelihood = -175614.28863827087, backtracks = 1, tol = 0.0001793292317364778
+Iteration 1000: loglikelihood = -175614.127871904, backtracks = 1, tol = 0.00017907769769267748
+Iteration 1001: loglikelihood = -175613.96751998126, backtracks = 1, tol = 0.00017882668988372647
+Iteration 1002: loglikelihood = -175613.8075809878, backtracks = 1, tol = 0.00017857620702092493
+Iteration 1003: loglikelihood = -175613.64805341675, backtracks = 1, tol = 0.00017832624782009772
+Iteration 1004: loglikelihood = -175613.48893576756, backtracks = 1, tol = 0.00017807681099999898
+Iteration 1005: loglikelihood = -175613.33022654476, backtracks = 1, tol = 0.00017782789528352806
+Iteration 1006: loglikelihood = -175613.171924258, backtracks = 1, tol = 0.00017757949939671154
+Iteration 1007: loglikelihood = -175613.0140274233, backtracks = 1, tol = 0.00017733162206963043
+Iteration 1008: loglikelihood = -175612.85653456286, backtracks = 1, tol = 0.00017708426203561872
+Iteration 1009: loglikelihood = -175612.6994442048, backtracks = 1, tol = 0.00017683741803168628
+Iteration 1010: loglikelihood = -175612.5427548809, backtracks = 1, tol = 0.00017659108879843776
+Iteration 1011: loglikelihood = -175612.3864651323, backtracks = 1, tol = 0.0001763452730800636
+Iteration 1012: loglikelihood = -175612.23057350243, backtracks = 1, tol = 0.00017609996962404285
+Iteration 1013: loglikelihood = -175612.0750785406, backtracks = 1, tol = 0.00017585517718185422
+Iteration 1014: loglikelihood = -175611.91997880477, backtracks = 1, tol = 0.0001756108945078874
+Iteration 1015: loglikelihood = -175611.7652728563, backtracks = 1, tol = 0.00017536712036051366
+Iteration 1016: loglikelihood = -175611.61095926125, backtracks = 1, tol = 0.00017512385350135746
+Iteration 1017: loglikelihood = -175611.4570365938, backtracks = 1, tol = 0.00017488109269557544
+Iteration 1018: loglikelihood = -175611.30350343062, backtracks = 1, tol = 0.00017463883671191939
+Iteration 1019: loglikelihood = -175611.15035835656, backtracks = 1, tol = 0.00017439708432229618
+Iteration 1020: loglikelihood = -175610.99759996054, backtracks = 1, tol = 0.00017415583430233433
+Iteration 1021: loglikelihood = -175610.8452268382, backtracks = 1, tol = 0.00017391508543094383
+Iteration 1022: loglikelihood = -175610.6932375879, backtracks = 1, tol = 0.0001736748364905952
+Iteration 1023: loglikelihood = -175610.54163081764, backtracks = 1, tol = 0.0001734350862669514
+Iteration 1024: loglikelihood = -175610.39040513712, backtracks = 1, tol = 0.00017319583354921878
+Iteration 1025: loglikelihood = -175610.23955916293, backtracks = 1, tol = 0.00017295707712999478
+Iteration 1026: loglikelihood = -175610.0890915178, backtracks = 1, tol = 0.0001727188158051876
+Iteration 1027: loglikelihood = -175609.93900082796, backtracks = 1, tol = 0.00017248104837422318
+Iteration 1028: loglikelihood = -175609.78928572685, backtracks = 1, tol = 0.00017224377363953447
+Iteration 1029: loglikelihood = -175609.63994485157, backtracks = 1, tol = 0.00017200699040734242
+Iteration 1030: loglikelihood = -175609.49097684538, backtracks = 1, tol = 0.00017177069748678666
+Iteration 1031: loglikelihood = -175609.34238035697, backtracks = 1, tol = 0.0001715348936907063
+Iteration 1032: loglikelihood = -175609.19415404068, backtracks = 1, tol = 0.00017129957783484283
+Iteration 1033: loglikelihood = -175609.0462965538, backtracks = 1, tol = 0.00017106474873869237
+Iteration 1034: loglikelihood = -175608.89880656224, backtracks = 1, tol = 0.0001708304052245655
+Iteration 1035: loglikelihood = -175608.75168273336, backtracks = 1, tol = 0.0001705965461184393
+Iteration 1036: loglikelihood = -175608.60492374364, backtracks = 1, tol = 0.00017036317024923263
+Iteration 1037: loglikelihood = -175608.45852827127, backtracks = 1, tol = 0.00017013027644951457
+Iteration 1038: loglikelihood = -175608.3124950009, backtracks = 1, tol = 0.00016989786355456506
+Iteration 1039: loglikelihood = -175608.1668226241, backtracks = 1, tol = 0.0001696659304034415
+Iteration 1040: loglikelihood = -175608.0215098337, backtracks = 1, tol = 0.0001694344758380396
+Iteration 1041: loglikelihood = -175607.87655533088, backtracks = 1, tol = 0.00016920349870365843
+Iteration 1042: loglikelihood = -175607.7319578206, backtracks = 1, tol = 0.00016897299784877774
+Iteration 1043: loglikelihood = -175607.58771601244, backtracks = 1, tol = 0.000168742972124907
+Iteration 1044: loglikelihood = -175607.443828622, backtracks = 1, tol = 0.00016851342038693557
+Iteration 1045: loglikelihood = -175607.30029436955, backtracks = 1, tol = 0.00016828434149290987
+Iteration 1046: loglikelihood = -175607.15711197865, backtracks = 1, tol = 0.00016805573430381148
+Iteration 1047: loglikelihood = -175607.01428018138, backtracks = 1, tol = 0.00016782759768419305
+Iteration 1048: loglikelihood = -175606.871797711, backtracks = 1, tol = 0.00016759993050116916
+Iteration 1049: loglikelihood = -175606.72966330813, backtracks = 1, tol = 0.0001673727316255534
+Iteration 1050: loglikelihood = -175606.58787571738, backtracks = 1, tol = 0.0001671459999308492
+Iteration 1051: loglikelihood = -175606.4464336882, backtracks = 1, tol = 0.00016691973429395747
+Iteration 1052: loglikelihood = -175606.30533597525, backtracks = 1, tol = 0.00016669393359466882
+Iteration 1053: loglikelihood = -175606.16458133704, backtracks = 1, tol = 0.00016646859671608458
+Iteration 1054: loglikelihood = -175606.02416853886, backtracks = 1, tol = 0.00016624372254410948
+Iteration 1055: loglikelihood = -175605.88409634848, backtracks = 1, tol = 0.00016601930996801555
+Iteration 1056: loglikelihood = -175605.7443635406, backtracks = 1, tol = 0.00016579535787979204
+Iteration 1057: loglikelihood = -175605.6049688924, backtracks = 1, tol = 0.00016557186517492353
+Iteration 1058: loglikelihood = -175605.46591118796, backtracks = 1, tol = 0.00016534883075131166
+Iteration 1059: loglikelihood = -175605.3271892148, backtracks = 1, tol = 0.0001651262535105528
+Iteration 1060: loglikelihood = -175605.1888017651, backtracks = 1, tol = 0.00016490413235678886
+Iteration 1061: loglikelihood = -175605.05074763758, backtracks = 1, tol = 0.000164682466197485
+Iteration 1062: loglikelihood = -175604.91302563256, backtracks = 1, tol = 0.00016446125394278024
+Iteration 1063: loglikelihood = -175604.77563455756, backtracks = 1, tol = 0.00016424049450612248
+Iteration 1064: loglikelihood = -175604.6385732225, backtracks = 1, tol = 0.00016402018680369078
+Iteration 1065: loglikelihood = -175604.50184044527, backtracks = 1, tol = 0.0001638003297548161
+Iteration 1066: loglikelihood = -175604.36543504416, backtracks = 1, tol = 0.00016358092228168885
+Iteration 1067: loglikelihood = -175604.22935584583, backtracks = 1, tol = 0.00016336196330942363
+Iteration 1068: loglikelihood = -175604.0936016791, backtracks = 1, tol = 0.00016314345176626568
+Iteration 1069: loglikelihood = -175603.95817137725, backtracks = 1, tol = 0.0001629253865830138
+Iteration 1070: loglikelihood = -175603.82306377997, backtracks = 1, tol = 0.00016270776669394005
+Iteration 1071: loglikelihood = -175603.6882777301, backtracks = 1, tol = 0.00016249059103557129
+Iteration 1072: loglikelihood = -175603.5538120755, backtracks = 1, tol = 0.00016227385854803618
+Iteration 1073: loglikelihood = -175603.41966566804, backtracks = 1, tol = 0.0001620575681737047
+Iteration 1074: loglikelihood = -175603.28583736328, backtracks = 1, tol = 0.00016184171885839227
+Iteration 1075: loglikelihood = -175603.15232602332, backtracks = 1, tol = 0.00016162630955021353
+Iteration 1076: loglikelihood = -175603.0191305133, backtracks = 1, tol = 0.00016141133920085735
+Iteration 1077: loglikelihood = -175602.88624970245, backtracks = 1, tol = 0.00016119680676408485
+Iteration 1078: loglikelihood = -175602.7536824654, backtracks = 1, tol = 0.0001609827111972889
+Iteration 1079: loglikelihood = -175602.62142768066, backtracks = 1, tol = 0.00016076905145999282
+Iteration 1080: loglikelihood = -175602.48948423087, backtracks = 1, tol = 0.0001605558265149824
+Iteration 1081: loglikelihood = -175602.35785100362, backtracks = 1, tol = 0.0001603430353278012
+Iteration 1082: loglikelihood = -175602.2265268895, backtracks = 1, tol = 0.00016013067686667274
+Iteration 1083: loglikelihood = -175602.09551078558, backtracks = 1, tol = 0.0001599187501027786
+Iteration 1084: loglikelihood = -175601.96480159002, backtracks = 1, tol = 0.00015970725400989654
+Iteration 1085: loglikelihood = -175601.8343982094, backtracks = 1, tol = 0.00015949618756496228
+Iteration 1086: loglikelihood = -175601.7042995507, backtracks = 1, tol = 0.0001592855497471395
+Iteration 1087: loglikelihood = -175601.5745045272, backtracks = 1, tol = 0.00015907533953880813
+Iteration 1088: loglikelihood = -175601.4450120561, backtracks = 1, tol = 0.00015886555592506068
+Iteration 1089: loglikelihood = -175601.315821059, backtracks = 1, tol = 0.00015865619789334052
+Iteration 1090: loglikelihood = -175601.1869304595, backtracks = 1, tol = 0.0001584472644345012
+Iteration 1091: loglikelihood = -175601.0583391894, backtracks = 1, tol = 0.0001582387545413795
+Iteration 1092: loglikelihood = -175600.93004618151, backtracks = 1, tol = 0.00015803066721020975
+Iteration 1093: loglikelihood = -175600.80205037305, backtracks = 1, tol = 0.0001578230014394101
+Iteration 1094: loglikelihood = -175600.6743507067, backtracks = 1, tol = 0.0001576157562305706
+Iteration 1095: loglikelihood = -175600.54694612845, backtracks = 1, tol = 0.00015740893058752386
+Iteration 1096: loglikelihood = -175600.4198355881, backtracks = 1, tol = 0.0001572025235171909
+Iteration 1097: loglikelihood = -175600.29301804077, backtracks = 1, tol = 0.00015699653402886514
+Iteration 1098: loglikelihood = -175600.16649244312, backtracks = 1, tol = 0.00015679096113463216
+Iteration 1099: loglikelihood = -175600.0402577588, backtracks = 1, tol = 0.00015658580384943455
+Iteration 1100: loglikelihood = -175599.91431295307, backtracks = 1, tol = 0.0001563810611904982
+Iteration 1101: loglikelihood = -175599.78865699755, backtracks = 1, tol = 0.00015617673217789395
+Iteration 1102: loglikelihood = -175599.66328886506, backtracks = 1, tol = 0.00015597281583446044
+Iteration 1103: loglikelihood = -175599.53820753554, backtracks = 1, tol = 0.00015576931118537285
+Iteration 1104: loglikelihood = -175599.41341198928, backtracks = 1, tol = 0.00015556621725870402
+Iteration 1105: loglikelihood = -175599.28890121475, backtracks = 1, tol = 0.0001553635330849224
+Iteration 1106: loglikelihood = -175599.1646741997, backtracks = 1, tol = 0.00015516125769724051
+Iteration 1107: loglikelihood = -175599.04072993924, backtracks = 1, tol = 0.00015495939013153814
+Iteration 1108: loglikelihood = -175598.91706743173, backtracks = 1, tol = 0.00015475792942586068
+Iteration 1109: loglikelihood = -175598.79368567799, backtracks = 1, tol = 0.00015455687462154666
+Iteration 1110: loglikelihood = -175598.67058368458, backtracks = 1, tol = 0.0001543562247617345
+Iteration 1111: loglikelihood = -175598.54776045936, backtracks = 1, tol = 0.0001541559788927732
+Iteration 1112: loglikelihood = -175598.42521501816, backtracks = 1, tol = 0.00015395613606315452
+Iteration 1113: loglikelihood = -175598.30294637638, backtracks = 1, tol = 0.00015375669532414427
+Iteration 1114: loglikelihood = -175598.18095355527, backtracks = 1, tol = 0.00015355765572935205
+Iteration 1115: loglikelihood = -175598.05923557945, backtracks = 1, tol = 0.00015335901633515019
+Iteration 1116: loglikelihood = -175597.9377914779, backtracks = 1, tol = 0.00015316077620017277
+Iteration 1117: loglikelihood = -175597.8166202825, backtracks = 1, tol = 0.00015296293438594674
+Iteration 1118: loglikelihood = -175597.69572102997, backtracks = 1, tol = 0.0001527654899559668
+Iteration 1119: loglikelihood = -175597.57509275887, backtracks = 1, tol = 0.00015256844197682136
+Iteration 1120: loglikelihood = -175597.4547345137, backtracks = 1, tol = 0.00015237178951712637
+Iteration 1121: loglikelihood = -175597.33464534124, backtracks = 1, tol = 0.00015217553164822677
+Iteration 1122: loglikelihood = -175597.21482429263, backtracks = 1, tol = 0.00015197966744397889
+Iteration 1123: loglikelihood = -175597.09527042182, backtracks = 1, tol = 0.00015178419598039171
+Iteration 1124: loglikelihood = -175596.97598278738, backtracks = 1, tol = 0.0001515891163363987
+Iteration 1125: loglikelihood = -175596.85696045065, backtracks = 1, tol = 0.00015139442759300444
+Iteration 1126: loglikelihood = -175596.73820247818, backtracks = 1, tol = 0.0001512001288337739
+Iteration 1127: loglikelihood = -175596.61970793764, backtracks = 1, tol = 0.00015100621914489765
+Iteration 1128: loglikelihood = -175596.50147590312, backtracks = 1, tol = 0.0001508126976147625
+Iteration 1129: loglikelihood = -175596.38350544946, backtracks = 1, tol = 0.00015061956333415854
+Iteration 1130: loglikelihood = -175596.265795658, backtracks = 1, tol = 0.00015042681539655578
+Iteration 1131: loglikelihood = -175596.1483456107, backtracks = 1, tol = 0.00015023445289760498
+Iteration 1132: loglikelihood = -175596.03115439555, backtracks = 1, tol = 0.00015004247493534403
+Iteration 1133: loglikelihood = -175595.9142211032, backtracks = 1, tol = 0.00014985088061047499
+Iteration 1134: loglikelihood = -175595.7975448265, backtracks = 1, tol = 0.00014965966902565346
+Iteration 1135: loglikelihood = -175595.68112466316, backtracks = 1, tol = 0.00014946883928640027
+Iteration 1136: loglikelihood = -175595.56495971535, backtracks = 1, tol = 0.00014927839050017945
+Iteration 1137: loglikelihood = -175595.44904908573, backtracks = 1, tol = 0.00014908832177716898
+Iteration 1138: loglikelihood = -175595.3333918841, backtracks = 1, tol = 0.00014889863222955027
+Iteration 1139: loglikelihood = -175595.21798722085, backtracks = 1, tol = 0.00014870932097227883
+Iteration 1140: loglikelihood = -175595.10283421064, backtracks = 1, tol = 0.00014852038712223322
+Iteration 1141: loglikelihood = -175594.98793197176, backtracks = 1, tol = 0.00014833182979884433
+Iteration 1142: loglikelihood = -175594.87327962607, backtracks = 1, tol = 0.0001481436481239493
+Iteration 1143: loglikelihood = -175594.7588762986, backtracks = 1, tol = 0.00014795584122150485
+Iteration 1144: loglikelihood = -175594.6447211179, backtracks = 1, tol = 0.000147768408217864
+Iteration 1145: loglikelihood = -175594.53081321507, backtracks = 1, tol = 0.00014758134824177107
+Iteration 1146: loglikelihood = -175594.4171517262, backtracks = 1, tol = 0.00014739466042421593
+Iteration 1147: loglikelihood = -175594.30373578955, backtracks = 1, tol = 0.00014720834389835867
+Iteration 1148: loglikelihood = -175594.19056454656, backtracks = 1, tol = 0.00014702239779987671
+Iteration 1149: loglikelihood = -175594.07763714175, backtracks = 1, tol = 0.00014683682126646717
+Iteration 1150: loglikelihood = -175593.96495272522, backtracks = 1, tol = 0.00014665161343840503
+Iteration 1151: loglikelihood = -175593.85251044756, backtracks = 1, tol = 0.00014646677345783458
+Iteration 1152: loglikelihood = -175593.7403094635, backtracks = 1, tol = 0.00014628230046960912
+Iteration 1153: loglikelihood = -175593.62834893196, backtracks = 1, tol = 0.0001460981936204416
+Iteration 1154: loglikelihood = -175593.5166280144, backtracks = 1, tol = 0.00014591445205960367
+Iteration 1155: loglikelihood = -175593.40514587553, backtracks = 1, tol = 0.0001457310749382172
+Iteration 1156: loglikelihood = -175593.29390168248, backtracks = 1, tol = 0.00014554806141009382
+Iteration 1157: loglikelihood = -175593.182894608, backtracks = 1, tol = 0.0001453654106310267
+Iteration 1158: loglikelihood = -175593.07212382514, backtracks = 1, tol = 0.00014518312175885634
+Iteration 1159: loglikelihood = -175592.96158851235, backtracks = 1, tol = 0.00014500119395409873
+Iteration 1160: loglikelihood = -175592.8512878499, backtracks = 1, tol = 0.000144819626378886
+Iteration 1161: loglikelihood = -175592.74122102163, backtracks = 1, tol = 0.00014463841819822718
+Iteration 1162: loglikelihood = -175592.63138721464, backtracks = 1, tol = 0.00014445756857852765
+Iteration 1163: loglikelihood = -175592.52178562008, backtracks = 1, tol = 0.00014427707668920075
+Iteration 1164: loglikelihood = -175592.4124154306, backtracks = 1, tol = 0.0001440969417011175
+Iteration 1165: loglikelihood = -175592.3032758421, backtracks = 1, tol = 0.00014391716278786654
+Iteration 1166: loglikelihood = -175592.19436605473, backtracks = 1, tol = 0.0001437377391248366
+Iteration 1167: loglikelihood = -175592.08568527107, backtracks = 1, tol = 0.0001435586698897033
+Iteration 1168: loglikelihood = -175591.977232697, backtracks = 1, tol = 0.00014337995426242495
+Iteration 1169: loglikelihood = -175591.86900754084, backtracks = 1, tol = 0.00014320159142481675
+Iteration 1170: loglikelihood = -175591.76100901474, backtracks = 1, tol = 0.00014302358056103768
+Iteration 1171: loglikelihood = -175591.6532363337, backtracks = 1, tol = 0.00014284592085737547
+Iteration 1172: loglikelihood = -175591.54568871518, backtracks = 1, tol = 0.00014266861150224224
+Iteration 1173: loglikelihood = -175591.43836538066, backtracks = 1, tol = 0.00014249165168588946
+Iteration 1174: loglikelihood = -175591.33126555436, backtracks = 1, tol = 0.00014231504060117526
+Iteration 1175: loglikelihood = -175591.22438846188, backtracks = 1, tol = 0.00014213877744264817
+Iteration 1176: loglikelihood = -175591.11773333466, backtracks = 1, tol = 0.00014196286140710383
+Iteration 1177: loglikelihood = -175591.01129940382, backtracks = 1, tol = 0.0001417872916935808
+Iteration 1178: loglikelihood = -175590.90508590726, backtracks = 1, tol = 0.00014161206750279515
+Iteration 1179: loglikelihood = -175590.7990920825, backtracks = 1, tol = 0.00014143718803804773
+Iteration 1180: loglikelihood = -175590.6933171717, backtracks = 1, tol = 0.0001412626525043085
+Iteration 1181: loglikelihood = -175590.58776041894, backtracks = 1, tol = 0.00014108846010891325
+Iteration 1182: loglikelihood = -175590.48242107325, backtracks = 1, tol = 0.00014091461006099872
+Iteration 1183: loglikelihood = -175590.3772983825, backtracks = 1, tol = 0.00014074110157191876
+Iteration 1184: loglikelihood = -175590.27239160234, backtracks = 1, tol = 0.00014056793385496005
+Iteration 1185: loglikelihood = -175590.1676999888, backtracks = 1, tol = 0.00014039510612568796
+Iteration 1186: loglikelihood = -175590.0632228001, backtracks = 1, tol = 0.00014022261760138227
+Iteration 1187: loglikelihood = -175589.9589592988, backtracks = 1, tol = 0.0001400504675015931
+Iteration 1188: loglikelihood = -175589.8549087493, backtracks = 1, tol = 0.00013987865504778676
+Iteration 1189: loglikelihood = -175589.7510704193, backtracks = 1, tol = 0.00013970717946348176
+Iteration 1190: loglikelihood = -175589.64744357934, backtracks = 1, tol = 0.00013953603997417458
+Iteration 1191: loglikelihood = -175589.54402750375, backtracks = 1, tol = 0.00013936523580740574
+Iteration 1192: loglikelihood = -175589.4408214665, backtracks = 1, tol = 0.00013919476619268556
+Iteration 1193: loglikelihood = -175589.33782474796, backtracks = 1, tol = 0.00013902463036163026
+Iteration 1194: loglikelihood = -175589.23503662957, backtracks = 1, tol = 0.00013885482754760807
+Iteration 1195: loglikelihood = -175589.13245639572, backtracks = 1, tol = 0.0001386853569862248
+Iteration 1196: loglikelihood = -175576.42890137166, backtracks = 1, tol = 0.002834198095009819
+Iteration 1197: loglikelihood = -175558.91272393236, backtracks = 1, tol = 0.0029496126249419483
+Iteration 1198: loglikelihood = -175552.40312745253, backtracks = 1, tol = 0.0014209989645590298
+Iteration 1199: loglikelihood = -175550.5803784655, backtracks = 1, tol = 0.0006688129837549107
+Iteration 1200: loglikelihood = -175549.94754165428, backtracks = 1, tol = 0.00031873914637230453
+Iteration 1201: loglikelihood = -175549.64920199767, backtracks = 1, tol = 0.00022523454667930406
+Iteration 1202: loglikelihood = -175549.45925789472, backtracks = 1, tol = 0.00017309662063227644
+Iteration 1203: loglikelihood = -175549.31119233137, backtracks = 1, tol = 0.00014595458000229598
+Iteration 1204: loglikelihood = -175549.1823258382, backtracks = 1, tol = 0.0001460626532905714
+Iteration 1205: loglikelihood = -175549.0634397884, backtracks = 1, tol = 0.00014530188013703898
+Iteration 1206: loglikelihood = -175548.95016448162, backtracks = 1, tol = 0.00014533353591118456
+Iteration 1207: loglikelihood = -175548.8401901404, backtracks = 1, tol = 0.000144810116803587
+Iteration 1208: loglikelihood = -175548.73222600884, backtracks = 1, tol = 0.00014476192059616286
+Iteration 1209: loglikelihood = -175548.6255251398, backtracks = 1, tol = 0.00014438233294284278
+Iteration 1210: loglikelihood = -175548.51965227688, backtracks = 1, tol = 0.0001442772137459755
+Iteration 1211: loglikelihood = -175548.41434990417, backtracks = 1, tol = 0.00014398377036115218
+Iteration 1212: loglikelihood = -175548.30946706983, backtracks = 1, tol = 0.00014384246340929155
+Iteration 1213: loglikelihood = -175548.20491385885, backtracks = 1, tol = 0.00014360033289422038
+Iteration 1214: loglikelihood = -175548.10063776496, backtracks = 1, tol = 0.00014343720035573596
+Iteration 1215: loglikelihood = -175547.99660734256, backtracks = 1, tol = 0.00014322557755438618
+Iteration 1216: loglikelihood = -175547.892804373, backtracks = 1, tol = 0.0001430497281688604
+Iteration 1217: loglikelihood = -175547.7892178362, backtracks = 1, tol = 0.00014285627102580335
+Iteration 1218: loglikelihood = -175547.68584140678, backtracks = 1, tol = 0.00014267326217329908
+Iteration 1219: loglikelihood = -175547.58267116564, backtracks = 1, tol = 0.00014249068593446756
+Iteration 1220: loglikelihood = -175547.47970486892, backtracks = 1, tol = 0.00014230384007420964
+Iteration 1221: loglikelihood = -175547.37694103632, backtracks = 1, tol = 0.0001421278630980152
+Iteration 1222: loglikelihood = -175547.27437878767, backtracks = 1, tol = 0.0001419391411094114
+Iteration 1223: loglikelihood = -175547.17201746244, backtracks = 1, tol = 0.00014176725702753725
+Iteration 1224: loglikelihood = -175547.06985661038, backtracks = 1, tol = 0.00014158018037149355
+Iteration 1225: loglikelihood = -175546.96789582577, backtracks = 1, tol = 0.0001414085523471604
+Iteration 1226: loglikelihood = -175546.8661347754, backtracks = 1, tol = 0.0001412254505251484
+Iteration 1227: loglikelihood = -175546.7645731154, backtracks = 1, tol = 0.00014105156409004
+Iteration 1228: loglikelihood = -175546.6632105238, backtracks = 1, tol = 0.00014087109442390428
+Iteration 1229: loglikelihood = -175546.56204665982, backtracks = 1, tol = 0.0001406961820044596
+Iteration 1230: loglikelihood = -175546.46108118107, backtracks = 1, tol = 0.00014051755549154913
+Iteration 1231: loglikelihood = -175546.36031372598, backtracks = 1, tol = 0.00014034233893755636
+Iteration 1232: loglikelihood = -175546.25974392507, backtracks = 1, tol = 0.00014016509124163747
+Iteration 1233: loglikelihood = -175546.15937139367, backtracks = 1, tol = 0.0001399899927195832
+Iteration 1234: loglikelihood = -175546.0591957357, backtracks = 1, tol = 0.00013981384993254776
+Iteration 1235: loglikelihood = -175545.95921653995, backtracks = 1, tol = 0.00013963911572396556
+Iteration 1236: loglikelihood = -175545.859433387, backtracks = 1, tol = 0.00013946391565663587
+Iteration 1237: loglikelihood = -175545.75984584197, backtracks = 1, tol = 0.00013928968882862507
+Iteration 1238: loglikelihood = -175545.66045346187, backtracks = 1, tol = 0.0001391153348500016
+Iteration 1239: loglikelihood = -175545.56125579256, backtracks = 1, tol = 0.00013894169790990032
+Iteration 1240: loglikelihood = -175545.46225237145, backtracks = 1, tol = 0.00013876813187101942
+Iteration 1241: loglikelihood = -175545.36344272352, backtracks = 1, tol = 0.00013859513180234276
+Iteration 1242: loglikelihood = -175545.26482636828, backtracks = 1, tol = 0.00013842231815110938
+Iteration 1243: loglikelihood = -175545.16640281596, backtracks = 1, tol = 0.00013824998110600485
+Iteration 1244: loglikelihood = -175545.0681715688, backtracks = 1, tol = 0.00013807789756614092
+Iteration 1245: loglikelihood = -175544.9701321215, backtracks = 1, tol = 0.0001379062374870505
+Iteration 1246: loglikelihood = -175544.87228396343, backtracks = 1, tol = 0.00013773486958743944
+Iteration 1247: loglikelihood = -175544.77462657602, backtracks = 1, tol = 0.00013756389326495408
+Iteration 1248: loglikelihood = -175544.67715943593, backtracks = 1, tol = 0.00013739323112787552
+Iteration 1249: loglikelihood = -175544.5798820142, backtracks = 1, tol = 0.00013722294116799325
+Iteration 1250: loglikelihood = -175544.48279377568, backtracks = 1, tol = 0.0001370529776230012
+Iteration 1251: loglikelihood = -175544.38589418138, backtracks = 1, tol = 0.00013688337418693258
+Iteration 1252: loglikelihood = -175544.2891826883, backtracks = 1, tol = 0.00013671410366285775
+Iteration 1253: loglikelihood = -175544.19265874795, backtracks = 1, tol = 0.0001365451854869766
+Iteration 1254: loglikelihood = -175544.09632181027, backtracks = 1, tol = 0.0001363766033604044
+Iteration 1255: loglikelihood = -175544.00017131935, backtracks = 1, tol = 0.00013620836835403485
+Iteration 1256: loglikelihood = -175543.9042067179, backtracks = 1, tol = 0.00013604047056674736
+Iteration 1257: loglikelihood = -175543.8084274456, backtracks = 1, tol = 0.000135872916161997
+Iteration 1258: loglikelihood = -175543.71283293742, backtracks = 1, tol = 0.00013570569899535646
+Iteration 1259: loglikelihood = -175543.61742263014, backtracks = 1, tol = 0.00013553882235218045
+Iteration 1260: loglikelihood = -175543.52219595396, backtracks = 1, tol = 0.0001353722822946619
+Iteration 1261: loglikelihood = -175543.42715234082, backtracks = 1, tol = 0.00013520608042084147
+Iteration 1262: loglikelihood = -175543.33229121845, backtracks = 1, tol = 0.00013504021408970282
+Iteration 1263: loglikelihood = -175543.2376120154, backtracks = 1, tol = 0.0001348746839107885
+Iteration 1264: loglikelihood = -175543.14311415714, backtracks = 1, tol = 0.00013470948800618502
+Iteration 1265: loglikelihood = -175543.04879706865, backtracks = 1, tol = 0.0001345446264066754
+Iteration 1266: loglikelihood = -175542.95466017426, backtracks = 1, tol = 0.00013438009768404285
+Iteration 1267: loglikelihood = -175542.86070289742, backtracks = 1, tol = 0.00013421590153119987
+Iteration 1268: loglikelihood = -175542.76692466147, backtracks = 1, tol = 0.00013405203678557872
+Iteration 1269: loglikelihood = -175542.67332488933, backtracks = 1, tol = 0.00013388850294338264
+Iteration 1270: loglikelihood = -175542.579903003, backtracks = 1, tol = 0.0001337252989997134
+Iteration 1271: loglikelihood = -175542.48665842434, backtracks = 1, tol = 0.00013356242433698644
+Iteration 1272: loglikelihood = -175542.39359057607, backtracks = 1, tol = 0.00013339987804456832
+Iteration 1273: loglikelihood = -175542.30069888112, backtracks = 1, tol = 0.0001332376594396978
+Iteration 1274: loglikelihood = -175542.20798276222, backtracks = 1, tol = 0.0001330757676687985
+Iteration 1275: loglikelihood = -175542.1154416408, backtracks = 1, tol = 0.00013291420201258652
+Iteration 1276: loglikelihood = -175542.02307494215, backtracks = 1, tol = 0.00013275296165243943
+Iteration 1277: loglikelihood = -175541.93088208963, backtracks = 1, tol = 0.0001325920458494275
+Iteration 1278: loglikelihood = -175541.83886250778, backtracks = 1, tol = 0.00013243145380719917
+Iteration 1279: loglikelihood = -175541.7470156223, backtracks = 1, tol = 0.00013227118477685332
+Iteration 1280: loglikelihood = -175541.65534085984, backtracks = 1, tol = 0.0001321112379767507
+Iteration 1281: loglikelihood = -175541.56383764656, backtracks = 1, tol = 0.00013195161265374663
+Iteration 1282: loglikelihood = -175541.4725054118, backtracks = 1, tol = 0.00013179230803660934
+Iteration 1283: loglikelihood = -175541.3813435836, backtracks = 1, tol = 0.00013163332337125588
+Iteration 1284: loglikelihood = -175541.2903515927, backtracks = 1, tol = 0.00013147465789428746
+Iteration 1285: loglikelihood = -175541.19952887052, backtracks = 1, tol = 0.00013131631085281135
+Iteration 1286: loglikelihood = -175541.10887484968, backtracks = 1, tol = 0.00013115828148924186
+Iteration 1287: loglikelihood = -175541.0183889643, backtracks = 1, tol = 0.00013100056905345113
+Iteration 1288: loglikelihood = -175540.92807064886, backtracks = 1, tol = 0.00013084317279275307
+Iteration 1289: loglikelihood = -175540.83791934038, backtracks = 1, tol = 0.0001306860919602536
+Iteration 1290: loglikelihood = -175540.74793447612, backtracks = 1, tol = 0.00013052932580780564
+Iteration 1291: loglikelihood = -175540.65811549578, backtracks = 1, tol = 0.00013037287359187247
+Iteration 1292: loglikelihood = -175540.56846184115, backtracks = 1, tol = 0.00013021673456876194
+Iteration 1293: loglikelihood = -175540.4789729537, backtracks = 1, tol = 0.00013006090799855618
+Iteration 1294: loglikelihood = -175540.38964827632, backtracks = 1, tol = 0.0001299053931416581
+Iteration 1295: loglikelihood = -175540.30048725597, backtracks = 1, tol = 0.00012975018926189227
+Iteration 1296: loglikelihood = -175540.21148933994, backtracks = 1, tol = 0.00012959529562367298
+Iteration 1297: loglikelihood = -175540.12265397594, backtracks = 1, tol = 0.0001294407114945527
+Iteration 1298: loglikelihood = -175540.03398061404, backtracks = 1, tol = 0.0001292864361430806
+Iteration 1299: loglikelihood = -175539.94546870692, backtracks = 1, tol = 0.00012913246884045388
+Iteration 1300: loglikelihood = -175539.85711770927, backtracks = 1, tol = 0.00012897880885920417
+Iteration 1301: loglikelihood = -175539.76892707462, backtracks = 1, tol = 0.00012882545547422816
+Iteration 1302: loglikelihood = -175539.6808962613, backtracks = 1, tol = 0.0001286724079620946
+Iteration 1303: loglikelihood = -175539.59302472768, backtracks = 1, tol = 0.00012851966560124784
+Iteration 1304: loglikelihood = -175539.50531193614, backtracks = 1, tol = 0.00012836722767227963
+Iteration 1305: loglikelihood = -175539.41775734673, backtracks = 1, tol = 0.0001282150934574435
+Iteration 1306: loglikelihood = -175539.33036042546, backtracks = 1, tol = 0.00012806326224099567
+Iteration 1307: loglikelihood = -175539.24312063804, backtracks = 1, tol = 0.0001279117333089163
+Iteration 1308: loglikelihood = -175539.1560374524, backtracks = 1, tol = 0.0001277605059493878
+Iteration 1309: loglikelihood = -175539.0691103385, backtracks = 1, tol = 0.00012760957945217184
+Iteration 1310: loglikelihood = -175538.98233876794, backtracks = 1, tol = 0.0001274589531089502
+Iteration 1311: loglikelihood = -175538.89572221407, backtracks = 1, tol = 0.00012730862621345893
+Iteration 1312: loglikelihood = -175538.80926015184, backtracks = 1, tol = 0.00012715859806093453
+Iteration 1313: loglikelihood = -175538.72295206029, backtracks = 1, tol = 0.00012700886794886747
+Iteration 1314: loglikelihood = -175538.63679741597, backtracks = 1, tol = 0.00012685943517624183
+Iteration 1315: loglikelihood = -175538.5507957019, backtracks = 1, tol = 0.0001267102990441514
+Iteration 1316: loglikelihood = -175538.46494639988, backtracks = 1, tol = 0.00012656145885538343
+Iteration 1317: loglikelihood = -175538.37924899557, backtracks = 1, tol = 0.00012641291391455293
+Iteration 1318: loglikelihood = -175538.2937029741, backtracks = 1, tol = 0.00012626466352809936
+Iteration 1319: loglikelihood = -175538.2083078256, backtracks = 1, tol = 0.00012611670700428355
+Iteration 1320: loglikelihood = -175538.12306303912, backtracks = 1, tol = 0.00012596904365332157
+Iteration 1321: loglikelihood = -175538.03796810872, backtracks = 1, tol = 0.00012582167278696926
+Iteration 1322: loglikelihood = -175537.95302252637, backtracks = 1, tol = 0.0001256745937189314
+Iteration 1323: loglikelihood = -175537.86822579004, backtracks = 1, tol = 0.00012552780576478967
+Iteration 1324: loglikelihood = -175537.78357739677, backtracks = 1, tol = 0.00012538130824172466
+Iteration 1325: loglikelihood = -175537.6990768474, backtracks = 1, tol = 0.0001252351004687874
+Iteration 1326: loglikelihood = -175537.6147236422, backtracks = 1, tol = 0.00012508918176682766
+Iteration 1327: loglikelihood = -175537.5305172864, backtracks = 1, tol = 0.00012494355145849058
+Iteration 1328: loglikelihood = -175537.44645728398, backtracks = 1, tol = 0.00012479820886814491
+Iteration 1329: loglikelihood = -175537.36254314397, backtracks = 1, tol = 0.0001246531533218113
+Iteration 1330: loglikelihood = -175537.27877437527, backtracks = 1, tol = 0.00012450838414757097
+Iteration 1331: loglikelihood = -175537.19515048893, backtracks = 1, tol = 0.00012436390067480755
+Iteration 1332: loglikelihood = -175537.1116709978, backtracks = 1, tol = 0.00012421970223516502
+Iteration 1333: loglikelihood = -175537.0283354172, backtracks = 1, tol = 0.00012407578816151491
+Iteration 1334: loglikelihood = -175536.94514326437, backtracks = 1, tol = 0.00012393215778891422
+Iteration 1335: loglikelihood = -175536.86209405732, backtracks = 1, tol = 0.00012378881045377882
+Iteration 1336: loglikelihood = -175536.77918731712, backtracks = 1, tol = 0.00012364574549463518
+Iteration 1337: loglikelihood = -175536.69642256707, backtracks = 1, tol = 0.00012350296225115668
+Iteration 1338: loglikelihood = -175536.61379932886, backtracks = 1, tol = 0.00012336046006546444
+Iteration 1339: loglikelihood = -175536.53131713124, backtracks = 1, tol = 0.00012321823828075184
+Iteration 1340: loglikelihood = -175536.4489755014, backtracks = 1, tol = 0.00012307629624231086
+Iteration 1341: loglikelihood = -175536.36677396955, backtracks = 1, tol = 0.00012293463329684297
+Iteration 1342: loglikelihood = -175536.28471206728, backtracks = 1, tol = 0.00012279324879300486
+Iteration 1343: loglikelihood = -175536.2027893273, backtracks = 1, tol = 0.0001226521420809256
+Iteration 1344: loglikelihood = -175536.12100528643, backtracks = 1, tol = 0.00012251131251254634
+Iteration 1345: loglikelihood = -175536.03935948154, backtracks = 1, tol = 0.00012237075944154896
+Iteration 1346: loglikelihood = -175535.95785145095, backtracks = 1, tol = 0.00012223048222301038
+Iteration 1347: loglikelihood = -175535.87648073633, backtracks = 1, tol = 0.00012209048021401644
+Iteration 1348: loglikelihood = -175535.79524687972, backtracks = 1, tol = 0.00012195075277297383
+Iteration 1349: loglikelihood = -175535.71414942626, backtracks = 1, tol = 0.00012181129926036085
+Iteration 1350: loglikelihood = -175535.63318792277, backtracks = 1, tol = 0.00012167211903783391
+Iteration 1351: loglikelihood = -175535.55236191576, backtracks = 1, tol = 0.00012153321146911525
+Iteration 1352: loglikelihood = -175535.47167095583, backtracks = 1, tol = 0.00012139457591930515
+Iteration 1353: loglikelihood = -175535.39111459517, backtracks = 1, tol = 0.000121256211755153
+Iteration 1354: loglikelihood = -175535.31069238647, backtracks = 1, tol = 0.0001211181183453284
+Iteration 1355: loglikelihood = -175535.23040388606, backtracks = 1, tol = 0.00012098029505966528
+Iteration 1356: loglikelihood = -175535.1502486496, backtracks = 1, tol = 0.00012084274127011742
+Iteration 1357: loglikelihood = -175535.0702262362, backtracks = 1, tol = 0.000120705456349729
+Iteration 1358: loglikelihood = -175534.99033620727, backtracks = 1, tol = 0.00012056843967365853
+Iteration 1359: loglikelihood = -175534.91057812356, backtracks = 1, tol = 0.00012043169061835463
+Iteration 1360: loglikelihood = -175534.83095155086, backtracks = 1, tol = 0.00012029520856203253
+Iteration 1361: loglikelihood = -175534.75145605358, backtracks = 1, tol = 0.00012015899288432911
+Iteration 1362: loglikelihood = -175534.67209119938, backtracks = 1, tol = 0.00012002304296671071
+Iteration 1363: loglikelihood = -175534.59285655722, backtracks = 1, tol = 0.00011988735819205994
+Iteration 1364: loglikelihood = -175534.51375169877, backtracks = 1, tol = 0.00011975193794487819
+Iteration 1365: loglikelihood = -175534.43477619614, backtracks = 1, tol = 0.00011961678161128298
+Iteration 1366: loglikelihood = -175534.355929624, backtracks = 1, tol = 0.0001194818885790052
+Iteration 1367: loglikelihood = -175534.2772115582, backtracks = 1, tol = 0.00011934725823718146
+Iteration 1368: loglikelihood = -175534.19862157578, backtracks = 1, tol = 0.00011921288997669313
+Iteration 1369: loglikelihood = -175534.12015925697, backtracks = 1, tol = 0.00011907878318995866
+Iteration 1370: loglikelihood = -175534.04182418302, backtracks = 1, tol = 0.00011894493727079433
+Iteration 1371: loglikelihood = -175533.96361593617, backtracks = 1, tol = 0.00011881135161482157
+Iteration 1372: loglikelihood = -175533.88553410047, backtracks = 1, tol = 0.00011867802561891779
+Iteration 1373: loglikelihood = -175533.80757826252, backtracks = 1, tol = 0.00011854495868189688
+Iteration 1374: loglikelihood = -175533.72974800985, backtracks = 1, tol = 0.00011841215020361871
+Iteration 1375: loglikelihood = -175533.6520429327, backtracks = 1, tol = 0.00011827959958594271
+Iteration 1376: loglikelihood = -175533.57446262016, backtracks = 1, tol = 0.00011814730623190579
+Iteration 1377: loglikelihood = -175533.4970066668, backtracks = 1, tol = 0.00011801526954640261
+Iteration 1378: loglikelihood = -175533.41967466526, backtracks = 1, tol = 0.00011788348893543205
+Iteration 1379: loglikelihood = -175533.34246621316, backtracks = 1, tol = 0.00011775196380698217
+Iteration 1380: loglikelihood = -175533.26538090614, backtracks = 1, tol = 0.00011762069357014023
+Iteration 1381: loglikelihood = -175533.18841834558, backtracks = 1, tol = 0.00011748967763577281
+Iteration 1382: loglikelihood = -175533.11157812946, backtracks = 1, tol = 0.0001173589154161137
+Iteration 1383: loglikelihood = -175533.03485986253, backtracks = 1, tol = 0.0001172284063250345
+Iteration 1384: loglikelihood = -175532.95826314786, backtracks = 1, tol = 0.00011709814977763269
+Iteration 1385: loglikelihood = -175532.88178758998, backtracks = 1, tol = 0.00011696814519084315
+Iteration 1386: loglikelihood = -175532.8054327973, backtracks = 1, tol = 0.00011683839198282185
+Iteration 1387: loglikelihood = -175532.7291983778, backtracks = 1, tol = 0.00011670888957342073
+Iteration 1388: loglikelihood = -175532.65308394207, backtracks = 1, tol = 0.0001165796373837079
+Iteration 1389: loglikelihood = -175532.57708910044, backtracks = 1, tol = 0.00011645063483644269
+Iteration 1390: loglikelihood = -175532.50121346884, backtracks = 1, tol = 0.00011632188135580037
+Iteration 1391: loglikelihood = -175532.42545665966, backtracks = 1, tol = 0.00011619337636743783
+Iteration 1392: loglikelihood = -175532.34981829097, backtracks = 1, tol = 0.00011606511929828689
+Iteration 1393: loglikelihood = -175532.27429798013, backtracks = 1, tol = 0.00011593710957709708
+Iteration 1394: loglikelihood = -175532.19889534567, backtracks = 1, tol = 0.00011580934663368358
+Iteration 1395: loglikelihood = -175532.12361001043, backtracks = 1, tol = 0.00011568182989960633
+Iteration 1396: loglikelihood = -175532.0484415958, backtracks = 1, tol = 0.00011555455880775883
+Iteration 1397: loglikelihood = -175531.97338972538, backtracks = 1, tol = 0.0001154275327924339
+Iteration 1398: loglikelihood = -175531.89845402533, backtracks = 1, tol = 0.00011530075128938953
+Iteration 1399: loglikelihood = -175531.82363412192, backtracks = 1, tol = 0.00011517421373584657
+Iteration 1400: loglikelihood = -175531.74892964517, backtracks = 1, tol = 0.00011504791957048626
+Iteration 1401: loglikelihood = -175531.67434022378, backtracks = 1, tol = 0.00011492186823324376
+Iteration 1402: loglikelihood = -175531.5998654893, backtracks = 1, tol = 0.00011479605916578244
+Iteration 1403: loglikelihood = -175531.52550507511, backtracks = 1, tol = 0.00011467049181074275
+Iteration 1404: loglikelihood = -175531.45125861585, backtracks = 1, tol = 0.00011454516561262479
+Iteration 1405: loglikelihood = -175531.37712574634, backtracks = 1, tol = 0.00011442008001710547
+Iteration 1406: loglikelihood = -175531.30310610472, backtracks = 1, tol = 0.00011429523447124036
+Iteration 1407: loglikelihood = -175531.22919932957, backtracks = 1, tol = 0.00011417062842366564
+Iteration 1408: loglikelihood = -175531.15540506132, backtracks = 1, tol = 0.00011404626132411954
+Iteration 1409: loglikelihood = -175531.08172294026, backtracks = 1, tol = 0.00011392213262405243
+Iteration 1410: loglikelihood = -175531.0081526116, backtracks = 1, tol = 0.00011379824177608038
+Iteration 1411: loglikelihood = -175530.9346937188, backtracks = 1, tol = 0.00011367458823432301
+Iteration 1412: loglikelihood = -175530.861345907, backtracks = 1, tol = 0.00011355117145426525
+Iteration 1413: loglikelihood = -175530.7881088244, backtracks = 1, tol = 0.00011342799089261931
+Iteration 1414: loglikelihood = -175530.71498212, backtracks = 1, tol = 0.00011330504600779816
+Iteration 1415: loglikelihood = -175530.64196544373, backtracks = 1, tol = 0.0001131823362590978
+Iteration 1416: loglikelihood = -175530.56905844636, backtracks = 1, tol = 0.00011305986110778255
+Iteration 1417: loglikelihood = -175530.49626078186, backtracks = 1, tol = 0.0001129376200159275
+Iteration 1418: loglikelihood = -175530.42357210338, backtracks = 1, tol = 0.00011281561244729981
+Iteration 1419: loglikelihood = -175530.35099206844, backtracks = 1, tol = 0.000112693837866813
+Iteration 1420: loglikelihood = -175530.2785203322, backtracks = 1, tol = 0.00011257229574100037
+Iteration 1421: loglikelihood = -175530.20615655385, backtracks = 1, tol = 0.00011245098553733351
+Iteration 1422: loglikelihood = -175530.1339003931, backtracks = 1, tol = 0.00011232990672510338
+Iteration 1423: loglikelihood = -175530.06175151165, backtracks = 1, tol = 0.00011220905877453501
+Iteration 1424: loglikelihood = -175529.98970957124, backtracks = 1, tol = 0.00011208844115739686
+Iteration 1425: loglikelihood = -175529.91777423624, backtracks = 1, tol = 0.0001119680533467948
+Iteration 1426: loglikelihood = -175529.84594517123, backtracks = 1, tol = 0.00011184789481703442
+Iteration 1427: loglikelihood = -175529.77422204273, backtracks = 1, tol = 0.00011172796504389038
+Iteration 1428: loglikelihood = -175529.70260451944, backtracks = 1, tol = 0.00011160826350433288
+Iteration 1429: loglikelihood = -175529.63109227008, backtracks = 1, tol = 0.00011148878967672921
+Iteration 1430: loglikelihood = -175529.5596849652, backtracks = 1, tol = 0.00011136954304070603
+Iteration 1431: loglikelihood = -175529.48838227615, backtracks = 1, tol = 0.00011125052307721508
+Iteration 1432: loglikelihood = -175529.41718387615, backtracks = 1, tol = 0.00011113172926853132
+Iteration 1433: loglikelihood = -175529.3460894401, backtracks = 1, tol = 0.0001110131610983185
+Iteration 1434: loglikelihood = -175529.27509864361, backtracks = 1, tol = 0.00011089481805128815
+Iteration 1435: loglikelihood = -175529.20421116307, backtracks = 1, tol = 0.00011077669961360458
+Iteration 1436: loglikelihood = -175529.13342667767, backtracks = 1, tol = 0.00011065880527288281
+Iteration 1437: loglikelihood = -175529.06274486613, backtracks = 1, tol = 0.00011054113451764397
+Iteration 1438: loglikelihood = -175528.99216540973, backtracks = 1, tol = 0.00011042368683799159
+Iteration 1439: loglikelihood = -175528.9216879906, backtracks = 1, tol = 0.0001103064617253383
+Iteration 1440: loglikelihood = -175528.85131229155, backtracks = 1, tol = 0.00011018945867199714
+Iteration 1441: loglikelihood = -175528.78103799792, backtracks = 1, tol = 0.00011007267717206082
+Iteration 1442: loglikelihood = -175528.71086479543, backtracks = 1, tol = 0.00010995611672045087
+Iteration 1443: loglikelihood = -175528.64079236993, backtracks = 1, tol = 0.00010983977681366122
+Iteration 1444: loglikelihood = -175528.5708204118, backtracks = 1, tol = 0.0001097236569492141
+Iteration 1445: loglikelihood = -175528.50094861002, backtracks = 1, tol = 0.00010960775662620022
+Iteration 1446: loglikelihood = -175528.43117665418, backtracks = 1, tol = 0.00010949207534453153
+Iteration 1447: loglikelihood = -175528.3615042382, backtracks = 1, tol = 0.0001093766126058201
+Iteration 1448: loglikelihood = -175528.2919310541, backtracks = 1, tol = 0.00010926136791249548
+Iteration 1449: loglikelihood = -175528.22245679703, backtracks = 1, tol = 0.0001091463407686835
+Iteration 1450: loglikelihood = -175528.1530811623, backtracks = 1, tol = 0.00010903153067932377
+Iteration 1451: loglikelihood = -175528.08380384668, backtracks = 1, tol = 0.00010891693715084517
+Iteration 1452: loglikelihood = -175528.01462454928, backtracks = 1, tol = 0.00010880255969089296
+Iteration 1453: loglikelihood = -175527.94554296852, backtracks = 1, tol = 0.00010868839780819166
+Iteration 1454: loglikelihood = -175527.87655880512, backtracks = 1, tol = 0.00010857445101294927
+Iteration 1455: loglikelihood = -175527.80767176073, backtracks = 1, tol = 0.00010846071881638164
+Iteration 1456: loglikelihood = -175527.73888153848, backtracks = 1, tol = 0.00010834720073084603
+Iteration 1457: loglikelihood = -175527.67018784175, backtracks = 1, tol = 0.00010823389627031295
+Iteration 1458: loglikelihood = -175527.6015903771, backtracks = 1, tol = 0.00010812080494955235
+Iteration 1459: loglikelihood = -175527.53308885, backtracks = 1, tol = 0.00010800792628467311
+Iteration 1460: loglikelihood = -175527.46468296868, backtracks = 1, tol = 0.00010789525979312116
+Iteration 1461: loglikelihood = -175527.3963724408, backtracks = 1, tol = 0.00010778280499340716
+Iteration 1462: loglikelihood = -175527.32815697684, backtracks = 1, tol = 0.00010767056140524001
+Iteration 1463: loglikelihood = -175527.26003628832, backtracks = 1, tol = 0.00010755852854972779
+Iteration 1464: loglikelihood = -175527.19201008667, backtracks = 1, tol = 0.0001074467059487
+Iteration 1465: loglikelihood = -175527.12407808576, backtracks = 1, tol = 0.00010733509312585504
+Iteration 1466: loglikelihood = -175527.05623999954, backtracks = 1, tol = 0.00010722368960533883
+Iteration 1467: loglikelihood = -175526.98849554383, backtracks = 1, tol = 0.00010711249491309495
+Iteration 1468: loglikelihood = -175526.92084443505, backtracks = 1, tol = 0.00010700150857598421
+Iteration 1469: loglikelihood = -175526.85328639252, backtracks = 1, tol = 0.00010689073012185057
+Iteration 1470: loglikelihood = -175526.785821133, backtracks = 1, tol = 0.00010678015908026264
+Iteration 1471: loglikelihood = -175526.7184483779, backtracks = 1, tol = 0.00010666979498122815
+Iteration 1472: loglikelihood = -175526.65116784786, backtracks = 1, tol = 0.00010655963735667873
+Iteration 1473: loglikelihood = -175526.58397926536, backtracks = 1, tol = 0.00010644968573904934
+Iteration 1474: loglikelihood = -175526.51688235434, backtracks = 1, tol = 0.00010633993966235747
+Iteration 1475: loglikelihood = -175526.44987683825, backtracks = 1, tol = 0.00010623039866166109
+Iteration 1476: loglikelihood = -175526.38296244305, backtracks = 1, tol = 0.00010612106227312441
+Iteration 1477: loglikelihood = -175526.31613889552, backtracks = 1, tol = 0.0001060119300340163
+Iteration 1478: loglikelihood = -175526.24940592312, backtracks = 1, tol = 0.00010590300148304617
+Iteration 1479: loglikelihood = -175526.18276325482, backtracks = 1, tol = 0.00010579427615961956
+Iteration 1480: loglikelihood = -175526.1162106205, backtracks = 1, tol = 0.00010568575360464673
+Iteration 1481: loglikelihood = -175526.04974775127, backtracks = 1, tol = 0.00010557743336000086
+Iteration 1482: loglikelihood = -175525.98337437882, backtracks = 1, tol = 0.00010546931496878639
+Iteration 1483: loglikelihood = -175525.91709023618, backtracks = 1, tol = 0.00010536139797513503
+Iteration 1484: loglikelihood = -175525.8508950576, backtracks = 1, tol = 0.0001052536819243389
+Iteration 1485: loglikelihood = -175525.7847885781, backtracks = 1, tol = 0.00010514616636298393
+Iteration 1486: loglikelihood = -175525.71877053392, backtracks = 1, tol = 0.00010503885083840858
+Iteration 1487: loglikelihood = -175525.65284066304, backtracks = 1, tol = 0.00010493173489951158
+Iteration 1488: loglikelihood = -175525.58699870162, backtracks = 1, tol = 0.0001048248180958736
+Iteration 1489: loglikelihood = -175525.52124439168, backtracks = 1, tol = 0.00010471809997863225
+Iteration 1490: loglikelihood = -175525.45557747036, backtracks = 1, tol = 0.00010461158009967137
+Iteration 1491: loglikelihood = -175525.38999768312, backtracks = 1, tol = 0.00010450525801215883
+Iteration 1492: loglikelihood = -175525.32450476923, backtracks = 1, tol = 0.00010439913327034265
+Iteration 1493: loglikelihood = -175525.25909847178, backtracks = 1, tol = 0.00010429320542948207
+Iteration 1494: loglikelihood = -175525.19377853812, backtracks = 1, tol = 0.00010418747404611552
+Iteration 1495: loglikelihood = -175525.12854471128, backtracks = 1, tol = 0.00010408193867765472
+Iteration 1496: loglikelihood = -175525.0633967378, backtracks = 1, tol = 0.00010397659888285484
+Iteration 1497: loglikelihood = -175524.9983343658, backtracks = 1, tol = 0.0001038714542213412
+Iteration 1498: loglikelihood = -175524.9333573437, backtracks = 1, tol = 0.00010376650425387738
+Iteration 1499: loglikelihood = -175524.86846541998, backtracks = 1, tol = 0.00010366174854243083
+Did not converge after 1500 iterations! IHT run time was 67252.82145404816 seconds
+
+Compute time (sec):     67252.82145404816
+Final loglikelihood:    -175524.86846541998
+Iterations:             1500
+Trait 1's SNP PVE:      0.03303352344446124
+Trait 2's SNP PVE:      0.14267008087006033
+Trait 3's SNP PVE:      0.04751406474745091
+
+Estimated trait covariance:
+3×3 DataFrame
+ Row │ trait1    trait2    trait3
+     │ Float64   Float64   Float64
+─────┼──────────────────────────────
+   1 │ 0.966106  0.179143  0.273906
+   2 │ 0.179143  0.859279  0.667772
+   3 │ 0.273906  0.667772  0.952167
+
+Trait 1: IHT estimated 39 nonzero SNP predictors
+39×2 DataFrame
+ Row │ Position  Estimated_β
+     │ Int64     Float64
+─────┼───────────────────────
+   1 │    13012   0.0190776
+   2 │    25139  -0.0280864
+   3 │    28367  -0.0135552
+   4 │    37422   0.0272317
+   5 │    37472   0.0166637
+   6 │    37475   0.00766058
+   7 │    42571  -0.0263341
+   8 │    83764   0.00717946
+   9 │    83765   0.0121146
+  10 │    94917  -0.0153597
+  11 │   102893   0.0172247
+  12 │   111090   0.0149161
+  13 │   114237  -0.0216154
+  14 │   121597  -0.0259
+  15 │   146596   0.0125937
+  16 │   146598   0.00865367
+  17 │   148584  -0.0153842
+  18 │   176364  -0.017077
+  19 │   179194  -0.0122426
+  20 │   179202  -0.00930655
+  21 │   209140   0.015549
+  22 │   297141  -0.00671148
+  23 │   297144   0.0117695
+  24 │   297145   0.00680045
+  25 │   297148  -0.0108039
+  26 │   322535  -0.00723167
+  27 │   322538  -0.0141845
+  28 │   375679   0.00993338
+  29 │   375682   0.00761542
+  30 │   383914   0.0155176
+  31 │   389388  -0.0154439
+  32 │   389552   0.0187352
+  33 │   389648   0.0135849
+  34 │   391020  -0.0496443
+  35 │   425068  -0.0112812
+  36 │   425069  -0.0151361
+  37 │   425085  -0.0144642
+  38 │   438707   0.017452
+  39 │   439026   0.0219043
+
+Trait 1: IHT estimated 14 non-genetic predictors
+14×2 DataFrame
+ Row │ Position  Estimated_β
+     │ Int64     Float64
+─────┼────────────────────────
+   1 │        1   0.000197298
+   2 │        2   0.116525
+   3 │        3   0.107333
+   4 │        4  -0.0504772
+   5 │        5  -0.0287302
+   6 │        6   0.00515628
+   7 │        7   0.0173881
+   8 │        8  -0.00185672
+   9 │        9   0.002159
+  10 │       10  -0.0164735
+  11 │       11  -0.00301272
+  12 │       12  -0.00135104
+  13 │       13   0.00394919
+  14 │       14   0.00684999
+
+Trait 2: IHT estimated 78 nonzero SNP predictors
+78×2 DataFrame
+ Row │ Position  Estimated_β
+     │ Int64     Float64
+─────┼───────────────────────
+   1 │      158   0.00921031
+   2 │     2507   0.00876828
+   3 │     2511   0.0197997
+   4 │    10316  -0.0089286
+   5 │    10936   0.0114508
+   6 │    12240  -0.00852642
+   7 │    31599   0.0085036
+   8 │    41639   0.0161061
+   9 │    41910   0.00936987
+  10 │    52351  -0.00978618
+  11 │    61864   0.0120754
+  12 │    62578   0.0105721
+  13 │    64331   0.0107242
+  14 │    82724   0.0201769
+  15 │   106488  -0.00835555
+  16 │   114628   0.00830975
+  17 │   114969  -0.00971804
+  18 │   118568  -0.0232274
+  19 │   121176   0.00913307
+  20 │   127521  -0.00831147
+  21 │   128723  -0.00995974
+  22 │   130786  -0.00950673
+  23 │   141340   0.00720135
+  24 │   141359   0.00493298
+  25 │   141360   0.0160949
+  26 │   146014   0.00939192
+  27 │   153218   0.0105065
+  28 │   158832   0.00977496
+  29 │   165576  -0.00846424
+  30 │   166613   0.0115002
+  31 │   174011   0.011207
+  32 │   180004  -0.0136226
+  33 │   180016  -0.00882576
+  34 │   181561   0.00924644
+  35 │   192732  -0.00882461
+  36 │   194185  -0.0122891
+  37 │   196414  -0.00998132
+  38 │   200845  -0.0138296
+  39 │   204872   0.00973525
+  40 │   205817   0.0128555
+  41 │   211476   0.0157464
+  42 │   213620  -0.0267912
+  43 │   231835  -0.0095295
+  44 │   238151  -0.0085734
+  45 │   241541  -0.00802011
+  46 │   245656  -0.00975773
+  47 │   251799  -0.00993325
+  48 │   264422  -0.00852323
+  49 │   272187   0.00892603
+  50 │   280041   0.0101652
+  51 │   284633   0.00871187
+  52 │   284788  -0.0105946
+  53 │   291608  -0.00932723
+  54 │   310118  -0.0137711
+  55 │   312910  -0.0112138
+  56 │   312980   0.00984261
+  57 │   318554   0.0123082
+  58 │   328030   0.0110638
+  59 │   331700  -0.0113644
+  60 │   353849   0.00802756
+  61 │   356166   0.00885663
+  62 │   361429  -0.00960621
+  63 │   374802   0.00859902
+  64 │   377014  -0.0118791
+  65 │   379862  -0.0188681
+  66 │   388524   0.0082739
+  67 │   393954  -0.0111892
+  68 │   394841   0.00995693
+  69 │   397158   0.0078167
+  70 │   401632  -0.0107322
+  71 │   407426  -0.00955201
+  72 │   407795  -0.0104426
+  73 │   408019  -0.0127188
+  74 │   408174   0.00942421
+  75 │   410534  -0.010604
+  76 │   422398  -0.011622
+  77 │   430197  -0.00898451
+  78 │   431724   0.00739175
+
+Trait 2: IHT estimated 14 non-genetic predictors
+14×2 DataFrame
+ Row │ Position  Estimated_β
+     │ Int64     Float64
+─────┼────────────────────────
+   1 │        1  -4.8928e-5
+   2 │        2   0.163921
+   3 │        3  -0.139472
+   4 │        4   0.458055
+   5 │        5  -0.00655442
+   6 │        6  -0.00771466
+   7 │        7   0.00430524
+   8 │        8  -0.00553018
+   9 │        9   0.0137194
+  10 │       10  -0.00665663
+  11 │       11  -0.00377373
+  12 │       12  -0.001483
+  13 │       13  -0.000353526
+  14 │       14   0.000494992
+
+Trait 3: IHT estimated 80 nonzero SNP predictors
+80×2 DataFrame
+ Row │ Position  Estimated_β
+     │ Int64     Float64
+─────┼───────────────────────
+   1 │     2507   0.0078075
+   2 │     2511   0.0185832
+   3 │     7640  -0.0148135
+   4 │    10943  -0.00897841
+   5 │    23952  -0.0101704
+   6 │    24979  -0.00918966
+   7 │    28351   0.0108966
+   8 │    36149  -0.0132243
+   9 │    46348  -0.0116825
+  10 │    47936  -0.0102902
+  11 │    52845  -0.0117445
+  12 │    64303  -0.013679
+  13 │    64808  -0.0111695
+  14 │    69600   0.00923535
+  15 │    83788  -0.00868826
+  16 │    84060   0.00841221
+  17 │   100019   0.00921948
+  18 │   114938  -0.0177286
+  19 │   118568  -0.0228211
+  20 │   121172  -0.0101052
+  21 │   141360   0.0174675
+  22 │   146596  -0.00982321
+  23 │   153217  -0.0135721
+  24 │   154393   0.00911991
+  25 │   170017   0.0129962
+  26 │   187864   0.0100062
+  27 │   187924  -0.0124839
+  28 │   191177  -0.0092457
+  29 │   192732   0.0103743
+  30 │   196404  -0.0114527
+  31 │   205817  -0.0109158
+  32 │   211192  -0.0116435
+  33 │   212645  -0.0140012
+  34 │   241534   0.010389
+  35 │   241541   0.0092572
+  36 │   266007   0.0118694
+  37 │   267119  -0.00938461
+  38 │   272054  -0.00927984
+  39 │   274150   0.0049265
+  40 │   274156   0.00682844
+  41 │   301409   0.00982063
+  42 │   305769  -0.0117979
+  43 │   307683  -0.00914002
+  44 │   312908   0.00917921
+  45 │   312910   0.00909815
+  46 │   317830  -0.00943832
+  47 │   318541   0.0107444
+  48 │   318599   0.00931973
+  49 │   319379   0.0103607
+  50 │   328796  -0.00989471
+  51 │   331700  -0.0182742
+  52 │   331708  -0.00723779
+  53 │   351545   0.0109785
+  54 │   353849  -0.0105414
+  55 │   366658  -0.00908379
+  56 │   372457  -0.0131553
+  57 │   376435   0.0112306
+  58 │   377010  -0.0122069
+  59 │   377019  -0.0084075
+  60 │   377581   0.00959353
+  61 │   379862  -0.0183946
+  62 │   381289  -0.0091195
+  63 │   389655  -0.0101489
+  64 │   393954   0.00953314
+  65 │   397154  -0.00801748
+  66 │   400954  -0.00892343
+  67 │   404017   0.00856387
+  68 │   433585  -0.0109648
+  69 │   435536  -0.0101807
+  70 │   437249  -0.00986225
+  71 │   445349  -0.00904184
+  72 │   445357   0.0148449
+  73 │   445420   0.0137349
+  74 │   447128   0.0152674
+  75 │   449588   0.0092469
+  76 │   457971   0.00927551
+  77 │   458969  -0.00944548
+  78 │   459910   0.0100473
+  79 │   459947   0.0117779
+  80 │   467295   0.0113481
+
+Trait 3: IHT estimated 14 non-genetic predictors
+14×2 DataFrame
+ Row │ Position  Estimated_β
+     │ Int64     Float64
+─────┼────────────────────────
+   1 │        1   0.000333324
+   2 │        2   0.180782
+   3 │        3   0.648442
+   4 │        4  -0.613114
+   5 │        5  -0.00741764
+   6 │        6  -0.00111561
+   7 │        7  -0.00909777
+   8 │        8   0.00154142
+   9 │        9   0.0167349
+  10 │       10  -0.00562157
+  11 │       11  -0.00779257
+  12 │       12  -0.0013753
+  13 │       13   0.00166181
+  14 │       14   0.000128836
