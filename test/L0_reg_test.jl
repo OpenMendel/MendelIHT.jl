@@ -32,6 +32,9 @@ end
 	d = Bernoulli
 	l = canonicallink(d())
 
+	#set random seed
+	Random.seed!(1111)
+
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 	x = simulate_random_snparray(undef, n, p)
 	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
@@ -178,6 +181,9 @@ end
 	l = canonicallink(d())
     block_size = 20
     num_blocks = Int(p / block_size)
+
+    #set random seed
+    Random.seed!(1111)
 
     # assign group membership
     membership = collect(1:num_blocks)
