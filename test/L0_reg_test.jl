@@ -298,6 +298,9 @@ end
 	d = Normal
 	l = canonicallink(d())
 
+	#set random seed
+	Random.seed!(1111)
+
 	#construct SnpArraym, snpmatrix, and non genetic covariate (intercept)
 	x = simulate_random_snparray(undef, n, p)
 	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
