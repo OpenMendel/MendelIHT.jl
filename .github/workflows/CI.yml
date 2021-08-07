@@ -85,6 +85,7 @@ jobs:
           julia --project=docs -e '
             using Pkg
             pkg"add https://github.com/OpenMendel/SnpArrays.jl"
+            pkg"add https://github.com/OpenMendel/BGEN.jl"
             pkg"add https://github.com/OpenMendel/VCFTools.jl"
             pkg"add https://github.com/OpenMendel/MendelIHT.jl"'
       - run: |
