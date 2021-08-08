@@ -75,7 +75,7 @@ Threads.nthreads() # show number of threads
 
 
 
-## Example 1: GWAS with PLINK files
+## Example 1: GWAS with PLINK/BGEN/VCF files
 
 In this example, our data are stored in binary PLINK files:
 
@@ -141,7 +141,7 @@ See the [cross_validate](https://openmendel.github.io/MendelIHT.jl/latest/man/ap
 + Phenotypes are stored in the 6th column of `.fam` file
 + Other covariates are stored separately (which includes a column of 1 as intercept). Here we cross validate $k = 1,2,...20$. 
 
-Note the first run might take awhile because Julia needs to compile the code. 
+Note the first run might take awhile because Julia needs to compile the code. See FAQ. 
 
 
 ```julia
@@ -194,6 +194,10 @@ mses = cross_validate("normal", Normal, covariates="covariates.txt", phenotypes=
 
 
 Do not be alarmed if you get slightly different numbers, because cross validation breaks data into training/testing randomly. Set a seed by `Random.seed!(1234)` if you want reproducibility.
+
+!!! note
+
+    For VCF (`.vcf` or `.vcf.gz` and BGEN inputs, one simply add the file extensions to the wrapper functions. For instance, `cross_validate("normal.vcf.gz", Normal`) for VCF and `mses = cross_validate("normal.bgen", Normal)`. Note for BGEN, sample file name should be `normal.sample`. 
 
 ### Step 2: Run IHT on best k
 
@@ -508,13 +512,9 @@ rm("cviht.summary.txt", force=true)
 
 ## Example 4: Running IHT on general matrices
 
-To run IHT on genotypes in VCF files, or other general data, one must call [fit_iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht) and [cv_iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht) directly. These functions are designed to work on `AbstractArray{T, 2}` type where `T` is a `Float64` or `Float32`. 
+To run IHT on numeric matrices, one must call [fit_iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht) and [cv_iht](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht) directly. These functions are designed to work on `AbstractArray{T, 2}` type where `T` is a `Float64` or `Float32`. 
 
 Note the vector of 1s (intercept) shouldn't be included in the design matrix itself, as it will be automatically included.
-
-!!! tip
-
-    Check out [VCFTools.jl](https://github.com/OpenMendel/VCFTools.jl) to learn how to import VCF data.
 
 First we simulate some count response using the model:
 
@@ -992,7 +992,7 @@ Phenotypes can also be stored in a separate file. In this case, we require each 
 
 ### Run multivariate IHT
 
-The values specified in `path` corresponds to the total number of non-zero `k` to be tested in cross validation. Since we simulated 10 true genetic predictors, $k_{true} = 10$. Because non-genetic covariates are not specified, an intercept with automatically be included. 
+The values specified in `path` corresponds to the total number of non-zero `k` to be tested in cross validation. Since we simulated 10 true genetic predictors, $k_{true} = 10$. Because non-genetic covariates are not specified, an intercept with automatically be included. Below give 3 ways of doing the same thing.
 
 
 ```julia
@@ -1146,9 +1146,10 @@ The convergence criteria can be tuned by keywords `tol` and `min_iter`.
 
 ### Check answers
 
+Estimated vs true first beta
+
 
 ```julia
-# estimated vs true first beta
 β1 = result.beta[1, :]
 true_b1_idx = findall(!iszero, true_b[:, 1])
 [β1[true_b1_idx] true_b[true_b1_idx, 1]]
@@ -1168,9 +1169,10 @@ true_b1_idx = findall(!iszero, true_b[:, 1])
 
 
 
+Estimated vs true second beta
+
 
 ```julia
-# estimated vs true second beta
 β2 = result.beta[2, :]
 true_b2_idx = findall(!iszero, true_b[:, 2])
 [β2[true_b2_idx] true_b[true_b2_idx, 2]]
@@ -1186,9 +1188,10 @@ true_b2_idx = findall(!iszero, true_b[:, 2])
 
 
 
+Estimated vs true non genetic covariates (intercept)
+
 
 ```julia
-# estimated vs true non genetic covariates (intercept)
 [result.c intercepts']
 ```
 
@@ -1201,9 +1204,10 @@ true_b2_idx = findall(!iszero, true_b[:, 2])
 
 
 
+Estimated vs true covariance matrix
+
 
 ```julia
-# estimated vs true covariance matrix
 [vec(result.Σ) vec(true_Σ)]
 ```
 

@@ -56,7 +56,7 @@ For single trait analysis, standardization is not necessary.
 
 **Always** standardize your covariates (genetic and non-genetic) to mean 0 variance 1. This ensures sparsity is enforced equally on all predictors. 
 
-For binary PLINK files (.bed/.bim/.fam) standardization is automatic. When using wrapper functions [cross_validate()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate) and [iht()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht), non-genetic covariate will also be automatically standardized. However using internal functions [fit_iht()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht) and [cv_iht()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht) bypasses standardization and is generally recommended only if wrapper functions do not work for your purposes. 
+For binary PLINK files (.bed/.bim/.fam) standardization is automatic. When using wrapper functions [cross_validate()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate) and [iht()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht), non-genetic covariate will also be automatically standardized. However using internal functions [fit_iht()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.fit_iht) and [cv_iht()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cv_iht) bypasses standardization and is generally recommended only if wrapper functions do not work for your purposes. 
 
 ## How to enforce sparsity on non-genetic covariates?
 
