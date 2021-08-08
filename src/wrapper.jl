@@ -23,7 +23,8 @@ Runs IHT with sparsity level `k`.
     We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
     (univariate or multivariate), missing phenotypes are imputed with the mean. Binary
     and count phenotypes cannot be imputed. Phenotype files are read using `readdlm` function
-    in Julia base. We require each subject's phenotype to occupy a different row. The file
+    in Julia base. We require each subject's phenotype to occupy a different row, and for 
+    multivariate analysis, each phenotype is comma separated. The phenotype file
     should not include a header line. Each row should be listed in the same order as in
     the PLINK and (for multivariate analysis) be comma separated. 
 - `covariates`: Covariate file name. Default `covariates=""` (in which case an intercept
@@ -54,7 +55,7 @@ function iht(
     summaryfile::AbstractString = "iht.summary.txt",
     betafile::AbstractString = "iht.beta.txt",
     covariancefile::AbstractString = "iht.cov.txt",
-    exclude_std_idx∂::AbstractVector{<:Integer} = Int[],
+    exclude_std_idx::AbstractVector{<:Integer} = Int[],
     dosage::Bool = false,
     kwargs...
     )
@@ -251,7 +252,8 @@ sparsity levels are specified in `path`.
     We recognize missing phenotypes as `NA` or `-9`. For quantitative traits
     (univariate or multivariate), missing phenotypes are imputed with the mean. Binary
     and count phenotypes cannot be imputed. Phenotype files are read using `readdlm` function
-    in Julia base. We require each subject's phenotype to occupy a different row. The file
+    in Julia base. We require each subject's phenotype to occupy a different row, and for 
+    multivariate analysis, each phenotype is comma separated. The phenotype file
     should not include a header line. Each row should be listed in the same order as in
     the PLINK. 
 - `covariates`: Covariate file name. Default `covariates=""` (in which case an intercept
@@ -320,7 +322,7 @@ function cross_validate(
 end
 
 """
-    convert_gt(t::Type{T}, b::Bgen, trans::Bool)
+    convert_gt(t::Type{T}, b::Bgen)
 
 Imports BGEN genotypes and chr/sampleID/pos/snpID/ref/alt into numeric arrays.
 Genotypes are centered and scaled to mean 0 variance 1. Missing genotypes will
@@ -369,7 +371,7 @@ function convert_gt(t::Type{T}, b::Bgen) where T <: Real
 end
 
 """
-    standardize_genotypes(G::AbstractMatrix)
+    standardize_genotypes!(G::AbstractMatrix)
 
 Centers and scales each column (SNP) of `G` to mean 0 variance 1. Also each 
 missing entry will be imputed as mean. 
@@ -411,8 +413,8 @@ will be stored in double precision matrices (64 bit per entry).
     genotypes dosages (i.e. `X[i, j] ∈ [0, 2]` before standardizing)
 
 # Output
-- `X`: a `n × p` genotype matrix of type `Float64` (VCF or BGEN inputs) or `SnpData`
-    (binary PLINK inputs)
+- `X`: a `n × p` genotype matrix of type `Float64` (VCF or BGEN inputs) or
+    `SnpArrays.SnpData` (binary PLINK inputs)
 - `Gchr`: Vector of `String`s holding chromosome number for each variant
 - `Gpos`: Vector of `Int` holding each variant's position
 - `GsnpID`: Vector of `String`s holding variant ID for each variant
