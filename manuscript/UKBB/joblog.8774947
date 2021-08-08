@@ -1,0 +1,324 @@
+Job 8774947 started on:    n6680
+Job 8774947 started on:    Sat Jul 24 23:29:36 PDT 2021
+Currently Loaded Modulefiles:
+  1) julia/1.5.4
+/u/local/apps/julia/1.5.4/bin/julia
+julia run.jl
+Cross validating...  3%|█▏                              |  ETA: 3 days, 10:12:22[KCross validating...  7%|██▏                             |  ETA: 1 days, 15:45:43[KCross validating... 10%|███▎                            |  ETA: 1 days, 1:45:32[KCross validating... 13%|████▎                           |  ETA: 18:37:42[KCross validating... 17%|█████▍                          |  ETA: 14:24:24[KCross validating... 20%|██████▍                         |  ETA: 11:32:06[KCross validating... 23%|███████▌                        |  ETA: 9:29:11[KCross validating... 27%|████████▌                       |  ETA: 7:56:35[KCross validating... 30%|█████████▋                      |  ETA: 6:45:11[KCross validating... 33%|██████████▋                     |  ETA: 5:47:34[KCross validating... 37%|███████████▊                    |  ETA: 5:00:15[KCross validating... 40%|████████████▊                   |  ETA: 4:20:49[KCross validating... 43%|█████████████▉                  |  ETA: 3:47:34[KCross validating... 47%|██████████████▉                 |  ETA: 3:19:23[KCross validating... 50%|████████████████                |  ETA: 2:54:30[KCross validating... 57%|██████████████████▏             |  ETA: 2:13:28[KCross validating... 60%|███████████████████▎            |  ETA: 1:56:25[KCross validating... 63%|████████████████████▎           |  ETA: 1:41:08[KCross validating... 67%|█████████████████████▍          |  ETA: 1:27:27[KCross validating... 70%|██████████████████████▍         |  ETA: 1:14:58[KCross validating... 73%|███████████████████████▌        |  ETA: 1:03:38[KCross validating... 77%|████████████████████████▌       |  ETA: 0:53:18[KCross validating... 80%|█████████████████████████▋      |  ETA: 0:43:51[KCross validating... 83%|██████████████████████████▋     |  ETA: 0:35:05[KCross validating... 87%|███████████████████████████▊    |  ETA: 0:27:00[KCross validating... 90%|████████████████████████████▊   |  ETA: 0:19:31[KCross validating... 93%|█████████████████████████████▉  |  ETA: 0:12:36[KCross validating... 97%|██████████████████████████████▉ |  ETA: 0:06:05[KCross validating...100%|████████████████████████████████| Time: 2:57:09[K
+Cross validating...  2%|▌                               |  ETA: 7 days, 6:54:31[KCross validating...  4%|█▏                              |  ETA: 3 days, 13:56:30[KCross validating...  5%|█▋                              |  ETA: 2 days, 8:17:48[KCross validating...  7%|██▎                             |  ETA: 1 days, 17:28:02[KCross validating...  9%|██▊                             |  ETA: 1 days, 8:33:51[KCross validating... 11%|███▍                            |  ETA: 1 days, 2:39:01[KCross validating... 12%|███▉                            |  ETA: 22:24:06[KCross validating... 14%|████▌                           |  ETA: 19:13:05[KCross validating... 16%|█████                           |  ETA: 16:45:25[KCross validating... 18%|█████▋                          |  ETA: 14:46:08[KCross validating... 19%|██████▏                         |  ETA: 13:08:41[KCross validating... 21%|██████▊                         |  ETA: 11:47:43[KCross validating... 23%|███████▎                        |  ETA: 10:39:21[KCross validating... 25%|███████▉                        |  ETA: 9:40:18[KCross validating... 26%|████████▍                       |  ETA: 8:49:11[KCross validating... 28%|█████████                       |  ETA: 8:04:30[KCross validating... 30%|█████████▌                      |  ETA: 7:25:10[KCross validating... 32%|██████████▏                     |  ETA: 6:50:04[KCross validating... 33%|██████████▋                     |  ETA: 6:18:33[KCross validating... 35%|███████████▎                    |  ETA: 5:50:15[KCross validating... 37%|███████████▊                    |  ETA: 5:24:48[KCross validating... 39%|████████████▍                   |  ETA: 5:01:34[KCross validating... 40%|████████████▉                   |  ETA: 4:40:23[KCross validating... 42%|█████████████▌                  |  ETA: 4:20:51[KCross validating... 44%|██████████████                  |  ETA: 4:02:53[KCross validating... 46%|██████████████▋                 |  ETA: 3:46:28[KCross validating... 47%|███████████████▏                |  ETA: 3:31:08[KCross validating... 49%|███████████████▊                |  ETA: 3:16:57[KCross validating... 51%|████████████████▎               |  ETA: 3:03:46[KCross validating... 53%|████████████████▉               |  ETA: 2:51:19[KCross validating... 54%|█████████████████▍              |  ETA: 2:39:42[KCross validating... 56%|██████████████████              |  ETA: 2:28:48[KCross validating... 58%|██████████████████▌             |  ETA: 2:18:37[KCross validating... 60%|███████████████████▏            |  ETA: 2:08:59[KCross validating... 61%|███████████████████▋            |  ETA: 1:59:53[KCross validating... 63%|████████████████████▎           |  ETA: 3:06:00[KCross validating... 65%|████████████████████▊           |  ETA: 2:52:34[KCross validating... 67%|█████████████████████▍          |  ETA: 2:39:48[KCross validating... 68%|█████████████████████▉          |  ETA: 2:27:32[KCross validating... 70%|██████████████████████▌         |  ETA: 2:15:56[KCross validating... 72%|███████████████████████         |  ETA: 2:04:51[KCross validating... 74%|███████████████████████▋        |  ETA: 1:54:18[KCross validating... 75%|████████████████████████▏       |  ETA: 1:44:15[KCross validating... 77%|████████████████████████▊       |  ETA: 1:34:37[KCross validating... 79%|█████████████████████████▎      |  ETA: 1:25:25[KCross validating... 81%|█████████████████████████▉      |  ETA: 1:16:37[KCross validating... 84%|███████████████████████████     |  ETA: 1:00:04[KCross validating... 86%|███████████████████████████▌    |  ETA: 0:52:19[KCross validating... 88%|████████████████████████████▏   |  ETA: 0:44:52[KCross validating... 89%|████████████████████████████▋   |  ETA: 0:37:43[KCross validating... 91%|█████████████████████████████▎  |  ETA: 0:30:50[KCross validating... 93%|█████████████████████████████▊  |  ETA: 0:24:13[KCross validating... 95%|██████████████████████████████▍ |  ETA: 0:17:50[KCross validating... 96%|██████████████████████████████▉ |  ETA: 0:11:40[KCross validating... 98%|███████████████████████████████▌|  ETA: 0:05:44[KCross validating...100%|████████████████████████████████| Time: 6:32:37[K
+Cross validating...  2%|▌                               |  ETA: 7 days, 10:35:46[KCross validating...  4%|█▏                              |  ETA: 3 days, 15:51:29[KCross validating...  5%|█▋                              |  ETA: 2 days, 9:30:40[KCross validating...  9%|██▊                             |  ETA: 1 days, 9:17:47[KCross validating... 11%|███▍                            |  ETA: 1 days, 3:13:27[KCross validating... 12%|███▉                            |  ETA: 22:55:26[KCross validating... 14%|████▌                           |  ETA: 19:41:18[KCross validating... 16%|█████                           |  ETA: 17:08:51[KCross validating... 18%|█████▋                          |  ETA: 15:08:04[KCross validating... 19%|██████▏                         |  ETA: 13:28:44[KCross validating... 21%|██████▊                         |  ETA: 12:06:28[KCross validating... 23%|███████▎                        |  ETA: 10:55:49[KCross validating... 25%|███████▉                        |  ETA: 9:55:29[KCross validating... 26%|████████▍                       |  ETA: 9:04:23[KCross validating... 28%|█████████                       |  ETA: 8:18:32[KCross validating... 30%|█████████▌                      |  ETA: 7:38:27[KCross validating... 32%|██████████▏                     |  ETA: 7:02:15[KCross validating... 33%|██████████▋                     |  ETA: 6:29:48[KCross validating... 35%|███████████▎                    |  ETA: 6:01:13[KCross validating... 37%|███████████▊                    |  ETA: 5:34:50[KCross validating... 39%|████████████▍                   |  ETA: 5:10:50[KCross validating... 40%|████████████▉                   |  ETA: 4:48:57[KCross validating... 42%|█████████████▌                  |  ETA: 4:28:52[KCross validating... 44%|██████████████                  |  ETA: 4:10:22[KCross validating... 46%|██████████████▋                 |  ETA: 3:53:23[KCross validating... 47%|███████████████▏                |  ETA: 3:37:31[KCross validating... 49%|███████████████▊                |  ETA: 3:22:52[KCross validating... 51%|████████████████▎               |  ETA: 3:09:12[KCross validating... 53%|████████████████▉               |  ETA: 2:56:34[KCross validating... 54%|█████████████████▍              |  ETA: 2:44:44[KCross validating... 56%|██████████████████              |  ETA: 2:33:34[KCross validating... 58%|██████████████████▌             |  ETA: 2:23:02[KCross validating... 60%|███████████████████▏            |  ETA: 2:13:05[KCross validating... 61%|███████████████████▋            |  ETA: 2:04:00[KCross validating... 63%|████████████████████▎           |  ETA: 3:14:59[KCross validating... 65%|████████████████████▊           |  ETA: 3:01:09[KCross validating... 67%|█████████████████████▍          |  ETA: 2:47:48[KCross validating... 68%|█████████████████████▉          |  ETA: 2:35:08[KCross validating... 70%|██████████████████████▌         |  ETA: 2:22:53[KCross validating... 72%|███████████████████████         |  ETA: 2:11:13[KCross validating... 74%|███████████████████████▋        |  ETA: 2:00:08[KCross validating... 75%|████████████████████████▏       |  ETA: 1:49:35[KCross validating... 77%|████████████████████████▊       |  ETA: 1:39:27[KCross validating... 79%|█████████████████████████▎      |  ETA: 1:29:47[KCross validating... 81%|█████████████████████████▉      |  ETA: 1:20:34[KCross validating... 82%|██████████████████████████▍     |  ETA: 1:11:42[KCross validating... 84%|███████████████████████████     |  ETA: 1:03:13[KCross validating... 88%|████████████████████████████▏   |  ETA: 0:47:13[KCross validating... 89%|████████████████████████████▋   |  ETA: 0:39:40[KCross validating... 91%|█████████████████████████████▎  |  ETA: 0:32:26[KCross validating... 93%|█████████████████████████████▊  |  ETA: 0:25:28[KCross validating... 95%|██████████████████████████████▍ |  ETA: 0:18:45[KCross validating... 96%|██████████████████████████████▉ |  ETA: 0:12:17[KCross validating... 98%|███████████████████████████████▌|  ETA: 0:06:02[KCross validating...100%|████████████████████████████████| Time: 6:49:51[K
+****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+
+
+Crossvalidation Results:
+	k	MSE
+	100	441434.7779449894
+	200	348216.6352911738
+	300	380226.137097831
+	400	384261.8412165329
+	500	425776.68364933704
+	600	467406.75247279636
+	700	512145.8100731887
+	800	446326.80120867107
+	900	467203.52730517124
+	1000	469241.2350231576
+
+Best k = 200
+
+12290.594430 seconds (369.84 M allocations: 40.118 TiB, 4.45% gc time)
+****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+
+
+Crossvalidation Results:
+	k	MSE
+	110	255703.17432425063
+	120	257224.47015962432
+	130	254027.43607752855
+	140	204154.5899014847
+	150	8.879776572925096e6
+	160	283809.22454811377
+	170	280314.34245381656
+	180	275466.97385723295
+	190	199981.87052631812
+	200	252870.63580192672
+	210	259680.06178984637
+	220	261989.60016083706
+	230	215688.81109806674
+	240	288903.58823211154
+	250	289076.1852861665
+	260	289294.6813206869
+	270	261731.9434629713
+	280	284728.19938354054
+	290	306296.0481796051
+
+Best k = 190
+
+25178.991183 seconds (521.35 M allocations: 74.244 TiB, 5.14% gc time)
+****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+
+
+Crossvalidation Results:
+	k	MSE
+	181	459351.6376704678
+	182	438982.3516856255
+	183	407402.8011211641
+	184	411045.13832959934
+	185	397924.24340156215
+	186	455692.49099759094
+	187	408489.0642956675
+	188	411107.2043015315
+	189	445678.21103407204
+	190	432091.1088127282
+	191	421055.89260657947
+	192	453968.30826645147
+	193	457155.2399984385
+	194	433193.2425831839
+	195	438838.15634078864
+	196	392590.46873615135
+	197	387028.5158151199
+	198	424098.8321004455
+	199	435044.2004155946
+
+Best k = 197
+
+26201.246536 seconds (522.09 M allocations: 74.233 TiB, 5.44% gc time)
+****                   MendelIHT Version 1.4.1                  ****
+****     Benjamin Chu, Kevin Keys, Chris German, Hua Zhou       ****
+****   Jin Zhou, Eric Sobel, Janet Sinsheimer, Kenneth Lange    ****
+****                                                            ****
+****                 Please cite our paper!                     ****
+****         https://doi.org/10.1093/gigascience/giaa044        ****
+
+Initializing β to univariate regression values...
+...completed in 220.7 seconds.
+
+Running sparse Multivariate Gaussian regression
+Number of threads = 36
+Link functin = GLM.IdentityLink()
+Sparsity parameter (k) = 197
+Prior weight scaling = off
+Doubly sparse projection = off
+Debias = off
+Max IHT iterations = 200
+Converging when tol < 0.0001 and iteration ≥ 10:
+
+Iteration 1: loglikelihood = -206376.4155937056, backtracks = 0, tol = 0.03692237778321655
+Iteration 2: loglikelihood = -193498.60500138422, backtracks = 0, tol = 0.02677067045125389
+Iteration 3: loglikelihood = -192683.28865301996, backtracks = 0, tol = 0.013468874595395634
+Iteration 4: loglikelihood = -191788.80016352976, backtracks = 0, tol = 0.007664163908028142
+Iteration 5: loglikelihood = -185640.65918023608, backtracks = 1, tol = 0.00676628855440449
+Iteration 6: loglikelihood = -185243.58293450606, backtracks = 0, tol = 0.005297229459651891
+Iteration 7: loglikelihood = -184903.67425294028, backtracks = 0, tol = 0.005431069391257621
+Iteration 8: loglikelihood = -183269.1828197132, backtracks = 1, tol = 0.003342458336702695
+Iteration 9: loglikelihood = -182440.68903999688, backtracks = 0, tol = 0.006000976056942639
+Iteration 10: loglikelihood = -181933.29505734018, backtracks = 1, tol = 0.00271784773569684
+Iteration 11: loglikelihood = -180763.81301060808, backtracks = 0, tol = 0.008379749310539983
+Iteration 12: loglikelihood = -180388.7734297434, backtracks = 1, tol = 0.003991869406878666
+Iteration 13: loglikelihood = -180037.27988074603, backtracks = 0, tol = 0.004176593625710834
+Iteration 14: loglikelihood = -179982.11296259618, backtracks = 1, tol = 0.0033210935666936913
+Iteration 15: loglikelihood = -179767.22984824463, backtracks = 1, tol = 0.0012320889428044646
+Iteration 16: loglikelihood = -179594.57713086193, backtracks = 0, tol = 0.0027281009572441735
+Iteration 17: loglikelihood = -179584.32841174334, backtracks = 1, tol = 0.003172623465483298
+Iteration 18: loglikelihood = -179495.18520097138, backtracks = 0, tol = 0.0031788979923669937
+Iteration 19: loglikelihood = -179280.0795805746, backtracks = 2, tol = 0.001986627116129571
+Iteration 20: loglikelihood = -178999.6135290292, backtracks = 0, tol = 0.003912636742794764
+Iteration 21: loglikelihood = -178946.81724173995, backtracks = 2, tol = 0.0012023894862540838
+Iteration 22: loglikelihood = -178905.79958411586, backtracks = 2, tol = 0.0011123258187353416
+Iteration 23: loglikelihood = -178872.59045376146, backtracks = 2, tol = 0.0010367408225128508
+Iteration 24: loglikelihood = -178844.91191915463, backtracks = 2, tol = 0.0009734500452300247
+Iteration 25: loglikelihood = -178821.35856808285, backtracks = 2, tol = 0.0009195974128173454
+Iteration 26: loglikelihood = -178801.00584213197, backtracks = 2, tol = 0.0008728399792958763
+Iteration 27: loglikelihood = -178783.21227017965, backtracks = 2, tol = 0.0008312158960146368
+Iteration 28: loglikelihood = -178767.51305000816, backtracks = 2, tol = 0.00079392626039003
+Iteration 29: loglikelihood = -178753.55926505843, backtracks = 2, tol = 0.0007601110076352558
+Iteration 30: loglikelihood = -178741.08129300506, backtracks = 2, tol = 0.0007291464654515442
+Iteration 31: loglikelihood = -178729.8657525314, backtracks = 2, tol = 0.0007005717801328171
+Iteration 32: loglikelihood = -178719.74039686366, backtracks = 2, tol = 0.0006740394305854164
+Iteration 33: loglikelihood = -178710.56387040875, backtracks = 2, tol = 0.0006492819309610879
+Iteration 34: loglikelihood = -178702.21855174308, backtracks = 2, tol = 0.0006260892296859266
+Iteration 35: loglikelihood = -178694.60541899363, backtracks = 2, tol = 0.0006042931773450317
+Iteration 36: loglikelihood = -178687.6402785599, backtracks = 2, tol = 0.0005837567022975204
+Iteration 37: loglikelihood = -178681.25093654654, backtracks = 2, tol = 0.0005643661568659037
+Iteration 38: loglikelihood = -178675.37503710744, backtracks = 2, tol = 0.0005460258263756842
+Iteration 39: loglikelihood = -178669.9583825515, backtracks = 2, tol = 0.0005286539336107323
+Iteration 40: loglikelihood = -178664.95360806846, backtracks = 2, tol = 0.0005121796913705654
+Iteration 41: loglikelihood = -178660.31912209158, backtracks = 2, tol = 0.0004965410995367879
+Iteration 42: loglikelihood = -178656.01824878796, backtracks = 2, tol = 0.0004816832779312827
+Iteration 43: loglikelihood = -178652.01852660207, backtracks = 2, tol = 0.00046755718961082553
+Iteration 44: loglikelihood = -178648.29112888203, backtracks = 2, tol = 0.0004541186520781832
+Iteration 45: loglikelihood = -178644.8103811759, backtracks = 2, tol = 0.0004413275632041141
+Iteration 46: loglikelihood = -178641.55335589958, backtracks = 2, tol = 0.00042914728896062187
+Iteration 47: loglikelihood = -178638.49952958862, backtracks = 2, tol = 0.00041754417430807047
+Iteration 48: loglikelihood = -178635.6304911842, backtracks = 2, tol = 0.00040648714867942275
+Iteration 49: loglikelihood = -178632.92969234104, backtracks = 2, tol = 0.0003959474047584775
+Iteration 50: loglikelihood = -178630.38223255123, backtracks = 2, tol = 0.0003858981345083225
+Iteration 51: loglikelihood = -178627.97467333605, backtracks = 2, tol = 0.00037631431026533197
+Iteration 52: loglikelihood = -178625.69487687142, backtracks = 2, tol = 0.0003671725015699387
+Iteration 53: loglikelihood = -178623.53186525227, backtracks = 2, tol = 0.0003584507205391431
+Iteration 54: loglikelihood = -178605.0555652883, backtracks = 2, tol = 0.0016122060765281785
+Iteration 55: loglikelihood = -178573.89449937694, backtracks = 2, tol = 0.001668535514141037
+Iteration 56: loglikelihood = -178554.61951391824, backtracks = 2, tol = 0.00126257782054373
+Iteration 57: loglikelihood = -178513.62150871058, backtracks = 1, tol = 0.00215077806874151
+Iteration 58: loglikelihood = -178211.26342306047, backtracks = 0, tol = 0.0037976518285034616
+Iteration 59: loglikelihood = -178062.68799152866, backtracks = 0, tol = 0.005013616240536734
+Iteration 60: loglikelihood = -177810.40363947453, backtracks = 2, tol = 0.001595282701524846
+Iteration 61: loglikelihood = -177649.11773895362, backtracks = 1, tol = 0.0032260827550025187
+Iteration 62: loglikelihood = -177556.49719005724, backtracks = 2, tol = 0.002576282051124599
+Iteration 63: loglikelihood = -177515.16584677418, backtracks = 2, tol = 0.0011609460883018692
+Iteration 64: loglikelihood = -177489.17264072975, backtracks = 2, tol = 0.0009944179802254167
+Iteration 65: loglikelihood = -177462.28029940557, backtracks = 2, tol = 0.0017758253075888242
+Iteration 66: loglikelihood = -177441.89800578926, backtracks = 2, tol = 0.0014556507643080278
+Iteration 67: loglikelihood = -177428.149584694, backtracks = 2, tol = 0.0011885722227798691
+Iteration 68: loglikelihood = -177418.2453453747, backtracks = 2, tol = 0.0009737908542482228
+Iteration 69: loglikelihood = -177410.90815692165, backtracks = 2, tol = 0.0008025155170905857
+Iteration 70: loglikelihood = -177405.3150989324, backtracks = 2, tol = 0.0006641321415397138
+Iteration 71: loglikelihood = -177400.92286203738, backtracks = 2, tol = 0.0005512485591125144
+Iteration 72: loglikelihood = -177397.36662951647, backtracks = 2, tol = 0.0004585117053217243
+Iteration 73: loglikelihood = -177394.39824963157, backtracks = 2, tol = 0.0003819334363744961
+Iteration 74: loglikelihood = -177391.84719502134, backtracks = 2, tol = 0.0003649447598089596
+Iteration 75: loglikelihood = -177389.59529332185, backtracks = 2, tol = 0.00036080476639858955
+Iteration 76: loglikelihood = -177387.5600554343, backtracks = 2, tol = 0.00035708384562344096
+Iteration 77: loglikelihood = -177385.6835134356, backtracks = 2, tol = 0.00035371885704844875
+Iteration 78: loglikelihood = -177383.92466286142, backtracks = 2, tol = 0.00035066071355356425
+Iteration 79: loglikelihood = -177382.2543011312, backtracks = 2, tol = 0.0003478704523588577
+Iteration 80: loglikelihood = -177380.65147862065, backtracks = 2, tol = 0.0003453165015021087
+Iteration 81: loglikelihood = -177379.10104536012, backtracks = 2, tol = 0.0003429727706894999
+Iteration 82: loglikelihood = -177377.59194743677, backtracks = 2, tol = 0.0003408173091406508
+Iteration 83: loglikelihood = -177376.11603926477, backtracks = 2, tol = 0.00033883135369026625
+Iteration 84: loglikelihood = -177374.66725240072, backtracks = 2, tol = 0.00033699864625684944
+Iteration 85: loglikelihood = -177366.36438598332, backtracks = 2, tol = 0.0014948351579365377
+Iteration 86: loglikelihood = -177329.52400059748, backtracks = 0, tol = 0.005791710484697122
+Iteration 87: loglikelihood = -177109.3750093743, backtracks = 1, tol = 0.005788376889117994
+Iteration 88: loglikelihood = -176999.32410776787, backtracks = 2, tol = 0.0031833119037035953
+Iteration 89: loglikelihood = -176974.6733763112, backtracks = 2, tol = 0.0010574570243955996
+Iteration 90: loglikelihood = -176958.68548529773, backtracks = 2, tol = 0.0009461972582984958
+Iteration 91: loglikelihood = -176947.50094137288, backtracks = 2, tol = 0.000843868099047712
+Iteration 92: loglikelihood = -176939.21226310887, backtracks = 2, tol = 0.0007568316718532274
+Iteration 93: loglikelihood = -176932.80056854943, backtracks = 2, tol = 0.0006813885470733957
+Iteration 94: loglikelihood = -176912.85896129534, backtracks = 1, tol = 0.0037580247179251043
+Iteration 95: loglikelihood = -176869.43889745476, backtracks = 1, tol = 0.003755936127810078
+Iteration 96: loglikelihood = -176864.53455151257, backtracks = 1, tol = 0.003541476046072045
+Iteration 97: loglikelihood = -176836.61523060827, backtracks = 1, tol = 0.0035398815331861445
+Iteration 98: loglikelihood = -176814.09492775862, backtracks = 2, tol = 0.0024720565590870803
+Iteration 99: loglikelihood = -176782.68842556697, backtracks = 1, tol = 0.003664163407165666
+Iteration 100: loglikelihood = -176774.907396455, backtracks = 1, tol = 0.0036620398631006597
+Iteration 101: loglikelihood = -176759.76602538902, backtracks = 1, tol = 0.0035373335490111214
+Iteration 102: loglikelihood = -176757.08901022447, backtracks = 2, tol = 0.00037790736132031934
+Iteration 103: loglikelihood = -176754.86438953638, backtracks = 2, tol = 0.00037351200754683685
+Iteration 104: loglikelihood = -176752.9012623186, backtracks = 2, tol = 0.00037147149119688813
+Iteration 105: loglikelihood = -176751.10858691827, backtracks = 2, tol = 0.0003702491967858037
+Iteration 106: loglikelihood = -176749.4328748039, backtracks = 2, tol = 0.00036946718102137454
+Iteration 107: loglikelihood = -176747.83950642328, backtracks = 2, tol = 0.00036882070483605227
+Iteration 108: loglikelihood = -176746.30515009767, backtracks = 2, tol = 0.00036823858553883547
+Iteration 109: loglikelihood = -176744.8137757872, backtracks = 2, tol = 0.0003677061831445063
+Iteration 110: loglikelihood = -176734.09825812627, backtracks = 1, tol = 0.0033039095269695317
+Iteration 111: loglikelihood = -176632.70242181892, backtracks = 0, tol = 0.006269581621001827
+Iteration 112: loglikelihood = -176584.69039301685, backtracks = 2, tol = 0.0019562485705963144
+Iteration 113: loglikelihood = -176540.7784232711, backtracks = 1, tol = 0.00450585511263767
+Iteration 114: loglikelihood = -176517.8126318949, backtracks = 1, tol = 0.003591136890418087
+Iteration 115: loglikelihood = -176503.044130262, backtracks = 1, tol = 0.002109725432522348
+Iteration 116: loglikelihood = -176495.86195244043, backtracks = 1, tol = 0.0012287127025147303
+Iteration 117: loglikelihood = -176491.05985797182, backtracks = 1, tol = 0.0007361812064835306
+Iteration 118: loglikelihood = -176487.2693492441, backtracks = 1, tol = 0.0007343659354030611
+Iteration 119: loglikelihood = -176483.97170440853, backtracks = 1, tol = 0.0007323499920993956
+Iteration 120: loglikelihood = -176480.94050283672, backtracks = 1, tol = 0.0007313080474684672
+Iteration 121: loglikelihood = -176478.06611718587, backtracks = 1, tol = 0.0007301683061528836
+Iteration 122: loglikelihood = -176464.71091458516, backtracks = 1, tol = 0.003430338306506925
+Iteration 123: loglikelihood = -176455.0828440332, backtracks = 1, tol = 0.0019582655658348033
+Iteration 124: loglikelihood = -176450.20940350788, backtracks = 1, tol = 0.0011174308770316975
+Iteration 125: loglikelihood = -176446.87718216682, backtracks = 1, tol = 0.0007291646475479339
+Iteration 126: loglikelihood = -176444.04794257449, backtracks = 1, tol = 0.0007285591683990593
+Iteration 127: loglikelihood = -176441.38539501466, backtracks = 1, tol = 0.0007275106052606761
+Iteration 128: loglikelihood = -176438.7814831838, backtracks = 1, tol = 0.0007271417683035392
+Iteration 129: loglikelihood = -176436.20186880918, backtracks = 1, tol = 0.0007259979191059967
+Iteration 130: loglikelihood = -176433.6357773299, backtracks = 1, tol = 0.0007249165118477586
+Iteration 131: loglikelihood = -176431.07986552245, backtracks = 1, tol = 0.0007236188387028165
+Iteration 132: loglikelihood = -176428.53309502598, backtracks = 1, tol = 0.0007223075159481917
+Iteration 133: loglikelihood = -176425.99512650954, backtracks = 1, tol = 0.0007209319880208137
+Iteration 134: loglikelihood = -176423.46582794673, backtracks = 1, tol = 0.0007195431484673603
+Iteration 135: loglikelihood = -176420.9451283074, backtracks = 1, tol = 0.0007181337453444582
+Iteration 136: loglikelihood = -176418.43297590004, backtracks = 1, tol = 0.000716717554177663
+Iteration 137: loglikelihood = -176415.92932686716, backtracks = 1, tol = 0.0007152946875542506
+Iteration 138: loglikelihood = -176413.43414190397, backtracks = 1, tol = 0.0007138693993144581
+Iteration 139: loglikelihood = -176410.9473849571, backtracks = 1, tol = 0.0007124425895625417
+Iteration 140: loglikelihood = -176408.46902239625, backtracks = 1, tol = 0.0007110158537505442
+Iteration 141: loglikelihood = -176405.99902232934, backtracks = 1, tol = 0.0007095898896165077
+Iteration 142: loglikelihood = -176403.53735405538, backtracks = 1, tol = 0.0007081654375153473
+Iteration 143: loglikelihood = -176401.08398763544, backtracks = 1, tol = 0.0007067429558671284
+Iteration 144: loglikelihood = -176398.63889359104, backtracks = 1, tol = 0.0007053228493974791
+Iteration 145: loglikelihood = -176396.20204269834, backtracks = 1, tol = 0.0007039054111897955
+Iteration 146: loglikelihood = -176393.7734058607, backtracks = 1, tol = 0.0007024908836649917
+Iteration 147: loglikelihood = -176391.352954034, backtracks = 1, tol = 0.0007010794535355542
+Iteration 148: loglikelihood = -176388.94065819198, backtracks = 1, tol = 0.0006996712713831233
+Iteration 149: loglikelihood = -176386.53648931585, backtracks = 1, tol = 0.0006982664552902183
+Iteration 150: loglikelihood = -176384.14041839493, backtracks = 1, tol = 0.0006968650989734629
+Iteration 151: loglikelihood = -176381.75241643994, backtracks = 1, tol = 0.0006954672756356024
+Iteration 152: loglikelihood = -176379.3724544951, backtracks = 1, tol = 0.0006940730422368143
+Iteration 153: loglikelihood = -176377.00050365756, backtracks = 1, tol = 0.0006926824423552946
+Iteration 154: loglikelihood = -176374.63653508946, backtracks = 1, tol = 0.0006912955087706999
+Iteration 155: loglikelihood = -176372.28052003315, backtracks = 1, tol = 0.0006899174543264443
+Iteration 156: loglikelihood = -176369.9324298241, backtracks = 1, tol = 0.0006885434133724823
+Iteration 157: loglikelihood = -176367.5922358983, backtracks = 1, tol = 0.0006871725286884938
+Iteration 158: loglikelihood = -176365.2599098017, backtracks = 1, tol = 0.0006858048615690359
+Iteration 159: loglikelihood = -176362.93542319874, backtracks = 1, tol = 0.0006844404640117678
+Iteration 160: loglikelihood = -176360.61874787346, backtracks = 1, tol = 0.0006830793800343062
+Iteration 161: loglikelihood = -176358.30985573595, backtracks = 1, tol = 0.0006817216467835432
+Iteration 162: loglikelihood = -176356.0087188254, backtracks = 1, tol = 0.0006803672954709262
+Iteration 163: loglikelihood = -176353.71530930867, backtracks = 1, tol = 0.0006790163521654385
+Iteration 164: loglikelihood = -176351.42959948408, backtracks = 1, tol = 0.0006776688384672698
+Iteration 165: loglikelihood = -176349.15156178147, backtracks = 1, tol = 0.0006763247720825415
+Iteration 166: loglikelihood = -176346.88116876193, backtracks = 1, tol = 0.0006749841673155594
+Iteration 167: loglikelihood = -176344.6183931157, backtracks = 1, tol = 0.0006736470354914441
+Iteration 168: loglikelihood = -176342.36320766472, backtracks = 1, tol = 0.0006723133853206051
+Iteration 169: loglikelihood = -176340.11558535945, backtracks = 1, tol = 0.0006709832232135809
+Iteration 170: loglikelihood = -176337.87549927708, backtracks = 1, tol = 0.0006696565535547127
+Iteration 171: loglikelihood = -176335.64292262343, backtracks = 1, tol = 0.0006683333789397935
+Iteration 172: loglikelihood = -176333.41782872798, backtracks = 1, tol = 0.0006670137003837671
+Iteration 173: loglikelihood = -176331.20019104469, backtracks = 1, tol = 0.0006656975175023299
+Iteration 174: loglikelihood = -176328.98998315207, backtracks = 1, tol = 0.0006643848286713581
+Iteration 175: loglikelihood = -176326.7871787462, backtracks = 1, tol = 0.000663075631167231
+Iteration 176: loglikelihood = -176324.59175164602, backtracks = 1, tol = 0.0006617699212902967
+Iteration 177: loglikelihood = -176322.40367578686, backtracks = 1, tol = 0.000660467694474205
+Iteration 178: loglikelihood = -176320.22292522207, backtracks = 1, tol = 0.0006591689453827311
+Iteration 179: loglikelihood = -176318.04947412066, backtracks = 1, tol = 0.0006578736679953099
+Iteration 180: loglikelihood = -176315.88329676562, backtracks = 1, tol = 0.000656581855683651
+Iteration 181: loglikelihood = -176313.7243675525, backtracks = 1, tol = 0.000655293501279194
+Iteration 182: loglikelihood = -176311.5726609885, backtracks = 1, tol = 0.0006540085971338456
+Iteration 183: loglikelihood = -176309.42815169186, backtracks = 1, tol = 0.0006527271351738179
+Iteration 184: loglikelihood = -176307.29081438924, backtracks = 1, tol = 0.0006514491069480756
+Iteration 185: loglikelihood = -176305.1606239157, backtracks = 1, tol = 0.0006501745036709975
+Iteration 186: loglikelihood = -176303.0375552123, backtracks = 1, tol = 0.0006489033162615899
+Iteration 187: loglikelihood = -176300.92158332685, backtracks = 1, tol = 0.000647635535377612
+Iteration 188: loglikelihood = -176298.8126834109, backtracks = 1, tol = 0.0006463711514470324
+Iteration 189: loglikelihood = -176296.71083071927, backtracks = 1, tol = 0.0006451101546953772
+Iteration 190: loglikelihood = -176294.6160006103, backtracks = 1, tol = 0.0006438525351713629
+Iteration 191: loglikelihood = -176292.52816854283, backtracks = 1, tol = 0.0006425982827687979
+Iteration 192: loglikelihood = -176290.44731007563, backtracks = 1, tol = 0.0006413473872472699
+Iteration 193: loglikelihood = -176288.37340086902, backtracks = 1, tol = 0.0006400998382498785
+Iteration 194: loglikelihood = -176286.30641668, backtracks = 1, tol = 0.0006388556253200817
+Iteration 195: loglikelihood = -176284.2463333637, backtracks = 1, tol = 0.0006376147379159241
+Iteration 196: loglikelihood = -176282.1931268733, backtracks = 1, tol = 0.0006363771654235129
+Iteration 197: loglikelihood = -176280.14677325598, backtracks = 1, tol = 0.0006351428971690049
+Iteration 198: loglikelihood = -176278.10724865532, backtracks = 1, tol = 0.0006339119224291557
+Iteration 199: loglikelihood = -176276.0745293087, backtracks = 1, tol = 0.0006326842304410373
+8857.151179 seconds (60.42 M allocations: 2.019 TiB, 0.16% gc time)
+Job 8774947 ended on:    n6680
+Job #JOB_ID ended on:    Sun Jul 25 19:38:50 PDT 2021

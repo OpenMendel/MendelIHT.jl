@@ -4,18 +4,18 @@
 
 ## Package Feature
 
-+ Analyze large GWAS datasets intuitively.
 + Built-in support for [PLINK binary files](https://www.cog-genomics.org/plink/1.9/input#bed) via [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) and [VCF files](https://en.wikipedia.org/wiki/Variant_Call_Format) via [VCFTools.jl](https://github.com/OpenMendel/VCFTools.jl).
 + Out-of-the-box parallel computing routines for `q-fold` cross-validation.
 + Fits a variety of generalized linear models with any choice of link function.
++ Can run multivariate GWAS if given multiple continuous phenotypes.
++ Outputs proportion of phenotypic variance explained (PVE) by genetic predictors.
++ Outputs estimated covariance matrix between phenotypes (when running multivariate IHT).
 + Computation directly on raw genotype files.
 + Efficient handlings for non-genetic covariates.
 + Optional acceleration (debias) step to dramatically improve speed.
 + Ability to explicitly incorporate weights for predictors.
 + Ability to enforce within and between group sparsity. 
-+ Naive genotype imputation. 
 + Estimates nuisance parameter for negative binomial regression using Newton or MM algorithm. 
-+ Excellent flexibility to handle different data structures and complements well with other Julia packages.
 
 Read [our paper](https://doi.org/10.1093/gigascience/giaa044) for more detail.
 

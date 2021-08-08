@@ -12,12 +12,13 @@ module MendelIHT
     using DataFrames
     using LinearAlgebra
     using Distributions
-    using Distributed
     using Random
     using DelimitedFiles
     using ProgressMeter
     using Reexport
     using ThreadPools
+    using VCFTools
+    using BGEN
 
     @reexport using Distributions
     @reexport using SnpArrays

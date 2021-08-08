@@ -7,7 +7,8 @@
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. The purpose of this function is to
 find the best sparsity level `k`, obtained from selecting the model with the
-minimum out-of-sample error. 
+minimum out-of-sample error. Note sparsity is enforced on `x` only, unless `zkeep`
+keyword is specified. 
 
 To check if multithreading is enabled, check output of `Threads.nthreads()`.
 
@@ -48,6 +49,9 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
+
+# Output
+- `mse`: A vector of mean-squared error for each `k` specified in `path`. 
 """
 function cv_iht(
     y        :: AbstractVecOrMat{T},
