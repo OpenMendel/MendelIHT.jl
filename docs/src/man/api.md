@@ -67,4 +67,6 @@ MendelIHT additionally provides useful utilities that may be of interest to a fe
 ```@docs
   iht_run_many_models
   pve
+  parse_genotypes
+  convert_gt
 ```

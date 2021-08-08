@@ -54,7 +54,7 @@ function iht(
     summaryfile::AbstractString = "iht.summary.txt",
     betafile::AbstractString = "iht.beta.txt",
     covariancefile::AbstractString = "iht.cov.txt",
-    exclude_std_idx::AbstractVector{<:Integer} = Int[],
+    exclude_std_idx∂::AbstractVector{<:Integer} = Int[],
     dosage::Bool = false,
     kwargs...
     )
@@ -329,7 +329,6 @@ be replaced with the mean. Assumes every variant is biallelic (ie only 1 alt all
 # Input
 - `b`: a `Bgen` object
 - `T`: Type for genotype array
-- `trans`: a `Bool`. If `trans==true`, output `G` will be `p × n`, otherwise `G` will be `n × p`.
 
 # Output
 - `G`: matrix of genotypes with type `T`. 
@@ -399,7 +398,7 @@ end
 
 Imports genotype data from `tgtfile`. If binary PLINK files are supplied, genotypes
 will not be decompressed to numeric matrices (~2 bit per entry). VCF or BGEN genotypes
-will be stored in single precision matrices (32 bit per entry). 
+will be stored in double precision matrices (64 bit per entry). 
 
 # Inputs 
 - `tgtfile`: VCF, binary PLINK, or BGEN file. VCF files should end in `.vcf` or
@@ -427,7 +426,7 @@ function parse_genotypes(tgtfile::AbstractString, dosage=false)
             f(Float64, tgtfile, trans=false, 
             save_snp_info=true, msg = "Importing from VCF file...")
         # convert missing to NaN
-        replace!(X, missing => NaN32)
+        replace!(X, missing => NaN)
         X = convert(Matrix{Float64}, X) # drop Missing from Matrix type
         # center/scale/impute
         standardize_genotypes!(X)
