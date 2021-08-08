@@ -4,7 +4,7 @@
 
 ## Package Feature
 
-+ Built-in support for [PLINK binary files](https://www.cog-genomics.org/plink/1.9/input#bed) via [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl) and [VCF files](https://en.wikipedia.org/wiki/Variant_Call_Format) via [VCFTools.jl](https://github.com/OpenMendel/VCFTools.jl).
++ Built-in support for [PLINK binary files](https://www.cog-genomics.org/plink/1.9/input#bed) via [SnpArrays.jl](https://github.com/OpenMendel/SnpArrays.jl), [VCF files](https://en.wikipedia.org/wiki/Variant_Call_Format) via [VCFTools.jl](https://github.com/OpenMendel/VCFTools.jl), and [BGEN files](https://www.well.ox.ac.uk/~gav/bgen_format/) via [BGEN.jl](https://github.com/OpenMendel/BGEN.jl).
 + Out-of-the-box parallel computing routines for `q-fold` cross-validation.
 + Fits a variety of generalized linear models with any choice of link function.
 + Can run multivariate GWAS if given multiple continuous phenotypes.
