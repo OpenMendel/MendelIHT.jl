@@ -286,9 +286,9 @@ function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
         v.Xk = zeros(T, nzidx, n)
         v.dfidx = zeros(T, r, nzidx) # TODO ElasticArrays.jl
     end
-    @inbounds for i in eachindex(v.zkeep)
-        v.zkeep[i] && !v.idc[i] && error("A non-genetic covariate was accidentally set to 0! Shouldn't happen!")
-    end
+    # @inbounds for i in eachindex(v.zkeep)
+    #     v.zkeep[i] && !v.idc[i] && error("A non-genetic covariate was accidentally set to 0! Shouldn't happen!")
+    # end
 end
 
 """

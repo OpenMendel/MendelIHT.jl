@@ -452,9 +452,9 @@ function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
         v.xk = zeros(T, size(v.xk, 1), nzidx)
         v.gk = zeros(T, nzidx)
     end
-    @inbounds for i in eachindex(v.zkeep)
-        v.zkeep[i] && !v.idc[i] && error("A non-genetic covariate was accidentally set to 0! Shouldn't happen!")
-    end
+    # @inbounds for i in eachindex(v.zkeep)
+    #     v.zkeep[i] && !v.idc[i] && error("A non-genetic covariate was accidentally set to 0! Shouldn't happen!")
+    # end
 end
 
 """

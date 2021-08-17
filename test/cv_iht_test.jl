@@ -81,20 +81,20 @@ end
 	d = Bernoulli
 	l = canonicallink(d())
 
-	#construct snpmatrix, covariate files, and true model b
-	x = simulate_random_snparray(undef, n, p)
-	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
-	z = ones(n, 1) # the intercept
+    #construct snpmatrix, covariate files, and true model b
+    x = simulate_random_snparray(undef, n, p)
+    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
+    z = ones(n, 1) # the intercept
 
-	# simulate response, true model b, and the correct non-0 positions of b
-	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
+    # simulate response, true model b, and the correct non-0 positions of b
+    y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
-	#specify path and folds
+    #specify path and folds
     path = 0:20
-	q = 3
-	folds = rand(1:q, size(x, 1))
+    q = 3
+    folds = rand(1:q, size(x, 1))
 
-	# cross validation routine (with debias) 
+    # cross validation routine (with debias) 
     @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path,
         q=q, folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
