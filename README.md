@@ -27,29 +27,29 @@ The following uses data under the `data` directory. PLINK files are stored in `n
 **Note:** The first time these functions are called may take a minute or so, because the code must be compiled. Subsequent calls should finish in less than a second.
 
 ```julia
-# load package & cd to data directory
+# load package
 using MendelIHT
-cd(normpath(MendelIHT.datadir()))
+dir = normpath(MendelIHT.datadir()) * "/"
 
-# select k SNPs in PLINK file
-result = iht("normal", 9, Normal) # run IHT with k = 9
-result = iht("normal", 10, Normal, covariates="covariates.txt") # separately include covariates, k = 10
-result = iht("normal", 10, Normal, covariates="covariates.txt", phenotypes="phenotypes.txt") # phenotypes are stored separately
+# select k SNPs in PLINK file, Gaussian phenotypes
+result = iht(dir * "normal", 9, Normal) # run IHT with k = 9
+result = iht(dir * "normal", 10, Normal, covariates=dir*"covariates.txt") # separately include covariates, k = 10
+result = iht(dir * "normal", 10, Normal, covariates=dir*"covariates.txt", phenotypes=dir*"phenotypes.txt") # phenotypes are stored separately
 
 # run cross validation to determine best k
-mses = cross_validate("normal", Normal, path=1:20) # test k = 1, 2, ..., 20
-mses = cross_validate("normal", Normal, path=[1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
-mses = cross_validate("normal", Normal, path=1:20, covariates="covariates.txt") # separately include covariates
-mses = cross_validate("normal", Normal, path=1:20, covariates="covariates.txt", phenotypes="phenotypes.txt") # if phenotypes are in separate file
-
-# other distributions (no test data available)
-result = iht("plinkfile", 10, Bernoulli) # logistic regression with k = 10
-result = iht("plinkfile", 10, Poisson) # Poisson regression with k = 10
-result = iht("plinkfile", 10, NegativeBinomial, est_r=:Newton) # Negative Binomial regression + nuisnace parameter estimation
+mses = cross_validate(dir * "normal", Normal, path=1:20) # test k = 1, 2, ..., 20
+mses = cross_validate(dir * "normal", Normal, path=[1, 5, 10, 15, 20]) # test k = 1, 5, 10, 15, 20
+mses = cross_validate(dir * "normal", Normal, path=1:20, covariates=dir*"covariates.txt") # separately include covariates
+mses = cross_validate(dir * "normal", Normal, path=1:20, covariates=dir*"covariates.txt", phenotypes=dir*"phenotypes.txt") # if phenotypes are in separate file
 
 # Multivariate IHT for multiple quantitative phenotypes
-result = iht("multivariate", 10, MvNormal, phenotypes=[6, 7]) # phenotypes stored in 6th and 7th column of .fam file
-result = iht("multivariate", 10, MvNormal, phenotypes="multivariate.phen") # phenotypes stored separate file
+result = iht(dir * "multivariate", 10, MvNormal, phenotypes=[6, 7]) # phenotypes stored in 6th and 7th column of .fam file
+result = iht(dir * "multivariate", 10, MvNormal, phenotypes=dir*"multivariate.phen") # phenotypes stored separate file
+
+# other distributions for single trait analysis (no test data available)
+result = iht("datafile", 10, Bernoulli) # logistic regression with k = 10
+result = iht("datafile", 10, Poisson) # Poisson regression with k = 10
+result = iht("datafile", 10, NegativeBinomial, est_r=:Newton) # Negative Binomial regression + nuisnace parameter estimation
 ```
 
 Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/latest/) for more detail. 
