@@ -1,6 +1,6 @@
 # Multivariate IHT scripts
 
-This folder contains scripts to reproduce out paper `Multivariate Genomewide Association Analysis with IHT`. If anything is unclear or you cannot reproduce our results, please file an issue on GitHub and I will take a look at it asap.
+This folder contains scripts to reproduce out paper [Multivariate Genomewide Association Analysis with IHT](https://www.biorxiv.org/content/10.1101/2021.08.04.455145v2). If anything is unclear or you cannot reproduce our results, please file an issue on GitHub and I will take a look at it asap.
 
 ## NFBC_sim folder
 

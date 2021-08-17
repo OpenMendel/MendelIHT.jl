@@ -54,10 +54,10 @@ Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/
 
 ## Citation and Reproducibility:
 
-See our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823?searchresult=1) for algorithmic details. If you use `MendelIHT.jl`, please cite:
+For univariate analysis, please cite our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823?searchresult=1) as
 
 ```
-@article{mendeliht,
+@article{chu2020iterative,
   title={{Iterative hard thresholding in genome-wide association studies: Generalized linear models, prior weights, and double sparsity}},
   author={Chu, Benjamin B and Keys, Kevin L and German, Christopher A and Zhou, Hua and Zhou, Jin J and Sobel, Eric M and Sinsheimer, Janet S and Lange, Kenneth},
   journal={GigaScience},
@@ -68,8 +68,19 @@ See our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823
   publisher={Oxford University Press}
 }
 ```
+In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
-In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. Some syntax may be outdated, so please file an issue if you encounter any problem with reproducibility.
+For multivariate analysis, please cite our [paper](https://www.biorxiv.org/content/10.1101/2021.08.04.455145v2) as
+```
+@article{chu2021multivariate,
+  title={Multivariate Genomewide Association Analysis with IHT},
+  author={Chu, Benjamin B and Ko, Seyoon and Zhou, Jin J and Zhou, Hua and Sinsheimer, Janet S and Lange, Kenneth L},
+  journal={bioRxiv},
+  year={2021},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```
+In the `manuscript` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
 ## Bug fixes and user support
 
