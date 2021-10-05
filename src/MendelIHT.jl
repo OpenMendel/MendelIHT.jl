@@ -19,12 +19,13 @@ module MendelIHT
     using ThreadPools
     using VCFTools
     using BGEN
+    using Knockoffs
 
     @reexport using Distributions
     @reexport using SnpArrays
 
     export iht, cross_validate
-    export fit_iht, cv_iht, cv_iht_distribute_fold, iht_run_many_models
+    export fit_iht, cv_iht, cv_iht_distribute_fold, iht_run_many_models, cv_iht_knockoff
     export loglikelihood, deviance, score!, mle_for_r
     export project_k!, project_group_sparse!
     export IHTVariable, make_snparray, standardize!, maf_weights
