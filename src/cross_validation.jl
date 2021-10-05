@@ -341,10 +341,11 @@ end
 
 function knockoff!(v::IHTVariable, fdr::Number, original::AbstractVector{Int}, 
     knockoff::AbstractVector{Int})
-    β_new = zeros(length(v.beta))
-    β_new[original] .= extract_beta(v.beta, fdr, original, knockoff)
-    sum(β_new[knockoff]) == 0 || error("cv_iht: β used in validation should only use original variables!")
-    v.beta .= β_new
+    β_new = zeros(length(v.b))
+    β_new[original] .= extract_beta(v.b, fdr, original, knockoff)
+    sum(β_new[knockoff]) == 0 || error("β used in validation should only use original variables!")
+    v.b .= β_new
+    v.idx .= v.b .!= 0 # also update support index
 end
 
 function predict!(v::IHTVariable{T, M}) where {T <: Float, M}
