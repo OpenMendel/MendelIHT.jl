@@ -128,6 +128,7 @@ function cv_iht_knockoff(
     original :: AbstractVector{Int},
     knockoff :: AbstractVector{Int},
     fdr      :: Number;
+    combine_beta::Bool = false,
     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
     path     :: AbstractVector{<:Integer} = 1:20,
@@ -176,7 +177,7 @@ function cv_iht_knockoff(
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)
         v.cv_wts[test_idx[id]] .= one(T)
-        knockoff!(v, fdr, original, knockoff)
+        knockoff!(v, fdr, original, knockoff, combine_beta)
         mses[i] = predict!(v)
 
         # update progres
@@ -340,9 +341,9 @@ function iht_run_many_models(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs..
 end
 
 function knockoff!(v::IHTVariable, fdr::Number, original::AbstractVector{Int}, 
-    knockoff::AbstractVector{Int})
+    knockoff::AbstractVector{Int}, combine_beta::Bool)
     β_new = zeros(length(v.b))
-    β_new[original] .= extract_beta(v.b, fdr, original, knockoff)
+    β_new[original] .= extract_beta(v.b, fdr, original, knockoff, :knockoff, combine_beta)
     v.b .= β_new
     # also update support index
     v.idx .= v.b .!= 0
