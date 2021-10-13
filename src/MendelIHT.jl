@@ -46,6 +46,7 @@ module MendelIHT
     include("multivariate.jl")
     include("wrapper.jl")
     include("pve.jl")
+    include("knockoff.jl")
 
     # test data directory
     datadir(parts...) = joinpath(@__DIR__, "..", "data", parts...)    
