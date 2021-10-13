@@ -6,7 +6,7 @@ function cv_iht_knockoff(
     knockoff :: AbstractVector{Int},
     fdr      :: Number;
     combine_beta::Bool = false,
-    group_ko :: Union{Nothing, Vector{Int}} = nothing;
+    group_ko :: Union{Nothing, Vector{Int}} = nothing,
     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
     path     :: AbstractVector{<:Integer} = 1:20,
