@@ -44,7 +44,8 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `weight`: vector storing vector of weights containing prior knowledge on each predictor
 - `folds`: Vector that separates the sample into `q` disjoint subsets
 - `debias`: Boolean indicating whether we should debias at each IHT step. Defaults `false`
-- `verbose`: Boolean indicating whether to print mean squared error for each `k` in `path`. Defaults `true`
+- `verbose`: Boolean indicating whether to print progress and mean squared error for
+    each `k` in `path`. Defaults `true`
 - `max_iter`: is the maximum IHT iteration for a model to converge. Defaults to 100 
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
@@ -83,7 +84,7 @@ function cv_iht(
     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
-    pmeter = Progress(q * length(path), "Cross validating...")
+    pmeter = verbose ? Progress(q * length(path), "Cross validating...") : nothing
 
     # cross validate. TODO: wrap pmap with batch_size keyword to enable distributed CV
     combinations = allocate_fold_and_k(q, path)
@@ -108,7 +109,7 @@ function cv_iht(
         mses[i] = predict!(v)
 
         # update progres
-        next!(pmeter)
+        verbose && next!(pmeter)
     end
 
     # weight mses for each fold by their size before averaging

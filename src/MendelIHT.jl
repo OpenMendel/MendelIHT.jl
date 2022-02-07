@@ -1,3 +1,5 @@
+__precompile__()
+
 module MendelIHT
 
     import Distances: euclidean, chebyshev, sqeuclidean
@@ -47,6 +49,13 @@ module MendelIHT
     include("pve.jl")
 
     # test data directory
-    datadir(parts...) = joinpath(@__DIR__, "..", "data", parts...)    
+    datadir(parts...) = joinpath(@__DIR__, "..", "data", parts...)
+
+    # force Julia to precompile some common functions (only Gaussian case are handled here)
+    function __init__()
+        dir = normpath(MendelIHT.datadir())
+        cross_validate(joinpath(dir, "normal"), Normal, verbose=false)
+        cross_validate(joinpath(dir, "multivariate"), MvNormal, phenotypes=[6, 7], verbose=false)
+    end
 
 end # end module
