@@ -54,7 +54,7 @@ end
     # r = 2 traits
     v, xla, Yt, Zt, k = make_mIHTvar(2)
     zkeep = trues(1)
-    MendelIHT.init_iht_indices!(v, false, trues(size(xla, 2)))
+    MendelIHT.init_iht_indices!(v, false, trues(size(xla, 2)), false)
     @btime MendelIHT.score!($v)           # 9.304 ms (45 allocations: 2.33 KiB)
     @btime MendelIHT.loglikelihood($v)    # 3.377 μs (2 allocations: 208 bytes)
     @btime MendelIHT.update_xb!($v)       # 187.489 μs (8 allocations: 656 bytes)
@@ -68,7 +68,7 @@ end
 
     # r = 10 traits
     v, xla, Yt, Zt, k = make_mIHTvar(10)
-    MendelIHT.init_iht_indices!(v, false, trues(size(xla, 2)))
+    MendelIHT.init_iht_indices!(v, false, trues(size(xla, 2)), false)
     @btime MendelIHT.score!($v)           # 43.252 ms (221 allocations: 11.58 KiB)
     @btime MendelIHT.loglikelihood($v)    # 12.208 μs (2 allocations: 1.03 KiB)
     @btime MendelIHT.update_xb!($v)       # 219.192 μs (8 allocations: 656 bytes)

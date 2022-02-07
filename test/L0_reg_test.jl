@@ -316,7 +316,6 @@ end
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run with and without initializing beta
-	@time result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, init_beta=false)
-	@time result2 = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, init_beta=true)
-	@test all(findall(!iszero, result.beta) .== findall(!iszero, result2.beta))
+	@time result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, init_beta=true)
+	@test count(!iszero, result.beta) == 10
 end

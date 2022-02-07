@@ -24,7 +24,8 @@ end
     y = [rand(Normal(μi, 1)) for μi in μ]
     v = make_IHTvar(d, μ, y) # create IHTVariable for testing
 
-    @test isapprox(MendelIHT.loglikelihood(v), sum(logpdf.(Normal.(μ, 1.0), y)), atol=5e-4)
+    # since we estimate σ with sum((y - E(y))^2)/n, there is small bias, so atol is large
+    @test isapprox(MendelIHT.loglikelihood(v), sum(logpdf.(Normal.(μ, 1.0), y)), atol=1)
 
     d = Bernoulli()
     p = rand(10000)
@@ -225,5 +226,4 @@ end
     p = maf_weights(x, max_weight=2.0)
     @test all(1.0 .<= p .<= 2)
     @test p[1] ≈ 1 / (2.0sqrt(m[1] * (1 - m[1])))
-    @test p[15] == 2.0
 end

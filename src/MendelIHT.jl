@@ -6,6 +6,7 @@ module MendelIHT
     import SpecialFunctions: digamma, trigamma
     import Pkg
     import StatsBase: sample, aweights
+    import VCFTools: convert_gt, convert_ds
 
     using GLM
     using SnpArrays
@@ -17,7 +18,6 @@ module MendelIHT
     using ProgressMeter
     using Reexport
     using ThreadPools
-    using VCFTools
     using BGEN
 
     @reexport using Distributions
