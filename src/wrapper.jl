@@ -1,5 +1,3 @@
-# TODO: VCF and BGEN read
-
 """
     iht(filename, k, d, phenotypes=6, covariates="", summaryfile="iht.summary.txt",
         betafile="iht.beta.txt", kwargs...)
