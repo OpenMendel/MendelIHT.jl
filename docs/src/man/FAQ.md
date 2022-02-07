@@ -13,7 +13,7 @@ In a fresh Julia session, the first time any function gets called will take a *l
 @time using MendelIHT
 ```
 
-      4.493948 seconds (9.04 M allocations: 564.071 MiB, 8.22% gc time)
+    140.065958 seconds (179.19 M allocations: 8.491 GiB, 2.39% gc time, 84.11% compilation time)
 
 
 
@@ -21,10 +21,10 @@ In a fresh Julia session, the first time any function gets called will take a *l
 @time using MendelIHT
 ```
 
-      0.020589 seconds (32.81 k allocations: 1.886 MiB, 99.54% compilation time)
+      0.000156 seconds (161 allocations: 12.859 KiB)
 
 
-The first call was 200 times slower than the second time! Fortunately, for large problems, compilation time becomes negligible. 
+Fortunately, for large problems, compilation time becomes negligible. 
 
 ## How to run code in parallel?
 

@@ -24,8 +24,6 @@ This package supports Julia `v1.6`+ for Mac, Linux, and window machines.
 
 The following uses data under the `data` directory. PLINK files are stored in `normal.bed`, `normal.bim`, `normal.fam`. 
 
-**Note:** The first time these functions are called may take a minute or so, because the code must be compiled. Subsequent calls should finish in less than a second.
-
 ```julia
 # load package
 using MendelIHT
