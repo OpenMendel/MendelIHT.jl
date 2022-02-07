@@ -69,13 +69,8 @@ end
 Compute `v.df = Γ(Y - BX)X'` efficiently where `v.r_by_n1 = Γ(Y - BX)`. Here
 `X` is `p × n` where `p` is number of SNPs and `n` is number of samples. 
 
-Note if `X` is a `SnpLinAlg`, currently only `X * v` for vector `v` is
-efficiently implemented in `SnpArrays.jl`. For `X * V` with matrix `V`, we need
-to compute `X * vi` for each volumn of `V`. Thus, we compute:
-
-`v.n_by_r = Transpose(r_by_n1)`
-`v.p_by_r[:, i] = v.X * v.n1_by_r[:, i]` # compute matrix-vector using SnpArrays's efficient routine
-`v.df = Transpose(v.p_by_r)`
+Note if `X` is a `SnpLinAlg`, currently only `X * V` with matrix `V` is
+    efficiently implemented.
 """
 function update_df!(v::mIHTVariable)
     T = eltype(v.X)
@@ -365,7 +360,7 @@ When initializing the IHT algorithm, take `k` largest elements in magnitude of
 the score as nonzero components of `v.B`. This function set v.idx = 1 for
 those indices. `v.μ`, `v.df`, `v.df2`, and possibly `v.BX` are also initialized. 
 """
-function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
+function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector, verbose::Bool)
     fill!(v.B, 0)
     fill!(v.B0, 0)
     fill!(v.best_B, 0)
@@ -414,7 +409,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
     mul!(v.CZ, v.C, v.Z)
 
     if init_beta
-        initialize_beta!(v, cv_idx)
+        initialize_beta!(v, cv_idx, verbose)
         project_k!(v)
         update_xb!(v)
     end
@@ -498,21 +493,27 @@ function save_last_model!(v::mIHTVariable)
 end
 
 """
-    initialize_beta!(v, cv_wts)
+    initialize_beta!(v, cv_wts, verbose)
 
 Initialze beta to univariate regression values. That is, `β[i, j]` is set to the estimated
 beta with `y[j, :]` as response, and `x[:, i]` with an intercept term as covariate.
+
+Progress will be displayed if `verbose=true`
 
 Note: this function assumes quantitative (Gaussian) phenotypes. 
 """
 function initialize_beta!(
     v::mIHTVariable,
-    cv_wts::BitVector) # cross validation weights; 1 = sample is present, 0 = not present
+    cv_wts::BitVector,# cross validation weights; 1 = sample is present, 0 = not present
+    verbose::Bool
+    ) 
     y, x, z, B, C, T = v.Y, v.X, v.Z, v.B, v.C, eltype(v.B)
     xtx_store = [zeros(T, 2, 2) for _ in 1:Threads.nthreads()]
     xty_store = [zeros(T, 2) for _ in 1:Threads.nthreads()]
     xstore = [zeros(T, sum(cv_wts)) for _ in 1:Threads.nthreads()]
     ystore = zeros(T, sum(cv_wts))
+    pmeter = verbose ? Progress(ntraits(v)*(nsnps(v) + ncovariates(v)), 5, 
+        "Initializing β to univariate regression values...") : nothing
     @inbounds for j in 1:ntraits(v) # loop over each y
         copyto!(ystore, @view(y[j, cv_wts]))
         # genetic covariates
@@ -521,6 +522,7 @@ function initialize_beta!(
             copyto!(xstore[id], @view(x[i, cv_wts]))
             linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
             B[j, i] = xty_store[id][2]
+            verbose && next!(pmeter) # update progress
         end
         # non genetic covariates
         Threads.@threads for i in 1:ncovariates(v)
@@ -528,6 +530,7 @@ function initialize_beta!(
             copyto!(xstore[id], @view(z[i, cv_wts]))
             linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
             C[j, i] = xty_store[id][2]
+            verbose && next!(pmeter) # update progress
         end
     end
     clamp!(C, -2, 2)

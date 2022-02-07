@@ -346,7 +346,7 @@ choose top `k` entries
 `J` is the maximum number of active groups, and `k` is the maximum number of
 predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
+function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, verbose::Bool=false)
     fill!(v.b, 0)
     fill!(v.b0, 0)
     fill!(v.best_b, 0)
@@ -393,7 +393,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
     score!(v)
 
     if init_beta
-        initialize_beta!(v, cv_idx)
+        initialize_beta!(v, cv_idx, verbose)
         project_k!(v)
     else
         # first `k` non-zero entries are chosen based on largest gradient
@@ -737,23 +737,29 @@ end
 Initialze beta to univariate regression values. That is, `β[i]` is set to the estimated
 beta with `y` as response, and `x[:, i]` with an intercept term as covariate.
 
+Progress will be displayed if `verbose=true`
+
 TODO: this function assumes quantitative (Gaussian) phenotypes. Make it work for other distributions
 """
 function initialize_beta!(
     v::IHTVariable,
-    cv_wts::BitVector # cross validation weights; 1 = sample is present, 0 = not present
+    cv_wts::BitVector, # cross validation weights; 1 = sample is present, 0 = not present
+    verbose::Bool=true
     )
     y, x, z, β, c, T = v.y, v.x, v.z, v.b, v.c, eltype(v.b)
     xtx_store = [zeros(T, 2, 2) for _ in 1:Threads.nthreads()]
     xty_store = [zeros(T, 2) for _ in 1:Threads.nthreads()]
     xstore = [zeros(T, sum(cv_wts)) for _ in 1:Threads.nthreads()]
     ystore = y[cv_wts]
+    pmeter = verbose ? Progress(nsnps(v) + ncovariates(v), 5, 
+        "Initializing β to univariate regression values...") : nothing
     # genetic covariates
     Threads.@threads for i in 1:nsnps(v)
         id = Threads.threadid()
         copyto!(xstore[id], @view(x[cv_wts, i]))
         linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
         β[i] = xty_store[id][2]
+        verbose && next!(pmeter) # update progress
     end
     # non-genetic covariates
     Threads.@threads for i in 1:ncovariates(v)
@@ -761,6 +767,7 @@ function initialize_beta!(
         copyto!(xstore[id], @view(z[cv_wts, i]))
         linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
         c[i] = xty_store[id][2]
+        verbose && next!(pmeter) # update progress
     end
     clamp!(v.b, -2, 2)
     clamp!(v.c, -2, 2)

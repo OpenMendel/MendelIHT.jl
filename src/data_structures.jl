@@ -117,6 +117,7 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
     initialize_beta::Bool, zkeep::BitVector;
     cv_train_idx=trues(is_multivariate(y) ? size(x, 2) : size(x, 1)),
+    verbose::Bool=false
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
@@ -126,7 +127,7 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     end
 
     # initialize non-zero indices
-    MendelIHT.init_iht_indices!(v, initialize_beta, cv_train_idx)
+    MendelIHT.init_iht_indices!(v, initialize_beta, cv_train_idx, verbose)
 
     return v
 end

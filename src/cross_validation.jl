@@ -99,7 +99,7 @@ function cv_iht(
 
         # run IHT on training data with current (fold, sparsity)
         v.k = sparsity
-        init_iht_indices!(v, init_beta, train_idx[id])
+        init_iht_indices!(v, init_beta, train_idx[id], false)
         fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
 
         # predict on validation data

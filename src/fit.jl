@@ -97,15 +97,7 @@ function fit_iht(
     end
 
     # initialize IHT variable
-    if init_beta && verbose
-        println(io, "Initializing β to univariate regression values...")
-        io != stdout && println(stdout, "Initializing β to univariate regression values...")
-    end
-    t1 = @elapsed v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta, zkeep)
-    if init_beta && verbose
-        println(io, "...completed in ", round(t1, digits=1), " seconds.\n")
-        io != stdout && println(stdout, "...completed in ", round(t1, digits=1), " seconds.\n")
-    end
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta, zkeep, verbose=verbose)
 
     # print information
     verbose && print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
