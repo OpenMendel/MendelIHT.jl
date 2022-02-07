@@ -173,6 +173,7 @@ end
         rm("cviht.summary.txt", force=true)
         rm("iht.summary.txt", force=true)
         rm("iht.beta.txt", force=true)
+        rm("iht.cov.txt", force=true)
     catch
         println("Unsuccessful deletion of intermediate files generated in" * 
             " unit tests! Windows users can remove these files manually " * 
@@ -183,14 +184,14 @@ end
 @testset "read BGEN and VCF" begin
     cd(normpath(MendelIHT.datadir()))
     xtrue = convert(Matrix{Float64}, SnpArray("normal.bed"), center=true, scale=true, impute=true)
-    @time xbgen, _ = MendelIHT.convert_gt(Float64, Bgen("normal.bgen"))
+    @time xbgen, _ = MendelIHT.convert_bgen_gt(Float64, Bgen("normal.bgen"))
     @test all(xbgen .≈ xtrue)
     # BGEN wrapper
     @time xbgen, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.parse_genotypes("normal.bgen")
     @test all(xbgen .≈ xtrue)
     # VCF wrapper
-    @time xbgen, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.parse_genotypes("normal.vcf.gz")
-    @test all(xbgen .≈ xtrue)
+    @time xvcf, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.parse_genotypes("normal.vcf.gz")
+    @test all(xvcf .≈ xtrue)
     # Run IHT on wrapper
     result_plink = iht("normal", 10, Normal, phenotypes="phenotypes.txt", verbose=true)
     result_vcf = iht("normal.vcf.gz", 10, Normal, phenotypes="phenotypes.txt", verbose=true)

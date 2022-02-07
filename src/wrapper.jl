@@ -327,7 +327,7 @@ function cross_validate(
 end
 
 """
-    convert_gt(t::Type{T}, b::Bgen)
+    convert_bgen_gt(t::Type{T}, b::Bgen)
 
 Imports BGEN genotypes and chr/sampleID/pos/snpID/ref/alt into numeric arrays.
 Genotypes are centered and scaled to mean 0 variance 1. Missing genotypes will
@@ -340,7 +340,7 @@ be replaced with the mean. Assumes every variant is biallelic (ie only 1 alt all
 # Output
 - `G`: matrix of genotypes with type `T`. 
 """
-function convert_gt(t::Type{T}, b::Bgen) where T <: Real
+function convert_bgen_gt(t::Type{T}, b::Bgen) where T <: Real
     n = n_samples(b)
     p = n_variants(b)
 
@@ -428,7 +428,7 @@ will be stored in double precision matrices (64 bit per entry).
 """
 function parse_genotypes(tgtfile::AbstractString, dosage=false)
     if (endswith(tgtfile, ".vcf") || endswith(tgtfile, ".vcf.gz"))
-        f = dosage ? VCFTools.convert_ds : VCFTools.convert_gt
+        f = dosage ? convert_ds : convert_gt
         X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = 
             f(Float64, tgtfile, trans=false, 
             save_snp_info=true, msg = "Importing from VCF file...")
@@ -443,7 +443,7 @@ function parse_genotypes(tgtfile::AbstractString, dosage=false)
             tgtfile[1:end-5] * ".sample" : nothing
         indexfile = isfile(tgtfile * ".bgi") ? tgtfile * ".bgi" : nothing
         bgen = Bgen(tgtfile; sample_path=samplefile, idx_path=indexfile)
-        X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.convert_gt(Float64, bgen)
+        X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.convert_bgen_gt(Float64, bgen)
     elseif isplink(tgtfile)
         dosage && error("PLINK files detected but dosage = true!")
         X = SnpArrays.SnpData(tgtfile)
