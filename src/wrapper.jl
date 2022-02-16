@@ -87,7 +87,11 @@ function iht(
 
     if is_multivariate(y)
         open(betafile, "w") do io
-            println(io, "SNPid", '\t', "Estimated_beta")
+            print(io, "SNPid")
+            for i in 1:size(y, 1)
+                print(io, '\t', "beta_$i")
+            end
+            print(io, '\n')
             writedlm(io, [X_ids result.beta'])
         end
         # writedlm(betafile, DataFrame([X_ids result.beta'], ["SNPid", "Estimated_beta"]))
