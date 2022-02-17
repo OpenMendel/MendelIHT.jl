@@ -11,8 +11,7 @@
 Download and install [Julia](https://julialang.org/downloads/). Within Julia, copy and paste the following:
 ```
 using Pkg
-pkg"add https://github.com/OpenMendel/SnpArrays.jl"
-pkg"add https://github.com/OpenMendel/MendelIHT.jl"
+pkg"add MendelIHT"
 ```
 This package supports Julia `v1.6`+ for Mac, Linux, and window machines. 
 

@@ -28,7 +28,8 @@ and non-genetic covariates `z` on a specific sparsity parameter `k`. Only predic
     count traits, and `MvNormal()` for multiple quantitative traits. 
 + `l`: A link function. The recommended link functions are `l=IdentityLink()` for
     quantitative traits, `l=LogitLink()` for binary traits, `l=LogLink()` for Poisson
-    distribution, and `l=Loglink()` for NegativeBinomial distribution. 
+    distribution, and `l=Loglink()` for NegativeBinomial distribution. For multivariate
+    analysis, the choice of link does not matter. 
 + `group`: vector storing (non-overlapping) group membership
 + `weight`: vector storing vector of weights containing prior knowledge on each SNP
 + `zkeep`: BitVector determining whether non-genetic covariates in `z` will be subject 
@@ -102,6 +103,7 @@ function fit_iht(
     # print information
     verbose && print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
 
+    # fit IHT model
     tot_time, best_logl, mm_iter = fit_iht!(v, debias=debias, verbose=verbose,
         tol=tol, max_iter=max_iter, min_iter=min_iter, max_step=max_step, io=io)
 

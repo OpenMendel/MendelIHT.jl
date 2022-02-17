@@ -35,7 +35,8 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
     count traits, and `MvNormal()` for multiple quantitative traits. 
 - `l`: A link function. The recommended link functions are `l=IdentityLink()` for
     quantitative traits, `l=LogitLink()` for binary traits, `l=LogLink()` for Poisson
-    distribution, and `l=Loglink()` for NegativeBinomial distribution. 
+    distribution, and `l=Loglink()` for NegativeBinomial distribution. For multivariate
+    analysis, the choice of link does not matter. 
 - `zkeep`: BitVector determining whether non-genetic covariates in `z` will be subject 
     to sparsity constraint. `zkeep[i] = true` means covariate `i` will NOT be projected.
     Note covariates forced in the model are not subject to sparsity constraints in `path`. 

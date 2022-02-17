@@ -26,6 +26,7 @@ MendelIHT borrows distribution and link functions implementationed in [GLM.jl](h
 | Distribution | Canonical Link | Status |
 |:---:|:---:|:---:|
 | Normal | IdentityLink | $\checkmark$ |
+| MvNormal | IdentityLink | $\checkmark$ |
 | Bernoulli | LogitLink |$\checkmark$ |
 | Poisson | LogLink |  $\checkmark$ |
 | NegativeBinomial | LogLink |  $\checkmark$ |
