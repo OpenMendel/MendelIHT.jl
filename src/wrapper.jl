@@ -85,21 +85,21 @@ function iht(
 
     show(io, result)
 
+    # save estimated beta to disk
     if is_multivariate(y)
         open(betafile, "w") do io
-            print(io, "SNPid")
+            print(io, "chr\tpos\tSNPid\tref\talt")
             for i in 1:size(y, 1)
                 print(io, '\t', "beta_$i")
             end
             print(io, '\n')
-            writedlm(io, [X_ids result.beta'])
+            writedlm(io, [X_chr X_pos X_ids X_ref X_alt result.beta'])
         end
-        # writedlm(betafile, DataFrame([X_ids result.beta'], ["SNPid", "Estimated_beta"]))
         writedlm(covariancefile, result.Σ)
     else
         open(betafile, "w") do io
-            println(io, "SNPid", '\t', "Estimated_beta")
-            writedlm(io, [X_ids result.beta])
+            println(io, "chr\tpos\tSNPid\tref\talt\tEstimated_beta")
+            writedlm(io, [X_chr X_pos X_ids X_ref X_alt result.beta])
         end
     end
 
