@@ -754,25 +754,29 @@ function initialize_beta!(
     pmeter = verbose ? Progress(nsnps(v) + ncovariates(v), 5, 
         "Initializing β to univariate regression values...") : nothing
     # genetic covariates
+    c0 = zero(eltype(z))
     Threads.@threads for i in 1:nsnps(v)
         id = Threads.threadid()
         copyto!(xstore[id], @view(x[cv_wts, i]))
         linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+        c0 += xty_store[id][1]
         β[i] = xty_store[id][2]
         verbose && next!(pmeter) # update progress
     end
     # non-genetic covariates
-    Threads.@threads for i in 1:ncovariates(v)
+    Threads.@threads for i in 2:ncovariates(v)
         id = Threads.threadid()
         copyto!(xstore[id], @view(z[cv_wts, i]))
         linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+        c0 += xty_store[id][1]
         c[i] = xty_store[id][2]
         verbose && next!(pmeter) # update progress
     end
+    c[1] = c0 / (nsnps(v) + ncovariates(v) - 1)
     clamp!(v.b, -2, 2)
     clamp!(v.c, -2, 2)
-    copyto!(v.b0, v.b)
-    copyto!(v.c0, v.c)
+    copyto!(v.b0, β)
+    copyto!(v.c0, c)
 end
 
 """

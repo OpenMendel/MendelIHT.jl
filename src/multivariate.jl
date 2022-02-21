@@ -517,26 +517,30 @@ function initialize_beta!(
     @inbounds for j in 1:ntraits(v) # loop over each y
         copyto!(ystore, @view(y[j, cv_wts]))
         # genetic covariates
+        C0 = zero(eltype(z))
         Threads.@threads for i in 1:nsnps(v)
             id = Threads.threadid()
             copyto!(xstore[id], @view(x[i, cv_wts]))
             linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+            C0 += xty_store[id][1]
             B[j, i] = xty_store[id][2]
             verbose && next!(pmeter) # update progress
         end
         # non genetic covariates
-        Threads.@threads for i in 1:ncovariates(v)
+        Threads.@threads for i in 2:ncovariates(v)
             id = Threads.threadid()
             copyto!(xstore[id], @view(z[i, cv_wts]))
             linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+            C0 += xty_store[id][1]
             C[j, i] = xty_store[id][2]
             verbose && next!(pmeter) # update progress
         end
+        C[j, 1] = C0 / (nsnps(v) + ncovariates(v) - 1)
     end
     clamp!(C, -2, 2)
     clamp!(B, -2, 2)
-    copyto!(v.B0, v.B)
-    copyto!(v.C0, v.C)
+    copyto!(v.B0, B)
+    copyto!(v.C0, C)
 end
 
 """
