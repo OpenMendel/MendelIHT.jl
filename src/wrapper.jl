@@ -248,7 +248,10 @@ Runs cross-validation to determinal optimal sparsity level `k`. Different
 sparsity levels are specified in `path`. 
 
 # Arguments
-- `filename`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
+- `filename`: A `String` for VCF, binary PLINK, or BGEN file. VCF files should end
+    in `.vcf` or `.vcf.gz`. Binary PLINK files should exclude `.bim/.bed/.fam`
+    trailings but the trio must all be present in the same directory. BGEN files
+    should end in `.bgen`.
 - `d`: Distribution of phenotypes. Specify `Normal` for quantitative traits,
     `Bernoulli` for binary traits, `Poisson` or `NegativeBinomial` for
     count traits, and `MvNormal` for multiple quantitative traits. 
