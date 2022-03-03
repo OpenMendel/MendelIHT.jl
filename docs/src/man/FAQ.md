@@ -26,6 +26,12 @@ In a fresh Julia session, the first time any function gets called will take a *l
 
 Fortunately, for large problems, compilation time becomes negligible. 
 
+## Memory requirement?
+
+For binary PLINK files, `MendelIHT.jl` uses [SnpArrays.jl's SnpLinAlg](https://openmendel.github.io/SnpArrays.jl/latest/#Linear-Algebra) for linear algebra. This data structure computes directly on raw genotype file, described in our [multivariate paper](https://www.biorxiv.org/content/10.1101/2021.08.04.455145v2.abstract), and hence it requires roughly $2np$ bits of RAM to store in memory. For UK biobank with 500k samples and 500k SNPs, this is roughly 62GB. 
+
+In addition to storing the full design matrix in memory, IHT also need to hold a $n \times k$ matrix in double precision, where $k$ is the sparsity level. This require $64nk$ bits of RAM. For cross validation routines that test multiple different $k_1, ..., k_q$ values, $t$ of them must co-exist in memory where $t$ is the number of threads. Thus for large samples such as the UK Biobank data, it is possible that holding these "sparse" matrices will require more memory than holding compressed PLINK files. 
+
 ## How to run code in parallel?
 
 If Julia is started with multiple threads (e.g. `julia --threads 4`), `MendelIHT.jl` will automatically run your code in parallel. 
