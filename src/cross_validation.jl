@@ -51,6 +51,10 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
+- `memory_efficient`: In `true,` cross validation will run in single thread (but linear LinearAlgebra
+    will still utilize all threads possible). This will cause 1.5~2 times slow down but one only
+    needs to store a single sparse matrix (requiring n × k × 8 bytes) in addition to `x`. If 
+    `memory_efficient=false`, one may potentially store `t` sparse matrices in memory. 
 
 # Output
 - `mse`: A vector of mean-squared error for each `k` specified in `path`. 
@@ -72,7 +76,8 @@ function cv_iht(
     verbose  :: Bool = true,
     max_iter :: Int = 100,
     min_iter :: Int = 5,
-    init_beta :: Bool = false
+    init_beta :: Bool = false,
+    memory_efficient :: Bool = false
     ) where T <: Float
 
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
@@ -90,7 +95,7 @@ function cv_iht(
     # cross validate. TODO: wrap pmap with batch_size keyword to enable distributed CV
     combinations = allocate_fold_and_k(q, path)
     mses = zeros(length(combinations))
-    ThreadPools.@qthreads for i in 1:length(combinations)
+    (memory_efficient ? map : ThreadPools.qmap)(1:length(combinations)) do i
         fold, sparsity = combinations[i]
 
         # assign train/test indices
