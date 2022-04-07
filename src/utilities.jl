@@ -92,7 +92,8 @@ We clamp the max value of each entry to (-20, 20) because certain distributions
 """
 function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
     copyto!(v.xk, @view(v.x[:, v.idx]))
-    mul!(v.xb, v.xk, view(v.b, v.idx))
+    copyto!(v.gk, view(v.b, v.idx)) # use v.gk as storage
+    mul!(v.xb, v.xk, v.gk)
     mul!(v.zc, v.z, v.c)
     if !(typeof(v.d) <: Normal)
         clamp!(v.xb, -20, 20)

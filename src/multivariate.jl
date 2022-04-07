@@ -20,7 +20,8 @@ for genetic covariates) and `C` (non-genetic covariates).
 """
 function update_xb!(v::mIHTVariable)
     copyto!(v.Xk, @view(v.X[v.idx, :]))
-    mul!(v.BX, view(v.B, :, v.idx), v.Xk)
+    copyto!(v.dfidx, view(v.B, :, v.idx)) # use v.dfidx for storage of v.B[:, v.idx]
+    mul!(v.BX, v.dfidx, v.Xk)
     mul!(v.CZ, v.C, v.Z)
 end
 
