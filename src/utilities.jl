@@ -348,77 +348,85 @@ choose top `k` entries
 predictors per group. 
 """
 function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, verbose::Bool=false)
-    fill!(v.b, 0)
-    fill!(v.b0, 0)
-    fill!(v.best_b, 0)
-    fill!(v.xb, 0)
-    fill!(v.xk, 0)
-    fill!(v.gk, 0)
-    fill!(v.xgk, 0)
-    fill!(v.idx, false)
-    fill!(v.idx0, false)
-    copyto!(v.idc, v.zkeep)
-    copyto!(v.idc0, v.zkeep)
-    fill!(v.r, 0)
-    fill!(v.df, 0)
-    fill!(v.df2, 0)
-    fill!(v.c, 0)
-    fill!(v.best_c, 0)
-    fill!(v.c0, 0)
-    fill!(v.zc, 0)
-    fill!(v.zdf2, 0)
-    fill!(v.μ, 0)
-    fill!(v.cv_wts, 0)
-    fill!(v.full_b, 0)
-    v.cv_wts[cv_idx] .= 1
+    t7 = @elapsed begin
+        fill!(v.b, 0)
+        fill!(v.b0, 0)
+        fill!(v.best_b, 0)
+        fill!(v.xb, 0)
+        fill!(v.xk, 0)
+        fill!(v.gk, 0)
+        fill!(v.xgk, 0)
+        fill!(v.idx, false)
+        fill!(v.idx0, false)
+        copyto!(v.idc, v.zkeep)
+        copyto!(v.idc0, v.zkeep)
+        fill!(v.r, 0)
+        fill!(v.df, 0)
+        fill!(v.df2, 0)
+        fill!(v.c, 0)
+        fill!(v.best_c, 0)
+        fill!(v.c0, 0)
+        fill!(v.zc, 0)
+        fill!(v.zdf2, 0)
+        fill!(v.μ, 0)
+        fill!(v.cv_wts, 0)
+        fill!(v.full_b, 0)
+        v.cv_wts[cv_idx] .= 1
+    end
 
     init_beta && !(typeof(v.d) <: Normal) && 
         throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
 
     # find the intercept by Newton's method
-    ybar = zero(eltype(v.y))
-    @inbounds @simd for i in eachindex(v.y)
-        ybar += v.y[i] * v.cv_wts[i]
+    t3 = @elapsed begin
+        ybar = zero(eltype(v.y))
+        @inbounds @simd for i in eachindex(v.y)
+            ybar += v.y[i] * v.cv_wts[i]
+        end
+        ybar /= count(!iszero, v.cv_wts)
+        for iteration = 1:20 
+            g1 = linkinv(v.l, v.c[1])
+            g2 = mueta(v.l, v.c[1])
+            v.c[1] = v.c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
+            abs(g1 - ybar) < 1e-10 && break
+        end
+        mul!(v.zc, v.z, v.c)
     end
-    ybar /= count(!iszero, v.cv_wts)
-    for iteration = 1:20 
-        g1 = linkinv(v.l, v.c[1])
-        g2 = mueta(v.l, v.c[1])
-        v.c[1] = v.c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
-        abs(g1 - ybar) < 1e-10 && break
-    end
-    mul!(v.zc, v.z, v.c)
 
     # update mean vector and use them to compute score (gradient)
-    update_μ!(v)
-    score!(v)
+    t4 = @elapsed update_μ!(v)
+    t6 = @elapsed score!(v)
 
-    if init_beta
-        initialize_beta!(v, cv_idx, verbose)
-        project_k!(v)
-    else
-        # first `k` non-zero entries are chosen based on largest gradient
-        vectorize!(v.full_b, v.df, v.df2, v.weight, v.zkeep)
-        if length(v.ks) == 0 # no group projection
-            project_k!(v.full_b, v.k + v.zkeepn) # project k + number of nongentic covariates to keep
-            unvectorize!(v.full_b, v.df, v.df2, v.weight, v.zkeep)
-            v.idx .= v.df .!= 0
-            v.idc .= v.zkeep
+    t8 = @elapsed begin
+        if init_beta
+            initialize_beta!(v, cv_idx, verbose)
+            project_k!(v)
+        else
+            # first `k` non-zero entries are chosen based on largest gradient
+            vectorize!(v.full_b, v.df, v.df2, v.weight, v.zkeep)
+            if length(v.ks) == 0 # no group projection
+                project_k!(v.full_b, v.k + v.zkeepn) # project k + number of nongentic covariates to keep
+                unvectorize!(v.full_b, v.df, v.df2, v.weight, v.zkeep)
+                v.idx .= v.df .!= 0
+                v.idc .= v.zkeep
 
-            # Choose randomly if more are selected
-            _choose!(v) 
-        else 
-            project_group_sparse!(v.df, v.group, v.J, v.ks)
-            v.idx .= v.b .!= 0
-            fill!(v.idc, true)
+                # Choose randomly if more are selected
+                _choose!(v) 
+            else 
+                project_group_sparse!(v.df, v.group, v.J, v.ks)
+                v.idx .= v.b .!= 0
+                fill!(v.idc, true)
+            end
         end
     end
 
     # make necessary resizing when necessary
-    check_covariate_supp!(v)
+    t9 = @elapsed check_covariate_supp!(v)
 
     # store relevant components of x for first iteration
-    copyto!(v.xk, @view(v.x[:, v.idx])) 
+    t10 = @elapsed copyto!(v.xk, @view(v.x[:, v.idx])) 
+
+    return t3, t4, t6, t7, t8, t9, t10
 end
 
 """
