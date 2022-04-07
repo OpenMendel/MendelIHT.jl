@@ -929,16 +929,18 @@ function backtrack!(v::IHTVariable, η::Float)
     # recompute gradient step
     copyto!(v.b, v.b0)
     copyto!(v.c, v.c0)
-    _iht_gradstep!(v, η)
+    t2 = @elapsed _iht_gradstep!(v, η)
 
     # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
-    update_xb!(v)
-    update_μ!(v)
+    t3 = @elapsed update_xb!(v)
+    t4 = @elapsed update_μ!(v)
     if v.est_r != :None
         v.d = mle_for_r(v)
     end
-    
-    return loglikelihood(v)
+
+    t5 = @elapsed logl = loglikelihood(v)
+
+    return logl, t2, t3, t4, t5
 end
 
 function check_data_dim(y::AbstractVecOrMat, x::AbstractMatrix, z::AbstractVecOrMat)

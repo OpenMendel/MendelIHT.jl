@@ -146,7 +146,8 @@ function fit_iht!(
     max_iter  :: Int = 200,            # maximum IHT iterations
     min_iter  :: Int = 5,              # minimum IHT iterations
     max_step  :: Int = 3,              # maximum backtracking for each iteration
-    io        :: IO = stdout
+    io        :: IO = stdout,
+    timers = zeros(6)
     ) where {T <: Float, M}
 
     #start timer
@@ -178,7 +179,16 @@ function fit_iht!(
         best_logl = save_prev!(v, next_logl, best_logl)
 
         # take one IHT step in positive score direction
-        (η, η_step, next_logl) = iht_one_step!(v, next_logl, max_step)
+        η, η_step, next_logl,
+            t1, t2, t3, t4, t5, t6 = iht_one_step!(v, next_logl, max_step)
+    
+        # update timer
+        timers[1] += t1
+        timers[2] += t2
+        timers[3] += t3
+        timers[4] += t4
+        timers[5] += t5
+        timers[6] += t6
 
         # perform debiasing if support didn't change
         debias && iter ≥ 5 && v.idx == v.idx0 && debias!(v)
@@ -199,7 +209,7 @@ function fit_iht!(
         end
     end
 
-    return tot_time, best_logl, mm_iter
+    return tot_time, best_logl, mm_iter, timers
 end
 
 """
@@ -213,14 +223,14 @@ function iht_one_step!(
     ) where {T <: Float, M <: AbstractMatrix}
 
     # first calculate step size 
-    η = iht_stepsize!(v)
+    t1 = @elapsed η = iht_stepsize!(v)
 
     # update b and c by taking gradient step v.b = P_k(β + ηv) where v is the score direction
-    _iht_gradstep!(v, η)
+    t2 = @elapsed _iht_gradstep!(v, η)
 
     # update the linear predictors `xb`, `μ`, and residuals with the new proposed b
-    update_xb!(v)
-    update_μ!(v)
+    t3 = @elapsed update_xb!(v)
+    t4 = @elapsed update_μ!(v)
 
     # for multivariate IHT, also update precision matrix Γ = 1/n * (Y-BX)(Y-BX)' 
     if typeof(v) <: mIHTVariable
@@ -233,7 +243,7 @@ function iht_one_step!(
     end
 
     # calculate current loglikelihood with the new computed xb and zc
-    new_logl = loglikelihood(v)
+    t5 = @elapsed new_logl = loglikelihood(v)
 
     η_step = 0
     while _iht_backtrack_(new_logl, old_logl, η_step, nstep)
@@ -242,18 +252,23 @@ function iht_one_step!(
         η /= 2
 
         # compute new loglikelihood after linesearch
-        new_logl = backtrack!(v, η)
+        new_logl, bt2, bt3, bt4, bt5 = backtrack!(v, η)
+        t2 += bt2
+        t3 += bt3
+        t4 += bt4
+        t5 += bt5
 
         # increment the counter
         η_step += 1
     end
 
     # compute score with the new mean
-    score!(v)
+    t6 = @elapsed score!(v)
 
     # check for finiteness before moving to the next iteration
     isnan(new_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
     isinf(new_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
 
-    return η::T, η_step::Int, new_logl::T
+    return η::T, η_step::Int, new_logl::T,
+        t1, t2, t3, t4, t5, t6
 end

@@ -58,6 +58,16 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 
 # Output
 - `mse`: A vector of mean-squared error for each `k` specified in `path`. 
+
+# Timers:
+- `t1` = fit_iht: iht_stepsize!
+- `t2` = fit_iht: _iht_gradstep!
+- `t3` = fit_iht: update_xb!
+- `t4` = fit_iht: update_μ!
+- `t5` = fit_iht: loglikelihood
+- `t6` = fit_iht: score!
+- `t7` = cv_iht: init_iht_indices!
+- `t8` = cv_iht: predict!
 """
 function cv_iht(
     y        :: AbstractVecOrMat{T},
@@ -88,6 +98,7 @@ function cv_iht(
     test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
     train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep) for i in 1:Threads.nthreads()]
+    timers = [zeros(8) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = verbose ? Progress(q * length(path), "Cross validating...") : nothing
@@ -106,16 +117,20 @@ function cv_iht(
 
         # run IHT on training data with current (fold, sparsity)
         v.k = sparsity
-        init_iht_indices!(v, init_beta, train_idx[id], false)
-        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
+        t7 = @elapsed init_iht_indices!(v, init_beta, train_idx[id], false)
+        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter, timers=@view(timers[id][1:6]))
 
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)
         v.cv_wts[test_idx[id]] .= one(T)
-        mses[i] = predict!(v)
+        t8 = @elapsed mses[i] = predict!(v)
 
         # update progres
         verbose && next!(pmeter)
+
+        # update timer
+        timers[id][7] += t7
+        timers[id][8] += t8
     end
 
     # weight mses for each fold by their size before averaging
@@ -124,6 +139,28 @@ function cv_iht(
     # find best model size and print cross validation result
     k = path[argmin(mse)] :: Int
     verbose && print_cv_results(mse, path, k)
+
+    if verbose
+        # - `t1` = fit_iht: iht_stepsize!
+        # - `t2` = fit_iht: _iht_gradstep!
+        # - `t3` = fit_iht: update_xb!
+        # - `t4` = fit_iht: update_μ!
+        # - `t5` = fit_iht: loglikelihood
+        # - `t6` = fit_iht: score!
+        # - `t7` = cv_iht: init_iht_indices!
+        # - `t8` = cv_iht: predict!
+        final_timer = sum(timers)
+        tot_time = sum(final_timer)
+        println("Timings:")
+        println("    fit_iht: iht_stepsize! = ", final_timer[1], " ($(final_timer[1]/tot_time) %)")
+        println("    fit_iht: _iht_gradstep! = ", final_timer[2], " ($(final_timer[2]/tot_time) %)")
+        println("    fit_iht: update_xb! = ", final_timer[3], " ($(final_timer[3]/tot_time) %)")
+        println("    fit_iht: update_μ! = ", final_timer[4], " ($(final_timer[4]/tot_time) %)")
+        println("    fit_iht: loglikelihood = ", final_timer[5], " ($(final_timer[5]/tot_time) %)")
+        println("    fit_iht: score! = ", final_timer[6], " ($(final_timer[6]/tot_time) %)")
+        println("    cv_iht: init_iht_indices! = ", final_timer[7], " ($(final_timer[7]/tot_time) %)")
+        println("    cv_iht: predict! = ", final_timer[8], " ($(final_timer[8]/tot_time) %)")
+    end
 
     return mse
 end
