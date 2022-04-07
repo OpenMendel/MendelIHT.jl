@@ -87,8 +87,8 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     b0     = Vector{T}(undef, p)
     best_b = Vector{T}(undef, p)
     xb     = Vector{T}(undef, n)
-    xk     = Matrix{T}(undef, n, J * columns - 1) # subtracting 1 because the intercept will likely be selected in the first iter
-    gk     = Vector{T}(undef, J * columns - 1)    # subtracting 1 because the intercept will likely be selected in the first iter
+    xk     = Matrix{T}(undef, n, J * columns)
+    gk     = Vector{T}(undef, J * columns)
     xgk    = Vector{T}(undef, n)
     idx    = BitArray(undef, p)
     idx0   = BitArray(undef, p)
@@ -197,7 +197,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     B0     = Matrix{T}(undef, r, p)
     best_B = Matrix{T}(undef, r, p)
     BX     = Matrix{T}(undef, r, n)
-    Xk     = Matrix{T}(undef, k - 1, n) # subtracting 1 because the intercept will likely be selected in the first iter
+    Xk     = Matrix{T}(undef, k, n)
     idx    = BitArray(undef, p)
     idx0   = BitArray(undef, p)
     idc    = BitArray(undef, q)
@@ -205,7 +205,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     resid  = Matrix{T}(undef, r, n)
     df     = Matrix{T}(undef, r, p)
     df2    = Matrix{T}(undef, r, q)
-    dfidx  = Matrix{T}(undef, r, k - 1)
+    dfidx  = Matrix{T}(undef, r, k)
     C      = Matrix{T}(undef, r, q)
     C0     = Matrix{T}(undef, r, q)
     best_C = Matrix{T}(undef, r, q)
