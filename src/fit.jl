@@ -147,7 +147,7 @@ function fit_iht!(
     min_iter  :: Int = 5,              # minimum IHT iterations
     max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout,
-    timers = zeros(6)
+    timers = zeros(7)
     ) where {T <: Float, M}
 
     #start timer
@@ -180,7 +180,7 @@ function fit_iht!(
 
         # take one IHT step in positive score direction
         η, η_step, next_logl,
-            t1, t2, t3, t4, t5, t6 = iht_one_step!(v, next_logl, max_step)
+            t1, t2, t3, t4, t5, t6, t7 = iht_one_step!(v, next_logl, max_step)
     
         # update timer
         timers[1] += t1
@@ -189,6 +189,7 @@ function fit_iht!(
         timers[4] += t4
         timers[5] += t5
         timers[6] += t6
+        timers[7] += t7
 
         # perform debiasing if support didn't change
         debias && iter ≥ 5 && v.idx == v.idx0 && debias!(v)
@@ -229,8 +230,8 @@ function iht_one_step!(
     t2 = @elapsed _iht_gradstep!(v, η)
 
     # update the linear predictors `xb`, `μ`, and residuals with the new proposed b
-    t3 = @elapsed update_xb!(v)
-    t4 = @elapsed update_μ!(v)
+    t3, t4 = update_xb!(v)
+    t5 = @elapsed update_μ!(v)
 
     # for multivariate IHT, also update precision matrix Γ = 1/n * (Y-BX)(Y-BX)' 
     if typeof(v) <: mIHTVariable
@@ -243,7 +244,7 @@ function iht_one_step!(
     end
 
     # calculate current loglikelihood with the new computed xb and zc
-    t5 = @elapsed new_logl = loglikelihood(v)
+    t6 = @elapsed new_logl = loglikelihood(v)
 
     η_step = 0
     while _iht_backtrack_(new_logl, old_logl, η_step, nstep)
@@ -252,23 +253,24 @@ function iht_one_step!(
         η /= 2
 
         # compute new loglikelihood after linesearch
-        new_logl, bt2, bt3, bt4, bt5 = backtrack!(v, η)
+        new_logl, bt2, bt3, bt4, bt5, bt6 = backtrack!(v, η)
         t2 += bt2
         t3 += bt3
         t4 += bt4
         t5 += bt5
+        t6 += bt6
 
         # increment the counter
         η_step += 1
     end
 
     # compute score with the new mean
-    t6 = @elapsed score!(v)
+    t7 = @elapsed score!(v)
 
     # check for finiteness before moving to the next iteration
     isnan(new_logl) && throw(error("Loglikelihood function is NaN, aborting..."))
     isinf(new_logl) && throw(error("Loglikelihood function is Inf, aborting..."))
 
     return η::T, η_step::Int, new_logl::T,
-        t1, t2, t3, t4, t5, t6
+        t1, t2, t3, t4, t5, t6, t7
 end

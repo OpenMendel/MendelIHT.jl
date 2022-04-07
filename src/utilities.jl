@@ -91,14 +91,15 @@ We clamp the max value of each entry to (-20, 20) because certain distributions
 (e.g. Poisson) have exponential link functions, which causes overflow.
 """
 function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
-    copyto!(v.xk, @view(v.x[:, v.idx]))
-    copyto!(v.gk, view(v.b, v.idx)) # use v.gk as storage
-    mul!(v.xb, v.xk, v.gk)
-    mul!(v.zc, v.z, v.c)
+    t31 = @elapsed copyto!(v.xk, @view(v.x[:, v.idx]))
+    t31 += @elapsed copyto!(v.gk, view(v.b, v.idx)) # use v.gk as storage
+    t32 = @elapsed mul!(v.xb, v.xk, v.gk)
+    t32 += @elapsed mul!(v.zc, v.z, v.c)
     if !(typeof(v.d) <: Normal)
         clamp!(v.xb, -20, 20)
         clamp!(v.zc, -20, 20)
     end
+    return t31, t32
 end
 
 """
@@ -348,7 +349,7 @@ choose top `k` entries
 predictors per group. 
 """
 function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, verbose::Bool=false)
-    t7 = @elapsed begin
+    t8 = @elapsed begin
         fill!(v.b, 0)
         fill!(v.b0, 0)
         fill!(v.best_b, 0)
@@ -378,7 +379,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, v
         throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
 
     # find the intercept by Newton's method
-    t3 = @elapsed begin
+    t4 = @elapsed begin
         ybar = zero(eltype(v.y))
         @inbounds @simd for i in eachindex(v.y)
             ybar += v.y[i] * v.cv_wts[i]
@@ -394,10 +395,10 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, v
     end
 
     # update mean vector and use them to compute score (gradient)
-    t4 = @elapsed update_μ!(v)
-    t6 = @elapsed score!(v)
+    t5 = @elapsed update_μ!(v)
+    t7 = @elapsed score!(v)
 
-    t8 = @elapsed begin
+    t9 = @elapsed begin
         if init_beta
             initialize_beta!(v, cv_idx, verbose)
             project_k!(v)
@@ -421,12 +422,12 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, v
     end
 
     # make necessary resizing when necessary
-    t9 = @elapsed check_covariate_supp!(v)
+    t10 = @elapsed check_covariate_supp!(v)
 
     # store relevant components of x for first iteration
-    t10 = @elapsed copyto!(v.xk, @view(v.x[:, v.idx])) 
+    t11 = @elapsed copyto!(v.xk, @view(v.x[:, v.idx])) 
 
-    return t3, t4, t6, t7, t8, t9, t10
+    return t4, t5, t7, t8, t9, t10, t11
 end
 
 """
@@ -940,7 +941,7 @@ function backtrack!(v::IHTVariable, η::Float)
     t2 = @elapsed _iht_gradstep!(v, η)
 
     # recompute η = xb, μ = g(η), and loglikelihood to see if we're now increasing
-    t3 = @elapsed update_xb!(v)
+    t31, t32 = update_xb!(v)
     t4 = @elapsed update_μ!(v)
     if v.est_r != :None
         v.d = mle_for_r(v)
@@ -948,7 +949,7 @@ function backtrack!(v::IHTVariable, η::Float)
 
     t5 = @elapsed logl = loglikelihood(v)
 
-    return logl, t2, t3, t4, t5
+    return logl, t2, t31, t32, t4, t5
 end
 
 function check_data_dim(y::AbstractVecOrMat, x::AbstractMatrix, z::AbstractVecOrMat)

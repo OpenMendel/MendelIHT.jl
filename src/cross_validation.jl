@@ -98,7 +98,7 @@ function cv_iht(
     test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
     train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep) for i in 1:Threads.nthreads()]
-    timers = [zeros(11) for i in 1:Threads.nthreads()]
+    timers = [zeros(12) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = verbose ? Progress(q * length(path), "Cross validating...") : nothing
@@ -117,26 +117,26 @@ function cv_iht(
 
         # run IHT on training data with current (fold, sparsity)
         v.k = sparsity
-        t3, t4, t6, t7, t8, t9, t10 = init_iht_indices!(v, init_beta, train_idx[id], false)
-        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter, timers=@view(timers[id][1:6]))
+        t4, t5, t7, t8, t9, t10, t11 = init_iht_indices!(v, init_beta, train_idx[id], false)
+        fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter, timers=@view(timers[id][1:7]))
 
         # predict on validation data
         v.cv_wts[train_idx[id]] .= zero(T)
         v.cv_wts[test_idx[id]] .= one(T)
-        t11 = @elapsed mses[i] = predict!(v)
+        t12 = @elapsed mses[i] = predict!(v)
 
         # update progres
         verbose && next!(pmeter)
 
         # update timer
-        timers[id][3] += t3
         timers[id][4] += t4
-        timers[id][6] += t6
+        timers[id][5] += t5
         timers[id][7] += t7
         timers[id][8] += t8
         timers[id][9] += t9
         timers[id][10] += t10
         timers[id][11] += t11
+        timers[id][12] += t12
     end
 
     # weight mses for each fold by their size before averaging
@@ -149,29 +149,31 @@ function cv_iht(
     if verbose
         # - `t1` = fit_iht: iht_stepsize!
         # - `t2` = fit_iht: _iht_gradstep!
-        # - `t3` = fit_iht: update_xb!
-        # - `t4` = fit_iht: update_μ!
-        # - `t5` = fit_iht: loglikelihood
-        # - `t6` = fit_iht: score!
-        # - `t7` = init_iht_indices! fill 0
-        # - `t8` = init_iht_indices!: init_beta
-        # - `t9` = init_iht_indices!: check_covariate_supp!
-        # - `t10` = init_iht_indices!: copyto!
-        # - `t11` = init_iht_indices!: predict!
+        # - `t3` = fit_iht: update_xb!'s copyto! 
+        # - `t4` = fit_iht: update_xb!'s mul!
+        # - `t5` = fit_iht: update_μ!
+        # - `t6` = fit_iht: loglikelihood
+        # - `t7` = fit_iht: score!
+        # - `t8` = init_iht_indices! fill 0
+        # - `t9` = init_iht_indices!: init_beta
+        # - `t10` = init_iht_indices!: check_covariate_supp!
+        # - `t11` = init_iht_indices!: copyto!
+        # - `t12` = cv_iht predict!
         final_timer = sum(timers)
         tot_time = sum(final_timer)
         println("Timings:")
         println("    fit_iht: iht_stepsize! = ", final_timer[1], " ($(final_timer[1]/tot_time) %)")
         println("    fit_iht: _iht_gradstep! = ", final_timer[2], " ($(final_timer[2]/tot_time) %)")
-        println("    fit_iht: update_xb! = ", final_timer[3], " ($(final_timer[3]/tot_time) %)")
-        println("    fit_iht: update_μ! = ", final_timer[4], " ($(final_timer[4]/tot_time) %)")
-        println("    fit_iht: loglikelihood = ", final_timer[5], " ($(final_timer[5]/tot_time) %)")
-        println("    fit_iht: score! = ", final_timer[6], " ($(final_timer[6]/tot_time) %)")
-        println("    init_iht_indices!: fill 0 = ", final_timer[7], " ($(final_timer[7]/tot_time) %)")
-        println("    init_iht_indices!: init_beta = ", final_timer[8], " ($(final_timer[8]/tot_time) %)")
-        println("    init_iht_indices!: check_covariate_supp! = ", final_timer[9], " ($(final_timer[9]/tot_time) %)")
-        println("    init_iht_indices!: copyto! = ", final_timer[10], " ($(final_timer[10]/tot_time) %)")
-        println("    cv_iht: predict! = ", final_timer[11], " ($(final_timer[11]/tot_time) %)")
+        println("    fit_iht: update_xb!'s copyto!  = ", final_timer[3], " ($(final_timer[3]/tot_time) %)")
+        println("    fit_iht: update_xb!'s mul! = ", final_timer[4], " ($(final_timer[4]/tot_time) %)")
+        println("    fit_iht: update_μ! = ", final_timer[5], " ($(final_timer[5]/tot_time) %)")
+        println("    fit_iht: loglikelihood = ", final_timer[6], " ($(final_timer[6]/tot_time) %)")
+        println("    fit_iht: score! = ", final_timer[7], " ($(final_timer[7]/tot_time) %)")
+        println("    init_iht_indices!: fill 0 = ", final_timer[8], " ($(final_timer[8]/tot_time) %)")
+        println("    init_iht_indices!: init_beta = ", final_timer[9], " ($(final_timer[9]/tot_time) %)")
+        println("    init_iht_indices!: check_covariate_supp! = ", final_timer[10], " ($(final_timer[10]/tot_time) %)")
+        println("    init_iht_indices!: copyto! = ", final_timer[11], " ($(final_timer[11]/tot_time) %)")
+        println("    cv_iht: predict! = ", final_timer[12], " ($(final_timer[12]/tot_time) %)")
     end
 
     return mse
