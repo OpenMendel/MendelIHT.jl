@@ -93,7 +93,14 @@ We clamp the max value of each entry to (-20, 20) because certain distributions
 function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
     # compute X*beta for genetic component
     if v.memory_efficient
-        mul!(v.xb, v.x, v.b)
+        fill!(v.xb, 0)
+        @inbounds for j in eachindex(v.idx)
+            if v.idx[j]
+                @simd for i in 1:length(v.xb)
+                    v.xb[i] += v.x[i, j] * v.b[j]
+                end
+            end
+        end
     else
         copyto!(v.xk, @view(v.x[:, v.idx]))
         copyto!(v.gk, view(v.b, v.idx)) # use v.gk as storage
@@ -716,7 +723,14 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
 
     # first compute Xv using relevant components of gradient
     if v.memory_efficient
-        mul!(v.xgk, v.x, v.df)
+        fill!(v.xgk, 0)
+        @inbounds for j in eachindex(v.idx)
+            if v.idx[j]
+                @simd for i in 1:length(v.xgk)
+                    v.xgk[i] += v.x[i, j] * v.df[j]
+                end
+            end
+        end
     else
         copyto!(v.gk, view(v.df, v.idx))
         mul!(v.xgk, v.xk, v.gk)
@@ -731,12 +745,9 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     v.xgk .*= v.zdf2 # xgk = sqrt(W)Xv
 
     # now compute and return step size. Note non-genetic covariates are separated from x
-    numer = v.memory_efficient ? sum(abs2, v.df) + sum(abs2, v.df2) : 
-        sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
-    # numer = sum(abs2, @view(v.df[v.idx])) + sum(abs2, @view(v.df2[v.idc]))
+    numer = sum(abs2, @view(v.df[v.idx])) + sum(abs2, @view(v.df2[v.idc]))
     denom = dot(v.xgk, v.xgk)
     η = numer / denom
-    println("η = $η")
 
     # for bad boundary cases (sometimes, k = 1 in cross validation generates weird η)
     isinf(η) && (η = T(1e-8))
