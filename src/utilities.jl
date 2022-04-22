@@ -94,13 +94,16 @@ function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
     # compute X*beta for genetic component
     if v.memory_efficient
         fill!(v.xb, 0)
-        @inbounds for j in eachindex(v.idx)
+        fill!(v.xk, 0)
+        Threads.@threads for j in findall(v.idx)
             if v.idx[j]
-                @simd for i in 1:length(v.xb)
-                    v.xb[i] += v.x[i, j] * v.b[j]
+                t = Threads.threadid()
+                @inbounds @simd for i in 1:length(v.xb)
+                    v.xk[i, t] += v.x[i, j] * v.b[j]
                 end
             end
         end
+        sum!(v.xb, v.xk) # v.xb .= sum(v.xk, dims=2)
     else
         copyto!(v.xk, @view(v.x[:, v.idx]))
         copyto!(v.gk, view(v.b, v.idx)) # use v.gk as storage
@@ -721,16 +724,19 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     d = v.d # distribution
     l = v.l # link function
 
-    # first compute Xv using relevant components of gradient
+    # first compute xgk = X*v using relevant components of gradient
     if v.memory_efficient
         fill!(v.xgk, 0)
-        @inbounds for j in eachindex(v.idx)
+        fill!(v.xk, 0)
+        Threads.@threads for j in eachindex(v.idx)
             if v.idx[j]
-                @simd for i in 1:length(v.xgk)
-                    v.xgk[i] += v.x[i, j] * v.df[j]
+                t = Threads.threadid()
+                @inbounds @simd for i in 1:length(v.xgk)
+                    v.xk[i, t] += v.x[i, j] * v.df[j]
                 end
             end
-        end
+        end 
+        sum!(v.xgk, v.xk) # v.xgk .= sum(v.xk, dims=2)
     else
         copyto!(v.gk, view(v.df, v.idx))
         mul!(v.xgk, v.xk, v.gk)
@@ -745,7 +751,8 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     v.xgk .*= v.zdf2 # xgk = sqrt(W)Xv
 
     # now compute and return step size. Note non-genetic covariates are separated from x
-    numer = sum(abs2, @view(v.df[v.idx])) + sum(abs2, @view(v.df2[v.idc]))
+    numer = v.memory_efficient ? sum(abs2, @view(v.df[v.idx])) : sum(abs2, v.gk)
+    numer += sum(abs2, @view(v.df2[v.idc]))
     denom = dot(v.xgk, v.xgk)
     η = numer / denom
 

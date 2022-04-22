@@ -88,7 +88,7 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     b0     = Vector{T}(undef, p)
     best_b = Vector{T}(undef, p)
     xb     = Vector{T}(undef, n)
-    xk     = memory_efficient ? Matrix{T}(undef, 0, 0) : Matrix{T}(undef, n, J * columns)
+    xk     = memory_efficient ? Matrix{T}(undef, n, Threads.nthreads()) : Matrix{T}(undef, n, J * columns)
     gk     = memory_efficient ? Vector{T}(undef, 0) : Vector{T}(undef, J * columns)
     xgk    = Vector{T}(undef, n)
     idx    = BitArray(undef, p)
