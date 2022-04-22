@@ -87,7 +87,8 @@ function cv_iht(
     # preallocated arrays for efficiency
     test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
     train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
-    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep) for i in 1:Threads.nthreads()]
+    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep,
+        memory_efficient=memory_efficient) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = verbose ? Progress(q * length(path), "Cross validating...") : nothing
@@ -95,7 +96,7 @@ function cv_iht(
     # cross validate. TODO: wrap pmap with batch_size keyword to enable distributed CV
     combinations = allocate_fold_and_k(q, path)
     mses = zeros(length(combinations))
-    (memory_efficient ? map : ThreadPools.qmap)(1:length(combinations)) do i
+    ThreadPools.@qthreads for i in 1:length(combinations)
         fold, sparsity = combinations[i]
 
         # assign train/test indices
