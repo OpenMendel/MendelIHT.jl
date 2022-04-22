@@ -39,6 +39,7 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     zkeep  :: BitVector     # tracks index of non-genetic covariates not subject to projection. zkeep[i] = true means `i` will not be projected. 
     zkeepn :: Int           # Total number of covariates that aren't subject to projection
     full_b :: Vector{T}     # storage for full beta and full gradient
+    memory_efficient :: Bool # if true, xk and gk would be length 0 vector
 end
 
 nsamples(v::IHTVariable) = count(!iszero, v.cv_wts)
@@ -49,7 +50,7 @@ ntraits(v::IHTVariable) = 1
 function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     J::Int, k::Union{Int, Vector{Int}}, d::UnivariateDistribution, l::Link,
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
-    zkeep::BitVector) where {T <: Float, M <: AbstractMatrix}
+    zkeep::BitVector, memory_efficient::Bool) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 1)
     p = size(x, 2)
@@ -87,8 +88,8 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     b0     = Vector{T}(undef, p)
     best_b = Vector{T}(undef, p)
     xb     = Vector{T}(undef, n)
-    xk     = Matrix{T}(undef, n, J * columns)
-    gk     = Vector{T}(undef, J * columns)
+    xk     = memory_efficient ? Matrix{T}(undef, 0, 0) : Matrix{T}(undef, n, J * columns)
+    gk     = memory_efficient ? Vector{T}(undef, 0) : Vector{T}(undef, J * columns)
     xgk    = Vector{T}(undef, n)
     idx    = BitArray(undef, p)
     idx0   = BitArray(undef, p)
@@ -109,7 +110,8 @@ function IHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractVector{T},
     return IHTVariable{T, M}(
         x, y, z, k, J, ks, d, l, est_r, 
         b, b0, best_b, xb, xk, gk, xgk, idx, idx0, idc, idc0, r, df, df2,
-        c, c0, best_c, zc, zdf2, group, weight, μ, cv_wts, zkeep, sum(zkeep), storage)
+        c, c0, best_c, zc, zdf2, group, weight, μ, cv_wts, zkeep, sum(zkeep), 
+        storage, memory_efficient)
 end
 
 function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
@@ -117,13 +119,13 @@ function initialize(x::M, z::AbstractVecOrMat{T}, y::AbstractVecOrMat{T},
     group::AbstractVector{Int}, weight::AbstractVector{T}, est_r::Symbol,
     initialize_beta::Bool, zkeep::BitVector;
     cv_train_idx=trues(is_multivariate(y) ? size(x, 2) : size(x, 1)),
-    verbose::Bool=false
+    memory_efficient::Bool=false, verbose::Bool=false
     ) where {T <: Float, M <: AbstractMatrix}
 
     if is_multivariate(y)
-        v = mIHTVariable(x, z, y, k, zkeep)
+        v = mIHTVariable(x, z, y, k, zkeep, memory_efficient)
     else
-        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, zkeep)
+        v = IHTVariable(x, z, y, J, k, d, l, group, weight, est_r, zkeep, memory_efficient)
     end
 
     # initialize non-zero indices
@@ -175,10 +177,12 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     p_by_r  :: Matrix{T}    # an p × r storage (needed to efficiently compute gradient)
     k_by_r  :: Matrix{T}    # an k × r storage (needed for debiasing)
     k_by_k  :: Matrix{T}    # an k × k storage (needed for debiasing)
+    memory_efficient :: Bool # if true, Xk would be 0 by 0 matrix
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
-    k::Int, zkeep::BitVector) where {T <: Float, M <: AbstractMatrix}
+    k::Int, zkeep::BitVector, memory_efficient::Bool
+    ) where {T <: Float, M <: AbstractMatrix}
 
     n = size(x, 2) # number of samples 
     p = size(x, 1) # number of SNPs
@@ -228,7 +232,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
         x, y, z, k,
         B, B0, best_B, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C,
         C0, best_C, CZ, μ, Γ, Γ0, cv_wts, zkeep, r*sum(zkeep), full_b, r_by_r1,
-        r_by_r2, r_by_n1, r_by_n2, n_by_r, p_by_r, k_by_r, k_by_k)
+        r_by_r2, r_by_n1, r_by_n2, n_by_r, p_by_r, k_by_r, k_by_k, memory_efficient)
 end
 
 nsamples(v::mIHTVariable) = count(!iszero, v.cv_wts)

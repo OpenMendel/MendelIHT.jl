@@ -75,7 +75,8 @@ function fit_iht(
     min_iter  :: Int = 5,              # minimum IHT iterations
     max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout,
-    init_beta :: Bool = false
+    init_beta :: Bool = false,
+    memory_efficient::Bool=false
     ) where T <: Float
 
     verbose && print_iht_signature(io)
@@ -98,7 +99,8 @@ function fit_iht(
     end
 
     # initialize IHT variable
-    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta, zkeep, verbose=verbose)
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta, zkeep, 
+        verbose=verbose, memory_efficient=memory_efficient)
 
     # print information
     verbose && print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)

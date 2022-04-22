@@ -52,11 +52,11 @@ module MendelIHT
     datadir(parts...) = joinpath(@__DIR__, "..", "data", parts...)
 
     # force Julia to precompile some common functions (only Gaussian case are handled here)
-    function __init__()
-        dir = normpath(MendelIHT.datadir())
-        cross_validate(joinpath(dir, "normal"), Normal, verbose=false, cv_summaryfile="_tmp_init_cv_file_.txt")
-        cross_validate(joinpath(dir, "multivariate"), MvNormal, phenotypes=[6, 7], verbose=false, cv_summaryfile="_tmp_init_cv_file_.txt")
-        rm("_tmp_init_cv_file_.txt", force=true)
-    end
+    # function __init__()
+    #     dir = normpath(MendelIHT.datadir())
+    #     cross_validate(joinpath(dir, "normal"), Normal, verbose=false, cv_summaryfile="_tmp_init_cv_file_.txt")
+    #     cross_validate(joinpath(dir, "multivariate"), MvNormal, phenotypes=[6, 7], verbose=false, cv_summaryfile="_tmp_init_cv_file_.txt")
+    #     rm("_tmp_init_cv_file_.txt", force=true)
+    # end
 
 end # end module

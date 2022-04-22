@@ -91,9 +91,15 @@ We clamp the max value of each entry to (-20, 20) because certain distributions
 (e.g. Poisson) have exponential link functions, which causes overflow.
 """
 function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
-    copyto!(v.xk, @view(v.x[:, v.idx]))
-    copyto!(v.gk, view(v.b, v.idx)) # use v.gk as storage
-    mul!(v.xb, v.xk, v.gk)
+    # compute X*beta for genetic component
+    if v.memory_efficient
+        mul!(v.xb, v.x, v.b)
+    else
+        copyto!(v.xk, @view(v.x[:, v.idx]))
+        copyto!(v.gk, view(v.b, v.idx)) # use v.gk as storage
+        mul!(v.xb, v.xk, v.gk)
+    end
+    # compute X*beta for nongenetic component
     mul!(v.zc, v.z, v.c)
     if !(typeof(v.d) <: Normal)
         clamp!(v.xb, -20, 20)
@@ -418,7 +424,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, v
     check_covariate_supp!(v)
 
     # store relevant components of x for first iteration
-    copyto!(v.xk, @view(v.x[:, v.idx])) 
+    v.memory_efficient || copyto!(v.xk, @view(v.x[:, v.idx])) 
 end
 
 """
@@ -449,7 +455,7 @@ TODO: Use ElasticArrays.jl
 """
 function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
     nzidx = sum(v.idx)
-    if nzidx != size(v.xk, 2)
+    if nzidx != size(v.xk, 2) && !v.memory_efficient
         v.xk = zeros(T, size(v.xk, 1), nzidx)
         v.gk = zeros(T, nzidx)
     end
@@ -709,8 +715,12 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     l = v.l # link function
 
     # first compute Xv using relevant components of gradient
-    copyto!(v.gk, view(v.df, v.idx)) 
-    mul!(v.xgk, v.xk, v.gk) 
+    if v.memory_efficient
+        mul!(v.xgk, v.x, v.df)
+    else
+        copyto!(v.gk, view(v.df, v.idx))
+        mul!(v.xgk, v.xk, v.gk)
+    end
     mul!(v.zdf2, view(z, :, v.idc), view(v.df2, v.idc))
     v.xgk .+= v.zdf2 # xgk = Xv
 
@@ -721,9 +731,12 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     v.xgk .*= v.zdf2 # xgk = sqrt(W)Xv
 
     # now compute and return step size. Note non-genetic covariates are separated from x
-    numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
+    numer = v.memory_efficient ? sum(abs2, v.df) + sum(abs2, v.df2) : 
+        sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
+    # numer = sum(abs2, @view(v.df[v.idx])) + sum(abs2, @view(v.df2[v.idc]))
     denom = dot(v.xgk, v.xgk)
     η = numer / denom
+    println("η = $η")
 
     # for bad boundary cases (sometimes, k = 1 in cross validation generates weird η)
     isinf(η) && (η = T(1e-8))
