@@ -39,7 +39,7 @@ mutable struct IHTVariable{T <: Float, M <: AbstractMatrix}
     zkeep  :: BitVector     # tracks index of non-genetic covariates not subject to projection. zkeep[i] = true means `i` will not be projected. 
     zkeepn :: Int           # Total number of covariates that aren't subject to projection
     full_b :: Vector{T}     # storage for full beta and full gradient
-    memory_efficient :: Bool # if true, xk and gk would be length 0 vector
+    memory_efficient :: Bool # if true, xk would be n*t matrix where t is number of threads
 end
 
 nsamples(v::IHTVariable) = count(!iszero, v.cv_wts)
@@ -176,8 +176,7 @@ mutable struct mIHTVariable{T <: Float, M <: AbstractMatrix}
     n_by_r  :: Matrix{T}    # an n × r storage (needed to efficiently compute gradient)
     p_by_r  :: Matrix{T}    # an p × r storage (needed to efficiently compute gradient)
     k_by_r  :: Matrix{T}    # an k × r storage (needed for debiasing)
-    k_by_k  :: Matrix{T}    # an k × k storage (needed for debiasing)
-    memory_efficient :: Bool # if true, Xk would be 0 by 0 matrix
+    memory_efficient :: Bool # if true, Xk would be t*n matrix where t is number of threads
 end
 
 function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
@@ -201,7 +200,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     B0     = Matrix{T}(undef, r, p)
     best_B = Matrix{T}(undef, r, p)
     BX     = Matrix{T}(undef, r, n)
-    Xk     = Matrix{T}(undef, k, n)
+    Xk     = memory_efficient ? Matrix{T}(undef, 0, 0) : Matrix{T}(undef, k, n)
     idx    = BitArray(undef, p)
     idx0   = BitArray(undef, p)
     idc    = BitArray(undef, q)
@@ -226,13 +225,13 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     n_by_r = Matrix{T}(undef, n, r)
     p_by_r = Matrix{T}(undef, p, r)
     k_by_r = Matrix{T}(undef, k, r)
-    k_by_k = Matrix{T}(undef, k, k)
+    # k_by_k = Matrix{T}(undef, k, k) # needed for debiasing
 
     return mIHTVariable{T, M}(
         x, y, z, k,
         B, B0, best_B, BX, Xk, idx, idx0, idc, idc0, resid, df, df2, dfidx, C,
         C0, best_C, CZ, μ, Γ, Γ0, cv_wts, zkeep, r*sum(zkeep), full_b, r_by_r1,
-        r_by_r2, r_by_n1, r_by_n2, n_by_r, p_by_r, k_by_r, k_by_k, memory_efficient)
+        r_by_r2, r_by_n1, r_by_n2, n_by_r, p_by_r, k_by_r, memory_efficient)
 end
 
 nsamples(v::mIHTVariable) = count(!iszero, v.cv_wts)

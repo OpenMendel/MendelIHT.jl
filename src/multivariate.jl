@@ -554,23 +554,28 @@ the solution is unique.
 Note: since `X` and `Y` are transposed in memory, we actually have `B̂ = inv(XX')XY'`
 """
 function debias!(v::mIHTVariable{T, M}) where {T <: Float, M}
-    # first rescale matrix dimension if needed
-    supp_size = sum(v.idx)
-    if supp_size != size(v.k_by_r, 1)
-        v.k_by_r = Matrix{T}(undef, supp_size, size(v.k_by_r, 2))
-        v.k_by_k = Matrix{T}(undef, supp_size, supp_size)
-    end
+    error("Currently the debiasing routine for multivariate IHT is broken, sorry!")
+    # note: the real reason for not allowing debiasing is because we need to allocate
+    #       a k by k matrix. For multivariate analysis, k could be in ~50000, which is too 
+    #       memory intensive
 
-    # try debiasing: B̂ = inv(XX')XY'. Do nothing if it fals
-    mul!(v.k_by_r, v.Xk, Transpose(v.Y))
-    mul!(v.k_by_k, v.Xk, Transpose(v.Xk))
-    try
-        ldiv!(cholesky!(Symmetric(v.k_by_k, :U)), v.k_by_r)
-    catch
-        return nothing
-    end
-    v.B[:, v.idx] .= v.k_by_r'
+    # # first rescale matrix dimension if needed
+    # supp_size = sum(v.idx)
+    # if supp_size != size(v.k_by_r, 1)
+    #     v.k_by_r = Matrix{T}(undef, supp_size, size(v.k_by_r, 2))
+    #     v.k_by_k = Matrix{T}(undef, supp_size, supp_size)
+    # end
 
-    # ensure B is k-sparse
-    project_k!(v)
+    # # try debiasing: B̂ = inv(XX')XY'. Do nothing if it fails
+    # mul!(v.k_by_r, v.Xk, Transpose(v.Y))
+    # mul!(v.k_by_k, v.Xk, Transpose(v.Xk))
+    # try
+    #     ldiv!(cholesky!(Symmetric(v.k_by_k, :U)), v.k_by_r)
+    # catch
+    #     return nothing
+    # end
+    # v.B[:, v.idx] .= v.k_by_r'
+
+    # # ensure B is k-sparse
+    # project_k!(v)
 end
