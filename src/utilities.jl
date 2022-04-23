@@ -95,7 +95,7 @@ function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
     if v.memory_efficient
         fill!(v.xb, 0)
         fill!(v.xk, 0)
-        Threads.@threads for j in findall(v.idx)
+        Threads.@threads for j in eachindex(v.idx)
             if v.idx[j]
                 t = Threads.threadid()
                 @inbounds @simd for i in 1:length(v.xb)

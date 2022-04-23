@@ -19,9 +19,14 @@ Using only support of B, update `v.BX` with the new proposed `B` (effect size
 for genetic covariates) and `C` (non-genetic covariates).
 """
 function update_xb!(v::mIHTVariable)
-    copyto!(v.Xk, @view(v.X[v.idx, :]))
-    copyto!(v.dfidx, view(v.B, :, v.idx)) # use v.dfidx for storage of v.B[:, v.idx]
-    mul!(v.BX, v.dfidx, v.Xk)
+    if v.memory_efficient
+        #todo: multithread this 
+        mul!(v.BX, view(v.B, :, v.idx), @view(v.X[v.idx, :]))
+    else
+        copyto!(v.Xk, @view(v.X[v.idx, :]))
+        copyto!(v.dfidx, view(v.B, :, v.idx)) # use v.dfidx for storage of v.B[:, v.idx]
+        mul!(v.BX, v.dfidx, v.Xk)
+    end
     mul!(v.CZ, v.C, v.Z)
 end
 
@@ -222,7 +227,12 @@ function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
 
     # denominator of step size
     denom = zero(T)
-    mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
+    # compute r_by_n1 = ∇f*X
+    if v.memory_efficient
+        mul!(v.r_by_n1, v.dfidx, @view(v.X[v.idx, :])) # todo: multithread this part
+    else
+        mul!(v.r_by_n1, v.dfidx, v.Xk)
+    end
     for j in 1:size(v.Y, 2), i in 1:ntraits(v)
         v.r_by_n1[i, j] *= v.cv_wts[j] # cross validation masking happens here
     end
@@ -279,7 +289,7 @@ function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
     n, r = size(v.X, 2), ntraits(v)
     nzidx = sum(v.idx)
     if nzidx != size(v.Xk, 1)
-        v.Xk = zeros(T, nzidx, n)
+        v.memory_efficient || (v.Xk = zeros(T, nzidx, n))
         v.dfidx = zeros(T, r, nzidx) # TODO ElasticArrays.jl
     end
     # @inbounds for i in eachindex(v.zkeep)
@@ -396,7 +406,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector, 
     fill!(v.n_by_r, 0)
     fill!(v.p_by_r, 0)
     fill!(v.k_by_r, 0)
-    fill!(v.k_by_k, 0)
+    # fill!(v.k_by_k, 0)
 
     # initialize intercept to mean of each trait
     nz_samples = count(!iszero, v.cv_wts) # for cross validation masking
@@ -435,7 +445,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector, 
     check_covariate_supp!(v)
 
     # store relevant components of x for first iteration
-    copyto!(v.Xk, @view(v.X[v.idx, :]))
+    v.memory_efficient || copyto!(v.Xk, @view(v.X[v.idx, :]))
 end
 
 function check_convergence(v::mIHTVariable)

@@ -51,10 +51,11 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
-- `memory_efficient`: In `true,` cross validation will run in single thread (but linear LinearAlgebra
-    will still utilize all threads possible). This will cause 1.5~2 times slow down but one only
-    needs to store a single sparse matrix (requiring n × k × 8 bytes) in addition to `x`. If 
-    `memory_efficient=false`, one may potentially store `t` sparse matrices in memory. 
+- `memory_efficient`: If `true,` it will cause ~1.5 times slow down but one only
+    needs to store the genotype matrix (requiring 2np bits for PLINK binary files
+    and `8np` bytes for other formats). If `memory_efficient=false`, one may potentially
+    store `t` sparse matrices of dimension `8nk` bytes where `k` are the cross validated
+    sparsity levels. 
 
 # Output
 - `mse`: A vector of mean-squared error for each `k` specified in `path`. 
