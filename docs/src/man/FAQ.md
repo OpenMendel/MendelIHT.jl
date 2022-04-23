@@ -30,7 +30,7 @@ Fortunately, for large problems, compilation time becomes negligible.
 
 For binary PLINK files, `MendelIHT.jl` uses [SnpArrays.jl's SnpLinAlg](https://openmendel.github.io/SnpArrays.jl/latest/#Linear-Algebra) for linear algebra. This data structure uses memory mapping and computes directly on raw genotype file, described in our [multivariate paper](https://www.biorxiv.org/content/10.1101/2021.08.04.455145v2.abstract). As such, it requires roughly $2np$ bits of *virtual memory* and much less physical memory to store. For UK biobank with 500k samples and 500k SNPs, this is roughly 62GB of virtual memory and a couple of GB of RAM. Thus, for binary PLINK files, we can easily fit IHT on large dataset, including those that are too large to fit in RAM.
 
-In addition to storing the full design matrix in memory, IHT also need to hold a $n \times k$ matrix in double precision, where $k$ is the sparsity level. This require $64nk$ bits of RAM. For cross validation routines that test multiple different $k_1, ..., k_q$ values, $t$ of them must co-exist in memory where $t$ is the number of threads. Thus for large samples such as the UK Biobank data, it is possible that holding these "sparse" matrices will require more memory than holding compressed PLINK files. 
+In addition to storing the above matrix in memory, IHT also enables `memory_efficient=false` by default. This means IHT will additionally store a $n \times k$ matrix in double precision, where $k$ is the sparsity level. This require $64nk$ bits of RAM. For cross validation routines that test multiple different $k_1, ..., k_q$ values, $t$ of them must co-exist in memory where $t$ is the number of threads. Thus for large samples such as the UK Biobank data, it is possible that holding these "sparse" matrices will require more memory than holding compressed PLINK files. In such cases, specifying `memory_efficient=true` will prevent allocating these intermediate sparse matrices, but computation is roughly 1.5-2x slower. 
 
 For BGEN and VCF files, `MendelIHT.jl` imports genotypes into double precision matrices which require $64np$ bits of RAM. For 500k samples and 500k SNPs, this requires 2 TB of RAM. Thus, IHT does not work on extremely large VCF and BGEN files. If you have these large VCF/BGEN files, one can convert it to binary PLINK format before running IHT.
 
@@ -40,6 +40,7 @@ If Julia is started with multiple threads (e.g. `julia --threads 4`), `MendelIHT
 
 + [How to start Julia with multiple threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads).
 + Execute `Threads.nthreads()` within Julia to check if multiple thread is enabled
++ On HPC clusters, it is often helpful to `ssh` into the node running IHT and explicitly check CPU usage by the `top` or `htop` command. 
 
 !!! note
 

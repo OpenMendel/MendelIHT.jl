@@ -1,8 +1,5 @@
 """
-    cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), est_r=:None,
-        group=Int[], weight=Float64[], folds=rand(1:q, is_multivariate(y) ?
-        size(x, 2) : size(x, 1)), debias=false, verbose=true,
-        max_iter=100, min_iter=20, init_beta=true)
+    cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), ...)
 
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. The purpose of this function is to
