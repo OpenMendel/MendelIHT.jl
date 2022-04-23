@@ -280,7 +280,7 @@ end
     @test all(mses .> 0)
 
     # yes debias
-    Random.seed!(2021)
-    @time mses2 = cv_iht(Yt, Transpose(xla), debias=true, max_iter=10, path=0:20)
-    @test all(mses2 .> 0)
+    # Random.seed!(2021)
+    # @time mses2 = cv_iht(Yt, Transpose(xla), debias=true, max_iter=10, path=0:20)
+    # @test all(mses2 .> 0)
 end
