@@ -48,7 +48,7 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
-- `memory_efficient`: If `true,` it will cause ~1.5 times slow down but one only
+- `memory_efficient`: If `true,` it will cause ~1.1 times slow down but one only
     needs to store the genotype matrix (requiring 2np bits for PLINK binary files
     and `8np` bytes for other formats). If `memory_efficient=false`, one may potentially
     store `t` sparse matrices of dimension `8nk` bytes where `k` are the cross validated
@@ -75,7 +75,7 @@ function cv_iht(
     max_iter :: Int = 100,
     min_iter :: Int = 5,
     init_beta :: Bool = false,
-    memory_efficient :: Bool = false
+    memory_efficient :: Bool = true
     ) where T <: Float
 
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))

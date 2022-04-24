@@ -44,7 +44,7 @@ and non-genetic covariates `z` on a specific sparsity parameter `k`. Only predic
 + `io`: An `IO` object for displaying intermediate results. Default `stdout`.
 + `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
-- `memory_efficient`: If `true,` it will cause ~1.5 times slow down but one only
+- `memory_efficient`: If `true,` it will cause ~1.1 times slow down but one only
     needs to store the genotype matrix (requiring 2np bits for PLINK binary files
     and `8np` bytes for other formats). If `memory_efficient=false`, one also need
     to store a `8nk` byte matrix where `k` is the sparsity levels. 
@@ -78,7 +78,7 @@ function fit_iht(
     max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout,
     init_beta :: Bool = false,
-    memory_efficient::Bool=false
+    memory_efficient::Bool=true
     ) where T <: Float
 
     verbose && print_iht_signature(io)
