@@ -200,7 +200,7 @@ function mIHTVariable(x::M, z::AbstractVecOrMat{T}, y::AbstractMatrix{T},
     B0     = Matrix{T}(undef, r, p)
     best_B = Matrix{T}(undef, r, p)
     BX     = Matrix{T}(undef, r, n)
-    Xk     = memory_efficient ? Matrix{T}(undef, 0, 0) : Matrix{T}(undef, k, n)
+    Xk     = memory_efficient ? Matrix{T}(undef, 0, n) : Matrix{T}(undef, k, n)
     idx    = BitArray(undef, p)
     idx0   = BitArray(undef, p)
     idc    = BitArray(undef, q)

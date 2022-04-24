@@ -1012,6 +1012,7 @@ After each IHT iteration, `β` is sparse. This function solves for the exact
 solution `β̂` on the non-zero indices of `β`, a process known as debiasing.
 """
 function debias!(v::IHTVariable)
+    v.memory_efficient && error("Currently debiasing only works with memory_efficient=false")
     if sum(v.idx) == size(v.xk, 2)
         temp_glm = fit(GeneralizedLinearModel, v.xk, v.y, v.d, v.l)
         view(v.b, v.idx) .= temp_glm.pp.beta0

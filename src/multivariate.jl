@@ -214,6 +214,8 @@ Computes the best step size `η = ||∇f||^2_F / tr(X'∇f'Γ∇fX)` where
 of `Γ`.
 
 Must be careful for cross validation weights in ∇f * X
+
+Todo: this stepsize function somehow does not include contributions from non-genetic covariates
 """
 function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
     # store part of X corresponding to non-zero component of B
@@ -221,7 +223,7 @@ function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
 
     # compute numerator of step size
     numer = zero(T)
-    @inbounds for i in v.dfidx
+    @inbounds @simd for i in v.dfidx
         numer += abs2(i)
     end
 
@@ -239,7 +241,7 @@ function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
     cholesky!(Symmetric(v.Γ, :U), Val(true)) # overwrite upper triangular of Γ with U, where LU = Γ, U = L'
     triu!(v.Γ) # set entries below diagonal to 0, so Γ = L'
     mul!(v.r_by_n2, v.Γ, v.r_by_n1) # r_by_n2 = L'*∇f*X
-    @inbounds for i in eachindex(v.r_by_n2)
+    @inbounds @simd for i in eachindex(v.r_by_n2)
         denom += abs2(v.r_by_n2[i]) 
     end
 
@@ -372,6 +374,7 @@ the score as nonzero components of `v.B`. This function set v.idx = 1 for
 those indices. `v.μ`, `v.df`, `v.df2`, and possibly `v.BX` are also initialized. 
 """
 function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector, verbose::Bool)
+    v.k ≥ 1 || error("Multivariate IHT requires k ≥ 1!")
     fill!(v.B, 0)
     fill!(v.B0, 0)
     fill!(v.best_B, 0)

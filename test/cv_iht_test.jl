@@ -24,12 +24,12 @@
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
-    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q, memory_efficient=false,
         folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0)
 
     # cross validation routine (no debias) 
-    @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+    @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q, 
         folds=folds, verbose=true, debias=false, max_iter=10);
     @test all(nodebias .> 0)
 end
@@ -63,7 +63,7 @@ end
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
-    @time debias = cv_iht(y, x, z, d=d(), l=l, path=path,
+    @time debias = cv_iht(y, x, z, d=d(), l=l, path=path, memory_efficient=false,
         q=q, folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
 
@@ -95,7 +95,7 @@ end
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
-    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path,
+    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, memory_efficient=false,
         q=q, folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
 
@@ -134,7 +134,7 @@ end
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
-    @time debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q,
+    @time debias = cv_iht(y, x, z, d=d(), l=l, path=path, q=q, memory_efficient=false,
         folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
 
@@ -166,7 +166,7 @@ end
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
-    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,memory_efficient=false,
         folds=folds, verbose=true, debias=true, max_iter=10);
     @test all(debias .> 0.0)
 
@@ -198,7 +198,7 @@ end
     folds = rand(1:q, size(x, 1))
 
     # cross validation routine (with debias) 
-    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,
+    @time debias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q,memory_efficient=false,
         folds=folds, verbose=true, debias=true);
     @test all(debias .> 0.0)
 
@@ -242,7 +242,7 @@ end
 
     # cross validation routine (with debias)
 	d = d(1, T(0.5)) # need Float32 for eltype of d
-    @time debias = cv_iht(y, x, z, d=d, l=l, path=path, q=q,
+    @time debias = cv_iht(y, x, z, d=d, l=l, path=path, q=q, memory_efficient=false,
         folds=folds, verbose=true, debias=true, max_iter=10)
     @test all(debias .> 0)
 
@@ -276,7 +276,7 @@ end
 
     # no debias
     Random.seed!(2021)
-    @time mses = cv_iht(Yt, Transpose(xla), debias=false, max_iter=10, path=0:20)
+    @time mses = cv_iht(Yt, Transpose(xla), debias=false, max_iter=10, path=1:20)
     @test all(mses .> 0)
 
     # yes debias
