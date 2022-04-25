@@ -3,7 +3,7 @@ function test_data(d, l)
     xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true)
     z = ones(1000, 1)
     y = rand(1000)
-    v = IHTVariable(xla, z, y, 1, 10, d, l, Int[], Float64[], :none, falses(1))
+    v = IHTVariable(xla, z, y, 1, 10, d, l, Int[], Float64[], :none, falses(1), false)
     MendelIHT.init_iht_indices!(v, false, trues(1000))
     return x, z, y, v
 end
@@ -11,7 +11,7 @@ end
 function make_IHTvar(d, μ, y)
     n = length(μ)
     v = IHTVariable(rand(n, 10), rand(n, 1), y, 1, 10, d, IdentityLink(),
-        Int[], Float64[], :none, falses(1))
+        Int[], Float64[], :none, falses(1), false)
     MendelIHT.init_iht_indices!(v, false, trues(n))
     v.μ = μ
     return v

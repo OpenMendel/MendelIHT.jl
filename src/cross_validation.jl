@@ -1,8 +1,5 @@
 """
-    cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), est_r=:None,
-        group=Int[], weight=Float64[], folds=rand(1:q, is_multivariate(y) ?
-        size(x, 2) : size(x, 1)), debias=false, verbose=true,
-        max_iter=100, min_iter=20, init_beta=true)
+    cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), ...)
 
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. The purpose of this function is to
@@ -51,10 +48,11 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
-- `memory_efficient`: In `true,` cross validation will run in single thread (but linear LinearAlgebra
-    will still utilize all threads possible). This will cause 1.5~2 times slow down but one only
-    needs to store a single sparse matrix (requiring n × k × 8 bytes) in addition to `x`. If 
-    `memory_efficient=false`, one may potentially store `t` sparse matrices in memory. 
+- `memory_efficient`: If `true,` it will cause ~1.1 times slow down but one only
+    needs to store the genotype matrix (requiring 2np bits for PLINK binary files
+    and `8np` bytes for other formats). If `memory_efficient=false`, one may potentially
+    store `t` sparse matrices of dimension `8nk` bytes where `k` are the cross validated
+    sparsity levels. 
 
 # Output
 - `mse`: A vector of mean-squared error for each `k` specified in `path`. 
@@ -77,7 +75,7 @@ function cv_iht(
     max_iter :: Int = 100,
     min_iter :: Int = 5,
     init_beta :: Bool = false,
-    memory_efficient :: Bool = false
+    memory_efficient :: Bool = true
     ) where T <: Float
 
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
@@ -87,7 +85,8 @@ function cv_iht(
     # preallocated arrays for efficiency
     test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
     train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
-    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep) for i in 1:Threads.nthreads()]
+    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep,
+        memory_efficient=memory_efficient) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = verbose ? Progress(q * length(path), "Cross validating...") : nothing
@@ -95,7 +94,7 @@ function cv_iht(
     # cross validate. TODO: wrap pmap with batch_size keyword to enable distributed CV
     combinations = allocate_fold_and_k(q, path)
     mses = zeros(length(combinations))
-    (memory_efficient ? map : ThreadPools.qmap)(1:length(combinations)) do i
+    ThreadPools.@qthreads for i in 1:length(combinations)
         fold, sparsity = combinations[i]
 
         # assign train/test indices
