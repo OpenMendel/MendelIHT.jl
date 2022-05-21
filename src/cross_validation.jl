@@ -145,6 +145,9 @@ Here the default search path is inspired by Friedman, Hastie & Tibshirani (2010)
 `strategy is to select a minimum value lambda_min = epsilon * lambda_max, and construct 
 a sequence of K values of lambda decreasing from lambda_max to lambda_min on the log scale. 
 Typical values are epsilon = 0.001 and K = 100.`
+
+# todo
+Try warm start
 """
 function cmsa_iht(
     y        :: AbstractVecOrMat{T},
@@ -152,9 +155,9 @@ function cmsa_iht(
     z        :: AbstractVecOrMat{T};
     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
-    kmax     :: Int = 50000, # The maximum number of predictors in the largest model
-    kmin     :: Int = 50000, # The minimum number of predictors in the smallest model
-    nk       :: Int = 100, # The number of values of k along the path to consider
+    kmax     :: Int = 10000, # The maximum number of predictors in the largest model
+    kmin     :: Int = 1, # The minimum number of predictors in the smallest model
+    nk       :: Int = 100, # Number of k values to test between kmin and kmax
     nabort   :: Int = 5, # Number of k values for which prediction on the validation set must decrease before stopping
     warmstart:: Bool = true,
     q        :: Int64 = 5, 
@@ -171,6 +174,7 @@ function cmsa_iht(
     memory_efficient :: Bool = true
     ) where T <: Float
 
+    typeof(d) <: MvNormal && error("cmsa_iht does not support multivariate IHT yet! Sorry!")
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
     check_data_dim(y, x, z)
     verbose && print_iht_signature()
@@ -181,24 +185,21 @@ function cmsa_iht(
     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep,
         memory_efficient=memory_efficient) for _ in 1:q]
 
-    # for displaying cross validation progress
-    pmeter = verbose ? Progress(nk * q, "Cross validating...") : nothing
-
     # define search path 
     logpath = range(log(kmin), log(kmax), length=nk)
-    searchpath = round.(Int, exp.(logpath)) |> unique
+    path = unique!(round.(Int, exp.(logpath)))
 
     # variables for CMSE 
-    path = Int[]
-    path_loss = T[]
+    path_loss = fill!(Vector{T}(undef, length(path)), typemax(T))
     fold_loss = zeros(q)
-    num_k_tested = 0
     betas = Vector{T}[]
     cs = Vector{T}[]
 
-    while num_k_tested < nk
+    # for displaying cross validation progress
+    pmeter = verbose ? Progress(length(path) * q, "Cross validating...") : nothing
+
+    for (i, sparsity) in enumerate(path)
         # run cross validation for current sparsity
-        sparsity = popfirst!(searchpath)
         fill!(fold_loss, typemax(T))
         ThreadPools.@qthreads for fold in 1:q
             # assign train/test indices
@@ -219,9 +220,7 @@ function cmsa_iht(
             # update progres
             verbose && next!(pmeter)
         end
-        push!(path, sparsity)
-        push!(path_loss, mean(fold_loss))
-        num_k_tested += 1
+        path_loss[i] = mean(fold_loss)
 
         # average genetic and non-genetic effect sizes among folds
         beta = zeros(size(x, 2))
@@ -234,15 +233,15 @@ function cmsa_iht(
         push!(cs, c ./= q)
 
         # check for early stopping
-        early_stop = num_k_tested ≥ nabort && issorted(@view(path_loss[end-nabort+1:end]))
+        early_stop = i ≥ nabort && issorted(@view(path_loss[i-nabort+1:i]))
         if early_stop
-            println("cmsa_iht: Successfully reached early stop, exiting")
+            println("Successfully reached early stop! Exiting.")
             flush(stdout)
             break
         end
     end
 
-    return CMSA(path, path_loss, betas, cs)
+    return CMSA(path, path_loss, betas, cs, q, d)
 end
 
 # Distributed memory cv_iht: (TODO merge pmap with multithreading)

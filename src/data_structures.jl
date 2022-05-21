@@ -274,12 +274,16 @@ end
 IHTResult(time, logl, iter, σg, v::mIHTVariable) = mIHTResult(time, logl, iter,
     v.best_B, v.best_C, v.k, ntraits(v), inv(v.Γ), σg)
 
-# result for storing cross-validated results from cmsa_iht 
+"""
+Result for storing cross-validated results from cmsa_iht 
+"""
 mutable struct CMSA{T <: Float}
     k :: Vector{Int}
     loss :: Vector{T}
     betas :: Vector{Vector{T}}
     cs :: Vector{Vector{T}}
+    q :: Int
+    d :: Distribution
 end
 
 function coef(x::CMSA)
