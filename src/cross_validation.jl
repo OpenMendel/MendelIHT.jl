@@ -140,6 +140,11 @@ minimizes the loss on the inner validation set is selected. Finally, the K
 resulting models are averaged; this is different to standard cross-validation 
 where the model is refitted on the whole training set using the best-performing 
 hyper-parameters.
+
+Here the default search path is inspired by Friedman, Hastie & Tibshirani (2010)
+`strategy is to select a minimum value lambda_min = epsilon * lambda_max, and construct 
+a sequence of K values of lambda decreasing from lambda_max to lambda_min on the log scale. 
+Typical values are epsilon = 0.001 and K = 100.`
 """
 function cmsa_iht(
     y        :: AbstractVecOrMat{T},
@@ -147,9 +152,11 @@ function cmsa_iht(
     z        :: AbstractVecOrMat{T};
     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
-    dfmax    :: Int = 50000, # The maximum number of predictors in the largest model
+    kmax     :: Int = 50000, # The maximum number of predictors in the largest model
+    kmin     :: Int = 50000, # The minimum number of predictors in the smallest model
     nk       :: Int = 100, # The number of values of k along the path to consider
     nabort   :: Int = 5, # Number of k values for which prediction on the validation set must decrease before stopping
+    warmstart:: Bool = true,
     q        :: Int64 = 5, 
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
@@ -169,46 +176,44 @@ function cmsa_iht(
     verbose && print_iht_signature()
 
     # preallocated arrays for efficiency
-    test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
-    train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
+    test_idx  = [falses(length(folds)) for i in 1:q]
+    train_idx = [falses(length(folds)) for i in 1:q]
     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep,
         memory_efficient=memory_efficient) for _ in 1:q]
 
     # for displaying cross validation progress
     pmeter = verbose ? Progress(nk * q, "Cross validating...") : nothing
 
-    # define initial search path
-    pathstep = round(Int, dfmax / nk)
-    searchpath = 1:pathstep:dfmax
+    # define search path 
+    logpath = range(log(kmin), log(kmax), length=nk)
+    searchpath = round.(Int, exp.(logpath)) |> unique
 
     # variables for CMSE 
     path = Int[]
     path_loss = T[]
     fold_loss = zeros(q)
     num_k_tested = 0
-    early_stop_counter = 0
     betas = Vector{T}[]
     cs = Vector{T}[]
 
     while num_k_tested < nk
         # run cross validation for current sparsity
-        sparsity = pop!(searchpath)
+        sparsity = popfirst!(searchpath)
         fill!(fold_loss, typemax(T))
         ThreadPools.@qthreads for fold in 1:q
             # assign train/test indices
-            id = Threads.threadid()
-            test_idx[id]  .= folds .== fold
-            train_idx[id] .= folds .!= fold
+            test_idx[fold]  .= folds .== fold
+            train_idx[fold] .= folds .!= fold
 
             # run IHT on training data with current (fold, sparsity)
-            v = V[id]
+            v = V[fold]
             v.k = sparsity
-            init_iht_indices!(v, init_beta, train_idx[id], false)
+            init_iht_indices!(v, init_beta, train_idx[fold], false)
             fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
 
             # predict on validation data
-            v.cv_wts[train_idx[id]] .= zero(T)
-            v.cv_wts[test_idx[id]] .= one(T)
+            v.cv_wts[train_idx[fold]] .= zero(T)
+            v.cv_wts[test_idx[fold]] .= one(T)
             fold_loss[fold] = predict!(v)
 
             # update progres
@@ -217,35 +222,23 @@ function cmsa_iht(
         push!(path, sparsity)
         push!(path_loss, mean(fold_loss))
         num_k_tested += 1
-        early_stop_counter += 1
 
         # average genetic and non-genetic effect sizes among folds
         beta = zeros(size(x, 2))
         c = zeros(size(z, 2))
         for j in 1:q
-            beta .+= V[j].beta
-            c .+= V[j].c
+            beta .+= V[j].best_b
+            c .+= V[j].best_c
         end
         push!(betas, beta ./= q)
         push!(cs, c ./= q)
 
-        # if early stop, define a denser grid between best loss and 3rd best loss (to be prudent)
-        early_stop = early_stop_counter ≥ nabort && issorted(@view(mses[end-nabort+1:end]))
+        # check for early stopping
+        early_stop = num_k_tested ≥ nabort && issorted(@view(path_loss[end-nabort+1:end]))
         if early_stop
-            println("cmsa_iht: Reached early abort, refining grid...")
-            perm = partialsortperm(tested_k_mses, 1:3)
-            best_k, next_k = tested_k[perm[1]], tested_k[perm[3]]
-            if best_k < next_k
-                next_k, best_k = best_k, next_k
-            end
-            # now search between (next_k + pathstep, next_k + 2pathstep, ..., best_k-pathstep)
-            pathstep = round(Int, (best_k - next_k) / (nk - num_k_tested))
-            if pathstep ≤ 0
-                println("Successfully reached early stop, exiting")
-                break # increments of k are smaller than 1
-            end
-            searchpath = next_k+pathstep:pathstep:best_k-pathstep
-            early_stop_counter = 0 # reset early stop counter
+            println("cmsa_iht: Successfully reached early stop, exiting")
+            flush(stdout)
+            break
         end
     end
 

@@ -282,6 +282,10 @@ mutable struct CMSA{T <: Float}
     cs :: Vector{Vector{T}}
 end
 
+function coef(x::CMSA)
+    return x.betas[argmin(x.loss)]
+end
+
 """
 Displays IHTResults object
 """
