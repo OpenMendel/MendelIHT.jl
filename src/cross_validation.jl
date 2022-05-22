@@ -159,7 +159,7 @@ function cmsa_iht(
     kmin     :: Int = 1, # The minimum number of predictors in the smallest model
     nk       :: Int = 100, # Number of k values to test between kmin and kmax
     nabort   :: Int = 5, # Number of k values for which prediction on the validation set must decrease before stopping
-    warmstart:: Bool = true,
+    warmstart:: Bool = false,
     q        :: Int64 = 5, 
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
@@ -194,6 +194,8 @@ function cmsa_iht(
     fold_loss = zeros(q)
     betas = Vector{T}[]
     cs = Vector{T}[]
+    βprev = zeros(size(x, 2)) # for warmstart
+    cprev = zeros(size(z, 2))
 
     # for displaying cross validation progress
     pmeter = verbose ? Progress(length(path) * q, "Cross validating...") : nothing
@@ -209,7 +211,8 @@ function cmsa_iht(
             # run IHT on training data with current (fold, sparsity)
             v = V[fold]
             v.k = sparsity
-            init_iht_indices!(v, init_beta, train_idx[fold], false)
+            warmstart && warmstart!(v, βprev, cprev)
+            init_iht_indices!(v, init_beta, train_idx[fold], false, warmstart)
             fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
 
             # predict on validation data
@@ -244,82 +247,25 @@ function cmsa_iht(
     return CMSA(path, path_loss, betas, cs, q, d)
 end
 
-# Distributed memory cv_iht: (TODO merge pmap with multithreading)
-# function cv_iht(
-#     y        :: AbstractVecOrMat{T},
-#     x        :: AbstractMatrix{T},
-#     z        :: AbstractVecOrMat{T};
-#     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
-#     l        :: Link = IdentityLink(),
-#     path     :: AbstractVector{<:Integer} = 1:20,
-#     q        :: Int64 = 5,
-#     est_r    :: Symbol = :None,
-#     group    :: AbstractVector{Int} = Int[],
-#     weight   :: AbstractVector{T} = T[],
-#     folds    :: AbstractVector{Int} = rand(1:q, is_multivariate(y) ? size(x, 2) : size(x, 1)),
-#     debias   :: Bool = false,
-#     verbose  :: Bool = true,
-#     parallel :: Bool = true,
-#     max_iter :: Int = 100,
-#     min_iter :: Int = 20,
-#     init_beta :: Bool = false
-#     ) where T <: Float
-
-#     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
-#     check_data_dim(y, x, z)
-
-#     # preallocated arrays for efficiency
-#     test_idx  = [falses(length(folds)) for i in 1:nprocs()]
-#     train_idx = [falses(length(folds)) for i in 1:nprocs()]
-#     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, init_beta,
-#         cv_train_idx=train_idx[i]) for i in 1:nprocs()]
-
-#     # for displaying cross validation progress
-#     pmeter = Progress(q * length(path), "Cross validating...")
-#     channel = RemoteChannel(()->Channel{Bool}(q * length(path)), 1)    
-#     @async while take!(channel)
-#         next!(pmeter)
-#     end
-
-#     # cross validation all (fold, k) combinations
-#     combinations = allocate_fold_and_k(q, path)
-#     mses = (parallel ? pmap : map)(combinations) do (fold, k)
-#         # assign train/test indices
-#         id = myid()
-#         test_idx[id]  .= folds .== fold
-#         train_idx[id] .= folds .!= fold
-#         v = V[id]
-
-#         # run IHT on training data with current (fold, k)
-#         v.k = k
-#         init_iht_indices!(v, init_beta, train_idx[id])
-#         fit_iht!(v, debias=debias, verbose=false, max_iter=max_iter, min_iter=min_iter)
-
-#         # predict on validation data
-#         v.cv_wts[train_idx[id]] .= zero(T)
-#         v.cv_wts[test_idx[id]] .= one(T)
-#         mse = predict!(v)
-
-#         # update progres
-#         put!(channel, true)
-
-#         return mse
-#     end
-#     put!(channel, false)
-
-#     #weight mses for each fold by their size before averaging
-#     mse = meanloss(mses, q, folds)
-
-#     # find best model size and print cross validation result
-#     k = path[argmin(mse)] :: Int
-#     verbose && print_cv_results(mse, path, k)
-
-#     return mse
-# end
+function warmstart!(
+    v::IHTVariable{T, M}, 
+    βprev::AbstractVecOrMat{T}, 
+    cprev::AbstractVecOrMat{T}
+    ) where {T <: Float, M}
+    v.idx .= v.idx0 .= βprev .!= 0
+    v.b .= v.b0 .= βprev
+    v.c .= v.c0 .= cprev
+    update_xb!(v)
+end
 
 function cv_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs...) where T
     z = is_multivariate(y) ? ones(T, 1, size(y, 2)) : ones(T, length(y))
     return cv_iht(y, x, z; kwargs...)
+end
+
+function cmsa_iht(y::AbstractVecOrMat{T}, x::AbstractMatrix; kwargs...) where T
+    z = is_multivariate(y) ? ones(T, 1, size(y, 2)) : ones(T, length(y))
+    return cmsa_iht(y, x, z; kwargs...)
 end
 
 """

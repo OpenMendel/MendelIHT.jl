@@ -363,27 +363,44 @@ choose top `k` entries
 `J` is the maximum number of active groups, and `k` is the maximum number of
 predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, verbose::Bool=false)
-    fill!(v.b, 0)
-    fill!(v.b0, 0)
+function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, 
+    verbose::Bool=false, warmstarted=false)
+    if !warmstarted
+        fill!(v.b, 0)
+        fill!(v.b0, 0)
+        fill!(v.c, 0)
+        fill!(v.c0, 0)
+        fill!(v.idx, false)
+        fill!(v.idx0, false)
+        fill!(v.xb, 0)
+        fill!(v.zc, 0)
+        fill!(v.μ, 0)
+        copyto!(v.idc, v.zkeep)
+        copyto!(v.idc0, v.zkeep)
+
+        # find the intercept by Newton's method
+        ybar = zero(eltype(v.y))
+        @inbounds @simd for i in eachindex(v.y)
+            ybar += v.y[i] * v.cv_wts[i]
+        end
+        ybar /= count(!iszero, v.cv_wts)
+        for iteration in 1:20 
+            g1 = linkinv(v.l, v.c[1])
+            g2 = mueta(v.l, v.c[1])
+            v.c[1] = v.c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
+            abs(g1 - ybar) < 1e-10 && break
+        end
+        mul!(v.zc, v.z, v.c)
+    end
     fill!(v.best_b, 0)
-    fill!(v.xb, 0)
     fill!(v.xk, 0)
     fill!(v.gk, 0)
     fill!(v.xgk, 0)
-    fill!(v.idx, false)
-    fill!(v.idx0, false)
-    copyto!(v.idc, v.zkeep)
-    copyto!(v.idc0, v.zkeep)
     fill!(v.r, 0)
     fill!(v.df, 0)
     fill!(v.df2, 0)
-    fill!(v.c, 0)
     fill!(v.best_c, 0)
-    fill!(v.c0, 0)
-    fill!(v.zc, 0)
     fill!(v.zdf2, 0)
-    fill!(v.μ, 0)
     fill!(v.cv_wts, 0)
     fill!(v.full_b, 0)
     v.cv_wts[cv_idx] .= 1
@@ -391,19 +408,6 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, v
     init_beta && !(typeof(v.d) <: Normal) && 
         throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
 
-    # find the intercept by Newton's method
-    ybar = zero(eltype(v.y))
-    @inbounds @simd for i in eachindex(v.y)
-        ybar += v.y[i] * v.cv_wts[i]
-    end
-    ybar /= count(!iszero, v.cv_wts)
-    for iteration = 1:20 
-        g1 = linkinv(v.l, v.c[1])
-        g2 = mueta(v.l, v.c[1])
-        v.c[1] = v.c[1] - clamp((g1 - ybar) / g2, -1.0, 1.0)
-        abs(g1 - ybar) < 1e-10 && break
-    end
-    mul!(v.zc, v.z, v.c)
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v)
