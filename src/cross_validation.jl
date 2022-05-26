@@ -194,8 +194,8 @@ function cmsa_iht(
     fold_loss = zeros(q)
     betas = Vector{T}[]
     cs = Vector{T}[]
-    βprev = zeros(size(x, 2)) # for warmstart
-    cprev = zeros(size(z, 2))
+    βprev = zeros(T, size(x, 2)) # for warmstart
+    cprev = zeros(T, size(z, 2))
 
     # for displaying cross validation progress
     pmeter = verbose ? Progress(length(path) * q, "Cross validating...") : nothing
@@ -221,6 +221,7 @@ function cmsa_iht(
             fold_loss[fold] = predict!(v)
 
             # update progres
+            # verbose && next!(pmeter, showvalues=[(:current_k, sparsity)])
             verbose && next!(pmeter)
         end
         path_loss[i] = mean(fold_loss)
