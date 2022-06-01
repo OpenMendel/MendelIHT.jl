@@ -155,7 +155,7 @@ function cmsa_iht(
     z        :: AbstractVecOrMat{T};
     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
-    kmax     :: Int = 10000, # The maximum number of predictors in the largest model
+    kmax     :: Int = min(10000, size(x, 2)),# The maximum number of predictors in the largest model
     kmin     :: Int = 1, # The minimum number of predictors in the smallest model
     nk       :: Int = 100, # Number of k values to test between kmin and kmax
     nabort   :: Int = 5, # Number of k values for which prediction on the validation set must decrease before stopping
