@@ -365,6 +365,10 @@ predictors per group.
 """
 function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, 
     verbose::Bool=false, warmstarted=false)
+    # first determine cross validation training/testing indices
+    fill!(v.cv_wts, 0)
+    v.cv_wts[cv_idx] .= 1
+
     if !warmstarted
         fill!(v.b, 0)
         fill!(v.b0, 0)
@@ -401,13 +405,10 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector,
     fill!(v.df2, 0)
     fill!(v.best_c, 0)
     fill!(v.zdf2, 0)
-    fill!(v.cv_wts, 0)
     fill!(v.full_b, 0)
-    v.cv_wts[cv_idx] .= 1
 
     init_beta && !(typeof(v.d) <: Normal) && 
         throw(ArgumentError("Intializing beta values only work for Gaussian phenotypes! Sorry!"))
-
 
     # update mean vector and use them to compute score (gradient)
     update_μ!(v)
