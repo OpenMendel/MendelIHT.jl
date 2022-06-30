@@ -187,7 +187,7 @@ function cmsa_iht(
 
     # define search path 
     logpath = range(log(kmin), log(kmax), length=nk)
-    path = unique!(round.(Int, exp.(logpath)))
+    path = vcat(0, unique!(round.(Int, exp.(logpath))))
 
     # variables for CMSE 
     path_loss = fill!(Vector{T}(undef, length(path)), typemax(T))
