@@ -171,7 +171,8 @@ function cmsa_iht(
     max_iter :: Int = 200,
     min_iter :: Int = 5,
     init_beta :: Bool = false,
-    memory_efficient :: Bool = true
+    memory_efficient :: Bool = true,
+    enforce_k :: Bool = false,
     ) where T <: Float
 
     typeof(d) <: MvNormal && error("cmsa_iht does not support multivariate IHT yet! Sorry!")
@@ -233,7 +234,9 @@ function cmsa_iht(
             beta .+= V[j].best_b
             c .+= V[j].best_c
         end
-        push!(betas, beta ./= q)
+        beta ./= q
+        enforce_k && project_k!(beta, sparsity)
+        push!(betas, beta)
         push!(cs, c ./= q)
 
         # check for early stopping

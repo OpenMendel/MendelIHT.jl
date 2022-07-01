@@ -557,10 +557,15 @@ julia> x
 """
 function project_k!(x::AbstractVector{T}, k::Int64) where {T <: Float}
     k < 0 && throw(DomainError("Attempted to project to sparsity level $k"))
+    if k == 0
+        fill!(x, 0)
+        return nothing
+    end
     a = abs(partialsort(x, k, by=abs, rev=true))
     @inbounds for i in eachindex(x)
         abs(x[i]) < a && (x[i] = zero(T))
     end
+    return nothing
 end
 
 function project_k!(v::IHTVariable)
