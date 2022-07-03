@@ -277,17 +277,36 @@ IHTResult(time, logl, iter, σg, v::mIHTVariable) = mIHTResult(time, logl, iter,
 """
 Result for storing cross-validated results from cmsa_iht 
 """
-mutable struct CMSA{T <: Float}
+struct CMSA{T <: Float}
     k :: Vector{Int}
     loss :: Vector{T}
     betas :: Vector{Vector{T}}
     cs :: Vector{Vector{T}}
     q :: Int
     d :: Distribution
+    l :: Link
 end
 
-function coef(x::CMSA)
-    return x.betas[argmin(x.loss)]
+function coef(cmsa::CMSA)
+    return cmsa.betas[argmin(cmsa.loss)]
+end
+
+function predict(cmsa::CMSA, xtest, ztest)
+    idx = argmin(cmsa.loss)
+    β̂ = cmsa.betas[idx]
+    β̂_nongenetic = cmsa.cs[idx]
+    η = xtest * β̂ + ztest * β̂_nongenetic
+    μ = linkinv.(l, η)
+    return μ
+end
+
+function predict(cmsa::CMSA, xtest)
+    idx = argmin(cmsa.loss)
+    β̂ = cmsa.betas[idx]
+    intercept = cmsa.cs[idx][1]
+    η = intercept .+ xtest * β̂
+    μ = linkinv.(l, η)
+    return μ
 end
 
 """

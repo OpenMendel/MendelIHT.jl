@@ -248,7 +248,7 @@ function cmsa_iht(
         end
     end
 
-    return CMSA(path, path_loss, betas, cs, q, d)
+    return CMSA(path, path_loss, betas, cs, q, d, l)
 end
 
 function warmstart!(
