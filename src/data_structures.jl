@@ -305,7 +305,7 @@ function predict(cmsa::CMSA, xtest)
     β̂ = cmsa.betas[idx]
     intercept = cmsa.cs[idx][1]
     η = intercept .+ xtest * β̂
-    μ = linkinv.(l, η)
+    μ = linkinv.(cmsa.l, η)
     return μ
 end
 
