@@ -484,10 +484,10 @@ end
 
 Returns true if one of the following conditions is met:
 1. New loglikelihood is smaller than the old one
-2. Current backtrack (`η_step`) exceeds maximum allowed backtracking (`nstep`, default = 3)
+2. Current backtrack (`η_step`) doesn't exceeds maximum allowed backtracking (`nstep`, default = 3)
 """
 function _iht_backtrack_(logl::T, prev_logl::T, η_step::Int64, nstep::Int64) where {T <: Float}
-    (prev_logl > logl) && (η_step < nstep)
+    isnan(logl) || isinf(logl) ? true : (prev_logl > logl) && (η_step < nstep)
 end
 
 """
@@ -496,7 +496,7 @@ end
 Standardizes each column of `z` to mean 0 and variance 1. Make sure you 
 do not standardize the intercept. 
 """
-@inline function standardize!(z::AbstractVecOrMat)
+function standardize!(z::AbstractVecOrMat)
     n, q = size(z)
     μ = _mean(z)
     σ = _std(z, μ)
@@ -508,7 +508,7 @@ do not standardize the intercept.
     end
 end
 
-@inline function _mean(z)
+function _mean(z)
     n, q = size(z)
     μ = zeros(q)
     @inbounds for j in 1:q
