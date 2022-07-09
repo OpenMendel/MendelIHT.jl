@@ -309,6 +309,22 @@ function predict(cmsa::CMSA, xtest)
     return μ
 end
 
+function predict(iht_result::IHTResult, xtest, ztest)
+    β̂ = iht_result.beta
+    ĉ = iht_result.c
+    η = xtest * β̂ + ztest * ĉ
+    μ = linkinv.(iht_result.l, η)
+    return μ
+end
+
+function predict(iht_result::IHTResult, xtest)
+    β̂ = iht_result.beta
+    intercept = iht_result.c[1]
+    η = intercept .+ xtest * β̂
+    μ = linkinv.(canonicallink(iht_result.d), η)
+    return μ
+end
+
 """
 Displays IHTResults object
 """
