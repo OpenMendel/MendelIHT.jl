@@ -23,8 +23,12 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
     the first column (row) is all 1s to represent the intercept. 
 
 # Optional Arguments: 
-- `path`: Different values of `k` that should be tested. One can input a vector of 
-    `Int` (e.g. `path=[5, 10, 15, 20]`) or a range (default `path=1:20`).
+- `kmax`: The maximum number of predictors in the largest model (defaults to 
+    `min(1000, size(x, 1), size(x, 2))`)
+- `nk`: Number of sparsity values to test between `0` and `kmax` (defaults to `100`)
+- `path`: All values of `k` that should be tested. One can input a vector of 
+    `Int` (e.g. `path=[5, 10, 15, 20]`) or a range (e.g. `path=1:20`). By Default
+    the search path is automatically computed by values of `kmax` and `nk`. 
 - `q`: Number of cross validation folds. Larger means more accurate and more computationally
     intensive. Should be larger 2 and smaller than 10. Default `q=5`.
 - `d`: Distribution of phenotypes. Specify `Normal()` for quantitative traits,
@@ -63,7 +67,9 @@ function cv_iht(
     z        :: AbstractVecOrMat{T};
     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
-    path     :: AbstractVector{<:Integer} = 1:20,
+    kmax     :: Int = min(1000, size(x, 2), size(x, 1)),
+    nk       :: Int = 100,
+    path     :: AbstractVector{<:Integer} = auto_path(kmax, nk),
     q        :: Int64 = 5,
     est_r    :: Symbol = :None,
     group    :: AbstractVector{Int} = Int[],
@@ -80,6 +86,7 @@ function cv_iht(
 
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
     check_data_dim(y, x, z)
+    path[end] > size(x, 2) && error("Sparsity level in path cannot be larger than total number of variables")
     verbose && print_iht_signature()
 
     # preallocated arrays for efficiency
@@ -127,6 +134,12 @@ function cv_iht(
     return mse
 end
 
+function auto_path(kmax::Int, nk::Int)
+    logpath = range(0, log(kmax), length=nk)
+    path = round.(Int, exp.(logpath)) |> unique!
+    return vcat(0, path)
+end
+
 """
     cmsa_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), ...)
 
@@ -155,9 +168,9 @@ function cmsa_iht(
     z        :: AbstractVecOrMat{T};
     d        :: Distribution = is_multivariate(y) ? MvNormal(T[]) : Normal(),
     l        :: Link = IdentityLink(),
-    kmax     :: Int = min(10000, size(x, 2)),# The maximum number of predictors in the largest model
-    kmin     :: Int = 1, # The minimum number of predictors in the smallest model
+    kmax     :: Int = min(1000, size(x, 2), size(x, 1)), # The maximum number of predictors in the largest model
     nk       :: Int = 100, # Number of k values to test between kmin and kmax
+    path     :: AbstractVector{<:Integer} = auto_path(kmax, nk),
     nabort   :: Int = 5, # Number of k values for which prediction on the validation set must decrease before stopping
     warmstart:: Bool = false,
     q        :: Int64 = 5, 
@@ -178,6 +191,7 @@ function cmsa_iht(
     typeof(d) <: MvNormal && error("cmsa_iht does not support multivariate IHT yet! Sorry!")
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
     check_data_dim(y, x, z)
+    path[end] > size(x, 2) && error("Sparsity level in path cannot be larger than total number of variables")
     verbose && print_iht_signature()
 
     # preallocated arrays for efficiency
@@ -185,10 +199,6 @@ function cmsa_iht(
     train_idx = [falses(length(folds)) for i in 1:q]
     V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep,
         memory_efficient=memory_efficient) for _ in 1:q]
-
-    # define search path 
-    logpath = range(log(kmin), log(kmax), length=nk)
-    path = vcat(0, unique!(round.(Int, exp.(logpath))))
 
     # variables for CMSE 
     path_loss = fill!(Vector{T}(undef, length(path)), typemax(T))
