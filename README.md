@@ -52,7 +52,7 @@ result = iht("datafile", 10, NegativeBinomial, est_r=:Newton) # Negative Binomia
 
 Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/latest/) for more detail. 
 
-### Citation and Reproducibility:
+## Citation and Reproducibility:
 
 For univariate analysis, please cite:
 
@@ -72,6 +72,6 @@ If you encounter a bug or need user support, please open a new issue on Github. 
 
 PRs and feature requests are welcomed!
 
-### Acknowledgments
+## Acknowledgments
 
 This project has been supported by the National Institutes of Health under awards R01GM053275, R01HG006139, R25GM103774, and 1R25HG011845.
