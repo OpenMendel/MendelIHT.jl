@@ -60,6 +60,7 @@ Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/
 
 In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
+
 **For multivariate analysis, please cite:**
 
 *Chu BB, Ko S, Zhou JJ, Zhou H, Sinsheimer JS, Lange K. Multivariate Genomewide Association Analysis with IHT. doi: https://doi.org/10.1101/2021.08.04.455145
