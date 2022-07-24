@@ -66,7 +66,7 @@ For multivariate analysis, please cite:
 
 In the `manuscript` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
-## Bug fixes and user support
+### Bug fixes and user support
 
 If you encounter a bug or need user support, please open a new issue on Github. Please provide as much detail as possible for bug reports, ideally a sequence of reproducible code that lead to the error.
 
