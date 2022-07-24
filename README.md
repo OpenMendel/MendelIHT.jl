@@ -60,16 +60,10 @@ For univariate analysis, please cite:
 
 In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
-For multivariate analysis, please cite our [paper](https://www.biorxiv.org/content/10.1101/2021.08.04.455145v2) as
-```
-@article{chu2021multivariate,
-  title={Multivariate Genomewide Association Analysis with IHT},
-  author={Chu, Benjamin B and Ko, Seyoon and Zhou, Jin J and Zhou, Hua and Sinsheimer, Janet S and Lange, Kenneth L},
-  journal={bioRxiv},
-  year={2021},
-  publisher={Cold Spring Harbor Laboratory}
-}
-```
+For multivariate analysis, please cite: 
+
+*Chu BB, Ko S, Zhou JJ, Zhou H, Sinsheimer JS, Lange K. Multivariate Genomewide Association Analysis with IHT. doi: https://doi.org/10.1101/2021.08.04.455145
+
 In the `manuscript` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
 ## Bug fixes and user support
@@ -77,3 +71,7 @@ In the `manuscript` subfolder, one can find all the code to reproduce the figure
 If you encounter a bug or need user support, please open a new issue on Github. Please provide as much detail as possible for bug reports, ideally a sequence of reproducible code that lead to the error.
 
 PRs and feature requests are welcomed!
+
+### Acknowledgments
+
+This project has been supported by the National Institutes of Health under awards R01GM053275, R01HG006139, R25GM103774, and 1R25HG011845.
