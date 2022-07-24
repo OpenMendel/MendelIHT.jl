@@ -58,9 +58,7 @@ Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/
 
 *Chu BB, Keys KL, German CA, Zhou H, Zhou JJ, Sobel EM, Sinsheimer JS, Lange K. Iterative hard thresholding in genome-wide association studies: Generalized linear models, prior weights, and double sparsity. Gigascience. 2020 Jun 1;9(6):giaa044. doi: 10.1093/gigascience/giaa044. PMID: 32491161; PMCID: [PMC7268817](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7268817/).*
 
-In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
-
-
+In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper.
 
 **For multivariate analysis, please cite:**
 
