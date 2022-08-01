@@ -258,7 +258,10 @@ function cmsa_iht(
         end
     end
 
-    return CMSA(path, path_loss, betas, cs, q, d, l)
+    return CMSA(
+        typeof(path) <: UnitRange ? path : collect(path),
+        path_loss, betas, cs, q, d, l
+    )
 end
 
 function warmstart!(
