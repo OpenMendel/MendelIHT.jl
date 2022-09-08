@@ -85,21 +85,21 @@ function iht(
 
     show(io, result)
 
+    # save estimated beta to disk
     if is_multivariate(y)
         open(betafile, "w") do io
-            print(io, "SNPid")
+            print(io, "chr\tpos\tSNPid\tref\talt")
             for i in 1:size(y, 1)
                 print(io, '\t', "beta_$i")
             end
             print(io, '\n')
-            writedlm(io, [X_ids result.beta'])
+            writedlm(io, [X_chr X_pos X_ids X_ref X_alt result.beta'])
         end
-        # writedlm(betafile, DataFrame([X_ids result.beta'], ["SNPid", "Estimated_beta"]))
         writedlm(covariancefile, result.Σ)
     else
         open(betafile, "w") do io
-            println(io, "SNPid", '\t', "Estimated_beta")
-            writedlm(io, [X_ids result.beta])
+            println(io, "chr\tpos\tSNPid\tref\talt\tEstimated_beta")
+            writedlm(io, [X_chr X_pos X_ids X_ref X_alt result.beta])
         end
     end
 
@@ -248,7 +248,10 @@ Runs cross-validation to determinal optimal sparsity level `k`. Different
 sparsity levels are specified in `path`. 
 
 # Arguments
-- `filename`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
+- `filename`: A `String` for VCF, binary PLINK, or BGEN file. VCF files should end
+    in `.vcf` or `.vcf.gz`. Binary PLINK files should exclude `.bim/.bed/.fam`
+    trailings but the trio must all be present in the same directory. BGEN files
+    should end in `.bgen`.
 - `d`: Distribution of phenotypes. Specify `Normal` for quantitative traits,
     `Bernoulli` for binary traits, `Poisson` or `NegativeBinomial` for
     count traits, and `MvNormal` for multiple quantitative traits. 
@@ -359,8 +362,8 @@ function convert_bgen_gt(t::Type{T}, b::Bgen) where T <: Real
     # import each variant
     i = 1
     for v in iterator(b; from_bgen_start=true)
-        dose = ref_allele_dosage!(b, v; T=t) # this reads REF allele as 1
-        BGEN.alt_dosage!(dose, v.genotypes.preamble) # switch 2 and 0 (ie treat ALT as 1)
+        dose = first_allele_dosage!(b, v; T=t) # this reads REF allele as 1
+        BGEN.second_dosage!(dose, v.genotypes.preamble) # switch 2 and 0 (ie treat ALT as 1)
         copyto!(@view(G[:, i]), dose)
         # store chr/pos/snpID/ref/alt info
         Gchr[i], Gpos[i] = chrom(v), pos(v)

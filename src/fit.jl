@@ -1,7 +1,5 @@
 """
-    fit_iht(y, x, z; k=10, J=1, d = Normal(), l=IdentityLink(), group=Int[], 
-        weight=Float64[], est_r=:None, debias=false, verbose=true, tol=1e-4,
-        max_iter=200, max_step=3, io=stdout)
+    fit_iht(y, x, z; k=10, d = Normal(), l=IdentityLink(),...)
 
 Fits a model on design matrix (genotype data) `x`, response (phenotype) `y`, 
 and non-genetic covariates `z` on a specific sparsity parameter `k`. Only predictors in 
@@ -28,7 +26,8 @@ and non-genetic covariates `z` on a specific sparsity parameter `k`. Only predic
     count traits, and `MvNormal()` for multiple quantitative traits. 
 + `l`: A link function. The recommended link functions are `l=IdentityLink()` for
     quantitative traits, `l=LogitLink()` for binary traits, `l=LogLink()` for Poisson
-    distribution, and `l=Loglink()` for NegativeBinomial distribution. 
+    distribution, and `l=Loglink()` for NegativeBinomial distribution. For multivariate
+    analysis, the choice of link does not matter. 
 + `group`: vector storing (non-overlapping) group membership
 + `weight`: vector storing vector of weights containing prior knowledge on each SNP
 + `zkeep`: BitVector determining whether non-genetic covariates in `z` will be subject 
@@ -45,6 +44,10 @@ and non-genetic covariates `z` on a specific sparsity parameter `k`. Only predic
 + `io`: An `IO` object for displaying intermediate results. Default `stdout`.
 + `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
+- `memory_efficient`: If `true,` it will cause ~1.1 times slow down but one only
+    needs to store the genotype matrix (requiring 2np bits for PLINK binary files
+    and `8np` bytes for other formats). If `memory_efficient=false`, one also need
+    to store a `8nk` byte matrix where `k` is the sparsity levels. 
 
 # Output 
 + An `IHTResult` (for single-trait analysis) or `mIHTResult` (for multivariate analysis).
@@ -74,7 +77,8 @@ function fit_iht(
     min_iter  :: Int = 5,              # minimum IHT iterations
     max_step  :: Int = 3,              # maximum backtracking for each iteration
     io        :: IO = stdout,
-    init_beta :: Bool = false
+    init_beta :: Bool = false,
+    memory_efficient::Bool=true
     ) where T <: Float
 
     verbose && print_iht_signature(io)
@@ -97,11 +101,13 @@ function fit_iht(
     end
 
     # initialize IHT variable
-    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta, zkeep, verbose=verbose)
+    v = initialize(x, z, y, J, k, d, l, group, weight, est_r, init_beta, zkeep, 
+        verbose=verbose, memory_efficient=memory_efficient)
 
     # print information
     verbose && print_parameters(io, k, d, l, use_maf, group, debias, tol, max_iter, min_iter)
 
+    # fit IHT model
     tot_time, best_logl, mm_iter = fit_iht!(v, debias=debias, verbose=verbose,
         tol=tol, max_iter=max_iter, min_iter=min_iter, max_step=max_step, io=io)
 

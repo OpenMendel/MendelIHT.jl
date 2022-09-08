@@ -19,7 +19,7 @@ function make_mIHTvar(r) # r = number of traits
     # everything is transposed for multivariate analysis!
     Yt = Matrix(Y')
     Zt = Matrix(z')
-    v = MendelIHT.mIHTVariable(Transpose(xla), Zt, Yt, k, trues(1))
+    v = MendelIHT.mIHTVariable(Transpose(xla), Zt, Yt, k, trues(1), false)
 
     return v, Transpose(xla), Yt, Zt, k
 end
@@ -120,12 +120,12 @@ end
     # @test all(result.beta[2, correct_snps] - true_b[correct_snps, 2] .< 0.15) # estimates are close to truth
 
     # yes debias
-    @time result2 = fit_iht(Yt, Transpose(xla), k=12, debias=true)
-    @test size(result2.beta) == (r, p)
-    @test result2.k == 12
-    @test result2.traits == 2
-    @test result2.iter ≥ 5
-    @test all(result2.σg .> 0)
+    # @time result2 = fit_iht(Yt, Transpose(xla), k=12, debias=true)
+    # @test size(result2.beta) == (r, p)
+    # @test result2.k == 12
+    # @test result2.traits == 2
+    # @test result2.iter ≥ 5
+    # @test all(result2.σg .> 0)
     # @test all(result2.beta[1, correct_snps] - true_b[correct_snps, 1] .< 0.15) # estimates are close to truth
     # @test all(result2.beta[2, correct_snps] - true_b[correct_snps, 2] .< 0.15) # estimates are close to truth
 end

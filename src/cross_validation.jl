@@ -1,8 +1,5 @@
 """
-    cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), est_r=:None,
-        group=Int[], weight=Float64[], folds=rand(1:q, is_multivariate(y) ?
-        size(x, 2) : size(x, 1)), debias=false, verbose=true,
-        max_iter=100, min_iter=20, init_beta=true)
+    cv_iht(y, x, z; path=1:20, q=5, d=Normal(), l=IdentityLink(), ...)
 
 For each model specified in `path`, performs `q`-fold cross validation and 
 returns the (averaged) deviance residuals. The purpose of this function is to
@@ -35,7 +32,8 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
     count traits, and `MvNormal()` for multiple quantitative traits. 
 - `l`: A link function. The recommended link functions are `l=IdentityLink()` for
     quantitative traits, `l=LogitLink()` for binary traits, `l=LogLink()` for Poisson
-    distribution, and `l=Loglink()` for NegativeBinomial distribution. 
+    distribution, and `l=Loglink()` for NegativeBinomial distribution. For multivariate
+    analysis, the choice of link does not matter. 
 - `zkeep`: BitVector determining whether non-genetic covariates in `z` will be subject 
     to sparsity constraint. `zkeep[i] = true` means covariate `i` will NOT be projected.
     Note covariates forced in the model are not subject to sparsity constraints in `path`. 
@@ -50,6 +48,11 @@ To check if multithreading is enabled, check output of `Threads.nthreads()`.
 - `min_iter`: is the minimum IHT iteration before checking for convergence. Defaults to 5.
 - `init_beta`: Whether to initialize beta values to univariate regression values. 
     Currently only Gaussian traits can be initialized. Default `false`. 
+- `memory_efficient`: If `true,` it will cause ~1.1 times slow down but one only
+    needs to store the genotype matrix (requiring 2np bits for PLINK binary files
+    and `8np` bytes for other formats). If `memory_efficient=false`, one may potentially
+    store `t` sparse matrices of dimension `8nk` bytes where `k` are the cross validated
+    sparsity levels. 
 
 # Output
 - `mse`: A vector of mean-squared error for each `k` specified in `path`. 
@@ -71,7 +74,8 @@ function cv_iht(
     verbose  :: Bool = true,
     max_iter :: Int = 100,
     min_iter :: Int = 5,
-    init_beta :: Bool = false
+    init_beta :: Bool = false,
+    memory_efficient :: Bool = true
     ) where T <: Float
 
     typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
@@ -81,7 +85,8 @@ function cv_iht(
     # preallocated arrays for efficiency
     test_idx  = [falses(length(folds)) for i in 1:Threads.nthreads()]
     train_idx = [falses(length(folds)) for i in 1:Threads.nthreads()]
-    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep) for i in 1:Threads.nthreads()]
+    V = [initialize(x, z, y, 1, 1, d, l, group, weight, est_r, false, zkeep,
+        memory_efficient=memory_efficient) for i in 1:Threads.nthreads()]
 
     # for displaying cross validation progress
     pmeter = verbose ? Progress(q * length(path), "Cross validating...") : nothing
