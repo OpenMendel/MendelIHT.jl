@@ -27,3 +27,4 @@ test/NFBCsim
 test/NFBCsim*
 test/NFBC_chr21_sim/*
 test/NFBC_chr1_sim/*
+manuscript/plink.multivariate

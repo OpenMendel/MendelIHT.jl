@@ -9,7 +9,7 @@ module MendelIHT
 
     using GLM
     using SnpArrays
-    using DataFrames
+    using CSV, DataFrames 
     using LinearAlgebra
     using Distributions
     using Random

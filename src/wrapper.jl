@@ -45,6 +45,11 @@ Runs IHT with sparsity level `k`.
 - `dosage`: Currently only guaranteed to work for VCF files. If `true`, will read
     genotypes dosages (i.e. `X[i, j] ∈ [0, 2]` before standardizing)
 - All optional arguments available in [`fit_iht`](@ref)
+
+# Output
+A fitted `IHTResult` (univariate analysis) or `mIHTResult` (multivariate analysis).
+In addition, a human-readable text file is also outputted with file name specified
+with `betafile`.
 """
 function iht(
     filename::AbstractString,
@@ -84,18 +89,36 @@ function iht(
         l = d == NegativeBinomial ? LogLink() : canonicallink(d()) # link function
         result = fit_iht(y, xla, z, k=k, d=d(), l=l, io=io; kwargs...)
     end
-
     show(io, result)
-
-    if is_multivariate(y)
-        writedlm(betafile, result.beta')
-        writedlm(covariancefile, result.Σ)
-    else
-        writedlm(betafile, result.beta)
-    end
-
     close(io)
     flush(io)
+
+    #
+    # also save IHT result in human-readable form
+    #
+    df = DataFrame(
+        chr=String[], pos=Int[], snpid=String[], ref_allele=String[], 
+        alt_allele=String[], beta=Float64[]
+    )
+    if is_multivariate(y)
+        df[!, :trait] = Int[]
+        for (j, beta) in enumerate(eachcol(result.beta))
+            for i in findall(!iszero, beta)
+                push!(df, 
+                    [X_chr[j], X_pos[j], X_ids[j], X_ref[j], 
+                     X_alt[j], beta[i], i]
+                )
+            end
+        end
+        writedlm(covariancefile, result.Σ)
+    else
+        for i in findall(!iszero, result.beta)
+            push!(df, 
+                [X_chr[i], X_pos[i], X_ids[i], X_ref[i], X_alt[i], result.beta[i]]
+            )
+        end
+    end
+    CSV.write(betafile, df)
 
     return result
 end
@@ -270,6 +293,11 @@ sparsity levels are specified in `path`.
 - `dosage`: Currently only guaranteed to work for VCF files. If `true`, will read
     genotypes dosages (i.e. `X[i, j] ∈ [0, 2]` before standardizing)
 - All optional arguments available in [`cv_iht`](@ref)
+
+# Output
+A vector `mse` of cross-validated mean-squared errors (technically deviance residuals),
+where `mse[i]` is the error of sparsity level `path[i]`. In addition, a human-readable
+text file is also outputted with file name specified with `cv_summaryfile`.
 """
 function cross_validate(
     filename::AbstractString,
