@@ -1,4 +1,5 @@
 # ml julia/1.7.2
+# export JULIA_NUM_THREADS=16
 
 using MendelIHT
 using SnpArrays
@@ -25,30 +26,30 @@ p = Total number of SNPs
 traits = Number of traits (phenotypes)
 overlap = number of causal SNPs shared in each trait
 """
-function simulate_random_beta(k::Int, p::Int, traits::Int; overlap::Int=0, βσ=1.0)
-    d = Normal(0, βσ)
-    true_b = zeros(p, traits)
-    if overlap == 0
-        causal_snps = sample(1:(traits * p), k, replace=false)
-        true_b[causal_snps] = rand(d, k)
-    else
-        shared_snps = sample(1:p, overlap, replace=false)
-        weight_vector = aweights(1 / (traits * (p - overlap)) * ones(traits * p))
-        for i in 1:traits
-            weight_vector[i*shared_snps] .= 0.0 # avoid sampling from shared snps
-        end
-        @assert sum(weight_vector) ≈ 1.0 "sum(weight_vector) = $(sum(weight_vector)) != 1.0"
-        # simulate β for shared predictors
-        for i in 1:traits
-            true_b[shared_snps, i] = rand(d, overlap)
-        end
-        # simulate β for none shared predictors
-        nonshared_snps = sample(1:(traits * p), weight_vector, k - (traits * overlap), replace=false)
-        true_b[nonshared_snps] = rand(d, k - (traits * overlap))
-    end
+# function simulate_random_beta(k::Int, p::Int, traits::Int; overlap::Int=0, βσ=1.0)
+#     d = Normal(0, βσ)
+#     true_b = zeros(p, traits)
+#     if overlap == 0
+#         causal_snps = sample(1:(traits * p), k, replace=false)
+#         true_b[causal_snps] = rand(d, k)
+#     else
+#         shared_snps = sample(1:p, overlap, replace=false)
+#         weight_vector = aweights(1 / (traits * (p - overlap)) * ones(traits * p))
+#         for i in 1:traits
+#             weight_vector[i*shared_snps] .= 0.0 # avoid sampling from shared snps
+#         end
+#         @assert sum(weight_vector) ≈ 1.0 "sum(weight_vector) = $(sum(weight_vector)) != 1.0"
+#         # simulate β for shared predictors
+#         for i in 1:traits
+#             true_b[shared_snps, i] = rand(d, overlap)
+#         end
+#         # simulate β for none shared predictors
+#         nonshared_snps = sample(1:(traits * p), weight_vector, k - (traits * overlap), replace=false)
+#         true_b[nonshared_snps] = rand(d, k - (traits * overlap))
+#     end
 
-    return true_b
-end
+#     return true_b
+# end
 
 """
     βi ~ Uniform([-0.5, -0.45, ..., -0.05, 0.05, ..., 0.5]) chosen uniformly across genome
@@ -100,23 +101,23 @@ k = Number of causal SNPs (each SNP affects every trait)
 p = Total number of SNPs
 traits = Number of traits (phenotypes)
 """
-function simulate_pleiotropic_beta(k::Int, p::Int, traits::Int)
-    true_b = zeros(p, traits)
-    effect_size = 0.5 / traits
-    idx_causal_snps = collect(div(p, k):div(p, k):p)
-    shuffle!(idx_causal_snps)
+# function simulate_pleiotropic_beta(k::Int, p::Int, traits::Int)
+#     true_b = zeros(p, traits)
+#     effect_size = 0.5 / traits
+#     idx_causal_snps = collect(div(p, k):div(p, k):p)
+#     shuffle!(idx_causal_snps)
     
-    # pleiotropic SNPs affect every phenotype
-    for i in idx_causal_snps
-        for r in 1:traits
-            true_b[i, r] = effect_size
-        end
-    end
+#     # pleiotropic SNPs affect every phenotype
+#     for i in idx_causal_snps
+#         for r in 1:traits
+#             true_b[i, r] = effect_size
+#         end
+#     end
     
-    @assert count(!iszero, true_b) == k*traits "count(!iszero, true_b) should be equal to $(k*traits)"
+#     @assert count(!iszero, true_b) == k*traits "count(!iszero, true_b) should be equal to $(k*traits)"
 
-    return true_b
-end
+#     return true_b
+# end
 
 """
 # Arguments
@@ -131,133 +132,133 @@ seed = random seed for reproducibility
 σe = random environmental effect
 βoverlap = number of causal SNPs shared in all traits
 """
-function simulate_multivariate_polygenic(
-    plinkname::String, n::Int, p::Int, k::Int, r::Int;
-    seed::Int=2021, σg=0.6, σe=0.4, βoverlap=2
-    )
-    # set seed
-    Random.seed!(seed)
+# function simulate_multivariate_polygenic(
+#     plinkname::String, n::Int, p::Int, k::Int, r::Int;
+#     seed::Int=2021, σg=0.6, σe=0.4, βoverlap=2
+#     )
+#     # set seed
+#     Random.seed!(seed)
     
-    # simulate `.bed` file with no missing data
-    x = simulate_random_snparray("sim$seed/" * plinkname * ".bed", n, p)
-    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, impute=true, center=true, scale=true)
-    make_bim_fam(xla, "sim$seed/" * plinkname)
+#     # simulate `.bed` file with no missing data
+#     x = simulate_random_snparray("sim$seed/" * plinkname * ".bed", n, p)
+#     xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, impute=true, center=true, scale=true)
+#     make_bim_fam(xla, "sim$seed/" * plinkname)
 
-    # intercept is the only nongenetic covariate
-    Z = ones(n, 1)
-    intercepts = zeros(r)' # each trait have 0 intercept
+#     # intercept is the only nongenetic covariate
+#     Z = ones(n, 1)
+#     intercepts = zeros(r)' # each trait have 0 intercept
 
-    # simulate β
-    # B = simulate_pleiotropic_beta(k, p, r)
-    B = simulate_fixed_beta(k, p, r, overlap=βoverlap)
-    writedlm("sim$(seed)/trueb.txt", B)
+#     # simulate β
+#     # B = simulate_pleiotropic_beta(k, p, r)
+#     B = simulate_fixed_beta(k, p, r, overlap=βoverlap)
+#     writedlm("sim$(seed)/trueb.txt", B)
 
-    # between trait covariance matrix
-    Σ = random_covariance_matrix(r)
+#     # between trait covariance matrix
+#     Σ = random_covariance_matrix(r)
 
-    # between sample covariance is identity + GRM (2x because OpenMendel always uses half the GRM)
-    run(`./gemma -bfile sim$(seed)/$plinkname -gk 1 -o $plinkname`)
-    run(`mv ./output/$(plinkname).cXX.txt sim$(seed)`)
-    Φ = readdlm("sim$(seed)/" * plinkname * ".cXX.txt")
-    V = σg * Φ + σe * I
+#     # between sample covariance is identity + GRM (2x because OpenMendel always uses half the GRM)
+#     run(`./gemma -bfile sim$(seed)/$plinkname -gk 1 -o $plinkname`)
+#     run(`mv ./output/$(plinkname).cXX.txt sim$(seed)`)
+#     Φ = readdlm("sim$(seed)/" * plinkname * ".cXX.txt")
+#     V = σg * Φ + σe * I
 
-    # simulate y using TraitSimulations.jl (https://github.com/OpenMendel/TraitSimulation.jl/blob/master/src/modelframework.jl#L137)
-    vc = @vc Σ ⊗ V
-    μ = zeros(n, r)
-    μ_null = zeros(n, r)
-    LinearAlgebra.mul!(μ_null, Z, intercepts)
-    mul!(μ, xla, B)
-    BLAS.axpby!(1.0, μ_null, 1.0, μ)
-    VCM_model = VCMTrait(Z, intercepts, xla, B, vc, μ)
-    Y = Matrix(Transpose(simulate(VCM_model)))
+#     # simulate y using TraitSimulations.jl (https://github.com/OpenMendel/TraitSimulation.jl/blob/master/src/modelframework.jl#L137)
+#     vc = @vc Σ ⊗ V
+#     μ = zeros(n, r)
+#     μ_null = zeros(n, r)
+#     LinearAlgebra.mul!(μ_null, Z, intercepts)
+#     mul!(μ, xla, B)
+#     BLAS.axpby!(1.0, μ_null, 1.0, μ)
+#     VCM_model = VCMTrait(Z, intercepts, xla, B, vc, μ)
+#     Y = Matrix(Transpose(simulate(VCM_model)))
 
-    # simulate using Distributions.jl
-    # μ = z * intercepts + xla * B
-    # Y = rand(MatrixNormal(μ', Σ, V))
+#     # simulate using Distributions.jl
+#     # μ = z * intercepts + xla * B
+#     # Y = rand(MatrixNormal(μ', Σ, V))
     
-    return xla, Matrix(Z'), B, Σ, Y
-end
+#     return xla, Matrix(Z'), B, Σ, Y
+# end
 
-function simulate_multivariate_sparse(
-    plinkname::String, n::Int, p::Int, k::Int, r::Int;
-    seed::Int=2021, σg=0.6, σe=0.4, βoverlap=2
-    )
-    # set seed
-    Random.seed!(seed)
+# function simulate_multivariate_sparse(
+#     plinkname::String, n::Int, p::Int, k::Int, r::Int;
+#     seed::Int=2021, σg=0.6, σe=0.4, βoverlap=2
+#     )
+#     # set seed
+#     Random.seed!(seed)
     
-    # simulate `.bed` file with no missing data
-    x = simulate_random_snparray("sim$seed/" * plinkname * ".bed", n, p)
-    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, impute=true, center=true, scale=true)
-    make_bim_fam(xla, "sim$seed/" * plinkname)
+#     # simulate `.bed` file with no missing data
+#     x = simulate_random_snparray("sim$seed/" * plinkname * ".bed", n, p)
+#     xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, impute=true, center=true, scale=true)
+#     make_bim_fam(xla, "sim$seed/" * plinkname)
 
-    # intercept is the only nongenetic covariate
-    Z = ones(n, 1)
-    intercepts = zeros(r)' # each trait have 0 intercept
+#     # intercept is the only nongenetic covariate
+#     Z = ones(n, 1)
+#     intercepts = zeros(r)' # each trait have 0 intercept
 
-    # simulate β
-    # B = simulate_pleiotropic_beta(k, p, r)
-    B = simulate_fixed_beta(k, p, r, overlap=βoverlap)
-    writedlm("sim$(seed)/trueb.txt", B)
+#     # simulate β
+#     # B = simulate_pleiotropic_beta(k, p, r)
+#     B = simulate_fixed_beta(k, p, r, overlap=βoverlap)
+#     writedlm("sim$(seed)/trueb.txt", B)
 
-    # between trait covariance matrix (but GEMMA GRM still needed)
-    run(`./gemma -bfile sim$(seed)/$plinkname -gk 1 -o $plinkname`)
-    run(`mv ./output/$(plinkname).cXX.txt sim$(seed)`)
-    Σ = random_covariance_matrix(r)
-    writedlm("sim$(seed)/trueCovariance.txt", Σ)
+#     # between trait covariance matrix (but GEMMA GRM still needed)
+#     run(`./gemma -bfile sim$(seed)/$plinkname -gk 1 -o $plinkname`)
+#     run(`mv ./output/$(plinkname).cXX.txt sim$(seed)`)
+#     Σ = random_covariance_matrix(r)
+#     writedlm("sim$(seed)/trueCovariance.txt", Σ)
 
-    # simulate multivariate normal phenotype for each sample
-    μ = xla * B + Z*intercepts
+#     # simulate multivariate normal phenotype for each sample
+#     μ = xla * B + Z*intercepts
 
-    # simulate response
-    Y = zeros(n, r)
-    for i in 1:n
-        μi = @view(μ[i, :])
-        Y[i, :] = rand(MvNormal(μi, Σ))
-    end
+#     # simulate response
+#     Y = zeros(n, r)
+#     for i in 1:n
+#         μi = @view(μ[i, :])
+#         Y[i, :] = rand(MvNormal(μi, Σ))
+#     end
     
-    return xla, Matrix(Z'), B, Σ, Matrix(Y')
-end
+#     return xla, Matrix(Z'), B, Σ, Matrix(Y')
+# end
 
 """
 simulate under IHT's model
 """
-function simulate_NFBC1966_sparse(
-    plinkname::String, k::Int, r::Int;
-    seed::Int=2021, σg=0.6, σe=0.4, βoverlap=2
-    )
-    # set seed
-    Random.seed!(seed)
+# function simulate_NFBC1966_sparse(
+#     plinkname::String, k::Int, r::Int;
+#     seed::Int=2021, σg=0.6, σe=0.4, βoverlap=2
+#     )
+#     # set seed
+#     Random.seed!(seed)
 
-    # simulate `.bed` file with no missing data
-    x = SnpArray(plinkname * ".bed")
-    xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, impute=true, center=true, scale=true)
-    n, p = size(xla)
+#     # simulate `.bed` file with no missing data
+#     x = SnpArray(plinkname * ".bed")
+#     xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, impute=true, center=true, scale=true)
+#     n, p = size(xla)
 
-    # intercept is the only nongenetic covariate
-    Z = ones(n, 1)
-    intercepts = zeros(r)' # each trait have 0 intercept
+#     # intercept is the only nongenetic covariate
+#     Z = ones(n, 1)
+#     intercepts = zeros(r)' # each trait have 0 intercept
 
-    # simulate β
-    # B = simulate_pleiotropic_beta(k, p, r)
-    B = simulate_fixed_beta(k, p, r, overlap=βoverlap)
-    writedlm("sim$(seed)/trueb.txt", B)
+#     # simulate β
+#     # B = simulate_pleiotropic_beta(k, p, r)
+#     B = simulate_fixed_beta(k, p, r, overlap=βoverlap)
+#     writedlm("sim$(seed)/trueb.txt", B)
 
-    # between trait covariance matrix
-    Σ = random_covariance_matrix(r)
-    writedlm("sim$(seed)/trueCovariance.txt", Σ)
+#     # between trait covariance matrix
+#     Σ = random_covariance_matrix(r)
+#     writedlm("sim$(seed)/trueCovariance.txt", Σ)
 
-    # simulate multivariate normal phenotype for each sample
-    μ = xla * B + Z*intercepts
+#     # simulate multivariate normal phenotype for each sample
+#     μ = xla * B + Z*intercepts
 
-    # simulate response
-    Y = zeros(n, r)
-    for i in 1:n
-        μi = @view(μ[i, :])
-        Y[i, :] = rand(MvNormal(μi, Σ))
-    end
+#     # simulate response
+#     Y = zeros(n, r)
+#     for i in 1:n
+#         μi = @view(μ[i, :])
+#         Y[i, :] = rand(MvNormal(μi, Σ))
+#     end
     
-    return xla, Matrix(Z'), B, Σ, Matrix(Y')
-end
+#     return xla, Matrix(Z'), B, Σ, Matrix(Y')
+# end
 
 """
 Trait covariance matrix is σg * Φ + σe * I where Φ is the GRM. 
@@ -315,7 +316,7 @@ function make_bim_fam(x::AbstractMatrix, name::String)
     #create .bim file structure: https://www.cog-genomics.org/plink2/formats#bim
     open(name * ".bim", "w") do f
         for i in 1:p
-            write(f, "1\tsnp$i\t0\t1\t1\t2\n")
+            write(f, "1\tsnp$i\t0\t$(100i)\t1\t2\n")
         end
     end
     
@@ -371,6 +372,25 @@ function make_MVPLINK_fam_and_phen_file(x::AbstractMatrix, y::AbstractVecOrMat, 
         end
     end
 end
+
+# function make_MVPLINK_fam_and_phen_file(x::AbstractMatrix, y::AbstractVecOrMat, name::String)
+#     ly = size(y, 1)
+#     n, p = size(x)
+
+#     # leave only first phenotype in fam file
+#     # this makes it a valid plink file
+#     # while the actual phenotypes will be read from .phen file
+#     fam_df = CSV.read(name * ".fam", DataFrame, header=false)
+#     CSV.write(name * ".fam", fam_df[!, 1:6], header=false)
+
+#     # save phenotypes in separate `.phen` file
+#     ytmp = Matrix{Any}(undef, n+1, 4)
+#     ytmp[1, :] .= vcat(["FID", "IID"], ["T$i" for i in 1:traits])
+#     ytmp[2:end, 1] .= 1:n
+#     ytmp[2:end, 2] .= 1
+#     ytmp[2:end, 3:4] .= y'
+#     writedlm(name * ".phen", ytmp)
+# end
 
 """
 Computes power and false positive rates
@@ -466,13 +486,15 @@ end
 function one_NFBC_simulation(
     set::Int,
     ld::Float64,
-    k::Int, r::Int;
+    k::Int, 
+    r::Int,
+    run_gemma::Bool, run_mvPLINK::Bool, run_mIHT::Bool, run_uIHT::Bool;
     seed::Int=2021, σg=0.1, σe=0.9, βoverlap=2,
     path=5:5:50, init_beta=false, model=:polygenic, debias=false
     )
     cur_dir = pwd()
     plinkname = ld == 1 ? "NFBC.qc.imputeBy0.chr.1" : "NFBC.qc.imputeBy0.chr.1.LD$ld"
-    simdir = joinpath(pwd(), "LD$(ld)_set$set/sim$seed")
+    simdir = joinpath(pwd(), "set$(set)_LD$(ld)", "sim$seed")
     isdir(simdir) ? (return nothing) : mkpath(simdir)
     plinkfile = "/scratch/users/bbchu/NFBC_sim/data/$plinkname"
 
@@ -480,10 +502,16 @@ function one_NFBC_simulation(
     if model == :polygenic
         xla, Z, B, Σ, Y = simulate_NFBC1966_polygenic(plinkfile, k, r, simdir,
             seed=seed, σg=σg, σe=σe, βoverlap=βoverlap)
+        # copy data to simulation dir (mvPLINK needs another fam file, which will be created later)
+        cp("$(plinkfile).bed", joinpath(simdir, "$(plinkname).bed"))
+        cp("$(plinkfile).bim", joinpath(simdir, "$(plinkname).bim"))
+        cp("$(plinkfile).cXX.txt", joinpath(simdir, "$(plinkname).cXX.txt"))
+        make_GEMMA_fam_file(xla, Y, joinpath(simdir, "$(plinkname).fam"))
     else
         error("simulation model can only be :polygenic")
     end
 
+    # record pleiotropic and independent SNPs
     correct_snps = unique([x[1] for x in findall(!iszero, B)])
     pleiotropic_snps, independent_snps = Int[], Int[]
     for snp in correct_snps
@@ -498,89 +526,98 @@ function one_NFBC_simulation(
     #     note: GEMMA needs its own plink file to read phenotypes from, 
     #     so we copy the data to the simulation directory 
     #     (extra files are deleted at the very end)
-    cp("$(plinkfile).bed", joinpath(simdir, "$(plinkname).bed"))
-    cp("$(plinkfile).bim", joinpath(simdir, "$(plinkname).bim"))
-    cp("$(plinkfile).cXX.txt", joinpath(simdir, "$(plinkname).cXX.txt"))
-    make_GEMMA_fam_file(xla, Y, joinpath(simdir, "$(plinkname).fam"))
-    pheno_columns = [string(ri) for ri in 1:r]
-    gemma_time = @elapsed begin
-        run(`$gemma_exe -bfile $(joinpath(simdir, plinkname)) 
-                        -k $(joinpath(simdir, plinkname)).cXX.txt 
-                        -notsnp 
-                        -lmm 1 
-                        -n $pheno_columns 
-                        -o gemma.ld$(ld).set$(set).sim$(seed)`)
+    if run_gemma
+        pheno_columns = [string(ri) for ri in 1:r]
+        gemma_time = @elapsed begin
+            run(`$gemma_exe -bfile $(joinpath(simdir, plinkname)) 
+                            -k $(joinpath(simdir, plinkname)).cXX.txt 
+                            -notsnp 
+                            -lmm 1 
+                            -n $pheno_columns 
+                            -o gemma.ld$(ld).set$(set).sim$(seed)`)
+        end
+        gemma_outdir = joinpath(pwd(), "output")
+        gemma_pleiotropic_power, gemma_independent_power, gemma_FP, gemma_FPR, gemma_λ = 
+            process_gemma_result("$gemma_outdir/gemma.ld$(ld).set$(set).sim$seed.assoc.txt", pleiotropic_snp_rsid, independent_snp_rsid)
+        println("GEMMA time = $gemma_time, pleiotropic power = $gemma_pleiotropic_power, independent power = $gemma_independent_power, FP = $gemma_FP, FPR = $gemma_FPR, gemma_λ=$gemma_λ")
     end
-    gemma_outdir = joinpath(pwd(), "output")
-    gemma_pleiotropic_power, gemma_independent_power, gemma_FP, gemma_FPR, gemma_λ = 
-        process_gemma_result("$gemma_outdir/gemma.ld$(ld).set$(set).sim$seed.assoc.txt", pleiotropic_snp_rsid, independent_snp_rsid)
-    println("GEMMA time = $gemma_time, pleiotropic power = $gemma_pleiotropic_power, independent power = $gemma_independent_power, FP = $gemma_FP, FPR = $gemma_FPR, gemma_λ=$gemma_λ")
 
     # run multivariate IHT
-    mIHT_time = @elapsed begin
-        mses = cross_validate(joinpath(simdir, plinkname), MvNormal, path=path, phenotypes=collect(1:r).+5;
-            init_beta=init_beta, debias=debias, cv_summaryfile=joinpath(simdir, "miht.cviht.summary1.txt"))
-        k_rough_guess = path[argmin(mses)]
-        dense_path = (k_rough_guess - 4):(k_rough_guess + 4)
-        mses_new = cross_validate(joinpath(simdir, plinkname), MvNormal, path=dense_path, phenotypes=collect(1:r).+5;
-            init_beta=init_beta, debias=debias, cv_summaryfile=joinpath(simdir, "miht.cviht.summary2.txt"))
-        iht_result = iht(joinpath(simdir, plinkname), dense_path[argmin(mses_new)], MvNormal, phenotypes=collect(1:r).+5;
-            init_beta=init_beta, debias=debias, 
-            summaryfile=joinpath(simdir, "miht.summary.txt"),
-            betafile = joinpath(simdir, "miht.beta.txt"),
-            covariancefile = joinpath(simdir, "miht.cov.txt"))
+    if run_mIHT
+        mIHT_time = @elapsed begin
+            mses = cross_validate(joinpath(simdir, plinkname), MvNormal, path=path, phenotypes=collect(1:r).+5;
+                init_beta=init_beta, debias=debias, cv_summaryfile=joinpath(simdir, "miht.cviht.summary1.txt"))
+            k_rough_guess = path[argmin(mses)]
+            dense_path = (k_rough_guess - 4):(k_rough_guess + 4)
+            mses_new = cross_validate(joinpath(simdir, plinkname), MvNormal, path=dense_path, phenotypes=collect(1:r).+5;
+                init_beta=init_beta, debias=debias, cv_summaryfile=joinpath(simdir, "miht.cviht.summary2.txt"))
+            iht_result = iht(joinpath(simdir, plinkname), dense_path[argmin(mses_new)], MvNormal, phenotypes=collect(1:r).+5;
+                init_beta=init_beta, debias=debias, 
+                summaryfile=joinpath(simdir, "miht.summary.txt"),
+                betafile = joinpath(simdir, "miht.beta.txt"),
+                covariancefile = joinpath(simdir, "miht.cov.txt"))
+        end
+        detected_snps = Int[]
+        for i in 1:r # save each beta separately
+            β = iht_result.beta[i, :]
+            detected_snps = detected_snps ∪ findall(!iszero, β)
+            writedlm(joinpath(simdir, "multivariate_iht_beta$i.txt"), β)
+        end
+        mIHT_pleiotropic_power, mIHT_independent_power, mIHT_FP, mIHT_FPR = power_and_fpr(size(B, 1), pleiotropic_snps, independent_snps, detected_snps)
+        println("multivariate IHT time = $mIHT_time, pleiotropic power = $mIHT_pleiotropic_power, independent power = $mIHT_independent_power, FP = $mIHT_FP, FPR = $mIHT_FPR")
     end
-    detected_snps = Int[]
-    for i in 1:r # save each beta separately
-        β = iht_result.beta[i, :]
-        detected_snps = detected_snps ∪ findall(!iszero, β)
-        writedlm(joinpath(simdir, "multivariate_iht_beta$i.txt"), β)
-    end
-    mIHT_pleiotropic_power, mIHT_independent_power, mIHT_FP, mIHT_FPR = power_and_fpr(size(B, 1), pleiotropic_snps, independent_snps, detected_snps)
-    println("multivariate IHT time = $mIHT_time, pleiotropic power = $mIHT_pleiotropic_power, independent power = $mIHT_independent_power, FP = $mIHT_FP, FPR = $mIHT_FPR")
 
     # run multiple univariate IHT
-    detected_snps = Int[]
-    uIHT_time = @elapsed begin
-        for trait in 1:r
-            mses = cross_validate(joinpath(simdir, plinkname), Normal, path=path, phenotypes=trait+5;
-                init_beta=init_beta, debias=debias, 
-                cv_summaryfile=joinpath(simdir, "uiht.cviht1.summary$trait.txt"))
-            k_rough_guess = path[argmin(mses)]
-            dense_path = (k_rough_guess == 5) ? (0:5) : ((k_rough_guess - 4):(k_rough_guess + 4))
-            mses_new = cross_validate(joinpath(simdir, plinkname), Normal, path=dense_path, phenotypes=trait+5;
-                init_beta=init_beta, debias=debias, 
-                cv_summaryfile=joinpath(simdir, "uiht.cviht2.summary$trait.txt"))
-            best_k = dense_path[argmin(mses_new)]
-            if best_k > 0
-                iht_result = iht(joinpath(simdir, plinkname), best_k, Normal, phenotypes=trait+5;
+    if run_uIHT
+        detected_snps = Int[]
+        uIHT_time = @elapsed begin
+            for trait in 1:r
+                mses = cross_validate(joinpath(simdir, plinkname), Normal, path=path, phenotypes=trait+5;
                     init_beta=init_beta, debias=debias, 
-                    summaryfile=joinpath(simdir, "uiht.summary$trait.txt"),
-                    betafile = joinpath(simdir, "uiht.beta.txt"))
-                β = iht_result.beta
-            else
-                β = zeros(size(B, 2))
-            end
+                    cv_summaryfile=joinpath(simdir, "uiht.cviht1.summary$trait.txt"))
+                k_rough_guess = path[argmin(mses)]
+                dense_path = (k_rough_guess == 5) ? (0:5) : ((k_rough_guess - 4):(k_rough_guess + 4))
+                mses_new = cross_validate(joinpath(simdir, plinkname), Normal, path=dense_path, phenotypes=trait+5;
+                    init_beta=init_beta, debias=debias, 
+                    cv_summaryfile=joinpath(simdir, "uiht.cviht2.summary$trait.txt"))
+                best_k = dense_path[argmin(mses_new)]
+                if best_k > 0
+                    iht_result = iht(joinpath(simdir, plinkname), best_k, Normal, phenotypes=trait+5;
+                        init_beta=init_beta, debias=debias, 
+                        summaryfile=joinpath(simdir, "uiht.summary$trait.txt"),
+                        betafile = joinpath(simdir, "uiht.beta.txt"))
+                    β = iht_result.beta
+                else
+                    β = zeros(size(B, 2))
+                end
 
-            # save results
-            detected_snps = detected_snps ∪ findall(!iszero, β)
-            writedlm(joinpath(simdir, "univariate_iht_beta$trait.txt"), β)
+                # save results
+                detected_snps = detected_snps ∪ findall(!iszero, β)
+                writedlm(joinpath(simdir, "univariate_iht_beta$trait.txt"), β)
+            end
         end
+        uIHT_pleiotropic_power, uIHT_independent_power, uIHT_FP, uIHT_FPR = power_and_fpr(size(B, 1), pleiotropic_snps, independent_snps, detected_snps)
+        println("univariate IHT time = $uIHT_time, pleiotropic power = $uIHT_pleiotropic_power, independent power = $uIHT_independent_power, FP = $uIHT_FP, FPR = $uIHT_FPR")    
     end
-    uIHT_pleiotropic_power, uIHT_independent_power, uIHT_FP, uIHT_FPR = power_and_fpr(size(B, 1), pleiotropic_snps, independent_snps, detected_snps)
-    println("univariate IHT time = $uIHT_time, pleiotropic power = $uIHT_pleiotropic_power, independent power = $uIHT_independent_power, FP = $uIHT_FP, FPR = $uIHT_FPR")    
 
     # run mvPLINK
     #     mvPLINK always save output as "plink.mqfam.total" in the current directory
     #     Thus, we cd to the current dir, run analysis, then delete extra files, 
     #     before finally cd back
-    cd(simdir)
-    make_MVPLINK_fam_and_phen_file(xla, Y, joinpath(simdir, plinkname))
-    phenofile = joinpath(simdir, plinkname * ".phen")
-    mvplink_time = @elapsed run(`$mvplink_exe --bfile $plinkfile --noweb --mult-pheno $phenofile --mqfam`)
-    mvPLINK_pleitropic_power, mvPLINK_independent_power, mvPLINK_FP, mvPLINK_FPR, mvPLINK_λ = 
-        process_mvPLINK("plink.mqfam.total", pleiotropic_snps, independent_snps)
-    println("mvPLINK time = $mvplink_time, pleiotropic power = $mvPLINK_pleitropic_power, independent power = $mvPLINK_independent_power, FP = $mvPLINK_FP, FPR = $mvPLINK_FPR, mvPLINK_λ=$mvPLINK_λ")
+    if run_mvPLINK
+        cd(simdir)
+        make_MVPLINK_fam_and_phen_file(xla, Y, joinpath(simdir, plinkname))
+        phenofile = joinpath(simdir, plinkname * ".phen")
+        mvplink_time = @elapsed begin
+            run(`$mvplink_exe --bfile $(joinpath(simdir, plinkname)) --noweb --mult-pheno $phenofile --mqfam`)
+        end
+        mvPLINK_pleitropic_power, mvPLINK_independent_power, mvPLINK_FP, mvPLINK_FPR, mvPLINK_λ = 
+            process_mvPLINK("plink.mqfam.total", pleiotropic_snps, independent_snps)
+        println("mvPLINK time = $mvplink_time, pleiotropic power = $mvPLINK_pleitropic_power, 
+            independent power = $mvPLINK_independent_power, FP = $mvPLINK_FP, 
+            FPR = $mvPLINK_FPR, mvPLINK_λ=$mvPLINK_λ")
+        cd(cur_dir)
+    end
 
     # clean up
     rm(joinpath(simdir, "$(plinkname).fam"), force=true)
@@ -589,19 +626,27 @@ function one_NFBC_simulation(
     rm(joinpath(simdir, "$(plinkname).cXX.txt"), force=true)
 
     # save summary stats
-    n, p = size(xla)
-    open("summary.txt", "w") do io
-        println(io, "Set $set LD $ld simulation $seed summary")
-        println(io, "n = $n, p = $p, k = $k, r = $r, βoverlap=$βoverlap")
-        println(io, "debias=$debias, init_beta=$init_beta")
-        model == :polygenic ? println(io, "model = $model, σg=$σg, σe=$σe") : println(io, "model = $model")
-        println(io, "")
-        println(io, "mIHT time = $mIHT_time seconds, pleiotropic power = $mIHT_pleiotropic_power, independent power = $mIHT_independent_power, FP = $mIHT_FP, FPR = $mIHT_FPR, λ = NaN")
-        println(io, "uIHT time = $uIHT_time seconds, pleiotropic power = $uIHT_pleiotropic_power, independent power = $uIHT_independent_power, FP = $uIHT_FP, FPR = $uIHT_FPR, λ = NaN")
-        println(io, "mvPLINK time = $mvplink_time seconds, pleiotropic power = $mvPLINK_pleitropic_power, independent power = $mvPLINK_independent_power, FP = $mvPLINK_FP, FPR = $mvPLINK_FPR, λ = $mvPLINK_λ")
-        println(io, "GEMMA time = $gemma_time seconds, pleiotropic power = $gemma_pleiotropic_power, independent power = $gemma_independent_power, FP = $gemma_FP, FPR = $gemma_FPR, λ = $gemma_λ")
+    df = DataFrame(method = String[], time = Float64[], 
+        plei_power = Float64[], indep_power = Float64[], 
+        FP = Int[], FRP = Float64[], λ = Float64[]
+    )
+    if @isdefined mIHT_time
+        push!(df, ["mIHT", mIHT_time, mIHT_pleiotropic_power, 
+            mIHT_independent_power, mIHT_FP, mIHT_FPR, NaN])
     end
-    cd(cur_dir)
+    if @isdefined uIHT_time
+        push!(df, ["uIHT", uIHT_time, uIHT_pleiotropic_power, 
+            uIHT_independent_power, uIHT_FP, uIHT_FPR, NaN])
+    end
+    if @isdefined mvplink_time 
+        push!(df, ["mvPLINK", mvplink_time, mvPLINK_pleitropic_power, 
+            mvPLINK_independent_power, mvPLINK_FP, mvPLINK_FPR, mvPLINK_λ])
+    end
+    if @isdefined gemma_time
+        push!(df, ["gemma", gemma_time, gemma_pleiotropic_power, 
+            gemma_independent_power, gemma_FP, gemma_FPR, gemma_λ])
+    end
+    CSV.write(joinpath(simdir, "summary.txt"), df)
 
     return nothing
 end
@@ -628,27 +673,38 @@ function run_simulation(set::Int, ld::Float64)
     βoverlap = [3, 5, 7, 3, 5, 7]
     k = [10, 20, 30, 10, 20, 30]
     r = [2, 3, 5, 10, 50, 100]
+    run_mIHT = true
+    run_uIHT = true
+    run_gemma = true
+    run_mvPLINK = true
 
-    # testing
-    seed = 1
-    set = 1
-    ld = 0.25
-    βoverlap = 3
-    k = 10
-    r = 2
+    # for testing
+    # seed = 1
+    # set = 1
+    # ld = 0.25
+    # k = k[set]
+    # r = r[set]
+    # βoverlap = βoverlap[set]
 
     println("Simulation model = $model, with LD threshold $ld, set $set has k = $(k[set]), r = $(r[set]), βoverlap = $(βoverlap[set])")
 
-    set_dir = joinpath(pwd(), "LD$(ld)_set$set")
+    set_dir = joinpath(pwd(), "set$(set)_LD$(ld)")
     isdir(set_dir) || mkpath(set_dir)
     k_cur = k[set]
     r_cur = r[set]
     βoverlap_cur = βoverlap[set]
 
     for seed in 1:100
+        # don't run gemma/mvPLINK for certain simulation
+        seed > 2 && set ≥ 5 && (run_gemma = false)
+        seed > 2 && set ≥ 6 && (run_mvPLINK = false)
+
         try
-            one_NFBC_simulation(set, ld, k_cur, r_cur, seed = seed, path = path, βoverlap=βoverlap_cur, 
-                σg=σg, σe=σe, init_beta=init_beta, model=model, debias=debias)
+            one_NFBC_simulation(set, ld, k_cur, r_cur, 
+                run_gemma, run_mvPLINK, run_mIHT, run_uIHT,
+                seed = seed, path = path, βoverlap=βoverlap_cur, 
+                σg=σg, σe=σe, init_beta=init_beta, model=model, debias=debias
+            )
         catch e
             bt = catch_backtrace()
             msg = sprint(showerror, e, bt)
@@ -656,9 +712,11 @@ function run_simulation(set::Int, ld::Float64)
             println(msg)
             continue
         end
+        GC.gc();GC.gc();GC.gc()
     end
 end
 
 set = parse(Int, ARGS[1]) # Int between 1-6
-ld = parse(Float64, ARGS[2]) # LD pruning, 0.25 or 0.5 or 0.75 or 1 (which uses original data)
+ld = parse(Float64, ARGS[2]) # how much LD pruning, should be 0.25, 0.5, 0.75 or 1 (no pruning)
+@show Threads.nthreads()
 run_simulation(set, ld)
