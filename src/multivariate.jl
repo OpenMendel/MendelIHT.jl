@@ -19,8 +19,14 @@ Using only support of B, update `v.BX` with the new proposed `B` (effect size
 for genetic covariates) and `C` (non-genetic covariates).
 """
 function update_xb!(v::mIHTVariable)
-    copyto!(v.Xk, @view(v.X[v.idx, :]))
-    mul!(v.BX, view(v.B, :, v.idx), v.Xk)
+    if v.memory_efficient
+        #todo: multithread this 
+        mul!(v.BX, view(v.B, :, v.idx), @view(v.X[v.idx, :]))
+    else
+        copyto!(v.Xk, @view(v.X[v.idx, :]))
+        copyto!(v.dfidx, view(v.B, :, v.idx)) # use v.dfidx for storage of v.B[:, v.idx]
+        mul!(v.BX, v.dfidx, v.Xk)
+    end
     mul!(v.CZ, v.C, v.Z)
 end
 
@@ -69,13 +75,8 @@ end
 Compute `v.df = Γ(Y - BX)X'` efficiently where `v.r_by_n1 = Γ(Y - BX)`. Here
 `X` is `p × n` where `p` is number of SNPs and `n` is number of samples. 
 
-Note if `X` is a `SnpLinAlg`, currently only `X * v` for vector `v` is
-efficiently implemented in `SnpArrays.jl`. For `X * V` with matrix `V`, we need
-to compute `X * vi` for each volumn of `V`. Thus, we compute:
-
-`v.n_by_r = Transpose(r_by_n1)`
-`v.p_by_r[:, i] = v.X * v.n1_by_r[:, i]` # compute matrix-vector using SnpArrays's efficient routine
-`v.df = Transpose(v.p_by_r)`
+Note if `X` is a `SnpLinAlg`, currently only `X * V` with matrix `V` is
+    efficiently implemented.
 """
 function update_df!(v::mIHTVariable)
     T = eltype(v.X)
@@ -213,6 +214,8 @@ Computes the best step size `η = ||∇f||^2_F / tr(X'∇f'Γ∇fX)` where
 of `Γ`.
 
 Must be careful for cross validation weights in ∇f * X
+
+Todo: this stepsize function somehow does not include contributions from non-genetic covariates
 """
 function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
     # store part of X corresponding to non-zero component of B
@@ -220,20 +223,25 @@ function iht_stepsize!(v::mIHTVariable{T, M}) where {T <: Float, M}
 
     # compute numerator of step size
     numer = zero(T)
-    @inbounds for i in v.dfidx
+    @inbounds @simd for i in v.dfidx
         numer += abs2(i)
     end
 
     # denominator of step size
     denom = zero(T)
-    mul!(v.r_by_n1, v.dfidx, v.Xk) # r_by_n1 = ∇f*X
+    # compute r_by_n1 = ∇f*X
+    if v.memory_efficient
+        mul!(v.r_by_n1, v.dfidx, @view(v.X[v.idx, :])) # todo: multithread this part
+    else
+        mul!(v.r_by_n1, v.dfidx, v.Xk)
+    end
     for j in 1:size(v.Y, 2), i in 1:ntraits(v)
         v.r_by_n1[i, j] *= v.cv_wts[j] # cross validation masking happens here
     end
     cholesky!(Symmetric(v.Γ, :U), Val(true)) # overwrite upper triangular of Γ with U, where LU = Γ, U = L'
     triu!(v.Γ) # set entries below diagonal to 0, so Γ = L'
     mul!(v.r_by_n2, v.Γ, v.r_by_n1) # r_by_n2 = L'*∇f*X
-    @inbounds for i in eachindex(v.r_by_n2)
+    @inbounds @simd for i in eachindex(v.r_by_n2)
         denom += abs2(v.r_by_n2[i]) 
     end
 
@@ -283,7 +291,7 @@ function check_covariate_supp!(v::mIHTVariable{T, M}) where {T <: Float, M}
     n, r = size(v.X, 2), ntraits(v)
     nzidx = sum(v.idx)
     if nzidx != size(v.Xk, 1)
-        v.Xk = zeros(T, nzidx, n)
+        v.memory_efficient || (v.Xk = zeros(T, nzidx, n))
         v.dfidx = zeros(T, r, nzidx) # TODO ElasticArrays.jl
     end
     # @inbounds for i in eachindex(v.zkeep)
@@ -365,7 +373,8 @@ When initializing the IHT algorithm, take `k` largest elements in magnitude of
 the score as nonzero components of `v.B`. This function set v.idx = 1 for
 those indices. `v.μ`, `v.df`, `v.df2`, and possibly `v.BX` are also initialized. 
 """
-function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
+function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector, verbose::Bool)
+    v.k ≥ 1 || error("Multivariate IHT requires k ≥ 1!")
     fill!(v.B, 0)
     fill!(v.B0, 0)
     fill!(v.best_B, 0)
@@ -400,7 +409,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
     fill!(v.n_by_r, 0)
     fill!(v.p_by_r, 0)
     fill!(v.k_by_r, 0)
-    fill!(v.k_by_k, 0)
+    # fill!(v.k_by_k, 0)
 
     # initialize intercept to mean of each trait
     nz_samples = count(!iszero, v.cv_wts) # for cross validation masking
@@ -414,7 +423,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
     mul!(v.CZ, v.C, v.Z)
 
     if init_beta
-        initialize_beta!(v, cv_idx)
+        initialize_beta!(v, cv_idx, verbose)
         project_k!(v)
         update_xb!(v)
     end
@@ -439,7 +448,7 @@ function init_iht_indices!(v::mIHTVariable, init_beta::Bool, cv_idx::BitVector)
     check_covariate_supp!(v)
 
     # store relevant components of x for first iteration
-    copyto!(v.Xk, @view(v.X[v.idx, :]))
+    v.memory_efficient || copyto!(v.Xk, @view(v.X[v.idx, :]))
 end
 
 function check_convergence(v::mIHTVariable)
@@ -498,42 +507,54 @@ function save_last_model!(v::mIHTVariable)
 end
 
 """
-    initialize_beta!(v, cv_wts)
+    initialize_beta!(v, cv_wts, verbose)
 
 Initialze beta to univariate regression values. That is, `β[i, j]` is set to the estimated
 beta with `y[j, :]` as response, and `x[:, i]` with an intercept term as covariate.
+
+Progress will be displayed if `verbose=true`
 
 Note: this function assumes quantitative (Gaussian) phenotypes. 
 """
 function initialize_beta!(
     v::mIHTVariable,
-    cv_wts::BitVector) # cross validation weights; 1 = sample is present, 0 = not present
+    cv_wts::BitVector,# cross validation weights; 1 = sample is present, 0 = not present
+    verbose::Bool
+    ) 
     y, x, z, B, C, T = v.Y, v.X, v.Z, v.B, v.C, eltype(v.B)
     xtx_store = [zeros(T, 2, 2) for _ in 1:Threads.nthreads()]
     xty_store = [zeros(T, 2) for _ in 1:Threads.nthreads()]
     xstore = [zeros(T, sum(cv_wts)) for _ in 1:Threads.nthreads()]
     ystore = zeros(T, sum(cv_wts))
+    pmeter = verbose ? Progress(ntraits(v)*(nsnps(v) + ncovariates(v)), 5, 
+        "Initializing β to univariate regression values...") : nothing
     @inbounds for j in 1:ntraits(v) # loop over each y
         copyto!(ystore, @view(y[j, cv_wts]))
         # genetic covariates
+        C0 = zero(eltype(z))
         Threads.@threads for i in 1:nsnps(v)
             id = Threads.threadid()
             copyto!(xstore[id], @view(x[i, cv_wts]))
             linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+            C0 += xty_store[id][1]
             B[j, i] = xty_store[id][2]
+            verbose && next!(pmeter) # update progress
         end
         # non genetic covariates
-        Threads.@threads for i in 1:ncovariates(v)
+        Threads.@threads for i in 2:ncovariates(v)
             id = Threads.threadid()
             copyto!(xstore[id], @view(z[i, cv_wts]))
             linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+            C0 += xty_store[id][1]
             C[j, i] = xty_store[id][2]
+            verbose && next!(pmeter) # update progress
         end
+        C[j, 1] = C0 / (nsnps(v) + ncovariates(v) - 1)
     end
     clamp!(C, -2, 2)
     clamp!(B, -2, 2)
-    copyto!(v.B0, v.B)
-    copyto!(v.C0, v.C)
+    copyto!(v.B0, B)
+    copyto!(v.C0, C)
 end
 
 """
@@ -546,23 +567,28 @@ the solution is unique.
 Note: since `X` and `Y` are transposed in memory, we actually have `B̂ = inv(XX')XY'`
 """
 function debias!(v::mIHTVariable{T, M}) where {T <: Float, M}
-    # first rescale matrix dimension if needed
-    supp_size = sum(v.idx)
-    if supp_size != size(v.k_by_r, 1)
-        v.k_by_r = Matrix{T}(undef, supp_size, size(v.k_by_r, 2))
-        v.k_by_k = Matrix{T}(undef, supp_size, supp_size)
-    end
+    error("Currently the debiasing routine for multivariate IHT is broken, sorry!")
+    # note: the real reason for not allowing debiasing is because we need to allocate
+    #       a k by k matrix. For multivariate analysis, k could be in ~50000, which is too 
+    #       memory intensive
 
-    # try debiasing: B̂ = inv(XX')XY'. Do nothing if it fals
-    mul!(v.k_by_r, v.Xk, Transpose(v.Y))
-    mul!(v.k_by_k, v.Xk, Transpose(v.Xk))
-    try
-        ldiv!(cholesky!(Symmetric(v.k_by_k, :U)), v.k_by_r)
-    catch
-        return nothing
-    end
-    v.B[:, v.idx] .= v.k_by_r'
+    # # first rescale matrix dimension if needed
+    # supp_size = sum(v.idx)
+    # if supp_size != size(v.k_by_r, 1)
+    #     v.k_by_r = Matrix{T}(undef, supp_size, size(v.k_by_r, 2))
+    #     v.k_by_k = Matrix{T}(undef, supp_size, supp_size)
+    # end
 
-    # ensure B is k-sparse
-    project_k!(v)
+    # # try debiasing: B̂ = inv(XX')XY'. Do nothing if it fails
+    # mul!(v.k_by_r, v.Xk, Transpose(v.Y))
+    # mul!(v.k_by_k, v.Xk, Transpose(v.Xk))
+    # try
+    #     ldiv!(cholesky!(Symmetric(v.k_by_k, :U)), v.k_by_r)
+    # catch
+    #     return nothing
+    # end
+    # v.B[:, v.idx] .= v.k_by_r'
+
+    # # ensure B is k-sparse
+    # project_k!(v)
 end

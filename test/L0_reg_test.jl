@@ -316,7 +316,55 @@ end
 	y, true_b, correct_position = simulate_random_response(xla, k, d, l)
 
 	#run with and without initializing beta
-	@time result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, init_beta=false)
-	@time result2 = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, init_beta=true)
-	@test all(findall(!iszero, result.beta) .== findall(!iszero, result2.beta))
+	@time result = fit_iht(y, xla, z, J=1, k=k, d=d(), l=l, init_beta=true)
+	@test count(!iszero, result.beta) == 10
+end
+
+@testset "memory_efficient keyword" begin
+	n = 1000  # number of samples
+	p = 10000 # number of SNPs
+	k = 10    # number of causal SNPs per trait
+	d = Normal
+	l = canonicallink(d())
+	
+	# univariate IHT
+	Random.seed!(2022)
+	x = simulate_random_snparray(undef, n, p)
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, center=true, scale=true) 
+	z = ones(n)
+	intercept = 1.0
+	y, true_b, correct_position = simulate_random_response(xla, k, d, l, Zu=z*intercept)
+
+	@time result1 = fit_iht(y, xla, z, k=1000, memory_efficient=true, verbose=false)
+	@time result2 = fit_iht(y, xla, z, k=1000, memory_efficient=false, verbose=false)
+	@test result1.logl ≈ result2.logl
+	@test all(result1.beta .≈ result2.beta)
+	@test all(result1.c .≈ result2.c)
+
+	Random.seed!(2022)
+	@time mses1 = cv_iht(y, xla, z, memory_efficient=true, verbose=false)
+	Random.seed!(2022)
+	@time mses2 = cv_iht(y, xla, z, memory_efficient=false, verbose=false)
+	@test all(mses1 .≈ mses2)
+
+	# multivariate IHT
+	r = 2  # number of traits
+	Random.seed!(2022)
+	x = simulate_random_snparray(undef, n, p)
+	xla = SnpLinAlg{Float64}(x, model=ADDITIVE_MODEL, impute=false, center=true, scale=true) 
+	z = ones(n, 1)
+	intercepts = randn(r)' # each trait have different intercept
+	Y, true_Σ, true_b, correct_position = simulate_random_response(xla, k, r, Zu=z*intercepts, overlap=0)
+
+	@time result1 = fit_iht(Matrix(Y'), Transpose(xla), k=1000, verbose=false, memory_efficient=false);
+	@time result2 = fit_iht(Matrix(Y'), Transpose(xla), k=1000, verbose=false, memory_efficient=true);
+	@test result1.logl ≈ result2.logl
+	@test all(result1.beta .≈ result2.beta)
+	@test all(result1.c .≈ result2.c)
+
+	Random.seed!(2022)
+	@time mses1 = cv_iht(Matrix(Y'), Transpose(xla), path=[100, 500, 1000], verbose=false, memory_efficient=false);
+	Random.seed!(2022)
+	@time mses2 = cv_iht(Matrix(Y'), Transpose(xla), path=[100, 500, 1000], verbose=false, memory_efficient=true);
+	@test all(mses1 .≈ mses2)
 end

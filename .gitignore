@@ -27,4 +27,9 @@ test/NFBCsim
 test/NFBCsim*
 test/NFBC_chr21_sim/*
 test/NFBC_chr1_sim/*
-manuscript/plink.multivariate
+
+manuscript/UKBB_metabolomic/ukb.merged.metabolic.subset.european.400K.QC.bim
+manuscript/UKBB_metabolomic/iht.final.beta.txt
+manuscript/UKBB_metabolomic/phenotypes*
+manuscript/extra_sim/sim*
+manuscript/extra_sim/slurm*

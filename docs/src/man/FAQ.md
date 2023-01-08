@@ -13,7 +13,7 @@ In a fresh Julia session, the first time any function gets called will take a *l
 @time using MendelIHT
 ```
 
-      4.493948 seconds (9.04 M allocations: 564.071 MiB, 8.22% gc time)
+    140.065958 seconds (179.19 M allocations: 8.491 GiB, 2.39% gc time, 84.11% compilation time)
 
 
 
@@ -21,10 +21,18 @@ In a fresh Julia session, the first time any function gets called will take a *l
 @time using MendelIHT
 ```
 
-      0.020589 seconds (32.81 k allocations: 1.886 MiB, 99.54% compilation time)
+      0.000156 seconds (161 allocations: 12.859 KiB)
 
 
-The first call was 200 times slower than the second time! Fortunately, for large problems, compilation time becomes negligible. 
+Fortunately, for large problems, compilation time becomes negligible. 
+
+## Memory requirement?
+
+For binary PLINK files, `MendelIHT.jl` uses [SnpArrays.jl's SnpLinAlg](https://openmendel.github.io/SnpArrays.jl/latest/#Linear-Algebra) for linear algebra. This data structure uses memory mapping and computes directly on raw genotype file, described in our [multivariate paper](https://www.biorxiv.org/content/10.1101/2021.08.04.455145v2.abstract). As such, it requires roughly $2np$ bits of *virtual memory* and much less physical memory to store. For UK biobank with 500k samples and 500k SNPs, this is roughly 62GB of virtual memory and a couple of GB of RAM. Thus, for binary PLINK files, we can easily fit IHT on large dataset, including those that are too large to fit in RAM.
+
+In addition to storing the above matrix in memory, IHT also enables `memory_efficient=true` by default. If `memory_efficient=false`, IHT will additionally store a $n \times k$ matrix in double precision, where $k$ is the sparsity level. This require $64nk$ bits of RAM. For cross validation routines that test multiple different $k_1, ..., k_q$ values, $t$ of them must co-exist in memory where $t$ is the number of threads. 
+
+For BGEN and VCF files, `MendelIHT.jl` imports genotypes into double precision matrices which require $64np$ bits of RAM. For 500k samples and 500k SNPs, this requires 2 TB of RAM. Thus, IHT does not work on extremely large VCF and BGEN files. If you have these large VCF/BGEN files, one can convert it to binary PLINK format before running IHT.
 
 ## How to run code in parallel?
 
@@ -32,6 +40,10 @@ If Julia is started with multiple threads (e.g. `julia --threads 4`), `MendelIHT
 
 + [How to start Julia with multiple threads](https://docs.julialang.org/en/v1/manual/multi-threading/#Starting-Julia-with-multiple-threads).
 + Execute `Threads.nthreads()` within Julia to check if multiple thread is enabled
+
+!!! note
+
+    When Julia is started with multiple threads, make sure to set the number of BLAS threads to 1 (i.e. `using LinearAlgebra; BLAS.set_num_threads(1)`. This avoids oversubscription. 
 
 ## Phenotype quality control
 
@@ -92,7 +104,7 @@ In general, any sample or covariate with large proportion of missing (e.g. >10%)
 
 **Phenotypes:** Gaussian phenotypes can be internally imputed with the mean. Binary/count phenotypes cannot be imputed.
 
-**Genotypes:** All genotypes can be imputed with the mean. 
+**Genotypes:** All genotypes can be imputed with the mean. This is the default when using wrapper functions [iht()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.iht) and [cross_validate()](https://openmendel.github.io/MendelIHT.jl/latest/man/api/#MendelIHT.cross_validate)
 
 **Nongenetic covariates**: These cannot be imputed. Please impute them before running IHT.
 

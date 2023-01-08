@@ -91,8 +91,25 @@ We clamp the max value of each entry to (-20, 20) because certain distributions
 (e.g. Poisson) have exponential link functions, which causes overflow.
 """
 function update_xb!(v::IHTVariable{T, M}) where {T <: Float, M}
-    copyto!(v.xk, @view(v.x[:, v.idx]))
-    mul!(v.xb, v.xk, view(v.b, v.idx))
+    # compute X*beta for genetic component
+    if v.memory_efficient
+        fill!(v.xb, 0)
+        fill!(v.xk, 0)
+        Threads.@threads for j in eachindex(v.idx)
+            if v.idx[j]
+                t = Threads.threadid()
+                @inbounds @simd for i in 1:length(v.xb)
+                    v.xk[i, t] += v.x[i, j] * v.b[j]
+                end
+            end
+        end
+        sum!(v.xb, v.xk) # v.xb .= sum(v.xk, dims=2)
+    else
+        copyto!(v.xk, @view(v.x[:, v.idx]))
+        copyto!(v.gk, view(v.b, v.idx)) # use v.gk as storage
+        mul!(v.xb, v.xk, v.gk)
+    end
+    # compute X*beta for nongenetic component
     mul!(v.zc, v.z, v.c)
     if !(typeof(v.d) <: Normal)
         clamp!(v.xb, -20, 20)
@@ -346,7 +363,7 @@ choose top `k` entries
 `J` is the maximum number of active groups, and `k` is the maximum number of
 predictors per group. 
 """
-function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
+function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector, verbose::Bool=false)
     fill!(v.b, 0)
     fill!(v.b0, 0)
     fill!(v.best_b, 0)
@@ -393,7 +410,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
     score!(v)
 
     if init_beta
-        initialize_beta!(v, cv_idx)
+        initialize_beta!(v, cv_idx, verbose)
         project_k!(v)
     else
         # first `k` non-zero entries are chosen based on largest gradient
@@ -417,7 +434,7 @@ function init_iht_indices!(v::IHTVariable, init_beta::Bool, cv_idx::BitVector)
     check_covariate_supp!(v)
 
     # store relevant components of x for first iteration
-    copyto!(v.xk, @view(v.x[:, v.idx])) 
+    v.memory_efficient || copyto!(v.xk, @view(v.x[:, v.idx])) 
 end
 
 """
@@ -448,7 +465,7 @@ TODO: Use ElasticArrays.jl
 """
 function check_covariate_supp!(v::IHTVariable{T}) where {T <: Float}
     nzidx = sum(v.idx)
-    if nzidx != size(v.xk, 2)
+    if nzidx != size(v.xk, 2) && !v.memory_efficient
         v.xk = zeros(T, size(v.xk, 1), nzidx)
         v.gk = zeros(T, nzidx)
     end
@@ -707,9 +724,23 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     d = v.d # distribution
     l = v.l # link function
 
-    # first compute Xv using relevant components of gradient
-    copyto!(v.gk, view(v.df, v.idx)) 
-    mul!(v.xgk, v.xk, v.gk) 
+    # first compute xgk = X*v using relevant components of gradient
+    if v.memory_efficient
+        fill!(v.xgk, 0)
+        fill!(v.xk, 0)
+        Threads.@threads for j in eachindex(v.idx)
+            if v.idx[j]
+                t = Threads.threadid()
+                @inbounds @simd for i in 1:length(v.xgk)
+                    v.xk[i, t] += v.x[i, j] * v.df[j]
+                end
+            end
+        end 
+        sum!(v.xgk, v.xk) # v.xgk .= sum(v.xk, dims=2)
+    else
+        copyto!(v.gk, view(v.df, v.idx))
+        mul!(v.xgk, v.xk, v.gk)
+    end
     mul!(v.zdf2, view(z, :, v.idc), view(v.df2, v.idc))
     v.xgk .+= v.zdf2 # xgk = Xv
 
@@ -720,7 +751,8 @@ function iht_stepsize!(v::IHTVariable{T, M}) where {T <: Float, M}
     v.xgk .*= v.zdf2 # xgk = sqrt(W)Xv
 
     # now compute and return step size. Note non-genetic covariates are separated from x
-    numer = sum(abs2, v.gk) + sum(abs2, @view(v.df2[v.idc]))
+    numer = v.memory_efficient ? sum(abs2, @view(v.df[v.idx])) : sum(abs2, v.gk)
+    numer += sum(abs2, @view(v.df2[v.idc]))
     denom = dot(v.xgk, v.xgk)
     η = numer / denom
 
@@ -737,35 +769,46 @@ end
 Initialze beta to univariate regression values. That is, `β[i]` is set to the estimated
 beta with `y` as response, and `x[:, i]` with an intercept term as covariate.
 
+Progress will be displayed if `verbose=true`
+
 TODO: this function assumes quantitative (Gaussian) phenotypes. Make it work for other distributions
 """
 function initialize_beta!(
     v::IHTVariable,
-    cv_wts::BitVector # cross validation weights; 1 = sample is present, 0 = not present
+    cv_wts::BitVector, # cross validation weights; 1 = sample is present, 0 = not present
+    verbose::Bool=true
     )
     y, x, z, β, c, T = v.y, v.x, v.z, v.b, v.c, eltype(v.b)
     xtx_store = [zeros(T, 2, 2) for _ in 1:Threads.nthreads()]
     xty_store = [zeros(T, 2) for _ in 1:Threads.nthreads()]
     xstore = [zeros(T, sum(cv_wts)) for _ in 1:Threads.nthreads()]
     ystore = y[cv_wts]
+    pmeter = verbose ? Progress(nsnps(v) + ncovariates(v), 5, 
+        "Initializing β to univariate regression values...") : nothing
     # genetic covariates
+    c0 = zero(eltype(z))
     Threads.@threads for i in 1:nsnps(v)
         id = Threads.threadid()
         copyto!(xstore[id], @view(x[cv_wts, i]))
         linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+        c0 += xty_store[id][1]
         β[i] = xty_store[id][2]
+        verbose && next!(pmeter) # update progress
     end
     # non-genetic covariates
-    Threads.@threads for i in 1:ncovariates(v)
+    Threads.@threads for i in 2:ncovariates(v)
         id = Threads.threadid()
         copyto!(xstore[id], @view(z[cv_wts, i]))
         linreg!(xstore[id], ystore, xtx_store[id], xty_store[id])
+        c0 += xty_store[id][1]
         c[i] = xty_store[id][2]
+        verbose && next!(pmeter) # update progress
     end
+    c[1] = c0 / (nsnps(v) + ncovariates(v) - 1)
     clamp!(v.b, -2, 2)
     clamp!(v.c, -2, 2)
-    copyto!(v.b0, v.b)
-    copyto!(v.c0, v.c)
+    copyto!(v.b0, β)
+    copyto!(v.c0, c)
 end
 
 """
@@ -969,6 +1012,7 @@ After each IHT iteration, `β` is sparse. This function solves for the exact
 solution `β̂` on the non-zero indices of `β`, a process known as debiasing.
 """
 function debias!(v::IHTVariable)
+    v.memory_efficient && error("Currently debiasing only works with memory_efficient=false")
     if sum(v.idx) == size(v.xk, 2)
         temp_glm = fit(GeneralizedLinearModel, v.xk, v.y, v.d, v.l)
         view(v.b, v.idx) .= temp_glm.pp.beta0

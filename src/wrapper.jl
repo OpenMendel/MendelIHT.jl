@@ -1,5 +1,3 @@
-# TODO: VCF and BGEN read
-
 """
     iht(filename, k, d, phenotypes=6, covariates="", summaryfile="iht.summary.txt",
         betafile="iht.beta.txt", kwargs...)
@@ -101,22 +99,10 @@ function iht(
         alt_allele=String[], beta=Float64[]
     )
     if is_multivariate(y)
-        df[!, :trait] = Int[]
-        for (j, beta) in enumerate(eachcol(result.beta))
-            for i in findall(!iszero, beta)
-                push!(df, 
-                    [X_chr[j], X_pos[j], X_ids[j], X_ref[j], 
-                     X_alt[j], beta[i], i]
-                )
-            end
-        end
+        writedlm(betafile, result.beta')
         writedlm(covariancefile, result.Σ)
     else
-        for i in findall(!iszero, result.beta)
-            push!(df, 
-                [X_chr[i], X_pos[i], X_ids[i], X_ref[i], X_alt[i], result.beta[i]]
-            )
-        end
+        writedlm(betafile, result.beta)
     end
     CSV.write(betafile, df)
 
@@ -262,7 +248,10 @@ Runs cross-validation to determinal optimal sparsity level `k`. Different
 sparsity levels are specified in `path`. 
 
 # Arguments
-- `filename`: A `String` for input PLINK file name (without `.bim/.bed/.fam` suffixes)
+- `filename`: A `String` for VCF, binary PLINK, or BGEN file. VCF files should end
+    in `.vcf` or `.vcf.gz`. Binary PLINK files should exclude `.bim/.bed/.fam`
+    trailings but the trio must all be present in the same directory. BGEN files
+    should end in `.bgen`.
 - `d`: Distribution of phenotypes. Specify `Normal` for quantitative traits,
     `Bernoulli` for binary traits, `Poisson` or `NegativeBinomial` for
     count traits, and `MvNormal` for multiple quantitative traits. 
@@ -350,7 +339,7 @@ function cross_validate(
 end
 
 """
-    convert_gt(t::Type{T}, b::Bgen)
+    convert_bgen_gt(t::Type{T}, b::Bgen)
 
 Imports BGEN genotypes and chr/sampleID/pos/snpID/ref/alt into numeric arrays.
 Genotypes are centered and scaled to mean 0 variance 1. Missing genotypes will
@@ -363,7 +352,7 @@ be replaced with the mean. Assumes every variant is biallelic (ie only 1 alt all
 # Output
 - `G`: matrix of genotypes with type `T`. 
 """
-function convert_gt(t::Type{T}, b::Bgen) where T <: Real
+function convert_bgen_gt(t::Type{T}, b::Bgen) where T <: Real
     n = n_samples(b)
     p = n_variants(b)
 
@@ -378,8 +367,8 @@ function convert_gt(t::Type{T}, b::Bgen) where T <: Real
     # import each variant
     i = 1
     for v in iterator(b; from_bgen_start=true)
-        dose = ref_allele_dosage!(b, v; T=t) # this reads REF allele as 1
-        BGEN.alt_dosage!(dose, v.genotypes.preamble) # switch 2 and 0 (ie treat ALT as 1)
+        dose = first_allele_dosage!(b, v; T=t) # this reads REF allele as 1
+        BGEN.second_dosage!(dose, v.genotypes.preamble) # switch 2 and 0 (ie treat ALT as 1)
         copyto!(@view(G[:, i]), dose)
         # store chr/pos/snpID/ref/alt info
         Gchr[i], Gpos[i] = chrom(v), pos(v)
@@ -451,7 +440,7 @@ will be stored in double precision matrices (64 bit per entry).
 """
 function parse_genotypes(tgtfile::AbstractString, dosage=false)
     if (endswith(tgtfile, ".vcf") || endswith(tgtfile, ".vcf.gz"))
-        f = dosage ? VCFTools.convert_ds : VCFTools.convert_gt
+        f = dosage ? convert_ds : convert_gt
         X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = 
             f(Float64, tgtfile, trans=false, 
             save_snp_info=true, msg = "Importing from VCF file...")
@@ -466,7 +455,7 @@ function parse_genotypes(tgtfile::AbstractString, dosage=false)
             tgtfile[1:end-5] * ".sample" : nothing
         indexfile = isfile(tgtfile * ".bgi") ? tgtfile * ".bgi" : nothing
         bgen = Bgen(tgtfile; sample_path=samplefile, idx_path=indexfile)
-        X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.convert_gt(Float64, bgen)
+        X, X_sampleID, X_chr, X_pos, X_ids, X_ref, X_alt = MendelIHT.convert_bgen_gt(Float64, bgen)
     elseif isplink(tgtfile)
         dosage && error("PLINK files detected but dosage = true!")
         X = SnpArrays.SnpData(tgtfile)

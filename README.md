@@ -11,7 +11,7 @@
 Download and install [Julia](https://julialang.org/downloads/). Within Julia, copy and paste the following:
 ```
 using Pkg
-pkg"add https://github.com/OpenMendel/MendelIHT.jl"
+pkg"add MendelIHT"
 ```
 This package supports Julia `v1.6`+ for Mac, Linux, and window machines. 
 
@@ -23,8 +23,6 @@ This package supports Julia `v1.6`+ for Mac, Linux, and window machines.
 ## Quick Start
 
 The following uses data under the `data` directory. PLINK files are stored in `normal.bed`, `normal.bim`, `normal.fam`. 
-
-**Note:** The first time these functions are called may take a minute or so, because the code must be compiled. Subsequent calls should finish in less than a second.
 
 ```julia
 # load package
@@ -56,36 +54,24 @@ Please see our latest [documentation](https://OpenMendel.github.io/MendelIHT.jl/
 
 ## Citation and Reproducibility:
 
-For univariate analysis, please cite our [paper](https://academic.oup.com/gigascience/article/9/6/giaa044/5850823?searchresult=1) as
+**For univariate analysis, please cite:**
 
-```
-@article{chu2020iterative,
-  title={{Iterative hard thresholding in genome-wide association studies: Generalized linear models, prior weights, and double sparsity}},
-  author={Chu, Benjamin B and Keys, Kevin L and German, Christopher A and Zhou, Hua and Zhou, Jin J and Sobel, Eric M and Sinsheimer, Janet S and Lange, Kenneth},
-  journal={GigaScience},
-  volume={9},
-  number={6},
-  pages={giaa044},
-  year={2020},
-  publisher={Oxford University Press}
-}
-```
-In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
+*Chu BB, Keys KL, German CA, Zhou H, Zhou JJ, Sobel EM, Sinsheimer JS, Lange K. Iterative hard thresholding in genome-wide association studies: Generalized linear models, prior weights, and double sparsity. Gigascience. 2020 Jun 1;9(6):giaa044. doi: 10.1093/gigascience/giaa044. PMID: 32491161; PMCID: [PMC7268817](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7268817/).*
 
-For multivariate analysis, please cite our [paper](https://www.biorxiv.org/content/10.1101/2021.08.04.455145v2) as
-```
-@article{chu2021multivariate,
-  title={Multivariate Genomewide Association Analysis with IHT},
-  author={Chu, Benjamin B and Ko, Seyoon and Zhou, Jin J and Zhou, Hua and Sinsheimer, Janet S and Lange, Kenneth L},
-  journal={bioRxiv},
-  year={2021},
-  publisher={Cold Spring Harbor Laboratory}
-}
-```
+In the `figures` subfolder, one can find all the code to reproduce the figures and tables in our paper.
+
+**For multivariate analysis, please cite:**
+
+*Chu BB, Ko S, Zhou JJ, Zhou H, Sinsheimer JS, Lange K. Multivariate Genomewide Association Analysis with IHT. doi: https://doi.org/10.1101/2021.08.04.455145
+
 In the `manuscript` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
-## Bug fixes and user support
+### Bug fixes and user support
 
 If you encounter a bug or need user support, please open a new issue on Github. Please provide as much detail as possible for bug reports, ideally a sequence of reproducible code that lead to the error.
 
 PRs and feature requests are welcomed!
+
+## Acknowledgments
+
+This project has been supported by the National Institutes of Health under awards R01GM053275, R01HG006139, R25GM103774, and 1R25HG011845.
