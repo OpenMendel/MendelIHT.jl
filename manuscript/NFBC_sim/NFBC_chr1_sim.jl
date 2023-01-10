@@ -495,17 +495,24 @@ function one_NFBC_simulation(
     cur_dir = pwd()
     plinkname = ld == 1 ? "NFBC.qc.imputeBy0.chr.1" : "NFBC.qc.imputeBy0.chr.1.LD$ld"
     simdir = joinpath(pwd(), "set$(set)_LD$(ld)", "sim$seed")
-    isdir(simdir) ? (return nothing) : mkpath(simdir)
+    isdir(simdir) || mkpath(simdir)
     plinkfile = "/scratch/users/bbchu/NFBC_sim/data/$plinkname"
+
+    # quick return if current simulation is already finished
+    expected_lines = 1 + run_gemma + run_mvPLINK + run_mIHT + run_uIHT
+    outfile = joinpath(simdir, "summary.txt")
+    if isfile(outfile) && countlines(outfile) ≥ expected_lines
+        return nothing
+    end
 
     # simulate data
     if model == :polygenic
         xla, Z, B, Σ, Y = simulate_NFBC1966_polygenic(plinkfile, k, r, simdir,
             seed=seed, σg=σg, σe=σe, βoverlap=βoverlap)
         # copy data to simulation dir (mvPLINK needs another fam file, which will be created later)
-        cp("$(plinkfile).bed", joinpath(simdir, "$(plinkname).bed"))
-        cp("$(plinkfile).bim", joinpath(simdir, "$(plinkname).bim"))
-        cp("$(plinkfile).cXX.txt", joinpath(simdir, "$(plinkname).cXX.txt"))
+        cp("$(plinkfile).bed", joinpath(simdir, "$(plinkname).bed"), force=true)
+        cp("$(plinkfile).bim", joinpath(simdir, "$(plinkname).bim"), force=true)
+        cp("$(plinkfile).cXX.txt", joinpath(simdir, "$(plinkname).cXX.txt"), force=true)
         make_GEMMA_fam_file(xla, Y, joinpath(simdir, "$(plinkname).fam"))
     else
         error("simulation model can only be :polygenic")
@@ -663,7 +670,7 @@ end
 # sim set 6 are for k = 30, r = 100, βoverlap = 7 each affects 2 traits, path = 5:5:50 (then search around best k)
 #
 
-function run_simulation(set::Int, ld::Float64)
+function run_simulation(set::Int, ld::Float64, seed::Int)
     model = :polygenic # model=:sparse doesn't work anymore 
     σg = 0.1
     σe = 0.9
@@ -694,29 +701,28 @@ function run_simulation(set::Int, ld::Float64)
     r_cur = r[set]
     βoverlap_cur = βoverlap[set]
 
-    for seed in 1:100
-        # don't run gemma/mvPLINK for certain simulation
-        seed > 2 && set ≥ 5 && (run_gemma = false)
-        seed > 2 && set ≥ 6 && (run_mvPLINK = false)
+    # don't run gemma/mvPLINK for certain simulation
+    seed > 2 && set ≥ 5 && (run_gemma = false)
+    seed > 2 && set ≥ 6 && (run_mvPLINK = false)
 
-        try
-            one_NFBC_simulation(set, ld, k_cur, r_cur, 
-                run_gemma, run_mvPLINK, run_mIHT, run_uIHT,
-                seed = seed, path = path, βoverlap=βoverlap_cur, 
-                σg=σg, σe=σe, init_beta=init_beta, model=model, debias=debias
-            )
-        catch e
-            bt = catch_backtrace()
-            msg = sprint(showerror, e, bt)
-            println("set $set sim $seed threw an error!")
-            println(msg)
-            continue
-        end
-        GC.gc();GC.gc();GC.gc()
+    try
+        one_NFBC_simulation(set, ld, k_cur, r_cur, 
+            run_gemma, run_mvPLINK, run_mIHT, run_uIHT,
+            seed = seed, path = path, βoverlap=βoverlap_cur, 
+            σg=σg, σe=σe, init_beta=init_beta, model=model, debias=debias
+        )
+    catch e
+        bt = catch_backtrace()
+        msg = sprint(showerror, e, bt)
+        println("set $set sim $seed threw an error!")
+        println(msg)
     end
+
+    println("finished.")
 end
 
 set = parse(Int, ARGS[1]) # Int between 1-6
 ld = parse(Float64, ARGS[2]) # how much LD pruning, should be 0.25, 0.5, 0.75 or 1 (no pruning)
+seed = parse(Int, ARGS[3]) # seed (between 1-100)
 @show Threads.nthreads()
-run_simulation(set, ld)
+run_simulation(set, ld, seed)

@@ -1,5 +1,5 @@
 function run_repeats()
-    for set in 1:6, ld in 0.25:0.25:1
+    for set in 1:6, ld in 0.25:0.25:1.0, seed in 1:100
         # create .sh file to submit jobs
         filename = "submit.sh"
         open(filename, "w") do io
@@ -21,8 +21,8 @@ function run_repeats()
             println(io, "")
             println(io, "# run code")
             println(io, "export JULIA_NUM_THREADS=16")
-            println(io, "echo 'julia NFBC_chr1_sim.jl set $set LD $ld'")
-            println(io, "julia NFBC_chr1_sim.jl $set $ld")
+            println(io, "echo 'julia NFBC_chr1_sim.jl set $set LD $ld seed $seed'")
+            println(io, "julia NFBC_chr1_sim.jl $set $ld $seed")
             println(io, "")
             println(io, "#echo job info on joblog:")
             println(io, "echo \"Job \$JOB_ID ended on:   \" `hostname -s`")
@@ -31,7 +31,7 @@ function run_repeats()
         end
         # submit job
         run(`sbatch $filename`)
-        println("submitted job set $set ld $ld")
+        println("submitted job set $set ld $ld seed $seed")
         rm(filename, force=true)
     end
 end
