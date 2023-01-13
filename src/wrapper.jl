@@ -99,10 +99,20 @@ function iht(
         alt_allele=String[], beta=Float64[]
     )
     if is_multivariate(y)
-        writedlm(betafile, result.beta')
+        open(betafile, "w") do io
+            print(io, "chr\tpos\tSNPid\tref\talt")
+            for i in 1:size(y, 1)
+                print(io, '\t', "beta_$i")
+            end
+            print(io, '\n')
+            writedlm(io, [X_chr X_pos X_ids X_ref X_alt result.beta'])
+        end
         writedlm(covariancefile, result.Σ)
     else
-        writedlm(betafile, result.beta)
+        open(betafile, "w") do io
+            println(io, "chr\tpos\tSNPid\tref\talt\tEstimated_beta")
+            writedlm(io, [X_chr X_pos X_ids X_ref X_alt result.beta])
+        end
     end
     CSV.write(betafile, df)
 
