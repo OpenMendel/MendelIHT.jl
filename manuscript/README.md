@@ -5,10 +5,11 @@ This folder contains scripts to reproduce out paper [Multivariate Genomewide Ass
 ## NFBC_sim folder
 
 This folder contains scripts used to reproduce our comparison with mv-PLINK and GEMMA. Specifically,
-+ `NFBC_chr1_sim.jl`: This is the main script that runs IHT, mvPLINK, and GEMMA. To run with 16 threads, one can do `julia --threads 16 NFBC_chr1_sim.jl N` where `N` is between 1 and 6 representing the 6 sets of experiments done in our paper. Note the software GEMMA and mvPLINK must be executable in the current directory. They are called on lines 498 and 556. Using the script will produce 6 folders `set1`, ..., `set6`, each set contains 100 different simulation results. For set 5 and 6, GEMMA and mvPLINK runs very slowly, so one would need to comment out the code that runs them.
-+ `run_repeats.jl`: This is the script I used to submit batch jobs to Hoffman2 computing cluster.
-+ `summary.ipynb`: This is a jupyter notebook that contains the code to summarizes the simulation results
++ `NFBC_chr1_sim.jl`: This is the main script that runs IHT, mvPLINK, and GEMMA. To run with 16 threads, one can do `julia --threads 16 NFBC_chr1_sim.jl set ld seed` where `set` is between 1 and 6 representing the 6 sets of experiments done in Table 1 of our paper, `ld` is the LD filtered genotypes (`ld=1.0` corresponds to result in Table 1, while `ld=0.25, 0.5 or 0.75` corresponds to results in Figure 1) and `seed` is the simulation number (between 1 and 100). Note the software GEMMA and mvPLINK must be executable specified by `gemma_exe` and `mvplink_exe`. Using the script will produce folders `setX_LDY` where `X = 1,...,6` and `Y = 0.25, ... 1.0`, and each contains 100 subfolders for simulation results. For set 5 and 6, GEMMA and mvPLINK runs very slowly, so by default only 2 simulations of each are ran (this behavior can be changed on lines 705-706)
++ `run_repeats.jl`: This is the script I used to submit batch jobs computing cluster.
++ `summary.ipynb`: This is a jupyter notebook that contains the code to summarizes the simulation results for Table 1
 + `summary.txt`: This is the output of `summary.ipynb`. Numbers in it are featured in our paper. 
++ `summary_LD.ipynb`: This is a jupyter notebook that contains the code to make figures 1 and supplementary figure 3. 
 
 ## UKBB_hyptertension folder
 

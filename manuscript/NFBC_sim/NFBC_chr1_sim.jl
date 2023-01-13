@@ -644,7 +644,7 @@ function one_NFBC_simulation(
     if @isdefined uIHT_time
         push!(df, ["uIHT", uIHT_time, uIHT_pleiotropic_power, 
             uIHT_independent_power, uIHT_FP, uIHT_FPR, NaN])
-    end
+    end 
     if @isdefined mvplink_time 
         push!(df, ["mvPLINK", mvplink_time, mvPLINK_pleitropic_power, 
             mvPLINK_independent_power, mvPLINK_FP, mvPLINK_FPR, mvPLINK_λ])
