@@ -24,6 +24,7 @@ ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
 VCFTools = "a620830f-fdd7-5ebc-8d26-3621ab35fbfe"
 
 [compat]
+CSV = "0.10"
 DataFrames = "0.22, 1"
 Distances = "0.10"
 Distributions = "0.24, 0.25"
