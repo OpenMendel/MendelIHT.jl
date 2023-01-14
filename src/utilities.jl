@@ -1013,7 +1013,7 @@ solution `β̂` on the non-zero indices of `β`, a process known as debiasing.
 """
 function debias!(v::IHTVariable)
     v.memory_efficient && error("Currently debiasing only works with memory_efficient=false")
-    if sum(v.idx) == size(v.xk, 2)
+    if sum(v.idx) == size(v.xk, 2) && size(v.xk, 2) > 0
         temp_glm = fit(GeneralizedLinearModel, v.xk, v.y, v.d, v.l)
         view(v.b, v.idx) .= temp_glm.pp.beta0
     end
