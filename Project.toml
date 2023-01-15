@@ -34,6 +34,7 @@ SnpArrays = "0.3.15"
 SpecialFunctions = "1, 2"
 StatsBase = "0.33"
 ThreadPools = "2"
+VCFTools = "0.2"
 julia = "1.5, 1.6"
 
 [extras]
