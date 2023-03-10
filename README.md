@@ -25,6 +25,8 @@ This package supports Julia `v1.6`+ for Mac, Linux, and window machines.
 Sparse linear regression:
 ```julia
 using MendelIHT, Random
+
+# simulate data
 n = 200    # sample size
 p = 1000   # number of covariates
 k = 10     # number of causal variables
@@ -35,6 +37,7 @@ shuffle!(β)
 true_position = findall(!iszero, β)
 y = x * β + randn(n) # simulate y
 
+# run IHT
 possible_k = collect(0:20)
 mses = cv_iht(y, x, path=possible_k) # cross validate k = 0, 1, 2, ..., 20
 result = fit_iht(y, x, k=possible_k[argmin(mses)]) # run IHT on best k
@@ -56,6 +59,8 @@ result = fit_iht(y, x, k=possible_k[argmin(mses)]) # run IHT on best k
 Sparse logistic regression:
 ```julia
 using MendelIHT, Random, GLM
+
+# simulate data
 n = 200    # sample size
 p = 1000   # number of covariates
 k = 10     # number of causal variables
@@ -67,6 +72,7 @@ true_position = findall(!iszero, β)
 μ = GLM.linkinv.(LogitLink(), x * β)
 y = [rand(Bernoulli(μi)) for μi in μ] |> Vector{Float64}
 
+# run IHT
 possible_k = collect(0:20)
 mses = cv_iht(y, x, d=Bernoulli(), l=LogitLink(), path=possible_k)
 result = fit_iht(y, x, k=possible_k[argmin(mses)], d=Bernoulli(), l=LogitLink())
