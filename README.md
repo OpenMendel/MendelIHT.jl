@@ -35,10 +35,10 @@ shuffle!(β)
 true_position = findall(!iszero, β)
 y = x * β + randn(n) # simulate y
 
-julia> possible_k = collect(0:20)
-julia> mses = cv_iht(y, x, path=possible_k) # cross validate k = 0, 1, 2, ..., 20
-julia> result = fit_iht(y, x, k=possible_k[argmin(mses)]) # run IHT on best k
-julia> [result.beta[true_position] β[true_position]] # compare true vs estimated beta
+possible_k = collect(0:20)
+mses = cv_iht(y, x, path=possible_k) # cross validate k = 0, 1, 2, ..., 20
+result = fit_iht(y, x, k=possible_k[argmin(mses)]) # run IHT on best k
+[result.beta[true_position] β[true_position]] # compare true vs estimated beta
 
 10×2 Matrix{Float64}:
   0.41449    0.343562
@@ -67,10 +67,10 @@ true_position = findall(!iszero, β)
 μ = GLM.linkinv.(LogitLink(), x * β)
 y = [rand(Bernoulli(μi)) for μi in μ] |> Vector{Float64}
 
-julia> possible_k = collect(0:20)
-julia> mses = cv_iht(y, x, d=Bernoulli(), l=LogitLink(), path=possible_k)
-julia> result = fit_iht(y, x, k=possible_k[argmin(mses)], d=Bernoulli(), l=LogitLink())
-julia> [result.beta[true_position] β[true_position]]
+possible_k = collect(0:20)
+mses = cv_iht(y, x, d=Bernoulli(), l=LogitLink(), path=possible_k)
+result = fit_iht(y, x, k=possible_k[argmin(mses)], d=Bernoulli(), l=LogitLink())
+[result.beta[true_position] β[true_position]]
 
 10×2 Matrix{Float64}:
   0.0       0.315486

@@ -32,6 +32,10 @@
     @time nodebias = cv_iht(y, xla, z, d=d(), l=l, path=path, q=q, 
         folds=folds, verbose=true, debias=false, max_iter=10);
     @test all(nodebias .> 0)
+
+    # throws error when possible sparsity exceeds number of variables (#52)
+    path = [0, 5, 100, 10000000]
+    @test_throws ErrorException cv_iht(y, xla, z, path=path)
 end
 
 @testset "Cross validation on Float32 matrix, normal model" begin
