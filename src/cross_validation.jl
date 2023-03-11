@@ -78,8 +78,11 @@ function cv_iht(
     memory_efficient :: Bool = true
     ) where T <: Float
 
-    typeof(x) <: AbstractSnpArray && throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
+    typeof(x) <: AbstractSnpArray && 
+        throw(ArgumentError("x is a SnpArray! Please convert it to a SnpLinAlg first!"))
     check_data_dim(y, x, z)
+    path[argmax(path)] > size(x, 2) && 
+        error("Sparsity level in `path` cannot be larger than total number of variables")
     verbose && print_iht_signature()
 
     # preallocated arrays for efficiency

@@ -25,6 +25,7 @@ VCFTools = "a620830f-fdd7-5ebc-8d26-3621ab35fbfe"
 
 [compat]
 CSV = "0.10"
+BGEN = "0.1"
 DataFrames = "0.22, 1"
 Distances = "0.10"
 Distributions = "0.24, 0.25"
@@ -35,6 +36,7 @@ SnpArrays = "0.3.15"
 SpecialFunctions = "1, 2"
 StatsBase = "0.33"
 ThreadPools = "2"
+VCFTools = "0.2"
 julia = "1.5, 1.6"
 
 [extras]
