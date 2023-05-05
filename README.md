@@ -133,7 +133,7 @@ In the `figures` subfolder, one can find all the code to reproduce the figures a
 
 **For multivariate analysis, please cite:**
 
-*Chu BB, Ko S, Zhou JJ, Zhou H, Sinsheimer JS, Lange K. Multivariate Genomewide Association Analysis with IHT. doi: https://doi.org/10.1101/2021.08.04.455145
+*Chu BB, Ko S, Zhou JJ, Jensen A, Zhou H, Sinsheimer JS, Lange K. Multivariate genome-wide association analysis by iterative hard thresholding. Bioinformatics. 2023 Apr;39(4):[btad193](https://academic.oup.com/bioinformatics/article/39/4/btad193/7126408)*
 
 In the `manuscript` subfolder, one can find all the code to reproduce the figures and tables in our paper. 
 
