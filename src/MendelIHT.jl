@@ -19,7 +19,6 @@ module MendelIHT
     using DelimitedFiles
     using ProgressMeter
     using Reexport
-    using ThreadPools
     using BGEN
 
     @reexport using Distributions

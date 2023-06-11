@@ -97,7 +97,7 @@ function cv_iht(
     # cross validate. TODO: wrap pmap with batch_size keyword to enable distributed CV
     combinations = allocate_fold_and_k(q, path)
     mses = zeros(length(combinations))
-    ThreadPools.@qthreads for i in 1:length(combinations)
+    Threads.@threads :static for i in eachindex(combinations)
         fold, sparsity = combinations[i]
 
         # assign train/test indices
